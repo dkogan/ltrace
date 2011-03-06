@@ -20,6 +20,6 @@ banner() {
 banner "autoreconf"
 
 mkdir -p config/autoconf config/m4
-autoreconf --force --install --symlink -Wall || exit $?
+autoreconf --force --install --verbose -Wall || exit $?
 
 banner "Finished"
