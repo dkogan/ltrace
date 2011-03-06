@@ -1,6 +1,6 @@
 # -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.59)
+AC_PREREQ(2.65)
 
 AC_INIT([ltrace],[0.6.0],[ltrace-devel@lists.alioth.debian.org])
 AC_CONFIG_HEADERS([config.h])
@@ -28,7 +28,7 @@ AC_SUBST(HOST_CPU)
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_LIBTOOL
+LT_INIT
 # libtool-2:  LT_INIT()
 AM_INIT_AUTOMAKE([foreign no-exeext dist-bzip2])
 AM_MAINTAINER_MODE
