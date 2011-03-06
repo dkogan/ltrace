@@ -1,3 +1,6 @@
+#ifndef COMMON_H
+#define COMMON_H
+
 #if defined(HAVE_LIBUNWIND)
 #include <libunwind.h>
 #endif /* defined(HAVE_LIBUNWIND) */
@@ -274,3 +277,5 @@ extern int linkmap_init(Process *, struct ltelf *);
 extern void arch_check_dbg(Process *proc);
 
 extern struct ltelf main_lte;
+
+#endif
