@@ -44,12 +44,16 @@ sym2addr(Process *proc, struct library_symbol *sym) {
 
 	pt_ret = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 
+#if SIZEOF_LONG == 8
 	if (proc->mask_32bit) {
 		// Assume big-endian.
 		addr = (void *)((pt_ret >> 32) & 0xffffffff);
 	} else {
 		addr = (void *)pt_ret;
 	}
+#else
+	addr = (void *)pt_ret;
+#endif
 
 	return addr;
 }

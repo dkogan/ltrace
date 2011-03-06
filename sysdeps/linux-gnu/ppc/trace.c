@@ -181,6 +181,7 @@ arch_umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 	if (pointed_to == -1 && errno)
 		return -errno;
 
+#if SIZEOF_LONG == 8
 	/* Since int's are 4-bytes (long is 8-bytes) in length for ppc64, we
 	   need to shift the long values returned by ptrace to end up with
 	   the correct value.  */
@@ -188,13 +189,10 @@ arch_umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 	if (info) {
 		if (info->type == ARGTYPE_INT || (proc->mask_32bit && (info->type == ARGTYPE_POINTER
 		    || info->type == ARGTYPE_STRING))) {
-			pointed_to = pointed_to >> 32;
-
-			/* Make sure we have nothing in the upper word so we can
-			   do a explicit cast from long to int later in the code.  */
-			pointed_to &= 0x00000000ffffffff;
+			pointed_to = (long) (((unsigned long) pointed_to) >> 32);
 		}
 	}
+#endif
 
 	*result = pointed_to;
 	return 0;
