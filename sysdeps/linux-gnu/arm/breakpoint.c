@@ -35,10 +35,15 @@ arch_enable_breakpoint(pid_t pid, Breakpoint *sbp) {
 	debug(1, "arch_enable_breakpoint(%d,%p)", pid, sbp->addr);
 
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
-		long a = ptrace(PTRACE_PEEKTEXT, pid, sbp->addr + i * sizeof(long), 0);
-		unsigned char *bytes = (unsigned char *)&a;
+		union _ { long l; unsigned char b[SIZEOF_LONG]; };
+		union _ orig, current;
+		unsigned char *bytes = current.b;
+		for (j = 0; j < sizeof(long); j++) {
+			orig.b[j] = sbp->orig_value[i * sizeof(long) + j];
+		}
+		current.l = ptrace(PTRACE_PEEKTEXT, pid, sbp->addr + i * sizeof(long), 0);
 
-		debug(2, "current = 0x%lx, orig_value = 0x%lx, thumb_mode = %d", a, *(long *)&sbp->orig_value, sbp->thumb_mode);
+		debug(2, "current = 0x%lx, orig_value = 0x%lx, thumb_mode = %d", current.l, orig.l, sbp->thumb_mode);
 		for (j = 0; j < sizeof(long) && i * sizeof(long) + j < BREAKPOINT_LENGTH; j++) {
 
 			sbp->orig_value[i * sizeof(long) + j] = bytes[j];
@@ -49,7 +54,7 @@ arch_enable_breakpoint(pid_t pid, Breakpoint *sbp) {
 				bytes[j] = thumb_break_insn[i * sizeof(long) + j];
 			}
 		}
-		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), a);
+		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), current.l);
 	}
 }
 
@@ -60,13 +65,18 @@ arch_disable_breakpoint(pid_t pid, const Breakpoint *sbp) {
 	debug(1, "arch_disable_breakpoint(%d,%p)", pid, sbp->addr);
 
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
-		long a = ptrace(PTRACE_PEEKTEXT, pid, sbp->addr + i * sizeof(long), 0);
-		unsigned char *bytes = (unsigned char *)&a;
+		union _ { long l; unsigned char b[SIZEOF_LONG]; };
+		union _ orig, current;
+		unsigned char *bytes = current.b;
+		for (j = 0; j < sizeof(long); j++) {
+			orig.b[j] = sbp->orig_value[i * sizeof(long) + j];
+		}
+		current.l = ptrace(PTRACE_PEEKTEXT, pid, sbp->addr + i * sizeof(long), 0);
 
-		debug(2, "current = 0x%lx, orig_value = 0x%lx, thumb_mode = %d", a, *(long *)&sbp->orig_value, sbp->thumb_mode);
+		debug(2, "current = 0x%lx, orig_value = 0x%lx, thumb_mode = %d", current.l, orig.l, sbp->thumb_mode);
 		for (j = 0; j < sizeof(long) && i * sizeof(long) + j < BREAKPOINT_LENGTH; j++) {
 			bytes[j] = sbp->orig_value[i * sizeof(long) + j];
 		}
-		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), a);
+		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), current.l);
 	}
 }
