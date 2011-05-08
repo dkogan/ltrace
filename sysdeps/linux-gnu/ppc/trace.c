@@ -87,10 +87,22 @@ gimme_arg_regset(enum tof type, Process *proc, int arg_num, arg_type_info *info,
 	}
 	else if (greg <= 10)
 		return (*regs)[greg++];
-	else
+	else {
+#ifdef __powerpc64__
+		if (proc->mask_32bit)
+			return ptrace (PTRACE_PEEKDATA, proc->pid,
+				       proc->stack_pointer + 8 +
+				       sizeof (int) * (arg_num - 8), 0) >> 32;
+		else
+			return ptrace (PTRACE_PEEKDATA, proc->pid,
+				       proc->stack_pointer + 112 +
+				       sizeof (long) * (arg_num - 8), 0);
+#else
 		return ptrace (PTRACE_PEEKDATA, proc->pid,
-				proc->stack_pointer + sizeof (long) *
-				(arg_num - 8), 0);
+			       proc->stack_pointer + 8 +
+			       sizeof (long) * (arg_num - 8), 0);
+#endif
+	}
 
 	return 0;
 }
