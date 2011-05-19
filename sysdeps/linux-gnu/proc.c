@@ -243,8 +243,8 @@ hook_libdl_cb(void *data) {
 	lte = hook_data->lte;
 
 	if (library_num < MAX_LIBRARIES) {
-		library[library_num++] = strdup(lib_name);
 		lte[library_num].base_addr = addr;
+		library[library_num++] = strdup(lib_name);
 	}
 	else {
 		fprintf (stderr, "MAX LIBS REACHED\n");
