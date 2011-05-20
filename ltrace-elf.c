@@ -615,7 +615,7 @@ read_elf(Process *proc) {
 
 	debug(DEBUG_FUNCTION, "read_elf(file=%s)", proc->filename);
 
-	memset(lte, 0, sizeof(*lte));
+	memset(lte, 0, sizeof(lte));
 	library_symbols = NULL;
 	library_num = 0;
 	proc->libdl_hooked = 0;
