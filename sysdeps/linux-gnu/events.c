@@ -14,7 +14,8 @@
 static Event event;
 
 Event *
-next_event(void) {
+next_event(void)
+{
 	pid_t pid;
 	int status;
 	int tmp;

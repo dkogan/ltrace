@@ -69,7 +69,7 @@ umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 
 void
 trace_me(void) {
-	debug(DEBUG_PROCESS, "trace_me: pid=%d\n", getpid());
+	debug(DEBUG_PROCESS, "trace_me: pid=%d", getpid());
 	if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0) {
 		perror("PTRACE_TRACEME");
 		exit(1);
@@ -78,7 +78,7 @@ trace_me(void) {
 
 int
 trace_pid(pid_t pid) {
-	debug(DEBUG_PROCESS, "trace_pid: pid=%d\n", pid);
+	debug(DEBUG_PROCESS, "trace_pid: pid=%d", pid);
 	if (ptrace(PTRACE_ATTACH, pid, 1, 0) < 0) {
 		return -1;
 	}
@@ -100,7 +100,7 @@ trace_set_options(Process *proc, pid_t pid) {
 	if (proc->tracesysgood & 0x80)
 		return;
 
-	debug(DEBUG_PROCESS, "trace_set_options: pid=%d\n", pid);
+	debug(DEBUG_PROCESS, "trace_set_options: pid=%d", pid);
 
 	long options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK |
 		PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE |
@@ -115,7 +115,7 @@ trace_set_options(Process *proc, pid_t pid) {
 
 void
 untrace_pid(pid_t pid) {
-	debug(DEBUG_PROCESS, "untrace_pid: pid=%d\n", pid);
+	debug(DEBUG_PROCESS, "untrace_pid: pid=%d", pid);
 	ptrace(PTRACE_DETACH, pid, 1, 0);
 }
 
@@ -153,14 +153,17 @@ continue_enabling_breakpoint(pid_t pid, Breakpoint *sbp) {
 }
 
 void
-continue_after_breakpoint(Process *proc, Breakpoint *sbp) {
+continue_after_breakpoint(Process *proc, Breakpoint *sbp)
+{
 	if (sbp->enabled)
 		disable_breakpoint(proc->pid, sbp);
 	set_instruction_pointer(proc, sbp->addr);
 	if (sbp->enabled == 0) {
 		continue_process(proc->pid);
 	} else {
-		debug(DEBUG_PROCESS, "continue_after_breakpoint: pid=%d, addr=%p", proc->pid, sbp->addr);
+		debug(DEBUG_PROCESS,
+		      "continue_after_breakpoint: pid=%d, addr=%p",
+		      proc->pid, sbp->addr);
 		proc->breakpoint_being_enabled = sbp;
 #if defined __sparc__  || defined __ia64___ || defined __mips__
 		/* we don't want to singlestep here */

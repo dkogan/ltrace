@@ -38,7 +38,8 @@ static char * arch_sysname(Process *proc, int sysnum);
 
 void
 handle_event(Event *event) {
-	debug(DEBUG_FUNCTION, "handle_event(pid=%d, type=%d)", event->proc ? event->proc->pid : -1, event->type);
+	debug(DEBUG_FUNCTION, "handle_event(pid=%d, type=%d)",
+	      event->proc ? event->proc->pid : -1, event->type);
 	switch (event->type) {
 	case EVENT_NONE:
 		debug(1, "event: none");
@@ -389,7 +390,7 @@ handle_syscall(Event *event) {
 		callstack_push_syscall(event->proc, event->e_un.sysnum);
 		if (options.syscalls) {
 			output_left(LT_TOF_SYSCALL, event->proc,
-					sysname(event->proc, event->e_un.sysnum));
+				    sysname(event->proc, event->e_un.sysnum));
 		}
 		if (event->proc->breakpoints_enabled == 0) {
 			enable_all_breakpoints(event->proc);
@@ -581,7 +582,7 @@ handle_breakpoint(Event *event) {
 			struct library_symbol *sym= event->proc->callstack[i].c_un.libfunc;
 			struct library_symbol *new_sym;
 			assert(sym);
-			addr=sym2addr(event->proc,sym);
+			addr = sym2addr(event->proc, sym);
 			sbp = dict_find_entry(event->proc->breakpoints, addr);
 			if (sbp) {
 				if (addr != sbp->addr) {
@@ -590,8 +591,8 @@ handle_breakpoint(Event *event) {
 			} else {
 				new_sym=malloc(sizeof(*new_sym) + strlen(sym->name) + 1);
 				memcpy(new_sym,sym,sizeof(*new_sym) + strlen(sym->name) + 1);
-				new_sym->next=event->proc->list_of_symbols;
-				event->proc->list_of_symbols=new_sym;
+				new_sym->next = leader->list_of_symbols;
+				event->proc->list_of_symbols = new_sym;
 				insert_breakpoint(event->proc, addr, new_sym);
 			}
 #endif
@@ -618,7 +619,7 @@ handle_breakpoint(Event *event) {
 
 	if ((sbp = address2bpstruct(event->proc, event->e_un.brk_addr))) {
 		if (strcmp(sbp->libsym->name, "") == 0) {
-			debug(2, "Hit _dl_debug_state breakpoint!\n");
+			debug(DEBUG_PROCESS, "Hit _dl_debug_state breakpoint!\n");
 			arch_check_dbg(event->proc);
 		}
 		if (event->proc->state != STATE_IGNORED) {
@@ -689,7 +690,7 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 
 	elem->return_addr = proc->return_addr;
 	if (elem->return_addr) {
-		insert_breakpoint(proc, elem->return_addr, 0);
+		insert_breakpoint(proc, elem->return_addr, NULL);
 	}
 
 	/* handle functions like atexit() on mips which have no return */

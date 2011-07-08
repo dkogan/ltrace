@@ -14,6 +14,8 @@
 
 Breakpoint *
 address2bpstruct(Process *proc, void *addr) {
+	assert(proc != NULL);
+	assert(proc->breakpoints != NULL);
 	debug(DEBUG_FUNCTION, "address2bpstruct(pid=%d, addr=%p)", proc->pid, addr);
 	return dict_find_entry(proc->breakpoints, addr);
 }
@@ -177,7 +179,9 @@ breakpoints_init(Process *proc) {
 		dict_clear(proc->breakpoints);
 		proc->breakpoints = NULL;
 	}
-	proc->breakpoints = dict_init(dict_key2hash_int, dict_key_cmp_int);
+
+	proc->breakpoints = dict_init(dict_key2hash_int,
+				      dict_key_cmp_int);
 
 	if (proc->list_of_symbols != NULL) {
 		struct library_symbol * sym = proc->list_of_symbols;
@@ -192,13 +196,14 @@ breakpoints_init(Process *proc) {
 	if (options.libcalls && proc->filename) {
 		proc->list_of_symbols = read_elf(proc);
 		if (opt_e) {
-			struct library_symbol **tmp1 = &(proc->list_of_symbols);
+			struct library_symbol **tmp1 = &proc->list_of_symbols;
 			while (*tmp1) {
 				struct opt_e_t *tmp2 = opt_e;
 				int keep = !opt_e_enable;
 
 				while (tmp2) {
-					if (!strcmp((*tmp1)->name, tmp2->name)) {
+					if (!strcmp((*tmp1)->name,
+						    tmp2->name)) {
 						keep = opt_e_enable;
 					}
 					tmp2 = tmp2->next;
@@ -229,8 +234,7 @@ reinitialize_breakpoints(Process *proc) {
 
 	while (sym) {
 		if (sym->needs_init) {
-			insert_breakpoint(proc, sym2addr(proc, sym),
-					  sym);
+			insert_breakpoint(proc, sym2addr(proc, sym), sym);
 			if (sym->needs_init && !sym->is_weak) {
 				fprintf(stderr,
 					"could not re-initialize breakpoint for \"%s\" in file \"%s\"\n",

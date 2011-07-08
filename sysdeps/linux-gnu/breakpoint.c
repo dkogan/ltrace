@@ -32,9 +32,8 @@ enable_breakpoint(pid_t pid, Breakpoint *sbp) {
 	}
 
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
-		long a =
-		    ptrace(PTRACE_PEEKTEXT, pid, sbp->addr + i * sizeof(long),
-			   0);
+		long a = ptrace(PTRACE_PEEKTEXT, pid,
+				sbp->addr + i * sizeof(long), 0);
 		for (j = 0;
 		     j < sizeof(long)
 		     && i * sizeof(long) + j < BREAKPOINT_LENGTH; j++) {
