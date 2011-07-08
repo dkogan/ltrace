@@ -1,6 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <config.h>
 #if defined(HAVE_LIBUNWIND)
 #include <libunwind.h>
 #endif /* defined(HAVE_LIBUNWIND) */
