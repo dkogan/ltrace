@@ -11,6 +11,12 @@
 
 2011-05-09  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (breakpoints_init, insert_breakpoint, open_program):
+	Pass an extra argument that defines whether we should enable
+	breakpoints.
+
+2011-05-09  Petr Machata  <pmachata@redhat.com>
+
 	* execute_program.c (execute_program): Returns pid_t.
 	* proc.c (open_program): Always assumes that pid is != 0.
 	* common.h, libltrace.c (ltrace_init): Adapt to above.

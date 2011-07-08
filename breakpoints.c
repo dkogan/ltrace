@@ -22,7 +22,7 @@ address2bpstruct(Process *proc, void *addr) {
 
 void
 insert_breakpoint(Process *proc, void *addr,
-		  struct library_symbol *libsym) {
+		  struct library_symbol *libsym, int enable) {
 	Breakpoint *sbp;
 
 #ifdef __arm__
@@ -55,8 +55,10 @@ insert_breakpoint(Process *proc, void *addr,
 	proc->thumb_mode = 0;
 #endif
 	sbp->enabled++;
-	if (sbp->enabled == 1 && proc->pid)
+	if (sbp->enabled == 1 && enable) {
+		assert(proc->pid != 0);
 		enable_breakpoint(proc, sbp);
+	}
 }
 
 void
@@ -170,7 +172,8 @@ free_bp_cb(void *addr, void *sbp, void *data) {
 }
 
 void
-breakpoints_init(Process *proc) {
+breakpoints_init(Process *proc, int enable)
+{
 	struct library_symbol *sym;
 
 	debug(DEBUG_FUNCTION, "breakpoints_init(pid=%d)", proc->pid);
@@ -216,10 +219,10 @@ breakpoints_init(Process *proc) {
 			}
 		}
 	}
-	for (sym = proc->list_of_symbols; sym; sym = sym->next) {
-		/* proc->pid==0 delays enabling. */
-		insert_breakpoint(proc, sym2addr(proc, sym), sym);
-	}
+
+	for (sym = proc->list_of_symbols; sym; sym = sym->next)
+		insert_breakpoint(proc, sym2addr(proc, sym), sym, enable);
+
 	proc->callstack_depth = 0;
 	proc->breakpoints_enabled = -1;
 }
@@ -234,7 +237,7 @@ reinitialize_breakpoints(Process *proc) {
 
 	while (sym) {
 		if (sym->needs_init) {
-			insert_breakpoint(proc, sym2addr(proc, sym), sym);
+			insert_breakpoint(proc, sym2addr(proc, sym), sym, 1);
 			if (sym->needs_init && !sym->is_weak) {
 				fprintf(stderr,
 					"could not re-initialize breakpoint for \"%s\" in file \"%s\"\n",

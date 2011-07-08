@@ -190,7 +190,7 @@ linkmap_add_cb(void *data) { //const char *lib_name, ElfW(Addr) addr) {
 				insert_breakpoint(lm_add->proc,
 						  sym2addr(lm_add->proc,
 							   library_symbols),
-						  library_symbols);
+						  library_symbols, 1);
 			}
 		}
 		do_close_elf(&lte);
@@ -279,7 +279,7 @@ linkmap_init(Process *proc, struct ltelf *lte) {
 
 	add_library_symbol(rdbg->r_brk, "", &library_symbols, LS_TOPLT_NONE, 0);
 	insert_breakpoint(proc, sym2addr(proc, library_symbols),
-			  library_symbols);
+			  library_symbols, 1);
 
 	crawl_linkmap(proc, rdbg, hook_libdl_cb, &data);
 

@@ -15,7 +15,7 @@
 #include "common.h"
 
 Process *
-open_program(char *filename, pid_t pid) {
+open_program(char *filename, pid_t pid, int enable) {
 	Process *proc;
 	assert(pid != 0);
 	proc = calloc(sizeof(Process), 1);
@@ -31,10 +31,10 @@ open_program(char *filename, pid_t pid) {
 	proc->unwind_as = unw_create_addr_space(&_UPT_accessors, 0);
 #endif /* defined(HAVE_LIBUNWIND) */
 
-	breakpoints_init(proc);
 
 	proc->next = list_of_processes;
 	list_of_processes = proc;
+	breakpoints_init(proc, enable);
 
 	return proc;
 }
@@ -58,7 +58,7 @@ open_pid(pid_t pid) {
 		return;
 	}
 
-	proc = open_program(filename, pid);
+	proc = open_program(filename, pid, 1);
 	continue_process(pid);
 	proc->breakpoints_enabled = 1;
 }

@@ -418,7 +418,7 @@ handle_exec(Event * event) {
 	proc->filename = pid2name(proc->pid);
 	saved_pid = proc->pid;
 	proc->pid = 0;
-	breakpoints_init(proc);
+	breakpoints_init(proc, 0);
 	proc->pid = saved_pid;
 	proc->callstack_depth = 0;
 	continue_process(proc->pid);
@@ -689,7 +689,7 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 
 	elem->return_addr = proc->return_addr;
 	if (elem->return_addr) {
-		insert_breakpoint(proc, elem->return_addr, NULL);
+		insert_breakpoint(proc, elem->return_addr, NULL, 1);
 	}
 
 	/* handle functions like atexit() on mips which have no return */

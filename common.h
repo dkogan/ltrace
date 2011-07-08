@@ -225,14 +225,15 @@ extern void handle_event(Event * event);
 extern pid_t execute_program(const char * command, char ** argv);
 extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern Breakpoint * address2bpstruct(Process * proc, void * addr);
-extern void breakpoints_init(Process * proc);
-extern void insert_breakpoint(Process * proc, void * addr, struct library_symbol * libsym);
+extern void breakpoints_init(Process * proc, int enable);
+extern void insert_breakpoint(Process * proc, void * addr,
+			      struct library_symbol * libsym, int enable);
 extern void delete_breakpoint(Process * proc, void * addr);
 extern void enable_all_breakpoints(Process * proc);
 extern void disable_all_breakpoints(Process * proc);
 extern void reinitialize_breakpoints(Process *);
 
-extern Process * open_program(char * filename, pid_t pid);
+extern Process * open_program(char * filename, pid_t pid, int init_breakpoints);
 extern void open_pid(pid_t pid);
 extern void show_summary(void);
 extern arg_type_info * lookup_prototype(enum arg_type at);
