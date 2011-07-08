@@ -1,3 +1,8 @@
+2011-05-05  Petr Machata  <pmachata@redhat.com>
+
+	* output.c (name2func, output_left): char* -> char const* one
+	argument.
+
 2011-02-16  Petr Machata  <pmachata@redhat.com>
 
 	* etc/ltrace.conf: Add memmove.

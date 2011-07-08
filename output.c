@@ -96,7 +96,7 @@ begin_of_line(enum tof type, Process *proc) {
 }
 
 static Function *
-name2func(char *name) {
+name2func(char const *name) {
 	Function *tmp;
 	const char *str1, *str2;
 
@@ -153,7 +153,7 @@ tabto(int col) {
 }
 
 void
-output_left(enum tof type, Process *proc, char *function_name) {
+output_left(enum tof type, Process *proc, char const *function_name) {
 	Function *func;
 	static arg_type_info *arg_unknown = NULL;
 	if (arg_unknown == NULL)
