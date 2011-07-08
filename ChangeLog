@@ -1,5 +1,11 @@
 2011-05-09  Petr Machata  <pmachata@redhat.com>
 
+	* execute_program.c (execute_program): Returns pid_t.
+	* proc.c (open_program): Always assumes that pid is != 0.
+	* common.h, libltrace.c (ltrace_init): Adapt to above.
+
+2011-05-09  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (struct Process): Drop field type_being_displayed.
 
 2011-05-05  Petr Machata  <pmachata@redhat.com>

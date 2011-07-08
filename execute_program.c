@@ -17,7 +17,8 @@
 #include "common.h"
 
 static void
-change_uid(Process *proc) {
+change_uid(const char * command)
+{
 	uid_t run_uid, run_euid;
 	gid_t run_gid, run_egid;
 
@@ -49,7 +50,7 @@ change_uid(Process *proc) {
 		run_euid = run_uid;
 		run_egid = run_gid;
 
-		if (!stat(proc->filename, &statbuf)) {
+		if (!stat(command, &statbuf)) {
 			if (statbuf.st_mode & S_ISUID) {
 				run_euid = statbuf.st_uid;
 			}
@@ -68,32 +69,27 @@ change_uid(Process *proc) {
 	}
 }
 
-void
-execute_program(Process *sp, char **argv) {
+pid_t
+execute_program(const char * command, char **argv)
+{
 	pid_t pid;
 
-	debug(1, "Executing `%s'...", sp->filename);
+	debug(1, "Executing `%s'...", command);
 
 	pid = fork();
 	if (pid < 0) {
 		perror("ltrace: fork");
 		exit(1);
 	} else if (!pid) {	/* child */
-		change_uid(sp);
+		change_uid(command);
 		trace_me();
-		execvp(sp->filename, argv);
-		fprintf(stderr, "Can't execute `%s': %s\n", sp->filename,
+		execvp(command, argv);
+		fprintf(stderr, "Can't execute `%s': %s\n", command,
 			strerror(errno));
 		_exit(1);
 	}
 
 	debug(1, "PID=%d", pid);
 
-	sp->pid = pid;
-
-#if defined(HAVE_LIBUNWIND)
-	sp->unwind_priv = _UPT_create(pid);
-#endif /* defined(HAVE_LIBUNWIND) */
-
-	return;
+	return pid;
 }

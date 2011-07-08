@@ -10,12 +10,14 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "common.h"
 
 Process *
 open_program(char *filename, pid_t pid) {
 	Process *proc;
+	assert(pid != 0);
 	proc = calloc(sizeof(Process), 1);
 	if (!proc) {
 		perror("malloc");
@@ -23,23 +25,17 @@ open_program(char *filename, pid_t pid) {
 	}
 	proc->filename = strdup(filename);
 	proc->breakpoints_enabled = -1;
-	if (pid) {
-		proc->pid = pid;
+	proc->pid = pid;
 #if defined(HAVE_LIBUNWIND)
-		proc->unwind_priv = _UPT_create(pid);
-	} else {
-		proc->unwind_priv = NULL;
+	proc->unwind_priv = _UPT_create(pid);
+	proc->unwind_as = unw_create_addr_space(&_UPT_accessors, 0);
 #endif /* defined(HAVE_LIBUNWIND) */
-	}
 
 	breakpoints_init(proc);
 
 	proc->next = list_of_processes;
 	list_of_processes = proc;
 
-#if defined(HAVE_LIBUNWIND)
-	proc->unwind_as = unw_create_addr_space(&_UPT_accessors, 0);
-#endif /* defined(HAVE_LIBUNWIND) */
 	return proc;
 }
 

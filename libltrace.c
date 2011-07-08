@@ -108,7 +108,7 @@ ltrace_init(int argc, char **argv) {
 		}
 	}
 	if (command) {
-		execute_program(open_program(command, 0), argv);
+		open_program(command, execute_program(command, argv));
 	}
 	opt_p_tmp = opt_p;
 	while (opt_p_tmp) {
