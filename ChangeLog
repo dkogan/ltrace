@@ -1,3 +1,7 @@
+2011-05-09  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (struct Process): Drop field type_being_displayed.
+
 2011-05-05  Petr Machata  <pmachata@redhat.com>
 
 	* output.c (name2func, output_left): char* -> char const* one

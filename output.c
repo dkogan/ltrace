@@ -168,7 +168,6 @@ output_left(enum tof type, Process *proc, char const *function_name) {
 	}
 	current_proc = proc;
 	current_depth = proc->callstack_depth;
-	proc->type_being_displayed = type;
 	begin_of_line(type, proc);
 #ifdef USE_DEMANGLE
 	current_column +=

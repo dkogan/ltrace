@@ -194,9 +194,6 @@ struct Process {
 	int thumb_mode;           /* ARM execution mode: 0: ARM, 1: Thumb */
 #endif
 
-	/* output: */
-	enum tof type_being_displayed;
-
 #if defined(HAVE_LIBUNWIND)
 	/* libunwind address space */
 	unw_addr_space_t unwind_as;
