@@ -179,8 +179,17 @@ breakpoints_init(Process *proc) {
 	}
 	proc->breakpoints = dict_init(dict_key2hash_int, dict_key_cmp_int);
 
+	if (proc->list_of_symbols != NULL) {
+		struct library_symbol * sym = proc->list_of_symbols;
+		while (sym != NULL) {
+			struct library_symbol * next = sym->next;
+			free(sym);
+			sym = next;
+		}
+	}
+	proc->list_of_symbols = NULL;
+
 	if (options.libcalls && proc->filename) {
-		/* FIXME: memory leak when called by exec(): */
 		proc->list_of_symbols = read_elf(proc);
 		if (opt_e) {
 			struct library_symbol **tmp1 = &(proc->list_of_symbols);
@@ -201,8 +210,6 @@ breakpoints_init(Process *proc) {
 				}
 			}
 		}
-	} else {
-		proc->list_of_symbols = NULL;
 	}
 	for (sym = proc->list_of_symbols; sym; sym = sym->next) {
 		/* proc->pid==0 delays enabling. */
