@@ -1,3 +1,12 @@
+2011-07-08  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (struct Event_Handler, install_event_handler)
+	(destroy_event_handler): New interfaces for definition of custom
+	event handler.
+	* handle_event.c (handle_event): Honor custom handler.
+	* proc.c (install_event_handler, destroy_event_handler):
+	Implementation.
+
 2011-06-01  Petr Machata  <pmachata@redhat.com>
 
 	* sysdeps/linux-gnu/events.c (delayed_events, end_delayed_events):

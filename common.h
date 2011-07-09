@@ -165,6 +165,17 @@ enum Process_State {
 	STATE_IGNORED  /* ignore this process (it's a fork and no -f was used) */
 };
 
+typedef struct Event_Handler Event_Handler;
+struct Event_Handler {
+	/* Event handler that overrides the default one.  Should
+	 * return NULL if the event was handled, otherwise the
+	 * returned event is passed to the default handler.  */
+	Event * (* on_event)(Event_Handler * self, Event * event);
+
+	/* Called when the event handler removal is requested.  */
+	void (* destroy)(Event_Handler * self);
+};
+
 /* XXX We would rather have this all organized a little differently,
  * have Process for the whole group and Task for what's there for
  * per-thread stuff.  But for now this is the less invasive way of
@@ -210,6 +221,10 @@ struct Process {
 	void *unwind_priv;
 #endif /* defined(HAVE_LIBUNWIND) */
 
+	/* Set in leader.  */
+	Event_Handler * event_handler;
+
+
 	/**
 	 * Process chaining.
 	 **/
@@ -242,6 +257,7 @@ enum pcb_status {
 	pcb_cont, /* The iteration should continue.  */
 };
 
+/* Process list  */
 extern Process * pid2proc(pid_t pid);
 extern void add_process(Process * proc);
 extern void remove_process(Process * proc);
@@ -265,6 +281,10 @@ extern Event * each_qd_event(enum ecb_status (* cb)(Event * event, void * data),
 			     void * data);
 extern void enque_event(Event * event);
 extern void handle_event(Event * event);
+
+extern void install_event_handler(Process * proc, Event_Handler * handler);
+extern void destroy_event_handler(Process * proc);
+
 extern pid_t execute_program(const char * command, char ** argv);
 extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern Breakpoint * address2bpstruct(Process * proc, void * addr);

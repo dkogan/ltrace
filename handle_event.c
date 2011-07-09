@@ -39,6 +39,19 @@ void
 handle_event(Event *event) {
 	debug(DEBUG_FUNCTION, "handle_event(pid=%d, type=%d)",
 	      event->proc ? event->proc->pid : -1, event->type);
+	/* If the thread group defines an overriding event handler,
+	   give it a chance to kick in.  */
+	if (event->proc != NULL
+	    && event->proc->leader != NULL) {
+		Event_Handler * handler = event->proc->leader->event_handler;
+		if (handler != NULL) {
+			event = (*handler->on_event) (handler, event);
+			if (event == NULL)
+				/* It was handled.  */
+				return;
+		}
+	}
+
 	switch (event->type) {
 	case EVENT_NONE:
 		debug(1, "event: none");
@@ -208,6 +221,8 @@ handle_clone(Event * event) {
 			enable_breakpoint(p, p->breakpoint_being_enabled);
 			p->breakpoint_being_enabled = NULL;
 		}
+		if (p->event_handler != NULL)
+			destroy_event_handler(p);
 		if (event->proc->state == STATE_ATTACHED && options.follow) {
 			p->state = STATE_ATTACHED;
 		} else {
@@ -237,6 +252,8 @@ handle_new(Event * event) {
 			enable_breakpoint(proc, proc->breakpoint_being_enabled);
 			proc->breakpoint_being_enabled = NULL;
 		}
+		if (proc->event_handler != NULL)
+			destroy_event_handler(proc);
 		if (options.follow) {
 			proc->state = STATE_ATTACHED;
 		} else {

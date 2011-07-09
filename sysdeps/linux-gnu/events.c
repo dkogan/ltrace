@@ -89,7 +89,12 @@ each_qd_event(enum ecb_status (*pred)(Event *, void *), void * data)
 static enum ecb_status
 event_process_not_reenabling(Event * event, void * data)
 {
-	return ecb_deque;
+	if (event->proc == NULL
+	    || event->proc->leader == NULL
+	    || event->proc->leader->event_handler == NULL)
+		return ecb_deque;
+	else
+		return ecb_cont;
 }
 
 static Event *

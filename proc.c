@@ -215,3 +215,20 @@ remove_process(Process *proc)
 		tmp = tmp->next;
 	}
 }
+
+void
+install_event_handler(Process * proc, Event_Handler * handler)
+{
+	assert(proc->event_handler == NULL);
+	proc->event_handler = handler;
+}
+
+void
+destroy_event_handler(Process * proc)
+{
+	Event_Handler * handler = proc->event_handler;
+	assert(handler != NULL);
+	handler->destroy(handler);
+	free(handler);
+	proc->event_handler = NULL;
+}
