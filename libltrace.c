@@ -12,32 +12,39 @@
 #include "common.h"
 
 char *command = NULL;
-Process *list_of_processes = NULL;
 
 int exiting = 0;		/* =1 if a SIGINT or SIGTERM has been received */
 
+static enum pcb_status
+stop_non_p_processes (Process * proc, void * data)
+{
+	int stop = 1;
+
+	struct opt_p_t *it;
+	for (it = opt_p; it != NULL; it = it->next) {
+		Process * p_proc = pid2proc(it->pid);
+		if (p_proc == NULL) {
+			printf("stop_non_p_processes: %d terminated?\n", it->pid);
+			continue;
+		}
+		if (p_proc == proc) {
+			stop = 0;
+			break;
+		}
+	}
+
+	if (stop) {
+		debug(2, "Sending SIGSTOP to process %u", proc->pid);
+		kill(proc->pid, SIGSTOP);
+	}
+
+	return pcb_cont;
+}
+
 static void
 signal_alarm(int sig) {
-	Process *tmp = list_of_processes;
-
 	signal(SIGALRM, SIG_DFL);
-	while (tmp) {
-		struct opt_p_t *tmp2 = opt_p;
-		while (tmp2) {
-			if (tmp->pid == tmp2->pid) {
-				tmp = tmp->next;
-				if (!tmp) {
-					return;
-				}
-				tmp2 = opt_p;
-				continue;
-			}
-			tmp2 = tmp2->next;
-		}
-		debug(2, "Sending SIGSTOP to process %u\n", tmp->pid);
-		kill(tmp->pid, SIGSTOP);
-		tmp = tmp->next;
-	}
+	each_process(NULL, &stop_non_p_processes, NULL);
 }
 
 static void

@@ -25,7 +25,6 @@ static void handle_clone(Event *event);
 static void handle_exec(Event *event);
 static void handle_breakpoint(Event *event);
 static void handle_new(Event *event);
-static void remove_proc(Process *proc);
 
 static void callstack_push_syscall(Process *proc, int sysnum);
 static void callstack_push_symfunc(Process *proc,
@@ -215,12 +214,10 @@ handle_clone(Event * event) {
 			p->state = STATE_IGNORED;
 		}
 		continue_process(p->pid);
-		p->next = list_of_processes;
-		list_of_processes = p;
+		add_process(p);
 	} else {
 		p->state = STATE_BEING_CREATED;
-		p->next = list_of_processes;
-		list_of_processes = p;
+		add_process(p);
 	}
 	continue_process(event->proc->pid);
 }
@@ -328,7 +325,7 @@ handle_signal(Event *event) {
 		pid_t pid = event->proc->pid;
 		disable_all_breakpoints(event->proc);
 		untrace_pid(pid);
-		remove_proc(event->proc);
+		remove_process(event->proc);
 		return;
 	}
 	if (event->proc->state != STATE_IGNORED && !options.no_signals) {
@@ -346,7 +343,7 @@ handle_exit(Event *event) {
 		output_line(event->proc, "+++ exited (status %d) +++",
 				event->e_un.ret_val);
 	}
-	remove_proc(event->proc);
+	remove_process(event->proc);
 }
 
 static void
@@ -356,31 +353,7 @@ handle_exit_signal(Event *event) {
 		output_line(event->proc, "+++ killed by %s +++",
 				shortsignal(event->proc, event->e_un.signum));
 	}
-	remove_proc(event->proc);
-}
-
-static void
-remove_proc(Process *proc) {
-	Process *tmp, *tmp2;
-
-	debug(DEBUG_FUNCTION, "remove_proc(pid=%d)", proc->pid);
-
-	if (list_of_processes == proc) {
-		tmp = list_of_processes;
-		list_of_processes = list_of_processes->next;
-		free(tmp);
-		return;
-	}
-	tmp = list_of_processes;
-	while (tmp->next) {
-		if (tmp->next == proc) {
-			tmp2 = tmp->next;
-			tmp->next = tmp->next->next;
-			free(tmp2);
-			continue;
-		}
-		tmp = tmp->next;
-	}
+	remove_process(event->proc);
 }
 
 static void
@@ -407,7 +380,7 @@ handle_exec(Event * event) {
 	debug(DEBUG_FUNCTION, "handle_exec(pid=%d)", proc->pid);
 	if (proc->state == STATE_IGNORED) {
 		untrace_pid(proc->pid);
-		remove_proc(proc);
+		remove_process(proc);
 		return;
 	}
 	output_line(proc, "--- Called exec() ---");

@@ -13,6 +13,12 @@
 
 static Event event;
 
+static enum pcb_status
+first (Process * proc, void * data)
+{
+	return pcb_stop;
+}
+
 Event *
 next_event(void)
 {
@@ -22,7 +28,7 @@ next_event(void)
 	int stop_signal;
 
 	debug(DEBUG_FUNCTION, "next_event()");
-	if (!list_of_processes) {
+	if (!each_process(NULL, &first, NULL)) {
 		debug(DEBUG_EVENT, "event: No more traced programs: exiting");
 		exit(0);
 	}

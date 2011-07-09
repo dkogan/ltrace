@@ -217,10 +217,18 @@ struct opt_c_struct {
 
 extern Dict * dict_opt_c;
 
-extern Process * list_of_processes;
+enum pcb_status {
+	pcb_stop, /* The iteration should stop.  */
+	pcb_cont, /* The iteration should continue.  */
+};
 
 extern Event * next_event(void);
 extern Process * pid2proc(pid_t pid);
+extern void add_process(Process * proc);
+extern void remove_process(Process * proc);
+extern Process *each_process(Process * start,
+			     enum pcb_status (* cb)(Process * proc, void * data),
+			     void * data);
 extern void handle_event(Event * event);
 extern pid_t execute_program(const char * command, char ** argv);
 extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);

@@ -27,6 +27,17 @@
 
 2011-05-05  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (add_process, remove_process, each_process)
+	(enum pcb_status): Conceal the list of processes behind an
+	interface.
+	* handle_event.h (handle_clone, handle_exit, handle_exec): Use it.
+	* libltrace.h (signal_alarm): Likewise.
+	* sysdeps/linux-gnu/events.c (next_event): Likewise.
+	* proc.c (open_program, pid2proc): Likewise.
+	(add_process, remove_process, each_process): Implementation.
+
+2011-05-05  Petr Machata  <pmachata@redhat.com>
+
 	* output.c (name2func, output_left): char* -> char const* one
 	argument.
 
