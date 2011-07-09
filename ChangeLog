@@ -1,3 +1,10 @@
+2011-05-30  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (enable_breakpoint, disable_breakpoint)
+	(continue_enabling_breakpoint): Pass Process * instead of pid.
+	* breakpoints.c, sysdeps/linux-gnu/breakpoint.c: Adapt.
+	* sysdeps/linux-gnu/trace.c: Adapt.
+
 2011-05-12  Petr Machata  <pmachata@redhat.com>
 
 	* common.h: include config.h

@@ -56,7 +56,7 @@ insert_breakpoint(Process *proc, void *addr,
 #endif
 	sbp->enabled++;
 	if (sbp->enabled == 1 && proc->pid)
-		enable_breakpoint(proc->pid, sbp);
+		enable_breakpoint(proc, sbp);
 }
 
 void
@@ -73,7 +73,7 @@ delete_breakpoint(Process *proc, void *addr) {
 
 	sbp->enabled--;
 	if (sbp->enabled == 0)
-		disable_breakpoint(proc->pid, sbp);
+		disable_breakpoint(proc, sbp);
 	assert(sbp->enabled >= 0);
 }
 
@@ -81,7 +81,7 @@ static void
 enable_bp_cb(void *addr, void *sbp, void *proc) {
 	debug(DEBUG_FUNCTION, "enable_bp_cb(pid=%d)", ((Process *)proc)->pid);
 	if (((Breakpoint *)sbp)->enabled) {
-		enable_breakpoint(((Process *)proc)->pid, sbp);
+		enable_breakpoint(proc, sbp);
 	}
 }
 
@@ -148,7 +148,7 @@ static void
 disable_bp_cb(void *addr, void *sbp, void *proc) {
 	debug(DEBUG_FUNCTION, "disable_bp_cb(pid=%d)", ((Process *)proc)->pid);
 	if (((Breakpoint *)sbp)->enabled) {
-		disable_breakpoint(((Process *)proc)->pid, sbp);
+		disable_breakpoint(proc, sbp);
 	}
 }
 

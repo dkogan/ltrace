@@ -147,16 +147,18 @@ continue_process(pid_t pid) {
 }
 
 void
-continue_enabling_breakpoint(pid_t pid, Breakpoint *sbp) {
-	enable_breakpoint(pid, sbp);
-	continue_process(pid);
+continue_enabling_breakpoint(Process * proc, Breakpoint *sbp)
+{
+	enable_breakpoint(proc, sbp);
+	continue_process(proc->pid);
 }
 
 void
 continue_after_breakpoint(Process *proc, Breakpoint *sbp)
 {
 	if (sbp->enabled)
-		disable_breakpoint(proc->pid, sbp);
+		disable_breakpoint(proc, sbp);
+
 	set_instruction_pointer(proc, sbp->addr);
 	if (sbp->enabled == 0) {
 		continue_process(proc->pid);
