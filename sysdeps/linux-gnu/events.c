@@ -63,10 +63,13 @@ next_event(void)
 		}
 	}
 
-	if (opt_i) {
-		event.proc->instruction_pointer =
-			get_instruction_pointer(event.proc);
+
+	event.proc->instruction_pointer = get_instruction_pointer(event.proc);
+	if (event.proc->instruction_pointer == (void *)(uintptr_t)-1) {
+		if (errno != 0)
+			perror("get_instruction_pointer");
 	}
+
 	switch (syscall_p(event.proc, status, &tmp)) {
 		case 1:
 			event.type = EVENT_SYSCALL;
@@ -129,22 +132,18 @@ next_event(void)
 	stop_signal = WSTOPSIG(status);
 
 	/* On some targets, breakpoints are signalled not using
-	   SIGTRAP, but also with SIGILL, SIGSEGV or SIGEMT.  Check
-	   for these. (TODO: is this true?) */
-	if (stop_signal == SIGSEGV
-			|| stop_signal == SIGILL
-#ifdef SIGEMT
-			|| stop_signal == SIGEMT
-#endif
-	   ) {
-		if (!event.proc->instruction_pointer) {
-			event.proc->instruction_pointer =
-				get_instruction_pointer(event.proc);
-		}
+	   SIGTRAP, but also with SIGILL, SIGSEGV or SIGEMT.  SIGEMT
+	   is not defined on Linux, but check for the others.
 
-		if (address2bpstruct(event.proc, event.proc->instruction_pointer))
+	   N.B. see comments in GDB's infrun.c for details.  I've
+	   actually seen this on an Itanium machine on RHEL 5, I don't
+	   remember the exact kernel version anymore.  ia64-sigill.s
+	   in the test suite tests this.  Petr Machata 2011-06-08.  */
+	void * break_address
+		= event.proc->instruction_pointer - DECR_PC_AFTER_BREAK;
+	if ((stop_signal == SIGSEGV || stop_signal == SIGILL)
+	    && address2bpstruct(event.proc, break_address))
 			stop_signal = SIGTRAP;
-	}
 
 	if (stop_signal != (SIGTRAP | event.proc->tracesysgood)
 			&& stop_signal != SIGTRAP) {
@@ -157,12 +156,8 @@ next_event(void)
 	/* last case [by exhaustion] */
 	event.type = EVENT_BREAKPOINT;
 
-	if (!event.proc->instruction_pointer) {
-		event.proc->instruction_pointer =
-			get_instruction_pointer(event.proc);
-	}
-	event.e_un.brk_addr =
-		event.proc->instruction_pointer - DECR_PC_AFTER_BREAK;
+	event.e_un.brk_addr = break_address;
 	debug(DEBUG_EVENT, "event: BREAKPOINT: pid=%d, addr=%p", pid, event.e_un.brk_addr);
+
 	return &event;
 }
