@@ -217,10 +217,6 @@ handle_clone(Event * event) {
 
 	if (pending_new(p->pid)) {
 		pending_new_remove(p->pid);
-		if (p->breakpoint_being_enabled) {
-			enable_breakpoint(p, p->breakpoint_being_enabled);
-			p->breakpoint_being_enabled = NULL;
-		}
 		if (p->event_handler != NULL)
 			destroy_event_handler(p);
 		if (event->proc->state == STATE_ATTACHED && options.follow) {
@@ -248,10 +244,6 @@ handle_new(Event * event) {
 		pending_new_insert(event->e_un.newpid);
 	} else {
 		assert(proc->state == STATE_BEING_CREATED);
-		if (proc->breakpoint_being_enabled) {
-			enable_breakpoint(proc, proc->breakpoint_being_enabled);
-			proc->breakpoint_being_enabled = NULL;
-		}
 		if (proc->event_handler != NULL)
 			destroy_event_handler(proc);
 		if (options.follow) {
@@ -526,13 +518,6 @@ handle_breakpoint(Event *event) {
 		}
 	}
 #endif
-	if ((sbp = event->proc->breakpoint_being_enabled) != 0) {
-		/* Reinsert breakpoint */
-		sbp = event->proc->breakpoint_being_enabled;
-		continue_enabling_breakpoint(event->proc, sbp);
-		event->proc->breakpoint_being_enabled = NULL;
-		return;
-	}
 
 	for (i = event->proc->callstack_depth - 1; i >= 0; i--) {
 		if (event->e_un.brk_addr ==

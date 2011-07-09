@@ -127,31 +127,366 @@ continue_after_signal(pid_t pid, int signum) {
 	debug(DEBUG_PROCESS, "continue_after_signal: pid=%d, signum=%d", pid, signum);
 
 	proc = pid2proc(pid);
-	if (proc && proc->breakpoint_being_enabled) {
-#if defined __sparc__  || defined __ia64___ || defined __mips__
-		ptrace(PTRACE_SYSCALL, pid, 0, signum);
-#else
-		ptrace(PTRACE_SINGLESTEP, pid, 0, signum);
-#endif
-	} else {
-		ptrace(PTRACE_SYSCALL, pid, 0, signum);
+	ptrace(PTRACE_SYSCALL, pid, 0, signum);
+}
+
+static enum ecb_status
+event_for_pid(Event * event, void * data)
+{
+	if (event->proc != NULL && event->proc->pid == (pid_t)(uintptr_t)data)
+		return ecb_yield;
+	return ecb_cont;
+}
+
+static int
+have_events_for(pid_t pid)
+{
+	return each_qd_event(event_for_pid, (void *)(uintptr_t)pid) != NULL;
+}
+
+void
+continue_process(pid_t pid)
+{
+	debug(DEBUG_PROCESS, "continue_process: pid=%d", pid);
+	//printf("continue_process %d\n", pid);
+
+	/* Only really continue the process if there are no events in
+	   the queue for this process.  Otherwise just for the other
+	   events to arrive.  */
+	if (!have_events_for(pid))
+		/* We always trace syscalls to control fork(),
+		 * clone(), execve()... */
+		ptrace(PTRACE_SYSCALL, pid, 0, 0);
+	else
+		debug(DEBUG_PROCESS,
+		      "putting off the continue, events in que.");
+}
+
+/**
+ * This is used for bookkeeping related to PIDs that the event
+ * handlers work with.  */
+struct pid_task {
+	pid_t pid;
+	int sigstopped;
+	int got_event;
+	int delivered;
+} * pids;
+
+struct pid_set {
+	struct pid_task * tasks;
+	size_t count;
+	size_t alloc;
+};
+
+/**
+ * Breakpoint re-enablement.  When we hit a breakpoint, we must
+ * disable it, single-step, and re-enable it.  That single-step can be
+ * done only by one task in a task group, while others are stopped,
+ * otherwise the processes would race for who sees the breakpoint
+ * disabled and who doesn't.  The following is to keep track of it
+ * all.
+ */
+struct process_stopping_handler
+{
+	Event_Handler super;
+
+	/* The task that is doing the re-enablement.  */
+	Process * task_enabling_breakpoint;
+
+	/* The pointer being re-enabled.  */
+	Breakpoint * breakpoint_being_enabled;
+
+	enum {
+		/* We are waiting for everyone to land in t/T.  */
+		psh_stopping = 0,
+
+		/* We are doing the PTRACE_SINGLESTEP.  */
+		psh_singlestep,
+
+		/* We are waiting for all the SIGSTOPs to arrive so
+		 * that we can sink them.  */
+		psh_sinking,
+	} state;
+
+	struct pid_set pids;
+};
+
+static enum pcb_status
+task_stopped(Process * task, void * data)
+{
+	int status;
+
+	/* If the task is already stopped, don't worry about it.
+	 * Likewise if it managed to become a zombie or terminate in
+	 * the meantime.  This can happen when the whole thread group
+	 * is terminating.  */
+	switch (status = process_status(task->pid))
+	case -1:
+	case 't':
+	case 'Z':
+		return pcb_cont;
+
+	return pcb_stop;
+}
+
+static struct pid_task *
+get_task_info(struct pid_set * pids, pid_t pid)
+{
+	size_t i;
+	for (i = 0; i < pids->count; ++i)
+		if (pids->tasks[i].pid == pid)
+			return &pids->tasks[i];
+
+	return NULL;
+}
+
+static struct pid_task *
+add_task_info(struct pid_set * pids, pid_t pid)
+{
+	if (pids->count == pids->alloc) {
+		size_t ns = (2 * pids->alloc) ?: 4;
+		struct pid_task * n = realloc(pids->tasks,
+					      sizeof(*pids->tasks) * ns);
+		if (n == NULL)
+			return NULL;
+		pids->tasks = n;
+		pids->alloc = ns;
+	}
+	struct pid_task * task_info = &pids->tasks[pids->count++];
+	memset(task_info, 0, sizeof(*task_info));
+	task_info->pid = pid;
+	return task_info;
+}
+
+static enum pcb_status
+send_sigstop(Process * task, void * data)
+{
+	Process * leader = task->leader;
+	struct pid_set * pids = data;
+
+	/* Look for pre-existing task record, or add new.  */
+	struct pid_task * task_info = get_task_info(pids, task->pid);
+	if (task_info == NULL)
+		task_info = add_task_info(pids, task->pid);
+	if (task_info == NULL) {
+		perror("send_sigstop: add_task_info");
+		destroy_event_handler(leader);
+		/* Signal failure upwards.  */
+		return pcb_stop;
+	}
+
+	/* This task still has not been attached to.  It should be
+	   stopped by the kernel.  */
+	if (task->state == STATE_BEING_CREATED)
+		return pcb_cont;
+
+	/* Don't bother sending SIGSTOP if we are already stopped, or
+	 * if we sent the SIGSTOP already, which happens when we
+	 * inherit the handler from breakpoint re-enablement.  */
+	if (task_stopped(task, NULL) == pcb_cont)
+		return pcb_cont;
+	if (task_info->sigstopped) {
+		if (!task_info->delivered)
+			return pcb_cont;
+		task_info->delivered = 0;
+	}
+
+	if (task_kill(task->pid, SIGSTOP) >= 0) {
+		debug(DEBUG_PROCESS, "send SIGSTOP to %d", task->pid);
+		task_info->sigstopped = 1;
+	} else
+		fprintf(stderr,
+			"Warning: couldn't send SIGSTOP to %d\n", task->pid);
+
+	return pcb_cont;
+}
+
+static void
+process_stopping_done(struct process_stopping_handler * self, Process * leader)
+{
+	debug(DEBUG_PROCESS, "process stopping done %d",
+	      self->task_enabling_breakpoint->pid);
+	size_t i;
+	for (i = 0; i < self->pids.count; ++i)
+		if (self->pids.tasks[i].delivered)
+			continue_process(self->pids.tasks[i].pid);
+	continue_process(self->task_enabling_breakpoint->pid);
+	destroy_event_handler(leader);
+}
+
+static void
+handle_stopping_event(struct pid_task * task_info, Event ** eventp)
+{
+	/* Mark all events, so that we know whom to SIGCONT later.  */
+	if (task_info != NULL && task_info->sigstopped)
+		task_info->got_event = 1;
+
+	Event * event = *eventp;
+
+	/* In every state, sink SIGSTOP events for tasks that it was
+	 * sent to.  */
+	if (task_info != NULL
+	    && event->type == EVENT_SIGNAL
+	    && event->e_un.signum == SIGSTOP) {
+		debug(DEBUG_PROCESS, "SIGSTOP delivered to %d", task_info->pid);
+		if (task_info->sigstopped
+		    && !task_info->delivered) {
+			task_info->delivered = 1;
+			*eventp = NULL; // sink the event
+		} else
+			fprintf(stderr, "suspicious: %d got SIGSTOP, but "
+				"sigstopped=%d and delivered=%d\n",
+				task_info->pid, task_info->sigstopped,
+				task_info->delivered);
 	}
 }
 
-void
-continue_process(pid_t pid) {
-	/* We always trace syscalls to control fork(), clone(), execve()... */
-
-	debug(DEBUG_PROCESS, "continue_process: pid=%d", pid);
-
-	ptrace(PTRACE_SYSCALL, pid, 0, 0);
+/* Some SIGSTOPs may have not been delivered to their respective tasks
+ * yet.  They are still in the queue.  If we have seen an event for
+ * that process, continue it, so that the SIGSTOP can be delivered and
+ * caught by ltrace.  */
+static void
+continue_for_sigstop_delivery(struct pid_set * pids)
+{
+	size_t i;
+	for (i = 0; i < pids->count; ++i) {
+		if (pids->tasks[i].sigstopped
+		    && !pids->tasks[i].delivered
+		    && pids->tasks[i].got_event) {
+			debug(DEBUG_PROCESS, "continue %d for SIGSTOP delivery",
+			      pids->tasks[i].pid);
+			ptrace(PTRACE_SYSCALL, pids->tasks[i].pid, 0, 0);
+		}
+	}
 }
 
-void
-continue_enabling_breakpoint(Process * proc, Breakpoint *sbp)
+static int
+event_exit_or_none_p(Event * event)
 {
-	enable_breakpoint(proc, sbp);
-	continue_process(proc->pid);
+	return event == NULL
+		|| event->type == EVENT_EXIT
+		|| event->type == EVENT_EXIT_SIGNAL
+		|| event->type == EVENT_NONE;
+}
+
+static int
+await_sigstop_delivery(struct pid_set * pids, struct pid_task * task_info,
+		       Event * event)
+{
+	/* If we still didn't get our SIGSTOP, continue the process
+	 * and carry on.  */
+	if (event != NULL && !event_exit_or_none_p(event)
+	    && task_info != NULL && task_info->sigstopped) {
+		debug(DEBUG_PROCESS, "continue %d for SIGSTOP delivery",
+		      task_info->pid);
+		/* We should get the signal the first thing
+		 * after this, so it should be OK to continue
+		 * even if we are over a breakpoint.  */
+		ptrace(PTRACE_SYSCALL, task_info->pid, 0, 0);
+
+	} else {
+		/* If all SIGSTOPs were delivered, uninstall the
+		 * handler and continue everyone.  */
+		/* XXX I suspect that we should check tasks that are
+		 * still around.  Is things are now, there should be a
+		 * race between waiting for everyone to stop and one
+		 * of the tasks exiting.  */
+		int all_clear = 1;
+		size_t i;
+		for (i = 0; i < pids->count; ++i)
+			if (pids->tasks[i].sigstopped
+			    && !pids->tasks[i].delivered) {
+				all_clear = 0;
+				break;
+			}
+		return all_clear;
+	}
+
+	return 0;
+}
+
+/* This event handler is installed when we are in the process of
+ * stopping the whole thread group to do the pointer re-enablement for
+ * one of the threads.  We pump all events to the queue for later
+ * processing while we wait for all the threads to stop.  When this
+ * happens, we let the re-enablement thread to PTRACE_SINGLESTEP,
+ * re-enable, and continue everyone.  */
+static Event *
+process_stopping_on_event(Event_Handler * super, Event * event)
+{
+	struct process_stopping_handler * self = (void *)super;
+	Process * task = event->proc;
+	Process * leader = task->leader;
+
+	debug(DEBUG_PROCESS,
+	      "pid %d; event type %d; state %d",
+	      task->pid, event->type, self->state);
+
+	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
+	if (task_info == NULL)
+		fprintf(stderr, "new task??? %d\n", task->pid);
+	handle_stopping_event(task_info, &event);
+
+	int state = self->state;
+	int event_to_queue = !event_exit_or_none_p(event);
+
+	switch (state) {
+	case psh_stopping:
+		/* If everyone is stopped, singlestep.  */
+		if (each_task(leader, &task_stopped, NULL) == NULL) {
+			debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d",
+			      self->task_enabling_breakpoint->pid);
+			ptrace(PTRACE_SINGLESTEP,
+			       self->task_enabling_breakpoint->pid, 0, 0);
+			self->state = state = psh_singlestep;
+		}
+		break;
+
+	case psh_singlestep: {
+		/* In singlestep state, breakpoint signifies that we
+		 * have now stepped, and can re-enable the breakpoint.  */
+		if (event != NULL
+		    && task == self->task_enabling_breakpoint) {
+			/* Essentially we don't care what event caused
+			 * the thread to stop.  We can do the
+			 * re-enablement now.  */
+			enable_breakpoint(self->task_enabling_breakpoint,
+					  self->breakpoint_being_enabled);
+
+			continue_for_sigstop_delivery(&self->pids);
+
+			self->breakpoint_being_enabled = NULL;
+			self->state = state = psh_sinking;
+
+			if (event->type == EVENT_BREAKPOINT)
+				event = NULL; // handled
+		} else
+			break;
+	}
+
+		/* fall-through */
+
+	case psh_sinking:
+		if (await_sigstop_delivery(&self->pids, task_info, event))
+			process_stopping_done(self, leader);
+	}
+
+	if (event != NULL && event_to_queue) {
+		enque_event(event);
+		event = NULL; // sink the event
+	}
+
+	return event;
+}
+
+static void
+process_stopping_destroy(Event_Handler * super)
+{
+	struct process_stopping_handler * self = (void *)super;
+	if (self->breakpoint_being_enabled != NULL)
+		enable_breakpoint(self->task_enabling_breakpoint,
+				  self->breakpoint_being_enabled);
+	free(self->pids.tasks);
 }
 
 void
@@ -167,12 +502,36 @@ continue_after_breakpoint(Process *proc, Breakpoint *sbp)
 		debug(DEBUG_PROCESS,
 		      "continue_after_breakpoint: pid=%d, addr=%p",
 		      proc->pid, sbp->addr);
-		proc->breakpoint_being_enabled = sbp;
 #if defined __sparc__  || defined __ia64___ || defined __mips__
 		/* we don't want to singlestep here */
 		continue_process(proc->pid);
 #else
-		ptrace(PTRACE_SINGLESTEP, proc->pid, 0, 0);
+		struct process_stopping_handler * handler
+			= calloc(sizeof(*handler), 1);
+		if (handler == NULL) {
+			perror("malloc breakpoint disable handler");
+		fatal:
+			/* Carry on not bothering to re-enable.  */
+			continue_process(proc->pid);
+			return;
+		}
+
+		handler->super.on_event = process_stopping_on_event;
+		handler->super.destroy = process_stopping_destroy;
+		handler->task_enabling_breakpoint = proc;
+		handler->breakpoint_being_enabled = sbp;
+		install_event_handler(proc->leader, &handler->super);
+
+		if (each_task(proc->leader, &send_sigstop,
+			      &handler->pids) != NULL)
+			goto fatal;
+
+		/* And deliver the first fake event, in case all the
+		 * conditions are already fulfilled.  */
+		Event ev;
+		ev.type = EVENT_NONE;
+		ev.proc = proc;
+		process_stopping_on_event(&handler->super, &ev);
 #endif
 	}
 }

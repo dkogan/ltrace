@@ -207,7 +207,6 @@ struct Process {
 	void * instruction_pointer;
 	void * stack_pointer;      /* To get return addr, args... */
 	void * return_addr;
-	Breakpoint * breakpoint_being_enabled;
 	void * arch_ptr;
 	short e_machine;
 	short need_to_reinitialize_breakpoints;
@@ -331,7 +330,6 @@ extern int syscall_p(Process * proc, int status, int * sysnum);
 extern void continue_process(pid_t pid);
 extern void continue_after_signal(pid_t pid, int signum);
 extern void continue_after_breakpoint(Process * proc, Breakpoint * sbp);
-extern void continue_enabling_breakpoint(Process * proc, Breakpoint * sbp);
 extern long gimme_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern void save_register_args(enum tof type, Process * proc);
 extern int umovestr(Process * proc, void * addr, int len, void * laddr);

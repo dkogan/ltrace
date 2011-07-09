@@ -1,5 +1,12 @@
 2011-07-08  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (struct Process.breakpoint_being_enabled): Drop.
+	* handle_event.c: Adapt to above.
+	* sysdeps/linux-gnu/events.c: Implement breakpoint re-enablement
+	using custom event handler.
+
+2011-07-08  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (struct Event_Handler, install_event_handler)
 	(destroy_event_handler): New interfaces for definition of custom
 	event handler.
