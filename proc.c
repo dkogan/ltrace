@@ -169,6 +169,23 @@ clear_leader(Process * proc, void * data)
 	return pcb_cont;
 }
 
+static enum ecb_status
+event_for_proc(Event * event, void * data)
+{
+	if (event->proc == data)
+		return ecb_deque;
+	else
+		return ecb_cont;
+}
+
+static void
+delete_events_for(Process * proc)
+{
+	Event * event;
+	while ((event = each_qd_event(&event_for_proc, proc)) != NULL)
+		free(event);
+}
+
 void
 remove_process(Process *proc)
 {
@@ -182,6 +199,7 @@ remove_process(Process *proc)
 	if (list_of_processes == proc) {
 		tmp = list_of_processes;
 		list_of_processes = list_of_processes->next;
+		delete_events_for(tmp);
 		free(tmp);
 		return;
 	}
@@ -190,6 +208,7 @@ remove_process(Process *proc)
 		if (tmp->next == proc) {
 			tmp2 = tmp->next;
 			tmp->next = tmp->next->next;
+			delete_events_for(tmp2);
 			free(tmp2);
 			return;
 		}

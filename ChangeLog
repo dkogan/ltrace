@@ -1,3 +1,13 @@
+2011-06-01  Petr Machata  <pmachata@redhat.com>
+
+	* sysdeps/linux-gnu/events.c (delayed_events, end_delayed_events):
+	New variables for event queue.
+	(enque_event): To add new event into the queue.
+	(next_qd_event, each_qd_event, enum ecb_status): Iteration interfaces.
+	(next_event): Instead of waitpid, pop event que if there are
+	events waiting.
+	* ltrace.h (Event.next): New field to support event chaining.
+
 2011-05-30  Petr Machata  <pmachata@redhat.com>
 
 	* common.h (enable_breakpoint, disable_breakpoint)

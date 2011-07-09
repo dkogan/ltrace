@@ -242,7 +242,6 @@ enum pcb_status {
 	pcb_cont, /* The iteration should continue.  */
 };
 
-extern Event * next_event(void);
 extern Process * pid2proc(pid_t pid);
 extern void add_process(Process * proc);
 extern void remove_process(Process * proc);
@@ -253,6 +252,18 @@ extern Process *each_task(Process * start,
 			  enum pcb_status (* cb)(Process * proc, void * data),
 			  void * data);
 
+/* Events  */
+enum ecb_status {
+	ecb_cont, /* The iteration should continue.  */
+	ecb_yield, /* The iteration should stop, yielding this
+		    * event.  */
+	ecb_deque, /* Like ecb_stop, but the event should be removed
+		    * from the queue.  */
+};
+extern Event * next_event(void);
+extern Event * each_qd_event(enum ecb_status (* cb)(Event * event, void * data),
+			     void * data);
+extern void enque_event(Event * event);
 extern void handle_event(Event * event);
 extern pid_t execute_program(const char * command, char ** argv);
 extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);

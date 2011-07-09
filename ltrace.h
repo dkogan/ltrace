@@ -20,6 +20,7 @@ enum Event_type {
 typedef struct Process Process;
 typedef struct Event Event;
 struct Event {
+	struct Event * next;
 	Process * proc;
 	Event_type type;
 	union {

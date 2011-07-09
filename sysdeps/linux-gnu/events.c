@@ -8,15 +8,94 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/ptrace.h>
+#include <assert.h>
 
 #include "common.h"
 
 static Event event;
 
+/* A queue of events that we missed while enabling the
+ * breakpoint in one of tasks.  */
+static Event * delayed_events = NULL;
+static Event * end_delayed_events = NULL;
+
 static enum pcb_status
 first (Process * proc, void * data)
 {
 	return pcb_stop;
+}
+
+void
+enque_event(Event * event)
+{
+	debug(DEBUG_FUNCTION, "%d: queuing event %d for later",
+	      event->proc->pid, event->type);
+	Event * ne = malloc(sizeof(*ne));
+	if (ne == NULL) {
+		perror("event will be missed: malloc");
+		return;
+	}
+
+	*ne = *event;
+	ne->next = NULL;
+	if (end_delayed_events == NULL) {
+		assert(delayed_events == NULL);
+		end_delayed_events = delayed_events = ne;
+	}
+	else {
+		assert(delayed_events != NULL);
+		end_delayed_events = end_delayed_events->next = ne;
+	}
+}
+
+Event *
+each_qd_event(enum ecb_status (*pred)(Event *, void *), void * data)
+{
+	Event * prev = delayed_events;
+	Event * event;
+	for (event = prev; event != NULL; ) {
+		switch ((*pred)(event, data)) {
+		case ecb_cont:
+			prev = event;
+			event = event->next;
+			continue;
+
+		case ecb_deque:
+			debug(DEBUG_FUNCTION, "dequeuing event %d for %d",
+			      event->type,
+			      event->proc != NULL ? event->proc->pid : -1);
+			/*
+			printf("dequeuing event %d for %d\n", event->type,
+			       event->proc != NULL ? event->proc->pid : -1) ;
+			*/
+			if (end_delayed_events == event)
+				end_delayed_events = prev;
+			if (delayed_events == event)
+				delayed_events = event->next;
+			else
+				prev->next = event->next;
+			if (delayed_events == NULL)
+				end_delayed_events = NULL;
+			/* fall-through */
+
+		case ecb_yield:
+			return event;
+		}
+	}
+
+	return NULL;
+}
+
+static enum ecb_status
+event_process_not_reenabling(Event * event, void * data)
+{
+	return ecb_deque;
+}
+
+static Event *
+next_qd_event(void)
+{
+	return each_qd_event(&event_process_not_reenabling, NULL);
 }
 
 Event *
@@ -28,6 +107,13 @@ next_event(void)
 	int stop_signal;
 
 	debug(DEBUG_FUNCTION, "next_event()");
+	Event * ev;
+	if ((ev = next_qd_event()) != NULL) {
+		event = *ev;
+		free(ev);
+		return &event;
+	}
+
 	if (!each_process(NULL, &first, NULL)) {
 		debug(DEBUG_EVENT, "event: No more traced programs: exiting");
 		exit(0);
