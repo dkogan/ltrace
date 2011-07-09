@@ -54,15 +54,7 @@ signal_exit(int sig) {
 	signal(SIGINT, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
 	signal(SIGALRM, signal_alarm);
-	if (opt_p) {
-		struct opt_p_t *tmp = opt_p;
-		while (tmp) {
-			debug(2, "Sending SIGSTOP to process %u\n", tmp->pid);
-			kill(tmp->pid, SIGSTOP);
-			tmp = tmp->next;
-		}
-	}
-	alarm(1);
+	//alarm(1);
 }
 
 static void

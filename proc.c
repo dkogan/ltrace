@@ -63,6 +63,7 @@ open_one_pid(pid_t pid)
 	}
 
 	proc = open_program(filename, pid, 1);
+	trace_set_options(proc, pid);
 	continue_process(pid);
 	proc->breakpoints_enabled = 1;
 }

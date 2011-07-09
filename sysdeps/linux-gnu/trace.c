@@ -536,6 +536,171 @@ continue_after_breakpoint(Process *proc, Breakpoint *sbp)
 	}
 }
 
+/**
+ * Ltrace exit.  When we are about to exit, we have to go through all
+ * the processes, stop them all, remove all the breakpoints, and then
+ * detach the processes that we attached to using -p.  If we left the
+ * other tasks running, they might hit stray return breakpoints and
+ * produce artifacts, so we better stop everyone, even if it's a bit
+ * of extra work.
+ */
+struct ltrace_exiting_handler
+{
+	Event_Handler super;
+	struct pid_set pids;
+};
+
+static enum pcb_status
+remove_task(Process * task, void * data)
+{
+	/* Don't untrace leader just yet.  */
+	if (task != data)
+		remove_process(task);
+	return pcb_cont;
+}
+
+static enum pcb_status
+untrace_task(Process * task, void * data)
+{
+	untrace_pid(task->pid);
+	return pcb_cont;
+}
+
+static Event *
+ltrace_exiting_on_event(Event_Handler * super, Event * event)
+{
+	struct ltrace_exiting_handler * self = (void *)super;
+	Process * task = event->proc;
+	Process * leader = task->leader;
+
+	debug(DEBUG_PROCESS, "pid %d; event type %d", task->pid, event->type);
+
+	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
+	handle_stopping_event(task_info, &event);
+
+	if (await_sigstop_delivery(&self->pids, task_info, event)) {
+		debug(DEBUG_PROCESS, "all SIGSTOPs delivered %d", leader->pid);
+		disable_all_breakpoints(leader);
+
+		/* Now untrace the process, if it was attached to by -p.  */
+		struct opt_p_t * it;
+		for (it = opt_p; it != NULL; it = it->next) {
+			Process * proc = pid2proc(it->pid);
+			if (proc == NULL)
+				continue;
+			if (proc->leader == leader) {
+				each_task(leader, &untrace_task, NULL);
+				break;
+			}
+		}
+
+		each_task(leader, &remove_task, leader);
+		destroy_event_handler(leader);
+		remove_task(leader, NULL);
+		return NULL;
+	}
+
+	/* Sink all non-exit events.  We are about to exit, so we
+	 * don't bother with queuing them. */
+	if (event_exit_or_none_p(event))
+		return event;
+	else
+		return NULL;
+}
+
+static void
+ltrace_exiting_destroy(Event_Handler * super)
+{
+	struct ltrace_exiting_handler * self = (void *)super;
+	free(self->pids.tasks);
+}
+
+static int
+ltrace_exiting_install_handler(Process * proc)
+{
+	/* Only install to leader.  */
+	if (proc->leader != proc)
+		return 0;
+
+	/* Perhaps we are already installed, if the user passed
+	 * several -p options that are tasks of one process.  */
+	if (proc->event_handler != NULL
+	    && proc->event_handler->on_event == &ltrace_exiting_on_event)
+		return 0;
+
+	struct ltrace_exiting_handler * handler
+		= calloc(sizeof(*handler), 1);
+	if (handler == NULL) {
+		perror("malloc exiting handler");
+	fatal:
+		/* XXXXXXXXXXXXXXXXXXX fixme */
+		return -1;
+	}
+
+	/* If we are in the middle of breakpoint, extract the
+	 * pid-state information from that handler so that we can take
+	 * over the SIGSTOP handling.  */
+	if (proc->event_handler != NULL) {
+		debug(DEBUG_PROCESS, "taking over breakpoint handling");
+		assert(proc->event_handler->on_event
+		       == &process_stopping_on_event);
+		struct process_stopping_handler * other
+			= (void *)proc->event_handler;
+		size_t i;
+		for (i = 0; i < other->pids.count; ++i) {
+			struct pid_task * oti = &other->pids.tasks[i];
+			struct pid_task * task_info
+				= add_task_info(&handler->pids, oti->pid);
+			if (task_info == NULL) {
+				perror("ltrace_exiting_install_handler"
+				       ":add_task_info");
+				goto fatal;
+			}
+			/* Copy over the state.  */
+			*task_info = *oti;
+		}
+
+		/* And destroy the original handler.  */
+		destroy_event_handler(proc);
+	}
+
+	handler->super.on_event = ltrace_exiting_on_event;
+	handler->super.destroy = ltrace_exiting_destroy;
+	install_event_handler(proc->leader, &handler->super);
+
+	if (each_task(proc->leader, &send_sigstop,
+		      &handler->pids) != NULL)
+		goto fatal;
+
+	return 0;
+}
+
+/* If ltrace gets SIGINT, the processes directly or indirectly run by
+ * ltrace get it too.  We just have to wait long enough for the signal
+ * to be delivered and the process terminated, which we notice and
+ * exit ltrace, too.  So there's not much we need to do there.  We
+ * want to keep tracing those processes as usual, in case they just
+ * SIG_IGN the SIGINT to do their shutdown etc.
+ *
+ * For processes ran on the background, we want to install an exit
+ * handler that stops all the threads, removes all breakpoints, and
+ * detaches.
+ */
+void
+ltrace_exiting(void)
+{
+	struct opt_p_t * it;
+	for (it = opt_p; it != NULL; it = it->next) {
+		Process * proc = pid2proc(it->pid);
+		if (proc == NULL || proc->leader == NULL)
+			continue;
+		if (ltrace_exiting_install_handler(proc->leader) < 0)
+			fprintf(stderr,
+				"Couldn't install exiting handler for %d.\n",
+				proc->pid);
+	}
+}
+
 size_t
 umovebytes(Process *proc, void *addr, void *laddr, size_t len) {
 

@@ -1,5 +1,14 @@
 2011-07-08  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (ltrace_exiting): New interface called when ^C is hit.
+	* ltrace.c, handle_event.c: Remove current exit handling.
+	* sysdeps/linux-gnu/events.c: Implement exit handling using custom
+	event handler.
+	* proc.c (open_one_pid): trace_set_options so that attach to
+	multi-threaded process works.
+
+2011-07-08  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (struct Process.breakpoint_being_enabled): Drop.
 	* handle_event.c: Adapt to above.
 	* sysdeps/linux-gnu/events.c: Implement breakpoint re-enablement

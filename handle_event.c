@@ -37,6 +37,11 @@ static char * arch_sysname(Process *proc, int sysnum);
 
 void
 handle_event(Event *event) {
+	if (exiting == 1) {
+		exiting = 2;
+		debug(1, "ltrace about to exit");
+		ltrace_exiting();
+	}
 	debug(DEBUG_FUNCTION, "handle_event(pid=%d, type=%d)",
 	      event->proc ? event->proc->pid : -1, event->type);
 	/* If the thread group defines an overriding event handler,
@@ -330,13 +335,6 @@ arch_sysname(Process *proc, int sysnum) {
 static void
 handle_signal(Event *event) {
 	debug(DEBUG_FUNCTION, "handle_signal(pid=%d, signum=%d)", event->proc->pid, event->e_un.signum);
-	if (exiting && event->e_un.signum == SIGSTOP) {
-		pid_t pid = event->proc->pid;
-		disable_all_breakpoints(event->proc);
-		untrace_pid(pid);
-		remove_process(event->proc);
-		return;
-	}
 	if (event->proc->state != STATE_IGNORED && !options.no_signals) {
 		output_line(event->proc, "--- %s (%s) ---",
 				shortsignal(event->proc, event->e_un.signum),

@@ -330,6 +330,7 @@ extern int syscall_p(Process * proc, int status, int * sysnum);
 extern void continue_process(pid_t pid);
 extern void continue_after_signal(pid_t pid, int signum);
 extern void continue_after_breakpoint(Process * proc, Breakpoint * sbp);
+extern void ltrace_exiting(void);
 extern long gimme_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern void save_register_args(enum tof type, Process * proc);
 extern int umovestr(Process * proc, void * addr, int len, void * laddr);
