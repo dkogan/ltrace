@@ -53,22 +53,28 @@ next_event(void)
 		return &event;
 	}
 	get_arch_dep(event.proc);
-	event.proc->instruction_pointer = NULL;
 	debug(3, "event from pid %u", pid);
-	if (event.proc->breakpoints_enabled == -1) {
-		event.type = EVENT_NONE;
+	if (event.proc->breakpoints_enabled == -1)
 		trace_set_options(event.proc, event.proc->pid);
-		enable_all_breakpoints(event.proc);
-		continue_process(event.proc->pid);
-		debug(DEBUG_EVENT, "event: NONE: pid=%d (enabling breakpoints)", pid);
-		return &event;
-	} else if (!event.proc->libdl_hooked) {
-		/* debug struct may not have been written yet.. */
-		if (linkmap_init(event.proc, &main_lte) == 0) {
-			event.proc->libdl_hooked = 1;
+	Process *leader = event.proc->leader;
+	if (leader == event.proc) {
+		if (event.proc->breakpoints_enabled == -1) {
+			event.type = EVENT_NONE;
+			enable_all_breakpoints(event.proc);
+			continue_process(event.proc->pid);
+			debug(DEBUG_EVENT,
+			      "event: NONE: pid=%d (enabling breakpoints)",
+			      pid);
+			return &event;
+		} else if (!event.proc->libdl_hooked) {
+			/* debug struct may not have been written yet.. */
+			if (linkmap_init(event.proc, &main_lte) == 0) {
+				event.proc->libdl_hooked = 1;
+			}
 		}
 	}
 
+	event.proc->instruction_pointer = (void *)(uintptr_t)-1;
 
 	event.proc->instruction_pointer = get_instruction_pointer(event.proc);
 	if (event.proc->instruction_pointer == (void *)(uintptr_t)-1) {
@@ -148,7 +154,8 @@ next_event(void)
 	void * break_address
 		= event.proc->instruction_pointer - DECR_PC_AFTER_BREAK;
 	if ((stop_signal == SIGSEGV || stop_signal == SIGILL)
-	    && address2bpstruct(event.proc, break_address))
+	    && leader != NULL
+	    && address2bpstruct(leader, break_address))
 			stop_signal = SIGTRAP;
 
 	if (stop_signal != (SIGTRAP | event.proc->tracesysgood)

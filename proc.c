@@ -32,16 +32,21 @@ open_program(char *filename, pid_t pid, int enable) {
 #endif /* defined(HAVE_LIBUNWIND) */
 
 	add_process(proc);
+	assert(proc->leader != NULL);
 
-	breakpoints_init(proc, enable);
+	if (proc->leader == proc)
+		breakpoints_init(proc, enable);
 
 	return proc;
 }
 
-void
-open_pid(pid_t pid) {
+static void
+open_one_pid(pid_t pid)
+{
 	Process *proc;
 	char *filename;
+	debug(DEBUG_PROCESS, "open_one_pid(pid=%d)", pid);
+
 
 	if (trace_pid(pid) < 0) {
 		fprintf(stderr, "Cannot attach to pid %u: %s\n", pid,
@@ -60,6 +65,31 @@ open_pid(pid_t pid) {
 	proc = open_program(filename, pid, 1);
 	continue_process(pid);
 	proc->breakpoints_enabled = 1;
+}
+
+void
+open_pid(pid_t pid)
+{
+	debug(DEBUG_PROCESS, "open_pid(pid=%d)", pid);
+	pid_t *tasks;
+	size_t ntasks;
+	int should_free = 1;
+	if (process_tasks(pid, &tasks, &ntasks) < 0) {
+		fprintf(stderr, "Cannot obtain tasks of pid %u: %s\n", pid,
+			strerror(errno));
+
+		// Attach at least this one.
+		tasks = &pid;
+		ntasks = 1;
+		should_free = 0;
+	}
+
+	size_t i;
+	for (i = 0; i < ntasks; ++i)
+		open_one_pid(tasks[i]);
+
+	if (should_free)
+		free(tasks);
 }
 
 static enum pcb_status
@@ -92,11 +122,51 @@ each_process(Process * proc,
 	}
 	return NULL;
 }
+
+Process *
+each_task(Process * it, enum pcb_status (* cb)(Process * proc, void * data),
+	  void * data)
+{
+	if (it != NULL) {
+		Process * leader = it->leader;
+		for (; it != NULL && it->leader == leader; ) {
+			/* Callback might call remove_process.  */
+			Process * next = it->next;
+			if ((*cb) (it, data) == pcb_stop)
+				return it;
+			it = next;
+		}
+	}
+	return NULL;
+}
+
 void
 add_process(Process * proc)
 {
-	proc->next = list_of_processes;
-	list_of_processes = proc;
+	Process ** leaderp = &list_of_processes;
+	if (proc->pid) {
+		pid_t tgid = process_leader(proc->pid);
+		if (tgid == proc->pid)
+			proc->leader = proc;
+		else {
+			Process * leader = pid2proc(tgid);
+			proc->leader = leader;
+			if (leader != NULL)
+				// NULL: sub-task added before leader?
+				leaderp = &leader->next;
+		}
+	}
+	proc->next = *leaderp;
+	*leaderp = proc;
+}
+
+static enum pcb_status
+clear_leader(Process * proc, void * data)
+{
+	debug(DEBUG_FUNCTION, "detach_task %d from leader %d",
+	      proc->pid, proc->leader->pid);
+	proc->leader = NULL;
+	return pcb_cont;
 }
 
 void
@@ -105,6 +175,9 @@ remove_process(Process *proc)
 	Process *tmp, *tmp2;
 
 	debug(DEBUG_FUNCTION, "remove_proc(pid=%d)", proc->pid);
+
+	if (proc->leader == proc)
+		each_task(proc, &clear_leader, NULL);
 
 	if (list_of_processes == proc) {
 		tmp = list_of_processes;

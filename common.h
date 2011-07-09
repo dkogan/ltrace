@@ -165,12 +165,21 @@ enum Process_State {
 	STATE_IGNORED  /* ignore this process (it's a fork and no -f was used) */
 };
 
+/* XXX We would rather have this all organized a little differently,
+ * have Process for the whole group and Task for what's there for
+ * per-thread stuff.  But for now this is the less invasive way of
+ * structuring it.  */
 struct Process {
 	Process_State state;
 	Process * parent;         /* needed by STATE_BEING_CREATED */
 	char * filename;
 	pid_t pid;
+
+	/* Dictionary of breakpoints (which is a mapping
+	 * address->Breakpoint).  This is NULL for non-leader
+	 * processes.  */
 	Dict * breakpoints;
+
 	int breakpoints_enabled;  /* -1:not enabled yet, 0:disabled, 1:enabled */
 	int mask_32bit;           /* 1 if 64-bit ltrace is tracing 32-bit process */
 	unsigned int personality;
@@ -201,7 +210,18 @@ struct Process {
 	void *unwind_priv;
 #endif /* defined(HAVE_LIBUNWIND) */
 
+	/**
+	 * Process chaining.
+	 **/
 	Process * next;
+
+	/* LEADER points to the leader thread of the POSIX.1 process.
+	   If X->LEADER == X, then X is the leader thread and the
+	   Process structures chained by NEXT represent other threads,
+	   up until, but not including, the next leader thread.
+	   LEADER may be NULL after the leader has already exited.  In
+	   that case this process is waiting to be collected.  */
+	Process * leader;
 };
 
 struct opt_c_struct {
@@ -229,6 +249,10 @@ extern void remove_process(Process * proc);
 extern Process *each_process(Process * start,
 			     enum pcb_status (* cb)(Process * proc, void * data),
 			     void * data);
+extern Process *each_task(Process * start,
+			  enum pcb_status (* cb)(Process * proc, void * data),
+			  void * data);
+
 extern void handle_event(Event * event);
 extern pid_t execute_program(const char * command, char ** argv);
 extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
@@ -256,6 +280,10 @@ extern void add_library_symbol(GElf_Addr addr, const char *name,
 
 /* Arch-dependent stuff: */
 extern char * pid2name(pid_t pid);
+extern pid_t process_leader(pid_t pid);
+extern int process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n);
+extern int process_stopped(pid_t pid);
+extern char process_status(pid_t pid);
 extern void trace_set_options(Process * proc, pid_t pid);
 extern void trace_me(void);
 extern int trace_pid(pid_t pid);
@@ -282,6 +310,8 @@ extern int ffcheck(void * maddr);
 extern void * sym2addr(Process *, struct library_symbol *);
 extern int linkmap_init(Process *, struct ltelf *);
 extern void arch_check_dbg(Process *proc);
+extern int task_kill (pid_t pid, int sig);
+
 
 extern struct ltelf main_lte;
 

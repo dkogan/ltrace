@@ -27,7 +27,7 @@ stop_non_p_processes (Process * proc, void * data)
 			printf("stop_non_p_processes: %d terminated?\n", it->pid);
 			continue;
 		}
-		if (p_proc == proc) {
+		if (p_proc == proc || p_proc->leader == proc->leader) {
 			stop = 0;
 			break;
 		}

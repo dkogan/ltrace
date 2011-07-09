@@ -16,6 +16,7 @@ Breakpoint *
 address2bpstruct(Process *proc, void *addr) {
 	assert(proc != NULL);
 	assert(proc->breakpoints != NULL);
+	assert(proc->leader == proc);
 	debug(DEBUG_FUNCTION, "address2bpstruct(pid=%d, addr=%p)", proc->pid, addr);
 	return dict_find_entry(proc->breakpoints, addr);
 }
@@ -24,6 +25,13 @@ void
 insert_breakpoint(Process *proc, void *addr,
 		  struct library_symbol *libsym, int enable) {
 	Breakpoint *sbp;
+
+	Process * leader = proc->leader;
+
+	/* Only the group leader should be getting the breakpoints and
+	 * thus have ->breakpoint initialized.  */
+	assert(leader != NULL);
+	assert(leader->breakpoints != NULL);
 
 #ifdef __arm__
 	int thumb_mode = (int)addr & 1;
@@ -40,13 +48,13 @@ insert_breakpoint(Process *proc, void *addr,
 	if (libsym)
 		libsym->needs_init = 0;
 
-	sbp = dict_find_entry(proc->breakpoints, addr);
+	sbp = dict_find_entry(leader->breakpoints, addr);
 	if (!sbp) {
 		sbp = calloc(1, sizeof(Breakpoint));
 		if (!sbp) {
 			return;	/* TODO FIXME XXX: error_mem */
 		}
-		dict_enter(proc->breakpoints, addr, sbp);
+		dict_enter(leader->breakpoints, addr, sbp);
 		sbp->addr = addr;
 		sbp->libsym = libsym;
 	}
@@ -67,7 +75,10 @@ delete_breakpoint(Process *proc, void *addr) {
 
 	debug(DEBUG_FUNCTION, "delete_breakpoint(pid=%d, addr=%p)", proc->pid, addr);
 
-	sbp = dict_find_entry(proc->breakpoints, addr);
+	Process * leader = proc->leader;
+	assert(leader != NULL);
+
+	sbp = dict_find_entry(leader->breakpoints, addr);
 	assert(sbp);		/* FIXME: remove after debugging has been done. */
 	/* This should only happen on out-of-memory conditions. */
 	if (sbp == NULL)
@@ -157,6 +168,7 @@ disable_bp_cb(void *addr, void *sbp, void *proc) {
 void
 disable_all_breakpoints(Process *proc) {
 	debug(DEBUG_FUNCTION, "disable_all_breakpoints(pid=%d)", proc->pid);
+	assert(proc->leader == proc);
 	if (proc->breakpoints_enabled) {
 		debug(1, "Disabling breakpoints for pid %u...", proc->pid);
 		dict_apply_to_all(proc->breakpoints, disable_bp_cb, proc);
@@ -182,6 +194,11 @@ breakpoints_init(Process *proc, int enable)
 		dict_clear(proc->breakpoints);
 		proc->breakpoints = NULL;
 	}
+
+	/* Only the thread group leader should hold the breakpoints.
+	 * (N.B. PID may be set to 0 temporarily when called by
+	 * handle_exec).  */
+	assert(proc->leader == proc);
 
 	proc->breakpoints = dict_init(dict_key2hash_int,
 				      dict_key_cmp_int);

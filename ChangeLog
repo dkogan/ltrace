@@ -25,6 +25,23 @@
 
 	* common.h (struct Process): Drop field type_being_displayed.
 
+2011-05-06  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (struct Process.leader): Points to leader thread of the
+	process.
+	(process_leader, process_tasks): For querying threads of process.
+	(process_status, process_stopped): For querying task status.
+	(task_kill): For sending signals to a single task.
+	(each_task): Like each_process, but for tasks of a process.
+	* proc.c (open_pid): Open all tasks of the process.
+	(each_task): Implementation.
+	* sysdeps/linux-gnu/proc.c (process_leader, process_tasks)
+	(process_stopped, process_status): Implementations.
+	* handle_event.c: Update throughout.
+	* sysdeps/linux-gnu/events.c: Likewise.
+	* sysdeps/linux-gnu/trace.c (trace_pid): waitpid should wait for
+	threads, too.
+
 2011-05-05  Petr Machata  <pmachata@redhat.com>
 
 	* common.h (add_process, remove_process, each_process)

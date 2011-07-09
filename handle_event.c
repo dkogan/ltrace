@@ -477,6 +477,13 @@ static void
 handle_breakpoint(Event *event) {
 	int i, j;
 	Breakpoint *sbp;
+	Process *leader = event->proc->leader;
+
+	/* The leader has terminated.  */
+	if (leader == NULL) {
+		continue_process(event->proc->pid);
+		return;
+	}
 
 	debug(DEBUG_FUNCTION, "handle_breakpoint(pid=%d, addr=%p)", event->proc->pid, event->e_un.brk_addr);
 	debug(2, "event: breakpoint (%p)", event->e_un.brk_addr);
@@ -487,7 +494,7 @@ handle_breakpoint(Event *event) {
 	Breakpoint *stub_bp = NULL;
 	char nop_instruction[] = PPC_NOP;
 
-	stub_bp = address2bpstruct (event->proc, event->e_un.brk_addr);
+	stub_bp = address2bpstruct(leader, event->e_un.brk_addr);
 
 	if (stub_bp) {
 		unsigned char *bp_instruction = stub_bp->orig_value;
@@ -527,7 +534,7 @@ handle_breakpoint(Event *event) {
 			if (libsym->plt_type != LS_TOPLT_POINT) {
 				unsigned char break_insn[] = BREAKPOINT_VALUE;
 
-				sbp = address2bpstruct(event->proc, addr);
+				sbp = address2bpstruct(leader, addr);
 				assert(sbp);
 				a = ptrace(PTRACE_PEEKTEXT, event->proc->pid,
 					   addr);
@@ -538,7 +545,7 @@ handle_breakpoint(Event *event) {
 							  libsym);
 				}
 			} else {
-				sbp = dict_find_entry(event->proc->breakpoints, addr);
+				sbp = dict_find_entry(leader->breakpoints, addr);
 				/* On powerpc, the breakpoint address
 				   may end up being actual entry point
 				   of the library symbol, not the PLT
@@ -554,8 +561,8 @@ handle_breakpoint(Event *event) {
 			struct library_symbol *sym= event->proc->callstack[i].c_un.libfunc;
 			struct library_symbol *new_sym;
 			assert(sym);
-			addr = sym2addr(event->proc, sym);
-			sbp = dict_find_entry(event->proc->breakpoints, addr);
+			addr = sym2addr(leader, sym);
+			sbp = dict_find_entry(leader->breakpoints, addr);
 			if (sbp) {
 				if (addr != sbp->addr) {
 					insert_breakpoint(event->proc, addr, sym);
@@ -564,7 +571,7 @@ handle_breakpoint(Event *event) {
 				new_sym=malloc(sizeof(*new_sym) + strlen(sym->name) + 1);
 				memcpy(new_sym,sym,sizeof(*new_sym) + strlen(sym->name) + 1);
 				new_sym->next = leader->list_of_symbols;
-				event->proc->list_of_symbols = new_sym;
+				leader->list_of_symbols = new_sym;
 				insert_breakpoint(event->proc, addr, new_sym);
 			}
 #endif
@@ -582,18 +589,23 @@ handle_breakpoint(Event *event) {
 						event->proc->callstack[i].c_un.libfunc->name);
 			}
 			callstack_pop(event->proc);
-			continue_after_breakpoint(event->proc,
-					address2bpstruct(event->proc,
-						event->e_un.brk_addr));
+			sbp = address2bpstruct(leader, event->e_un.brk_addr);
+			continue_after_breakpoint(event->proc, sbp);
 			return;
 		}
 	}
 
-	if ((sbp = address2bpstruct(event->proc, event->e_un.brk_addr))) {
+	if ((sbp = address2bpstruct(leader, event->e_un.brk_addr))) {
+		if (sbp->libsym == NULL) {
+			continue_after_breakpoint(event->proc, sbp);
+			return;
+		}
+
 		if (strcmp(sbp->libsym->name, "") == 0) {
 			debug(DEBUG_PROCESS, "Hit _dl_debug_state breakpoint!\n");
-			arch_check_dbg(event->proc);
+			arch_check_dbg(leader);
 		}
+
 		if (event->proc->state != STATE_IGNORED) {
 			event->proc->stack_pointer = get_stack_pointer(event->proc);
 			event->proc->return_addr =
@@ -605,7 +617,7 @@ handle_breakpoint(Event *event) {
 		if (event->proc->need_to_reinitialize_breakpoints
 		    && (strcmp(sbp->libsym->name, PLTs_initialized_by_here) ==
 			0))
-			reinitialize_breakpoints(event->proc);
+			reinitialize_breakpoints(leader);
 #endif
 
 		continue_after_breakpoint(event->proc, sbp);
@@ -682,6 +694,7 @@ callstack_pop(Process *proc) {
 	debug(DEBUG_FUNCTION, "callstack_pop(pid=%d)", proc->pid);
 	elem = &proc->callstack[proc->callstack_depth - 1];
 	if (!elem->is_syscall && elem->return_addr) {
+		assert(proc->leader != NULL);
 		delete_breakpoint(proc, elem->return_addr);
 	}
 	if (elem->arch_ptr != NULL) {

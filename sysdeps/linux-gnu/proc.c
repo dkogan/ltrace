@@ -2,12 +2,19 @@
 #include "common.h"
 
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <link.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <ctype.h>
+#include <errno.h>
+#include <sys/syscall.h>
+
 
 /* /proc/pid doesn't exist just after the fork, and sometimes `ltrace'
  * couldn't open it to find the executable.  So it may be necessary to
@@ -16,17 +23,19 @@
 
 #define	MAX_DELAY	100000	/* 100000 microseconds = 0.1 seconds */
 
+#define PROC_PID_FILE(VAR, FORMAT, PID)		\
+	char VAR[strlen(FORMAT) + 6];		\
+	sprintf(VAR, FORMAT, PID)
+
 /*
  * Returns a (malloc'd) file name corresponding to a running pid
  */
 char *
 pid2name(pid_t pid) {
-	char proc_exe[1024];
-
 	if (!kill(pid, 0)) {
 		int delay = 0;
 
-		sprintf(proc_exe, "/proc/%d/exe", pid);
+		PROC_PID_FILE(proc_exe, "/proc/%d/exe", pid);
 
 		while (delay < MAX_DELAY) {
 			if (!access(proc_exe, F_OK)) {
@@ -36,6 +45,167 @@ pid2name(pid_t pid) {
 		}
 	}
 	return NULL;
+}
+
+static FILE *
+open_status_file(pid_t pid)
+{
+	PROC_PID_FILE(fn, "/proc/%d/status", pid);
+	/* Don't complain if we fail.  This would typically happen
+	   when the process is about to terminate, and these files are
+	   not available anymore.  This function is called from the
+	   event loop, and we don't want to clutter the output just
+	   because the process terminates.  */
+	return fopen(fn, "r");
+}
+
+static char *
+find_line_starting(FILE * file, const char * prefix, size_t len)
+{
+	char * line = NULL;
+	size_t line_len = 0;
+	while (!feof(file)) {
+		if (getline(&line, &line_len, file) < 0)
+			return NULL;
+		if (strncmp(line, prefix, len) == 0)
+			return line;
+	}
+	return NULL;
+}
+
+static void
+each_line_starting(FILE * file, const char *prefix,
+		   enum pcb_status (*cb)(const char * line, const char * prefix,
+					 void * data),
+		   void * data)
+{
+	size_t len = strlen(prefix);
+	char * line;
+	while ((line = find_line_starting(file, prefix, len)) != NULL) {
+		enum pcb_status st = (*cb)(line, prefix, data);
+		free (line);
+		if (st == pcb_stop)
+			return;
+	}
+}
+
+static enum pcb_status
+process_leader_cb(const char * line, const char * prefix, void * data)
+{
+	pid_t * pidp = data;
+	*pidp = atoi(line + strlen(prefix));
+	return pcb_stop;
+}
+
+pid_t
+process_leader(pid_t pid)
+{
+	pid_t tgid = pid;
+	FILE * file = open_status_file(pid);
+	if (file != NULL) {
+		each_line_starting(file, "Tgid:\t", &process_leader_cb, &tgid);
+		fclose(file);
+	}
+
+	return tgid;
+}
+
+static enum pcb_status
+process_stopped_cb(const char * line, const char * prefix, void * data)
+{
+	char c = line[strlen(prefix)];
+	// t:tracing stop, T:job control stop
+	*(int *)data = (c == 't' || c == 'T');
+	return pcb_stop;
+}
+
+int
+process_stopped(pid_t pid)
+{
+	int is_stopped = -1;
+	FILE * file = open_status_file(pid);
+	if (file != NULL) {
+		each_line_starting(file, "State:\t", &process_stopped_cb,
+				   &is_stopped);
+		fclose(file);
+	}
+	return is_stopped;
+}
+
+static enum pcb_status
+process_status_cb(const char * line, const char * prefix, void * data)
+{
+	*(char *)data = line[strlen(prefix)];
+	return pcb_stop;
+}
+
+char
+process_status(pid_t pid)
+{
+	char ret = '?';
+	FILE * file = open_status_file(pid);
+	if (file != NULL) {
+		each_line_starting(file, "State:\t", &process_status_cb, &ret);
+		fclose(file);
+	}
+	return ret;
+}
+
+static int
+all_digits(const char *str)
+{
+	while (isdigit(*str))
+		str++;
+	return !*str;
+}
+
+int
+process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
+{
+	PROC_PID_FILE(fn, "/proc/%d/task", pid);
+	DIR * d = opendir(fn);
+	if (d == NULL)
+		return -1;
+
+	/* XXX This is racy.  We need to stop the tasks that we
+	   discover this way and re-scan the directory to eventually
+	   reach a full set of tasks.  */
+	pid_t *tasks = NULL;
+	size_t n = 0;
+	size_t alloc = 0;
+
+	while (1) {
+		struct dirent entry;
+		struct dirent *result;
+		if (readdir_r(d, &entry, &result) != 0) {
+			free(tasks);
+			return -1;
+		}
+		if (result == NULL)
+			break;
+		if (result->d_type == DT_DIR && all_digits(result->d_name)) {
+			pid_t npid = atoi(result->d_name);
+			if (n >= alloc) {
+				alloc = alloc > 0 ? (2 * alloc) : 8;
+				pid_t *ntasks = realloc(tasks,
+							sizeof(*tasks) * alloc);
+				if (ntasks == NULL) {
+					free(tasks);
+					return -1;
+				}
+				tasks = ntasks;
+			}
+			if (n >= alloc)
+				abort();
+			tasks[n++] = npid;
+		}
+	}
+
+	closedir(d);
+
+	*ret_tasks = tasks;
+	*ret_n = n;
+	return 0;
 }
 
 static int
@@ -285,4 +455,15 @@ linkmap_init(Process *proc, struct ltelf *lte) {
 
 	free(rdbg);
 	return 0;
+}
+
+int
+task_kill (pid_t pid, int sig)
+{
+	// Taken from GDB
+        int ret;
+
+        errno = 0;
+        ret = syscall (__NR_tkill, pid, sig);
+	return ret;
 }

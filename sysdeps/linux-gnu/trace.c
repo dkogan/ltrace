@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include "ptrace.h"
 #include <asm/unistd.h>
+#include <assert.h>
 
 #include "common.h"
 
@@ -87,9 +88,9 @@ trace_pid(pid_t pid) {
 	   in pid.  The child is sent a SIGSTOP, but will not
 	   necessarily have stopped by the completion of this call;
 	   use wait() to wait for the child to stop. */
-	if (waitpid (pid, NULL, 0) != pid) {
+	if (waitpid (pid, NULL, __WALL) != pid) {
 		perror ("trace_pid: waitpid");
-		exit (1);
+		return -1;
 	}
 
 	return 0;
