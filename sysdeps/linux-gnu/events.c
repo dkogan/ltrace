@@ -165,10 +165,51 @@ next_event(void)
 		}
 	}
 
+	/* The process should be stopped after the waitpid call.  But
+	 * when the whole thread group is terminated, we see
+	 * individual tasks spontaneously transitioning from 't' to
+	 * 'R' and 'Z'.  Calls to ptrace fail and /proc/pid/status may
+	 * not even be available anymore, so we can't check in
+	 * advance.  So we just drop the error checking around ptrace
+	 * calls.  We check for termination ex post when it fails,
+	 * suppress the event, and let the event loop collect the
+	 * termination in the next iteration.  */
+#define CHECK_PROCESS_TERMINATED					\
+	do {								\
+		int errno_save = errno;					\
+		switch (process_stopped(pid))				\
+		case 0:							\
+		case -1: {						\
+			debug(DEBUG_EVENT,				\
+			      "process not stopped, is it terminating?"); \
+			event.type = EVENT_NONE;			\
+			continue_process(event.proc->pid);		\
+			return &event;					\
+		}							\
+		errno = errno_save;					\
+	} while (0)
+
 	event.proc->instruction_pointer = (void *)(uintptr_t)-1;
+
+	/* Check for task termination now, before we have a need to
+	 * call CHECK_PROCESS_TERMINATED later.  That would suppress
+	 * the event that we are processing.  */
+	if (WIFSIGNALED(status)) {
+		event.type = EVENT_EXIT_SIGNAL;
+		event.e_un.signum = WTERMSIG(status);
+		debug(DEBUG_EVENT, "event: EXIT_SIGNAL: pid=%d, signum=%d", pid, event.e_un.signum);
+		return &event;
+	}
+	if (WIFEXITED(status)) {
+		event.type = EVENT_EXIT;
+		event.e_un.ret_val = WEXITSTATUS(status);
+		debug(DEBUG_EVENT, "event: EXIT: pid=%d, status=%d", pid, event.e_un.ret_val);
+		return &event;
+	}
 
 	event.proc->instruction_pointer = get_instruction_pointer(event.proc);
 	if (event.proc->instruction_pointer == (void *)(uintptr_t)-1) {
+		CHECK_PROCESS_TERMINATED;
 		if (errno != 0)
 			perror("get_instruction_pointer");
 	}
@@ -195,10 +236,9 @@ next_event(void)
 			debug(DEBUG_EVENT, "event: ARCH_SYSRET: pid=%d, sysnum=%d", pid, tmp);
 			return &event;
 		case -1:
-			event.type = EVENT_NONE;
-			continue_process(event.proc->pid);
-			debug(DEBUG_EVENT, "event: NONE: pid=%d (syscall_p returned -1)", pid);
-			return &event;
+			CHECK_PROCESS_TERMINATED;
+			if (errno != 0)
+				perror("syscall_p");
 	}
 	if (WIFSTOPPED(status) && ((status>>16 == PTRACE_EVENT_FORK) || (status>>16 == PTRACE_EVENT_VFORK) || (status>>16 == PTRACE_EVENT_CLONE))) {
 		unsigned long data;
@@ -211,18 +251,6 @@ next_event(void)
 	if (WIFSTOPPED(status) && (status>>16 == PTRACE_EVENT_EXEC)) {
 		event.type = EVENT_EXEC;
 		debug(DEBUG_EVENT, "event: EXEC: pid=%d", pid);
-		return &event;
-	}
-	if (WIFEXITED(status)) {
-		event.type = EVENT_EXIT;
-		event.e_un.ret_val = WEXITSTATUS(status);
-		debug(DEBUG_EVENT, "event: EXIT: pid=%d, status=%d", pid, event.e_un.ret_val);
-		return &event;
-	}
-	if (WIFSIGNALED(status)) {
-		event.type = EVENT_EXIT_SIGNAL;
-		event.e_un.signum = WTERMSIG(status);
-		debug(DEBUG_EVENT, "event: EXIT_SIGNAL: pid=%d, signum=%d", pid, event.e_un.signum);
 		return &event;
 	}
 	if (!WIFSTOPPED(status)) {

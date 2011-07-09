@@ -8,6 +8,7 @@
 #include <sys/reg.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "common.h"
 #include "ptrace.h"
@@ -44,8 +45,11 @@ int
 syscall_p(Process *proc, int status, int *sysnum) {
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
-		*sysnum = ptrace(PTRACE_PEEKUSER, proc->pid, 8 * ORIG_RAX, 0);
+		long int ret = ptrace(PTRACE_PEEKUSER, proc->pid, 8 * ORIG_RAX, 0);
+		if (ret == -1 && errno)
+			return -1;
 
+		*sysnum = ret;
 		if (proc->callstack_depth > 0 &&
 				proc->callstack[proc->callstack_depth - 1].is_syscall &&
 				proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
