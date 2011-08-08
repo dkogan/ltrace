@@ -609,6 +609,7 @@ read_elf(Process *proc) {
 	struct ltelf lte[MAX_LIBRARIES + 1];
 	size_t i;
 	struct opt_x_t *xptr;
+	struct opt_x_t *opt_x_loc = opt_x;
 	struct library_symbol **lib_tail = NULL;
 	int exit_out = 0;
 	int count = 0;
@@ -722,11 +723,11 @@ read_elf(Process *proc) {
 			main_cheat = (struct opt_x_t *)malloc(sizeof(struct opt_x_t));
 			if (main_cheat == NULL)
 				error(EXIT_FAILURE, 0, "Couldn't allocate memory");
-			main_cheat->next = opt_x;
+			main_cheat->next = opt_x_loc;
 			main_cheat->found = 0;
 			main_cheat->name = PLTs_initialized_by_here;
 
-			for (xptr = opt_x; xptr; xptr = xptr->next)
+			for (xptr = opt_x_loc; xptr; xptr = xptr->next)
 				if (strcmp(xptr->name, PLTs_initialized_by_here) == 0
 						&& main_cheat) {
 					free(main_cheat);
@@ -734,7 +735,7 @@ read_elf(Process *proc) {
 					break;
 				}
 			if (main_cheat)
-				opt_x = main_cheat;
+				opt_x_loc = main_cheat;
 		}
 #endif
 	} else {
@@ -756,7 +757,7 @@ read_elf(Process *proc) {
 		if (!addr)
 			continue;
 
-		for (xptr = opt_x; xptr; xptr = xptr->next)
+		for (xptr = opt_x_loc; xptr; xptr = xptr->next)
 			if (xptr->name && strcmp(xptr->name, name) == 0) {
 				/* FIXME: Should be able to use &library_symbols as above.  But
 				   when you do, none of the real library symbols cause breaks. */
@@ -769,7 +770,7 @@ read_elf(Process *proc) {
 
 	unsigned found_count = 0;
 
-	for (xptr = opt_x; xptr; xptr = xptr->next) {
+	for (xptr = opt_x_loc; xptr; xptr = xptr->next) {
 		if (xptr->found)
 			continue;
 
@@ -791,7 +792,7 @@ read_elf(Process *proc) {
 		}
 	}
 
-	for (xptr = opt_x; xptr; xptr = xptr->next)
+	for (xptr = opt_x_loc; xptr; xptr = xptr->next)
 		if ( ! xptr->found) {
 			char *badthing = "WARNING";
 #ifdef PLT_REINITALISATION_BP
