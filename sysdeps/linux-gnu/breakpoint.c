@@ -6,14 +6,13 @@
 #include "common.h"
 #include "arch.h"
 
-static unsigned char break_insn[] = BREAKPOINT_VALUE;
-
 #ifdef ARCH_HAVE_ENABLE_BREAKPOINT
 extern void arch_enable_breakpoint(pid_t, Breakpoint *);
 #else				/* ARCH_HAVE_ENABLE_BREAKPOINT */
 void
 arch_enable_breakpoint(pid_t pid, Breakpoint *sbp)
 {
+	static unsigned char break_insn[] = BREAKPOINT_VALUE;
 	unsigned int i, j;
 
 	if (sbp->libsym) {
