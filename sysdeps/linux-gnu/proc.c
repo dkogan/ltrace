@@ -202,9 +202,6 @@ process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
 	if (d == NULL)
 		return -1;
 
-	/* XXX This is racy.  We need to stop the tasks that we
-	   discover this way and re-scan the directory to eventually
-	   reach a full set of tasks.  */
 	pid_t *tasks = NULL;
 	size_t n = 0;
 	size_t alloc = 0;

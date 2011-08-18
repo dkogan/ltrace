@@ -40,57 +40,73 @@ open_program(char *filename, pid_t pid, int enable) {
 	return proc;
 }
 
-static void
+static int
 open_one_pid(pid_t pid)
 {
 	Process *proc;
 	char *filename;
 	debug(DEBUG_PROCESS, "open_one_pid(pid=%d)", pid);
 
-
-	if (trace_pid(pid) < 0) {
-		fprintf(stderr, "Cannot attach to pid %u: %s\n", pid,
-			strerror(errno));
-		return;
-	}
+	if (trace_pid(pid) < 0)
+		return 0;
 
 	filename = pid2name(pid);
-
-	if (!filename) {
-		fprintf(stderr, "Cannot trace pid %u: %s\n", pid,
-				strerror(errno));
-		return;
-	}
+	if (filename == NULL)
+		return 0;
 
 	proc = open_program(filename, pid, 1);
 	trace_set_options(proc, pid);
 	continue_process(pid);
 	proc->breakpoints_enabled = 1;
+
+	return 1;
 }
 
 void
 open_pid(pid_t pid)
 {
 	debug(DEBUG_PROCESS, "open_pid(pid=%d)", pid);
-	pid_t *tasks;
-	size_t ntasks;
-	int should_free = 1;
-	if (process_tasks(pid, &tasks, &ntasks) < 0) {
-		fprintf(stderr, "Cannot obtain tasks of pid %u: %s\n", pid,
-			strerror(errno));
+	/* If we are already tracing this guy, we should be seeing all
+	 * his children via normal tracing route.  */
+	if (pid2proc(pid) != NULL)
+		return;
 
-		// Attach at least this one.
-		tasks = &pid;
-		ntasks = 1;
-		should_free = 0;
+	/* First, see if we can attach the requested PID itself.  */
+	if (!open_one_pid(pid)) {
+		fprintf(stderr, "Cannot attach to pid %u: %s\n",
+			pid, strerror(errno));
+		return;
 	}
 
-	size_t i;
-	for (i = 0; i < ntasks; ++i)
-		open_one_pid(tasks[i]);
+	/* Now attach to all tasks that belong to that PID.  There's a
+	 * race between process_tasks and open_one_pid.  So when we
+	 * fail in open_one_pid below, we just do another round.
+	 * Chances are that by then that PID will have gone away, and
+	 * that's why we have seen the failure.  The processes that we
+	 * manage to open_one_pid are stopped, so we should eventually
+	 * reach a point where process_tasks doesn't give any new
+	 * processes (because there's nobody left to produce
+	 * them).  */
+	int have_all;
+	do {
+		pid_t *tasks;
+		size_t ntasks;
+		size_t i;
+		if (process_tasks(pid, &tasks, &ntasks) < 0) {
+			fprintf(stderr, "Cannot obtain tasks of pid %u: %s\n",
+				pid, strerror(errno));
+			return;
+		}
 
-	if (should_free)
+		have_all = 1;
+		for (i = 0; i < ntasks; ++i)
+			if (pid2proc(tasks[i]) == NULL
+			    && !open_one_pid(tasks[i]))
+				have_all = 0;
+
 		free(tasks);
+
+	} while (have_all == 0);
 }
 
 static enum pcb_status
