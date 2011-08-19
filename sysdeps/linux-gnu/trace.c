@@ -580,6 +580,22 @@ untrace_task(Process * task, void * data)
 	return pcb_cont;
 }
 
+/* Before we detach, we need to make sure that task's IP is on the
+ * edge of an instruction.  So for tasks that have a breakpoint event
+ * in the queue, we adjust the instruction pointer, just like
+ * continue_after_breakpoint does.  */
+static enum ecb_status
+undo_breakpoint(Event * event, void * data)
+{
+	if (event->proc->leader == data
+	    && event->type == EVENT_BREAKPOINT) {
+		fprintf(stderr, " + %p ", get_instruction_pointer(event->proc));
+		set_instruction_pointer(event->proc, event->e_un.brk_addr);
+		fprintf(stderr, "-> %p\n", get_instruction_pointer(event->proc));
+	}
+	return ecb_cont;
+}
+
 static Event *
 ltrace_exiting_on_event(Event_Handler * super, Event * event)
 {
@@ -594,6 +610,7 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 
 	if (await_sigstop_delivery(&self->pids, task_info, event)) {
 		debug(DEBUG_PROCESS, "all SIGSTOPs delivered %d", leader->pid);
+		each_qd_event(&undo_breakpoint, leader);
 		disable_all_breakpoints(leader);
 
 		/* Now untrace the process, if it was attached to by -p.  */
