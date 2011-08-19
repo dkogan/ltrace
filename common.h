@@ -295,7 +295,7 @@ extern void destroy_event_handler(Process * proc);
 extern pid_t execute_program(const char * command, char ** argv);
 extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern Breakpoint * address2bpstruct(Process * proc, void * addr);
-extern void breakpoints_init(Process * proc, int enable);
+extern int breakpoints_init(Process * proc, int enable);
 extern void insert_breakpoint(Process * proc, void * addr,
 			      struct library_symbol * libsym, int enable);
 extern void delete_breakpoint(Process * proc, void * addr);
@@ -308,7 +308,7 @@ extern void open_pid(pid_t pid);
 extern void show_summary(void);
 extern arg_type_info * lookup_prototype(enum arg_type at);
 
-extern void do_init_elf(struct ltelf *lte, const char *filename);
+extern int do_init_elf(struct ltelf *lte, const char *filename);
 extern void do_close_elf(struct ltelf *lte);
 extern int in_load_libraries(const char *name, struct ltelf *lte, size_t count, GElf_Sym *sym);
 extern struct library_symbol *library_symbols;

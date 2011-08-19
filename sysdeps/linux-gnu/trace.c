@@ -148,7 +148,6 @@ void
 continue_process(pid_t pid)
 {
 	debug(DEBUG_PROCESS, "continue_process: pid=%d", pid);
-	//printf("continue_process %d\n", pid);
 
 	/* Only really continue the process if there are no events in
 	   the queue for this process.  Otherwise just for the other

@@ -183,7 +183,7 @@ free_bp_cb(void *addr, void *sbp, void *data) {
 	free(sbp);
 }
 
-void
+int
 breakpoints_init(Process *proc, int enable)
 {
 	struct library_symbol *sym;
@@ -215,6 +215,11 @@ breakpoints_init(Process *proc, int enable)
 
 	if (options.libcalls && proc->filename) {
 		proc->list_of_symbols = read_elf(proc);
+		if (proc->list_of_symbols == NULL) {
+			/* XXX leak breakpoints */
+			return -1;
+		}
+
 		if (opt_e) {
 			struct library_symbol **tmp1 = &proc->list_of_symbols;
 			while (*tmp1) {
@@ -242,6 +247,7 @@ breakpoints_init(Process *proc, int enable)
 
 	proc->callstack_depth = 0;
 	proc->breakpoints_enabled = -1;
+	return 0;
 }
 
 void

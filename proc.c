@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <error.h>
 
 #include "common.h"
 
@@ -23,6 +24,7 @@ open_program(char *filename, pid_t pid, int enable) {
 		perror("malloc");
 		exit(1);
 	}
+
 	proc->filename = strdup(filename);
 	proc->breakpoints_enabled = -1;
 	proc->pid = pid;
@@ -32,10 +34,18 @@ open_program(char *filename, pid_t pid, int enable) {
 #endif /* defined(HAVE_LIBUNWIND) */
 
 	add_process(proc);
-	assert(proc->leader != NULL);
+	if (proc->leader == NULL) {
+		free(proc);
+		return NULL;
+	}
 
 	if (proc->leader == proc)
-		breakpoints_init(proc, enable);
+		if (breakpoints_init(proc, enable)) {
+			fprintf(stderr, "failed to init breakpoints %d\n",
+				proc->pid);
+			remove_process(proc);
+			return NULL;
+		}
 
 	return proc;
 }
@@ -47,19 +57,28 @@ open_one_pid(pid_t pid)
 	char *filename;
 	debug(DEBUG_PROCESS, "open_one_pid(pid=%d)", pid);
 
-	if (trace_pid(pid) < 0)
-		return 0;
+	/* Get the filename first.  Should the trace_pid fail, we can
+	 * easily free it, untracing is more work.  */
+	if ((filename = pid2name(pid)) == NULL
+	    || trace_pid(pid) < 0) {
+		free(filename);
+		return -1;
+	}
 
-	filename = pid2name(pid);
-	if (filename == NULL)
-		return 0;
-
-	proc = open_program(filename, pid, 1);
+	proc = open_program(filename, pid, 0);
+	if (proc == NULL)
+		return -1;
 	trace_set_options(proc, pid);
-	continue_process(pid);
-	proc->breakpoints_enabled = 1;
 
-	return 1;
+	return 0;
+}
+
+enum pcb_status
+start_one_pid(Process * proc, void * data)
+{
+	continue_process(proc->pid);
+	proc->breakpoints_enabled = 1;
+	return pcb_cont;
 }
 
 void
@@ -72,7 +91,7 @@ open_pid(pid_t pid)
 		return;
 
 	/* First, see if we can attach the requested PID itself.  */
-	if (!open_one_pid(pid)) {
+	if (open_one_pid(pid)) {
 		fprintf(stderr, "Cannot attach to pid %u: %s\n",
 			pid, strerror(errno));
 		return;
@@ -87,26 +106,40 @@ open_pid(pid_t pid)
 	 * reach a point where process_tasks doesn't give any new
 	 * processes (because there's nobody left to produce
 	 * them).  */
+	size_t old_ntasks = 0;
 	int have_all;
-	do {
+	while (1) {
 		pid_t *tasks;
 		size_t ntasks;
 		size_t i;
+
 		if (process_tasks(pid, &tasks, &ntasks) < 0) {
 			fprintf(stderr, "Cannot obtain tasks of pid %u: %s\n",
 				pid, strerror(errno));
-			return;
+			goto start;
 		}
 
 		have_all = 1;
 		for (i = 0; i < ntasks; ++i)
 			if (pid2proc(tasks[i]) == NULL
-			    && !open_one_pid(tasks[i]))
+			    && open_one_pid(tasks[i]))
 				have_all = 0;
 
 		free(tasks);
 
-	} while (have_all == 0);
+		if (have_all && old_ntasks == ntasks)
+			break;
+		old_ntasks = ntasks;
+	}
+
+	/* Done.  Now initialize breakpoints and then continue
+	 * everyone.  */
+	Process * leader;
+start:
+	leader = pid2proc(pid)->leader;
+	enable_all_breakpoints(leader);
+
+	each_task(pid2proc(pid)->leader, start_one_pid, NULL);
 }
 
 static enum pcb_status
@@ -163,13 +196,16 @@ add_process(Process * proc)
 	Process ** leaderp = &list_of_processes;
 	if (proc->pid) {
 		pid_t tgid = process_leader(proc->pid);
+		if (tgid == 0)
+			/* Must have been terminated before we managed
+			 * to fully attach.  */
+			return;
 		if (tgid == proc->pid)
 			proc->leader = proc;
 		else {
 			Process * leader = pid2proc(tgid);
 			proc->leader = leader;
 			if (leader != NULL)
-				// NULL: sub-task added before leader?
 				leaderp = &leader->next;
 		}
 	}

@@ -102,7 +102,7 @@ process_leader_cb(const char * line, const char * prefix, void * data)
 pid_t
 process_leader(pid_t pid)
 {
-	pid_t tgid = pid;
+	pid_t tgid = 0;
 	FILE * file = open_status_file(pid);
 	if (file != NULL) {
 		each_line_starting(file, "Tgid:\t", &process_leader_cb, &tgid);

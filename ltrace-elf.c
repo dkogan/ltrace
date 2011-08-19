@@ -14,7 +14,6 @@
 
 #include "common.h"
 
-void do_init_elf(struct ltelf *lte, const char *filename);
 void do_close_elf(struct ltelf *lte);
 void add_library_symbol(GElf_Addr addr, const char *name,
 		struct library_symbol **library_symbolspp,
@@ -136,7 +135,7 @@ static GElf_Addr get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot,
 	return 0;
 }
 
-void
+int
 do_init_elf(struct ltelf *lte, const char *filename) {
 	int i;
 	GElf_Addr relplt_addr = 0;
@@ -147,7 +146,7 @@ do_init_elf(struct ltelf *lte, const char *filename) {
 
 	lte->fd = open(filename, O_RDONLY);
 	if (lte->fd == -1)
-		error(EXIT_FAILURE, errno, "Can't open \"%s\"", filename);
+		return 1;
 
 #ifdef HAVE_ELF_C_READ_MMAP
 	lte->elf = elf_begin(lte->fd, ELF_C_READ_MMAP, NULL);
@@ -454,6 +453,7 @@ do_init_elf(struct ltelf *lte, const char *filename) {
 
 		debug(1, "%s %zd PLT relocations", filename, lte->relplt_count);
 	}
+	return 0;
 }
 
 void
@@ -623,7 +623,8 @@ read_elf(Process *proc) {
 
 	elf_version(EV_CURRENT);
 
-	do_init_elf(lte, proc->filename);
+	if (do_init_elf(lte, proc->filename))
+		return NULL;
 
 	memcpy(&main_lte, lte, sizeof(struct ltelf));
 
@@ -635,7 +636,9 @@ read_elf(Process *proc) {
 	proc->e_machine = lte->ehdr.e_machine;
 
 	for (i = 0; i < library_num; ++i) {
-		do_init_elf(&lte[i + 1], library[i]);
+		if (do_init_elf(&lte[i + 1], library[i]))
+			error(EXIT_FAILURE, errno, "Can't open \"%s\"",
+			      proc->filename);
 	}
 
 	if (!options.no_plt) {
