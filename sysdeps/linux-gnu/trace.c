@@ -562,6 +562,10 @@ struct ltrace_exiting_handler
 {
 	Event_Handler super;
 	struct pid_set pids;
+	/* The following two are const, but working with const fields
+	 * in C is awkward, so we leave them bare.  */
+	int state;
+	Process * task_enabling_breakpoint;
 };
 
 static enum pcb_status
@@ -587,7 +591,8 @@ untrace_task(Process * task, void * data)
 static enum ecb_status
 undo_breakpoint(Event * event, void * data)
 {
-	if (event->proc->leader == data
+	if (event != NULL
+	    && event->proc->leader == data
 	    && event->type == EVENT_BREAKPOINT) {
 		fprintf(stderr, " + %p ", get_instruction_pointer(event->proc));
 		set_instruction_pointer(event->proc, event->e_un.brk_addr);
@@ -611,6 +616,7 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 	if (await_sigstop_delivery(&self->pids, task_info, event)) {
 		debug(DEBUG_PROCESS, "all SIGSTOPs delivered %d", leader->pid);
 		each_qd_event(&undo_breakpoint, leader);
+		undo_breakpoint(event, leader);
 		disable_all_breakpoints(leader);
 
 		/* Now untrace the process, if it was attached to by -p.  */
@@ -635,8 +641,14 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 	 * don't bother with queuing them. */
 	if (event_exit_or_none_p(event))
 		return event;
-	else
-		return NULL;
+
+	/* Unless this was a singlestep event left over from the
+	 * re-enablement logic, undo the effect of a breakpoint.  */
+	if (!(self->state == psh_singlestep
+	      && self->task_enabling_breakpoint == event->proc))
+		undo_breakpoint(event, leader);
+
+	return NULL;
 }
 
 static void
@@ -677,6 +689,11 @@ ltrace_exiting_install_handler(Process * proc)
 		       == &process_stopping_on_event);
 		struct process_stopping_handler * other
 			= (void *)proc->event_handler;
+
+		handler->state = other->state;
+		handler->task_enabling_breakpoint
+			= other->task_enabling_breakpoint;
+
 		size_t i;
 		for (i = 0; i < other->pids.count; ++i) {
 			struct pid_task * oti = &other->pids.tasks[i];
