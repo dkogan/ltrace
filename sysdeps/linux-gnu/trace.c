@@ -212,6 +212,8 @@ struct process_stopping_handler
 		psh_ugly_workaround,
 	} state;
 
+	int exiting;
+
 	struct pid_set pids;
 };
 
@@ -306,17 +308,88 @@ send_sigstop(Process * task, void * data)
 }
 
 static void
+ugly_workaround(Process * proc, int cont)
+{
+	void * ip = get_instruction_pointer(proc);
+	Breakpoint * sbp = dict_find_entry(proc->leader->breakpoints, ip);
+	if (sbp != NULL)
+		enable_breakpoint(proc, sbp);
+	else
+		insert_breakpoint(proc, ip, NULL, 1);
+	if (cont)
+		ptrace(PTRACE_CONT, proc->pid, 0, 0);
+}
+
+static void
 process_stopping_done(struct process_stopping_handler * self, Process * leader)
 {
 	debug(DEBUG_PROCESS, "process stopping done %d",
 	      self->task_enabling_breakpoint->pid);
 	size_t i;
-	for (i = 0; i < self->pids.count; ++i)
-		if (self->pids.tasks[i].pid != 0
-		    && self->pids.tasks[i].delivered)
-			continue_process(self->pids.tasks[i].pid);
-	continue_process(self->task_enabling_breakpoint->pid);
+	if (!self->exiting) {
+		for (i = 0; i < self->pids.count; ++i)
+			if (self->pids.tasks[i].pid != 0
+			    && self->pids.tasks[i].delivered)
+				continue_process(self->pids.tasks[i].pid);
+		continue_process(self->task_enabling_breakpoint->pid);
+		destroy_event_handler(leader);
+	} else {
+		self->state = psh_ugly_workaround;
+		ugly_workaround(self->task_enabling_breakpoint, 1);
+	}
+}
+
+/* Before we detach, we need to make sure that task's IP is on the
+ * edge of an instruction.  So for tasks that have a breakpoint event
+ * in the queue, we adjust the instruction pointer, just like
+ * continue_after_breakpoint does.  */
+static enum ecb_status
+undo_breakpoint(Event * event, void * data)
+{
+	if (event != NULL
+	    && event->proc->leader == data
+	    && event->type == EVENT_BREAKPOINT)
+		set_instruction_pointer(event->proc, event->e_un.brk_addr);
+	return ecb_cont;
+}
+
+static enum pcb_status
+untrace_task(Process * task, void * data)
+{
+	if (task != data)
+		untrace_pid(task->pid);
+	return pcb_cont;
+}
+
+static enum pcb_status
+remove_task(Process * task, void * data)
+{
+	/* Don't untrace leader just yet.  */
+	if (task != data)
+		remove_process(task);
+	return pcb_cont;
+}
+
+static void
+detach_process(Process * leader)
+{
+	each_qd_event(&undo_breakpoint, leader);
+	disable_all_breakpoints(leader);
+
+	/* Now untrace the process, if it was attached to by -p.  */
+	struct opt_p_t * it;
+	for (it = opt_p; it != NULL; it = it->next) {
+		Process * proc = pid2proc(it->pid);
+		if (proc == NULL)
+			continue;
+		if (proc->leader == leader) {
+			each_task(leader, &untrace_task, NULL);
+			break;
+		}
+	}
+	each_task(leader, &remove_task, leader);
 	destroy_event_handler(leader);
+	remove_task(leader, NULL);
 }
 
 static void
@@ -417,6 +490,18 @@ await_sigstop_delivery(struct pid_set * pids, struct pid_task * task_info,
 	return 0;
 }
 
+static int
+all_stops_accountable(struct pid_set * pids)
+{
+	size_t i;
+	for (i = 0; i < pids->count; ++i)
+		if (pids->tasks[i].pid != 0
+		    && !pids->tasks[i].got_event
+		    && !have_events_for(pids->tasks[i].pid))
+			return 0;
+	return 1;
+}
+
 /* This event handler is installed when we are in the process of
  * stopping the whole thread group to do the pointer re-enablement for
  * one of the threads.  We pump all events to the queue for later
@@ -469,7 +554,8 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 			/* Essentially we don't care what event caused
 			 * the thread to stop.  We can do the
 			 * re-enablement now.  */
-			enable_breakpoint(teb, sbp);
+			if (sbp->enabled)
+				enable_breakpoint(teb, sbp);
 
 			continue_for_sigstop_delivery(&self->pids);
 
@@ -487,6 +573,22 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 	case psh_sinking:
 		if (await_sigstop_delivery(&self->pids, task_info, event))
 			process_stopping_done(self, leader);
+		break;
+
+	case psh_ugly_workaround:
+		if (event == NULL)
+			break;
+		if (event->type == EVENT_BREAKPOINT) {
+			undo_breakpoint(event, leader);
+			if (task == teb)
+				self->task_enabling_breakpoint = NULL;
+		}
+		if (self->task_enabling_breakpoint == NULL
+		    && all_stops_accountable(&self->pids)) {
+			undo_breakpoint(event, leader);
+			detach_process(leader);
+			event = NULL; // handled
+		}
 	}
 
 	if (event != NULL && event_to_queue) {
@@ -501,9 +603,6 @@ static void
 process_stopping_destroy(Event_Handler * super)
 {
 	struct process_stopping_handler * self = (void *)super;
-	if (self->breakpoint_being_enabled != NULL)
-		enable_breakpoint(self->task_enabling_breakpoint,
-				  self->breakpoint_being_enabled);
 	free(self->pids.tasks);
 }
 
@@ -512,8 +611,6 @@ continue_after_breakpoint(Process *proc, Breakpoint *sbp)
 {
 	set_instruction_pointer(proc, sbp->addr);
 	if (sbp->enabled == 0) {
-		if (sbp->enabled)
-			disable_breakpoint(proc, sbp);
 		continue_process(proc->pid);
 	} else {
 		debug(DEBUG_PROCESS,
@@ -565,68 +662,7 @@ struct ltrace_exiting_handler
 {
 	Event_Handler super;
 	struct pid_set pids;
-	int state;
-	Process * task_enabling_breakpoint;
 };
-
-static enum pcb_status
-remove_task(Process * task, void * data)
-{
-	/* Don't untrace leader just yet.  */
-	if (task != data)
-		remove_process(task);
-	return pcb_cont;
-}
-
-static enum pcb_status
-untrace_task(Process * task, void * data)
-{
-	untrace_pid(task->pid);
-	return pcb_cont;
-}
-
-/* Before we detach, we need to make sure that task's IP is on the
- * edge of an instruction.  So for tasks that have a breakpoint event
- * in the queue, we adjust the instruction pointer, just like
- * continue_after_breakpoint does.  */
-static enum ecb_status
-undo_breakpoint(Event * event, void * data)
-{
-	if (event != NULL
-	    && event->proc->leader == data
-	    && event->type == EVENT_BREAKPOINT) {
-		fprintf(stderr, " + %p ", get_instruction_pointer(event->proc));
-		set_instruction_pointer(event->proc, event->e_un.brk_addr);
-		fprintf(stderr, "-> %p\n", get_instruction_pointer(event->proc));
-	}
-	return ecb_cont;
-}
-
-static void
-ugly_workaround(Process * proc, int cont)
-{
-	void * ip = get_instruction_pointer(proc);
-	fprintf(stderr, "activate workaround %d %p\n", proc->pid, ip);
-	Breakpoint * sbp = dict_find_entry(proc->leader->breakpoints, ip);
-	if (sbp != NULL)
-		enable_breakpoint(proc, sbp);
-	else
-		insert_breakpoint(proc, ip, NULL, 1);
-	if (cont)
-		ptrace(PTRACE_CONT, proc->pid, 0, 0);
-}
-
-static int
-all_stops_accountable(struct pid_set * pids)
-{
-	size_t i;
-	for (i = 0; i < pids->count; ++i)
-		if (pids->tasks[i].pid != 0
-		    && !pids->tasks[i].got_event
-		    && !have_events_for(pids->tasks[i].pid))
-			return 0;
-	return 1;
-}
 
 static Event *
 ltrace_exiting_on_event(Event_Handler * super, Event * event)
@@ -640,47 +676,12 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
 	handle_stopping_event(task_info, &event);
 
-	if (event != NULL && event->type == EVENT_BREAKPOINT) {
-		if (self->state == psh_singlestep
-		    && self->task_enabling_breakpoint == event->proc) {
-			ugly_workaround(event->proc, 1);
-			self->state = psh_ugly_workaround;
-		} else {
-			undo_breakpoint(event, leader);
-			if (self->state == psh_ugly_workaround
-			    && self->task_enabling_breakpoint == event->proc) {
-				self->task_enabling_breakpoint = NULL;
-				self->state = psh_sinking;
-			}
-		}
-	}
+	if (event != NULL && event->type == EVENT_BREAKPOINT)
+		undo_breakpoint(event, leader);
 
 	if (await_sigstop_delivery(&self->pids, task_info, event)
-	    && (self->task_enabling_breakpoint == NULL
-		/* NB: psh_ugly_workaround > psh_singlestep  */
-		|| self->state < psh_singlestep)
-	    && all_stops_accountable(&self->pids)) {
-		debug(DEBUG_PROCESS, "all SIGSTOPs delivered %d", leader->pid);
-		each_qd_event(&undo_breakpoint, leader);
-		disable_all_breakpoints(leader);
-
-		/* Now untrace the process, if it was attached to by -p.  */
-		struct opt_p_t * it;
-		for (it = opt_p; it != NULL; it = it->next) {
-			Process * proc = pid2proc(it->pid);
-			if (proc == NULL)
-				continue;
-			if (proc->leader == leader) {
-				each_task(leader, &untrace_task, NULL);
-				break;
-			}
-		}
-
-		each_task(leader, &remove_task, leader);
-		destroy_event_handler(leader);
-		remove_task(leader, NULL);
-		return NULL;
-	}
+	    && all_stops_accountable(&self->pids))
+		detach_process(leader);
 
 	/* Sink all non-exit events.  We are about to exit, so we
 	 * don't bother with queuing them. */
@@ -710,6 +711,17 @@ ltrace_exiting_install_handler(Process * proc)
 	    && proc->event_handler->on_event == &ltrace_exiting_on_event)
 		return 0;
 
+	/* If stopping handler is already present, let it do the
+	 * work.  */
+	if (proc->event_handler != NULL) {
+		assert(proc->event_handler->on_event
+		       == &process_stopping_on_event);
+		struct process_stopping_handler * other
+			= (void *)proc->event_handler;
+		other->exiting = 1;
+		return 0;
+	}
+
 	struct ltrace_exiting_handler * handler
 		= calloc(sizeof(*handler), 1);
 	if (handler == NULL) {
@@ -717,51 +729,6 @@ ltrace_exiting_install_handler(Process * proc)
 	fatal:
 		/* XXXXXXXXXXXXXXXXXXX fixme */
 		return -1;
-	}
-
-	/* If we are in the middle of breakpoint, extract the
-	 * pid-state information from that handler so that we can take
-	 * over the SIGSTOP handling.  */
-	if (proc->event_handler != NULL) {
-		debug(DEBUG_PROCESS, "taking over breakpoint handling");
-		assert(proc->event_handler->on_event
-		       == &process_stopping_on_event);
-		struct process_stopping_handler * other
-			= (void *)proc->event_handler;
-
-		handler->task_enabling_breakpoint
-			= other->task_enabling_breakpoint;
-		if (other->state == psh_sinking) {
-			ugly_workaround(handler->task_enabling_breakpoint, 1);
-			handler->state = psh_ugly_workaround;
-		} else {
-			handler->state = other->state;
-		}
-
-		size_t i;
-		for (i = 0; i < other->pids.count; ++i) {
-			struct pid_task * oti = &other->pids.tasks[i];
-			if (oti->pid == 0)
-				continue;
-
-			struct pid_task * task_info
-				= add_task_info(&handler->pids, oti->pid);
-			if (task_info == NULL) {
-				perror("ltrace_exiting_install_handler"
-				       ":add_task_info");
-				goto fatal;
-			}
-			/* Copy over the state.  */
-			*task_info = *oti;
-		}
-
-		/* The re-enablement handler sets this to NULL when
-		 * it calls continue_for_sigstop_delivery.  */
-		if (other->breakpoint_being_enabled != NULL)
-			continue_for_sigstop_delivery(&handler->pids);
-
-		/* And destroy the original handler.  */
-		destroy_event_handler(proc);
 	}
 
 	handler->super.on_event = ltrace_exiting_on_event;
