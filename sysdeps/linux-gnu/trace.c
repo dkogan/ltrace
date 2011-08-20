@@ -621,7 +621,8 @@ all_stops_accountable(struct pid_set * pids)
 {
 	size_t i;
 	for (i = 0; i < pids->count; ++i)
-		if (!pids->tasks[i].got_event
+		if (pids->tasks[i].pid != 0
+		    && !pids->tasks[i].got_event
 		    && !have_events_for(pids->tasks[i].pid))
 			return 0;
 	return 1;
@@ -731,7 +732,7 @@ ltrace_exiting_install_handler(Process * proc)
 		handler->task_enabling_breakpoint
 			= other->task_enabling_breakpoint;
 		if (other->state == psh_sinking) {
-			ugly_workaround(other->task_enabling_breakpoint, 0);
+			ugly_workaround(handler->task_enabling_breakpoint, 1);
 			handler->state = psh_ugly_workaround;
 		} else {
 			handler->state = other->state;
@@ -753,6 +754,11 @@ ltrace_exiting_install_handler(Process * proc)
 			/* Copy over the state.  */
 			*task_info = *oti;
 		}
+
+		/* The re-enablement handler sets this to NULL when
+		 * it calls continue_for_sigstop_delivery.  */
+		if (other->breakpoint_being_enabled != NULL)
+			continue_for_sigstop_delivery(&handler->pids);
 
 		/* And destroy the original handler.  */
 		destroy_event_handler(proc);
