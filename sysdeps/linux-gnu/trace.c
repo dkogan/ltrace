@@ -207,6 +207,9 @@ struct process_stopping_handler
 		/* We are waiting for all the SIGSTOPs to arrive so
 		 * that we can sink them.  */
 		psh_sinking,
+
+		/* This is for tracking the ugly workaround.  */
+		psh_ugly_workaround,
 	} state;
 
 	struct pid_set pids;
@@ -599,6 +602,20 @@ undo_breakpoint(Event * event, void * data)
 	return ecb_cont;
 }
 
+static void
+ugly_workaround(Process * proc, int cont)
+{
+	void * ip = get_instruction_pointer(proc);
+	fprintf(stderr, "activate workaround %d %p\n", proc->pid, ip);
+	Breakpoint * sbp = dict_find_entry(proc->leader->breakpoints, ip);
+	if (sbp != NULL)
+		enable_breakpoint(proc, sbp);
+	else
+		insert_breakpoint(proc, ip, NULL, 1);
+	if (cont)
+		ptrace(PTRACE_CONT, proc->pid, 0, 0);
+}
+
 static Event *
 ltrace_exiting_on_event(Event_Handler * super, Event * event)
 {
@@ -614,15 +631,21 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 	if (event != NULL && event->type == EVENT_BREAKPOINT) {
 		if (self->state == psh_singlestep
 		    && self->task_enabling_breakpoint == event->proc) {
-			self->task_enabling_breakpoint = NULL;
-			self->state = 0;
-		} else
+			ugly_workaround(event->proc, 1);
+			self->state = psh_ugly_workaround;
+		} else {
 			undo_breakpoint(event, leader);
+			if (self->state == psh_ugly_workaround) {
+				self->task_enabling_breakpoint = NULL;
+				self->state = psh_sinking;
+			}
+		}
 	}
 
 	if (await_sigstop_delivery(&self->pids, task_info, event)
 	    && (self->task_enabling_breakpoint == NULL
-		|| self->state != psh_singlestep)) {
+		/* NB: psh_ugly_workaround > psh_singlestep  */
+		|| self->state < psh_singlestep)) {
 		debug(DEBUG_PROCESS, "all SIGSTOPs delivered %d", leader->pid);
 		each_qd_event(&undo_breakpoint, leader);
 		disable_all_breakpoints(leader);
@@ -692,9 +715,14 @@ ltrace_exiting_install_handler(Process * proc)
 		struct process_stopping_handler * other
 			= (void *)proc->event_handler;
 
-		handler->state = other->state;
 		handler->task_enabling_breakpoint
 			= other->task_enabling_breakpoint;
+		if (other->state == psh_sinking) {
+			ugly_workaround(other->task_enabling_breakpoint, 0);
+			handler->state = psh_ugly_workaround;
+		} else {
+			handler->state = other->state;
+		}
 
 		size_t i;
 		for (i = 0; i < other->pids.count; ++i) {
