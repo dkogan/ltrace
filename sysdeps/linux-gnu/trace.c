@@ -307,8 +307,13 @@ send_sigstop(Process * task, void * data)
 	return pcb_cont;
 }
 
+/* On certain kernels, detaching right after a singlestep causes the
+   tracee to be killed with a SIGTRAP (that even though the singlestep
+   was properly caught by waitpid.  The ugly workaround is to put a
+   breakpoint where IP points and let the process continue.  After
+   this the breakpoint can be retracted and the process detached.  */
 static void
-ugly_workaround(Process * proc, int cont)
+ugly_workaround(Process * proc)
 {
 	void * ip = get_instruction_pointer(proc);
 	Breakpoint * sbp = dict_find_entry(proc->leader->breakpoints, ip);
@@ -316,8 +321,7 @@ ugly_workaround(Process * proc, int cont)
 		enable_breakpoint(proc, sbp);
 	else
 		insert_breakpoint(proc, ip, NULL, 1);
-	if (cont)
-		ptrace(PTRACE_CONT, proc->pid, 0, 0);
+	ptrace(PTRACE_CONT, proc->pid, 0, 0);
 }
 
 static void
@@ -335,7 +339,7 @@ process_stopping_done(struct process_stopping_handler * self, Process * leader)
 		destroy_event_handler(leader);
 	} else {
 		self->state = psh_ugly_workaround;
-		ugly_workaround(self->task_enabling_breakpoint, 1);
+		ugly_workaround(self->task_enabling_breakpoint);
 	}
 }
 
