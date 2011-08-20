@@ -323,7 +323,7 @@ static void
 handle_stopping_event(struct pid_task * task_info, Event ** eventp)
 {
 	/* Mark all events, so that we know whom to SIGCONT later.  */
-	if (task_info != NULL && task_info->sigstopped)
+	if (task_info != NULL)
 		task_info->got_event = 1;
 
 	Event * event = *eventp;
@@ -616,6 +616,17 @@ ugly_workaround(Process * proc, int cont)
 		ptrace(PTRACE_CONT, proc->pid, 0, 0);
 }
 
+static int
+all_stops_accountable(struct pid_set * pids)
+{
+	size_t i;
+	for (i = 0; i < pids->count; ++i)
+		if (!pids->tasks[i].got_event
+		    && !have_events_for(pids->tasks[i].pid))
+			return 0;
+	return 1;
+}
+
 static Event *
 ltrace_exiting_on_event(Event_Handler * super, Event * event)
 {
@@ -635,7 +646,8 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 			self->state = psh_ugly_workaround;
 		} else {
 			undo_breakpoint(event, leader);
-			if (self->state == psh_ugly_workaround) {
+			if (self->state == psh_ugly_workaround
+			    && self->task_enabling_breakpoint == event->proc) {
 				self->task_enabling_breakpoint = NULL;
 				self->state = psh_sinking;
 			}
@@ -645,7 +657,8 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 	if (await_sigstop_delivery(&self->pids, task_info, event)
 	    && (self->task_enabling_breakpoint == NULL
 		/* NB: psh_ugly_workaround > psh_singlestep  */
-		|| self->state < psh_singlestep)) {
+		|| self->state < psh_singlestep)
+	    && all_stops_accountable(&self->pids)) {
 		debug(DEBUG_PROCESS, "all SIGSTOPs delivered %d", leader->pid);
 		each_qd_event(&undo_breakpoint, leader);
 		disable_all_breakpoints(leader);
