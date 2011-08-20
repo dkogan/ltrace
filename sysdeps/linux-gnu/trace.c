@@ -562,8 +562,6 @@ struct ltrace_exiting_handler
 {
 	Event_Handler super;
 	struct pid_set pids;
-	/* The following two are const, but working with const fields
-	 * in C is awkward, so we leave them bare.  */
 	int state;
 	Process * task_enabling_breakpoint;
 };
@@ -613,10 +611,20 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
 	handle_stopping_event(task_info, &event);
 
-	if (await_sigstop_delivery(&self->pids, task_info, event)) {
+	if (event != NULL && event->type == EVENT_BREAKPOINT) {
+		if (self->state == psh_singlestep
+		    && self->task_enabling_breakpoint == event->proc) {
+			self->task_enabling_breakpoint = NULL;
+			self->state = 0;
+		} else
+			undo_breakpoint(event, leader);
+	}
+
+	if (await_sigstop_delivery(&self->pids, task_info, event)
+	    && (self->task_enabling_breakpoint == NULL
+		|| self->state != psh_singlestep)) {
 		debug(DEBUG_PROCESS, "all SIGSTOPs delivered %d", leader->pid);
 		each_qd_event(&undo_breakpoint, leader);
-		undo_breakpoint(event, leader);
 		disable_all_breakpoints(leader);
 
 		/* Now untrace the process, if it was attached to by -p.  */
@@ -641,12 +649,6 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 	 * don't bother with queuing them. */
 	if (event_exit_or_none_p(event))
 		return event;
-
-	/* Unless this was a singlestep event left over from the
-	 * re-enablement logic, undo the effect of a breakpoint.  */
-	if (!(self->state == psh_singlestep
-	      && self->task_enabling_breakpoint == event->proc))
-		undo_breakpoint(event, leader);
 
 	return NULL;
 }
