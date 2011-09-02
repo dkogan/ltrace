@@ -122,11 +122,7 @@ untrace_pid(pid_t pid) {
 
 void
 continue_after_signal(pid_t pid, int signum) {
-	Process *proc;
-
 	debug(DEBUG_PROCESS, "continue_after_signal: pid=%d, signum=%d", pid, signum);
-
-	proc = pid2proc(pid);
 	ptrace(PTRACE_SYSCALL, pid, 0, signum);
 }
 
