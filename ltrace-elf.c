@@ -638,7 +638,7 @@ read_elf(Process *proc) {
 	for (i = 0; i < library_num; ++i) {
 		if (do_init_elf(&lte[i + 1], library[i]))
 			error(EXIT_FAILURE, errno, "Can't open \"%s\"",
-			      proc->filename);
+			      library[i]);
 	}
 
 	if (!options.no_plt) {
