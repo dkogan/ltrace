@@ -136,17 +136,13 @@ static GElf_Addr get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot,
 }
 
 int
-do_init_elf(struct ltelf *lte, const char *filename) {
-	int i;
-	GElf_Addr relplt_addr = 0;
-	size_t relplt_size = 0;
-
-	debug(DEBUG_FUNCTION, "do_init_elf(filename=%s)", filename);
-	debug(1, "Reading ELF from %s...", filename);
-
+open_elf(struct ltelf *lte, const char *filename)
+{
 	lte->fd = open(filename, O_RDONLY);
 	if (lte->fd == -1)
 		return 1;
+
+	elf_version(EV_CURRENT);
 
 #ifdef HAVE_ELF_C_READ_MMAP
 	lte->elf = elf_begin(lte->fd, ELF_C_READ_MMAP, NULL);
@@ -179,6 +175,21 @@ do_init_elf(struct ltelf *lte, const char *filename) {
 	    )
 		error(EXIT_FAILURE, 0,
 		      "\"%s\" is ELF from incompatible architecture", filename);
+
+	return 0;
+}
+
+int
+do_init_elf(struct ltelf *lte, const char *filename) {
+	int i;
+	GElf_Addr relplt_addr = 0;
+	size_t relplt_size = 0;
+
+	debug(DEBUG_FUNCTION, "do_init_elf(filename=%s)", filename);
+	debug(1, "Reading ELF from %s...", filename);
+
+	if (open_elf(lte, filename) < 0)
+		return -1;
 
 	Elf_Data *plt_data = NULL;
 	GElf_Addr ppcgot = 0;
@@ -620,8 +631,6 @@ read_elf(Process *proc) {
 	library_symbols = NULL;
 	library_num = 0;
 	proc->libdl_hooked = 0;
-
-	elf_version(EV_CURRENT);
 
 	if (do_init_elf(lte, proc->filename))
 		return NULL;

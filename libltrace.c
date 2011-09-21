@@ -107,6 +107,11 @@ ltrace_init(int argc, char **argv) {
 		}
 	}
 	if (command) {
+		/* Check that the binary ABI is supported before
+		 * calling execute_program.  */
+		struct ltelf lte = {};
+		open_elf(&lte, command);
+
 		open_program(command, execute_program(command, argv), 0);
 	}
 	opt_p_tmp = opt_p;

@@ -44,6 +44,7 @@ struct ltelf {
 extern size_t library_num;
 extern char *library[MAX_LIBRARIES];
 
+extern int open_elf(struct ltelf *lte, const char *filename);
 extern struct library_symbol *read_elf(Process *);
 
 extern GElf_Addr arch_plt_sym_val(struct ltelf *, size_t, GElf_Rela *);
