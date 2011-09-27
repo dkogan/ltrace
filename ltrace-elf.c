@@ -539,7 +539,7 @@ destroy_library_symbol(struct library_symbol * sym)
 void
 destroy_library_symbol_chain(struct library_symbol * sym)
 {
-	for (; sym != NULL; sym = sym->next) {
+	while (sym != NULL) {
 		struct library_symbol * next = sym->next;
 		destroy_library_symbol(sym);
 		sym = next;
