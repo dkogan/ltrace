@@ -811,19 +811,44 @@ ltrace_exiting_install_handler(Process * proc)
  * child exec/exit event.  Make sure this is taken care of.
  */
 
+struct process_vfork_handler
+{
+	Event_Handler super;
+	void * bp_addr;
+};
+
 static Event *
 process_vfork_on_event(Event_Handler * super, Event * event)
 {
 	struct process_vfork_handler * self = (void *)super;
+	Breakpoint * sbp;
 	assert(self != NULL);
 
 	switch (event->type) {
+	case EVENT_BREAKPOINT:
+		/* Remember the vfork return breakpoint.  */
+		if (self->bp_addr == NULL)
+			self->bp_addr = event->e_un.brk_addr;
+		break;
+
 	case EVENT_EXIT:
 	case EVENT_EXIT_SIGNAL:
 	case EVENT_EXEC:
-		/* Now is the time to remove the leader that we
-		 * artificially set up earlier.  XXX and do all the
-		 * other fun stuff.  */
+		/* Smuggle back in the vfork return breakpoint, so
+		 * that our parent can trip over it once again.  */
+		if (self->bp_addr != NULL) {
+			sbp = dict_find_entry(event->proc->leader->breakpoints,
+					      self->bp_addr);
+			if (sbp != NULL)
+				insert_breakpoint(event->proc->leader,
+						  self->bp_addr, sbp->libsym,
+						  1);
+		}
+
+		continue_process(event->proc->leader->pid);
+
+		/* Remove the leader that we artificially set up
+		 * earlier.  */
 		change_process_leader(event->proc, event->proc);
 		destroy_event_handler(event->proc);
 
@@ -843,7 +868,7 @@ void
 continue_after_vfork(Process * proc)
 {
 	debug(DEBUG_PROCESS, "continue_after_vfork: pid=%d", proc->pid);
-	Event_Handler * handler = calloc(sizeof(*handler), 1);
+	struct process_vfork_handler * handler = calloc(sizeof(*handler), 1);
 	if (handler == NULL) {
 		perror("malloc vfork handler");
 		/* Carry on not bothering to treat the process as
@@ -854,8 +879,8 @@ continue_after_vfork(Process * proc)
 
 	/* We must set up custom event handler, so that we see
 	 * exec/exit events for the task itself.  */
-	handler->on_event = process_vfork_on_event;
-	install_event_handler(proc, handler);
+	handler->super.on_event = process_vfork_on_event;
+	install_event_handler(proc, &handler->super);
 
 	/* Make sure that the child is sole thread.  */
 	assert(proc->leader == proc);
@@ -866,7 +891,6 @@ continue_after_vfork(Process * proc)
 	assert(proc->parent->leader != NULL);
 
 	change_process_leader(proc, proc->parent->leader);
-	continue_process(proc->parent->pid);
 }
 
 /* If ltrace gets SIGINT, the processes directly or indirectly run by

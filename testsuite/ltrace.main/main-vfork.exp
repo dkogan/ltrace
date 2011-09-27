@@ -35,5 +35,5 @@ if [regexp {ELF from incompatible architecture} $exec_output] {
 }
 
 # Verify the output by checking numbers of print in main-vfork.ltrace.
-set pattern "print"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 20
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace "print" 20
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace "vfork resumed" 2
