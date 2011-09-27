@@ -318,6 +318,10 @@ extern void add_library_symbol(GElf_Addr addr, const char *name,
 		struct library_symbol **library_symbolspp,
 		enum toplt type_of_plt, int is_weak);
 
+extern struct library_symbol * clone_library_symbol(struct library_symbol * s);
+extern void destroy_library_symbol(struct library_symbol * s);
+extern void destroy_library_symbol_chain(struct library_symbol * chain);
+
 /* Arch-dependent stuff: */
 extern char * pid2name(pid_t pid);
 extern pid_t process_leader(pid_t pid);

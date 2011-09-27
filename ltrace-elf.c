@@ -476,28 +476,74 @@ do_close_elf(struct ltelf *lte) {
 	close(lte->fd);
 }
 
+static struct library_symbol *
+create_library_symbol(const char * name, GElf_Addr addr)
+{
+	size_t namel = strlen(name) + 1;
+	struct library_symbol * sym = calloc(sizeof(*sym) + namel, 1);
+	if (sym == NULL) {
+		perror("create_library_symbol");
+		return NULL;
+	}
+	sym->name = (char *)(sym + 1);
+	memcpy(sym->name, name, namel);
+	sym->enter_addr = (void *)(uintptr_t) addr;
+	return sym;
+}
+
 void
 add_library_symbol(GElf_Addr addr, const char *name,
 		   struct library_symbol **library_symbolspp,
-		   enum toplt type_of_plt, int is_weak) {
+		   enum toplt type_of_plt, int is_weak)
+{
 	struct library_symbol *s;
 
 	debug(DEBUG_FUNCTION, "add_library_symbol()");
 
-	s = malloc(sizeof(struct library_symbol) + strlen(name) + 1);
+	s = create_library_symbol(name, addr);
 	if (s == NULL)
 		error(EXIT_FAILURE, errno, "add_library_symbol failed");
 
 	s->needs_init = 1;
 	s->is_weak = is_weak;
 	s->plt_type = type_of_plt;
+
 	s->next = *library_symbolspp;
-	s->enter_addr = (void *)(uintptr_t) addr;
-	s->name = (char *)(s + 1);
-	strcpy(s->name, name);
 	*library_symbolspp = s;
 
 	debug(2, "addr: %p, symbol: \"%s\"", (void *)(uintptr_t) addr, name);
+}
+
+struct library_symbol *
+clone_library_symbol(struct library_symbol * sym)
+{
+	struct library_symbol * copy
+		= create_library_symbol(sym->name,
+					(GElf_Addr)(uintptr_t)sym->enter_addr);
+	if (copy == NULL)
+		return NULL;
+
+	copy->needs_init = sym->needs_init;
+	copy->is_weak = sym->is_weak;
+	copy->plt_type = sym->plt_type;
+
+	return copy;
+}
+
+void
+destroy_library_symbol(struct library_symbol * sym)
+{
+	free(sym);
+}
+
+void
+destroy_library_symbol_chain(struct library_symbol * sym)
+{
+	for (; sym != NULL; sym = sym->next) {
+		struct library_symbol * next = sym->next;
+		destroy_library_symbol(sym);
+		sym = next;
+	}
 }
 
 /* stolen from elfutils-0.123 */

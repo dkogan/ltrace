@@ -203,14 +203,7 @@ breakpoints_init(Process *proc, int enable)
 	proc->breakpoints = dict_init(dict_key2hash_int,
 				      dict_key_cmp_int);
 
-	if (proc->list_of_symbols != NULL) {
-		struct library_symbol * sym = proc->list_of_symbols;
-		while (sym != NULL) {
-			struct library_symbol * next = sym->next;
-			free(sym);
-			sym = next;
-		}
-	}
+	destroy_library_symbol_chain(proc->list_of_symbols);
 	proc->list_of_symbols = NULL;
 
 	if (options.libcalls && proc->filename) {

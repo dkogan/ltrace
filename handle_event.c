@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include "common.h"
 
@@ -145,14 +146,17 @@ handle_event(Event *event) {
 
 /* TODO */
 static void *
-address_clone(void * addr) {
+address_clone(void * addr, void * data)
+{
 	debug(DEBUG_FUNCTION, "address_clone(%p)", addr);
 	return addr;
 }
 
 static void *
-breakpoint_clone(void * bp) {
+breakpoint_clone(void * bp, void * data)
+{
 	Breakpoint * b;
+	Dict * map = data;
 	debug(DEBUG_FUNCTION, "breakpoint_clone(%p)", bp);
 	b = malloc(sizeof(Breakpoint));
 	if (!b) {
@@ -160,6 +164,15 @@ breakpoint_clone(void * bp) {
 		exit(1);
 	}
 	memcpy(b, bp, sizeof(Breakpoint));
+	if (b->libsym != NULL) {
+		struct library_symbol * sym = dict_find_entry(map, b->libsym);
+		if (b->libsym == NULL) {
+			fprintf(stderr, "Can't find cloned symbol %s.\n",
+				b->libsym->name);
+			return NULL;
+		}
+		b->libsym = sym;
+	}
 	return b;
 }
 
@@ -224,6 +237,40 @@ pending_new_remove(pid_t pid) {
 	}
 }
 
+static int
+clone_breakpoints(Process * proc, Process * orig_proc)
+{
+	/* When copying breakpoints, we also have to copy the
+	 * referenced symbols, and link them properly.  */
+	Dict * map = dict_init(&dict_key2hash_int, &dict_key_cmp_int);
+	struct library_symbol * it = proc->list_of_symbols;
+	proc->list_of_symbols = NULL;
+	for (; it != NULL; it = it->next) {
+		struct library_symbol * libsym = clone_library_symbol(it);
+		if (libsym == NULL) {
+			int save_errno;
+		err:
+			save_errno = errno;
+			destroy_library_symbol_chain(proc->list_of_symbols);
+			dict_clear(map);
+			errno = save_errno;
+			return -1;
+		}
+		libsym->next = proc->list_of_symbols;
+		proc->list_of_symbols = libsym;
+		if (dict_enter(map, it, libsym) != 0)
+			goto err;
+	}
+
+	proc->breakpoints = dict_clone2(orig_proc->breakpoints,
+					address_clone, breakpoint_clone, map);
+	if (proc->breakpoints == NULL)
+		goto err;
+
+	dict_clear(map);
+	return 0;
+}
+
 static void
 handle_clone(Event * event) {
 	Process *p;
@@ -236,7 +283,6 @@ handle_clone(Event * event) {
 		exit(1);
 	}
 	memcpy(p, event->proc, sizeof(Process));
-	p->breakpoints = dict_clone(event->proc->breakpoints, address_clone, breakpoint_clone);
 	p->pid = event->e_un.newpid;
 	p->parent = event->proc;
 
@@ -259,6 +305,12 @@ handle_clone(Event * event) {
 		p->state = STATE_BEING_CREATED;
 		add_process(p);
 	}
+
+	if (p->leader == p)
+		clone_breakpoints(p, event->proc);
+	else
+		/* Thread groups share breakpoints.  */
+		p->breakpoints = NULL;
 
 	if (event->type == EVENT_VFORK)
 		continue_after_vfork(p);

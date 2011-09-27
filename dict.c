@@ -180,7 +180,9 @@ dict_key_cmp_int(void *key1, void *key2) {
 }
 
 Dict *
-dict_clone(Dict *old, void * (*key_clone)(void*), void * (*value_clone)(void*)) {
+dict_clone2(Dict * old, void * (*key_clone)(void *, void *),
+	    void * (*value_clone)(void *, void *), void * data)
+{
 	Dict *d;
 	int i;
 
@@ -199,17 +201,64 @@ dict_clone(Dict *old, void * (*key_clone)(void*), void * (*value_clone)(void*)) 
 		de_old = old->buckets[i];
 		de_new = &d->buckets[i];
 		while (de_old) {
+			void * nkey, * nval;
 			*de_new = malloc(sizeof(struct dict_entry));
 			if (!*de_new) {
 				perror("malloc()");
 				exit(1);
 			}
 			memcpy(*de_new, de_old, sizeof(struct dict_entry));
-			(*de_new)->key = key_clone(de_old->key);
-			(*de_new)->value = value_clone(de_old->value);
+
+			/* The error detection is rather weak :-/ */
+			nkey = key_clone(de_old->key, data);
+			if (nkey == NULL && de_old->key != NULL) {
+				perror("key_clone");
+			err:
+				/* XXX Will this actually work?  We
+				 * simply memcpy the old dictionary
+				 * over up there.  */
+				dict_clear(d);
+				free(de_new);
+				return NULL;
+			}
+
+			nval = value_clone(de_old->value, data);
+			if (nval == NULL && de_old->value != NULL) {
+				perror("value_clone");
+				goto err;
+			}
+
+			(*de_new)->key = nkey;
+			(*de_new)->value = nval;
 			de_new = &(*de_new)->next;
 			de_old = de_old->next;
 		}
 	}
 	return d;
+}
+
+struct wrap_clone_cb
+{
+	void * (*key_clone)(void *);
+	void * (*value_clone)(void *);
+};
+
+static void *
+value_clone_1(void * arg, void * data)
+{
+	return ((struct wrap_clone_cb *)data)->value_clone(arg);
+}
+
+static void *
+key_clone_1(void * arg, void * data)
+{
+	return ((struct wrap_clone_cb *)data)->key_clone(arg);
+}
+
+Dict *
+dict_clone(Dict * old, void * (*key_clone)(void *),
+	   void * (*value_clone)(void *))
+{
+	struct wrap_clone_cb cb = { key_clone, value_clone };
+	return dict_clone2(old, &key_clone_1, &value_clone_1, &cb);
 }

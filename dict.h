@@ -18,3 +18,7 @@ extern int dict_key_cmp_string(void *key1, void *key2);
 extern unsigned int dict_key2hash_int(void *key);
 extern int dict_key_cmp_int(void *key1, void *key2);
 extern Dict * dict_clone(Dict *old, void * (*key_clone)(void*), void * (*value_clone)(void*));
+extern Dict * dict_clone2(Dict * old,
+			  void * (* key_clone)(void * key, void * data),
+			  void * (* value_clone)(void * value, void * data),
+			  void * data);
