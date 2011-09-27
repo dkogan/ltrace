@@ -845,7 +845,7 @@ process_vfork_on_event(Event_Handler * super, Event * event)
 						  1);
 		}
 
-		continue_process(event->proc->leader->pid);
+		continue_process(event->proc->parent->pid);
 
 		/* Remove the leader that we artificially set up
 		 * earlier.  */

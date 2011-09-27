@@ -307,7 +307,7 @@ handle_clone(Event * event) {
 	}
 
 	if (p->leader == p)
-		clone_breakpoints(p, event->proc);
+		clone_breakpoints(p, event->proc->leader);
 	else
 		/* Thread groups share breakpoints.  */
 		p->breakpoints = NULL;
