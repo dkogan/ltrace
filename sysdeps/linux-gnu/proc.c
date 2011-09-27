@@ -148,7 +148,7 @@ process_status_cb(const char * line, const char * prefix, void * data)
 	switch (c) {
 	case 'Z': RETURN(ps_zombie);
 	case 't': RETURN(ps_tracing_stop);
-	case 'T': {
+	case 'T':
 		/* This can be either "T (stopped)" or, for older
 		 * kernels, "T (tracing stop)".  */
 		if (!strcmp(status, "T (stopped)\n"))
@@ -161,7 +161,8 @@ process_status_cb(const char * line, const char * prefix, void * data)
 			RETURN(ps_stop); /* Some sort of stop
 					  * anyway.  */
 		}
-	}
+	case 'D':
+	case 'S': RETURN(ps_sleeping);
 	}
 
 	RETURN(ps_other);

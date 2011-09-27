@@ -240,13 +240,20 @@ next_event(void)
 			if (errno != 0)
 				perror("syscall_p");
 	}
-	if (WIFSTOPPED(status) && ((status>>16 == PTRACE_EVENT_FORK) || (status>>16 == PTRACE_EVENT_VFORK) || (status>>16 == PTRACE_EVENT_CLONE))) {
-		unsigned long data;
-		ptrace(PTRACE_GETEVENTMSG, pid, NULL, &data);
-		event.type = EVENT_CLONE;
-		event.e_un.newpid = data;
-		debug(DEBUG_EVENT, "event: CLONE: pid=%d, newpid=%d", pid, (int)data);
-		return &event;
+	if (WIFSTOPPED(status)) {
+		int what = status >> 16;
+		if (what == PTRACE_EVENT_VFORK
+		    || what == PTRACE_EVENT_FORK
+		    || what == PTRACE_EVENT_CLONE) {
+			unsigned long data;
+			event.type = what == PTRACE_EVENT_VFORK
+				? EVENT_VFORK : EVENT_CLONE;
+			ptrace(PTRACE_GETEVENTMSG, pid, NULL, &data);
+			event.e_un.newpid = data;
+			debug(DEBUG_EVENT, "event: CLONE: pid=%d, newpid=%d",
+			      pid, (int)data);
+			return &event;
+		}
 	}
 	if (WIFSTOPPED(status) && (status>>16 == PTRACE_EVENT_EXEC)) {
 		event.type = EVENT_EXEC;

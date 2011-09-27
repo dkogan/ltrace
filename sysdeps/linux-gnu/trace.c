@@ -164,9 +164,10 @@ continue_process(pid_t pid)
 struct pid_task {
 	pid_t pid;	/* This may be 0 for tasks that exited
 			 * mid-handling.  */
-	int sigstopped;
-	int got_event;
-	int delivered;
+	int sigstopped : 1;
+	int got_event : 1;
+	int delivered : 1;
+	int vforked : 1;
 } * pids;
 
 struct pid_set {
@@ -213,23 +214,6 @@ struct process_stopping_handler
 	struct pid_set pids;
 };
 
-static enum pcb_status
-task_stopped(Process * task, void * data)
-{
-	/* If the task is already stopped, don't worry about it.
-	 * Likewise if it managed to become a zombie or terminate in
-	 * the meantime.  This can happen when the whole thread group
-	 * is terminating.  */
-	switch (process_status(task->pid)) {
-	case ps_invalid:
-	case ps_tracing_stop:
-	case ps_zombie:
-		return pcb_cont;
-	default:
-		return pcb_stop;
-	}
-}
-
 static struct pid_task *
 get_task_info(struct pid_set * pids, pid_t pid)
 {
@@ -261,6 +245,57 @@ add_task_info(struct pid_set * pids, pid_t pid)
 }
 
 static enum pcb_status
+task_stopped(Process * task, void * data)
+{
+	enum process_status st = process_status(task->pid);
+	if (data != NULL)
+		*(enum process_status *)data = st;
+
+	/* If the task is already stopped, don't worry about it.
+	 * Likewise if it managed to become a zombie or terminate in
+	 * the meantime.  This can happen when the whole thread group
+	 * is terminating.  */
+	switch (st) {
+	case ps_invalid:
+	case ps_tracing_stop:
+	case ps_zombie:
+		return pcb_cont;
+	default:
+		return pcb_stop;
+	}
+}
+
+/* Task is blocked if it's stopped, or if it's a vfork parent.  */
+static enum pcb_status
+task_blocked(Process * task, void * data)
+{
+	struct pid_set * pids = data;
+	struct pid_task * task_info = get_task_info(pids, task->pid);
+	if (task_info != NULL
+	    && task_info->vforked)
+		return pcb_cont;
+
+	return task_stopped(task, NULL);
+}
+
+static Event * process_vfork_on_event(Event_Handler * super, Event * event);
+
+static enum pcb_status
+task_vforked(Process * task, void * data)
+{
+	if (task->event_handler != NULL
+	    && task->event_handler->on_event == &process_vfork_on_event)
+		return pcb_stop;
+	return pcb_cont;
+}
+
+static int
+is_vfork_parent(Process * task)
+{
+	return each_task(task->leader, &task_vforked, NULL) != NULL;
+}
+
+static enum pcb_status
 send_sigstop(Process * task, void * data)
 {
 	Process * leader = task->leader;
@@ -283,14 +318,26 @@ send_sigstop(Process * task, void * data)
 		return pcb_cont;
 
 	/* Don't bother sending SIGSTOP if we are already stopped, or
-	 * if we sent the SIGSTOP already, which happens when we
-	 * inherit the handler from breakpoint re-enablement.  */
-	if (task_stopped(task, NULL) == pcb_cont)
+	 * if we sent the SIGSTOP already, which happens when we are
+	 * handling "onexit" and inherited the handler from breakpoint
+	 * re-enablement.  */
+	enum process_status st;
+	if (task_stopped(task, &st) == pcb_cont)
 		return pcb_cont;
 	if (task_info->sigstopped) {
 		if (!task_info->delivered)
 			return pcb_cont;
 		task_info->delivered = 0;
+	}
+
+	/* Also don't attempt to stop the process if it's a parent of
+	 * vforked process.  We set up event handler specially to hint
+	 * us.  In that case parent is in D state, which we use to
+	 * weed out unnecessary looping.  */
+	if (st == ps_sleeping
+	    && is_vfork_parent (task)) {
+		task_info->vforked = 1;
+		return pcb_cont;
 	}
 
 	if (task_kill(task->pid, SIGSTOP) >= 0) {
@@ -536,7 +583,7 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 	switch (state) {
 	case psh_stopping:
 		/* If everyone is stopped, singlestep.  */
-		if (each_task(leader, &task_stopped, NULL) == NULL) {
+		if (each_task(leader, &task_blocked, &self->pids) == NULL) {
 			debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d",
 			      teb->pid);
 			if (sbp->enabled)
@@ -740,6 +787,86 @@ ltrace_exiting_install_handler(Process * proc)
 		goto fatal;
 
 	return 0;
+}
+
+/*
+ * When the traced process vforks, it's suspended until the child
+ * process calls _exit or exec*.  In the meantime, the two share the
+ * address space.
+ *
+ * The child process should only ever call _exit or exec*, but we
+ * can't count on that (it's not the role of ltrace to policy, but to
+ * observe).  In any case, we will _at least_ have to deal with
+ * removal of vfork return breakpoint (which we have to smuggle back
+ * in, so that the parent can see it, too), and introduction of exec*
+ * return breakpoint.  Since we already have both breakpoint actions
+ * to deal with, we might as well support it all.
+ *
+ * The gist is that we pretend that the child is in a thread group
+ * with its parent, and handle it as a multi-threaded case, with the
+ * exception that we know that the parent is blocked, and don't
+ * attempt to stop it.  When the child execs, we undo the setup.
+ *
+ * XXX The parent process could be un-suspended before ltrace gets
+ * child exec/exit event.  Make sure this is taken care of.
+ */
+
+static Event *
+process_vfork_on_event(Event_Handler * super, Event * event)
+{
+	struct process_vfork_handler * self = (void *)super;
+	assert(self != NULL);
+
+	switch (event->type) {
+	case EVENT_EXIT:
+	case EVENT_EXIT_SIGNAL:
+	case EVENT_EXEC:
+		/* Now is the time to remove the leader that we
+		 * artificially set up earlier.  XXX and do all the
+		 * other fun stuff.  */
+		change_process_leader(event->proc, event->proc);
+		destroy_event_handler(event->proc);
+
+		/* XXXXX this could happen in the middle of handling
+		 * multi-threaded breakpoint.  We must be careful to
+		 * undo the effects that we introduced above (vforked
+		 * = 1 et.al.).  */
+
+	default:
+		;
+	}
+
+	return event;
+}
+
+void
+continue_after_vfork(Process * proc)
+{
+	debug(DEBUG_PROCESS, "continue_after_vfork: pid=%d", proc->pid);
+	Event_Handler * handler = calloc(sizeof(*handler), 1);
+	if (handler == NULL) {
+		perror("malloc vfork handler");
+		/* Carry on not bothering to treat the process as
+		 * necessary.  */
+		continue_process(proc->parent->pid);
+		return;
+	}
+
+	/* We must set up custom event handler, so that we see
+	 * exec/exit events for the task itself.  */
+	handler->on_event = process_vfork_on_event;
+	install_event_handler(proc, handler);
+
+	/* Make sure that the child is sole thread.  */
+	assert(proc->leader == proc);
+	assert(proc->next == NULL || proc->next->leader != proc);
+
+	/* Make sure that the child's parent is properly set up.  */
+	assert(proc->parent != NULL);
+	assert(proc->parent->leader != NULL);
+
+	change_process_leader(proc, proc->parent->leader);
+	continue_process(proc->parent->pid);
 }
 
 /* If ltrace gets SIGINT, the processes directly or indirectly run by

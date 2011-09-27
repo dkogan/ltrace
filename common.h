@@ -255,6 +255,7 @@ enum process_status {
 	ps_invalid,	/* Failure.  */
 	ps_stop,	/* Job-control stop.  */
 	ps_tracing_stop,
+	ps_sleeping,
 	ps_zombie,
 	ps_other,	/* Necessary other states can be added as needed.  */
 };
@@ -268,6 +269,7 @@ enum pcb_status {
 extern Process * pid2proc(pid_t pid);
 extern void add_process(Process * proc);
 extern void remove_process(Process * proc);
+extern void change_process_leader(Process * proc, Process * leader);
 extern Process *each_process(Process * start,
 			     enum pcb_status (* cb)(Process * proc, void * data),
 			     void * data);
@@ -338,6 +340,7 @@ extern int syscall_p(Process * proc, int status, int * sysnum);
 extern void continue_process(pid_t pid);
 extern void continue_after_signal(pid_t pid, int signum);
 extern void continue_after_breakpoint(Process * proc, Breakpoint * sbp);
+extern void continue_after_vfork(Process * proc);
 extern void ltrace_exiting(void);
 extern long gimme_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern void save_register_args(enum tof type, Process * proc);

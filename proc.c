@@ -154,8 +154,29 @@ pid2proc(pid_t pid) {
 	return each_process(NULL, &find_proc, (void *)(uintptr_t)pid);
 }
 
-
 static Process * list_of_processes = NULL;
+
+static void
+unlist_process(Process * proc)
+{
+	Process *tmp;
+
+	if (list_of_processes == proc) {
+		list_of_processes = list_of_processes->next;
+		return;
+	}
+
+	for (tmp = list_of_processes; ; tmp = tmp->next) {
+		/* If the following assert fails, the process wasn't
+		 * in the list.  */
+		assert(tmp->next != NULL);
+
+		if (tmp->next == proc) {
+			tmp->next = tmp->next->next;
+			return;
+		}
+	}
+}
 
 Process *
 each_process(Process * proc,
@@ -213,6 +234,23 @@ add_process(Process * proc)
 	*leaderp = proc;
 }
 
+void
+change_process_leader(Process * proc, Process * leader)
+{
+	Process ** leaderp = &list_of_processes;
+	if (proc->leader == leader)
+		return;
+
+	assert(leader != NULL);
+	unlist_process(proc);
+	if (proc != leader)
+		leaderp = &leader->next;
+
+	proc->leader = leader;
+	proc->next = *leaderp;
+	*leaderp = proc;
+}
+
 static enum pcb_status
 clear_leader(Process * proc, void * data)
 {
@@ -242,31 +280,14 @@ delete_events_for(Process * proc)
 void
 remove_process(Process *proc)
 {
-	Process *tmp, *tmp2;
-
 	debug(DEBUG_FUNCTION, "remove_proc(pid=%d)", proc->pid);
 
 	if (proc->leader == proc)
 		each_task(proc, &clear_leader, NULL);
 
-	if (list_of_processes == proc) {
-		tmp = list_of_processes;
-		list_of_processes = list_of_processes->next;
-		delete_events_for(tmp);
-		free(tmp);
-		return;
-	}
-	tmp = list_of_processes;
-	while (tmp->next) {
-		if (tmp->next == proc) {
-			tmp2 = tmp->next;
-			tmp->next = tmp->next->next;
-			delete_events_for(tmp2);
-			free(tmp2);
-			return;
-		}
-		tmp = tmp->next;
-	}
+	unlist_process(proc);
+	delete_events_for(proc);
+	free(proc);
 }
 
 void
@@ -283,7 +304,8 @@ destroy_event_handler(Process * proc)
 	Event_Handler * handler = proc->event_handler;
 	debug(DEBUG_FUNCTION, "destroy_event_handler(pid=%d, %p)", proc->pid, handler);
 	assert(handler != NULL);
-	handler->destroy(handler);
+	if (handler->destroy != NULL)
+		handler->destroy(handler);
 	free(handler);
 	proc->event_handler = NULL;
 }

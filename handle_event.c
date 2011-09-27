@@ -35,6 +35,18 @@ static char * shortsignal(Process *proc, int signum);
 static char * sysname(Process *proc, int sysnum);
 static char * arch_sysname(Process *proc, int sysnum);
 
+static Event *
+call_handler(Process * proc, Event * event)
+{
+	assert(proc != NULL);
+
+	Event_Handler * handler = proc->event_handler;
+	if (handler == NULL)
+		return event;
+
+	return (*handler->on_event) (handler, event);
+}
+
 void
 handle_event(Event *event) {
 	if (exiting == 1) {
@@ -44,15 +56,22 @@ handle_event(Event *event) {
 	}
 	debug(DEBUG_FUNCTION, "handle_event(pid=%d, type=%d)",
 	      event->proc ? event->proc->pid : -1, event->type);
-	/* If the thread group defines an overriding event handler,
-	   give it a chance to kick in.  */
-	if (event->proc != NULL
-	    && event->proc->leader != NULL) {
-		Event_Handler * handler = event->proc->leader->event_handler;
-		if (handler != NULL) {
-			event = (*handler->on_event) (handler, event);
+
+	/* If the thread group or an individual task define an
+	   overriding event handler, give them a chance to kick in.
+	   We will end up calling both handlers, if the first one
+	   doesn't sink the event.  */
+	if (event->proc != NULL) {
+		event = call_handler(event->proc, event);
+		if (event == NULL)
+			/* It was handled.  */
+			return;
+
+		/* Note: the previous handler has a chance to alter
+		 * the event.  */
+		if (event->proc->leader != NULL) {
+			event = call_handler(event->proc->leader, event);
 			if (event == NULL)
-				/* It was handled.  */
 				return;
 		}
 	}
@@ -102,6 +121,7 @@ handle_event(Event *event) {
 		handle_arch_sysret(event);
 		return;
 	case EVENT_CLONE:
+	case EVENT_VFORK:
 		debug(1, "event: clone (%u)", event->e_un.newpid);
 		handle_clone(event);
 		return;
@@ -239,7 +259,11 @@ handle_clone(Event * event) {
 		p->state = STATE_BEING_CREATED;
 		add_process(p);
 	}
-	continue_process(event->proc->pid);
+
+	if (event->type == EVENT_VFORK)
+		continue_after_vfork(p);
+	else
+		continue_process(event->proc->pid);
 }
 
 static void
@@ -253,8 +277,6 @@ handle_new(Event * event) {
 		pending_new_insert(event->e_un.newpid);
 	} else {
 		assert(proc->state == STATE_BEING_CREATED);
-		if (proc->event_handler != NULL)
-			destroy_event_handler(proc);
 		if (options.follow) {
 			proc->state = STATE_ATTACHED;
 		} else {
