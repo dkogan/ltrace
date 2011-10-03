@@ -806,9 +806,6 @@ ltrace_exiting_install_handler(Process * proc)
  * with its parent, and handle it as a multi-threaded case, with the
  * exception that we know that the parent is blocked, and don't
  * attempt to stop it.  When the child execs, we undo the setup.
- *
- * XXX The parent process could be un-suspended before ltrace gets
- * child exec/exit event.  Make sure this is taken care of.
  */
 
 struct process_vfork_handler
@@ -840,9 +837,9 @@ process_vfork_on_event(Event_Handler * super, Event * event)
 			sbp = dict_find_entry(event->proc->leader->breakpoints,
 					      self->bp_addr);
 			if (sbp != NULL)
-				insert_breakpoint(event->proc->leader,
-						  self->bp_addr, sbp->libsym,
-						  1);
+				insert_breakpoint(event->proc->parent,
+						  self->bp_addr,
+						  sbp->libsym, 1);
 		}
 
 		continue_process(event->proc->parent->pid);
@@ -851,11 +848,6 @@ process_vfork_on_event(Event_Handler * super, Event * event)
 		 * earlier.  */
 		change_process_leader(event->proc, event->proc);
 		destroy_event_handler(event->proc);
-
-		/* XXXXX this could happen in the middle of handling
-		 * multi-threaded breakpoint.  We must be careful to
-		 * undo the effects that we introduced above (vforked
-		 * = 1 et.al.).  */
 
 	default:
 		;
