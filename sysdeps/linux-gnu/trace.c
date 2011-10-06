@@ -440,6 +440,10 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 	int state = self->state;
 	int event_to_queue = !event_exit_or_none_p(event);
 
+	/* Deactivate the entry if the task exits.  */
+	if (event_exit_p(event) && task_info != NULL)
+		task_info->pid = 0;
+
 	switch (state) {
 	case psh_stopping:
 		/* If everyone is stopped, singlestep.  */
@@ -481,9 +485,6 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 		if (await_sigstop_delivery(&self->pids, task_info, event))
 			process_stopping_done(self, leader);
 	}
-
-	if (event_exit_p(event) && task_info != NULL)
-		task_info->pid = 0;
 
 	if (event != NULL && event_to_queue) {
 		enque_event(event);
