@@ -251,6 +251,14 @@ struct opt_c_struct {
 
 extern Dict * dict_opt_c;
 
+enum process_status {
+	ps_invalid,	/* Failure.  */
+	ps_stop,	/* Job-control stop.  */
+	ps_tracing_stop,
+	ps_zombie,
+	ps_other,	/* Necessary other states can be added as needed.  */
+};
+
 enum pcb_status {
 	pcb_stop, /* The iteration should stop.  */
 	pcb_cont, /* The iteration should continue.  */
@@ -313,7 +321,7 @@ extern char * pid2name(pid_t pid);
 extern pid_t process_leader(pid_t pid);
 extern int process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n);
 extern int process_stopped(pid_t pid);
-extern char process_status(pid_t pid);
+extern enum process_status process_status(pid_t pid);
 extern void trace_set_options(Process * proc, pid_t pid);
 extern void trace_me(void);
 extern int trace_pid(pid_t pid);

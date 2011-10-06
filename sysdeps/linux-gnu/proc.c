@@ -135,19 +135,49 @@ process_stopped(pid_t pid)
 static enum pcb_status
 process_status_cb(const char * line, const char * prefix, void * data)
 {
-	*(char *)data = line[strlen(prefix)];
-	return pcb_stop;
+	const char * status = line + strlen(prefix);
+	const char c = *status;
+
+#define RETURN(C) do {					\
+		*(enum process_status *)data = C;	\
+		return pcb_stop;			\
+	} while (0)
+
+	switch (c) {
+	case 'Z': RETURN(ps_zombie);
+	case 't': RETURN(ps_tracing_stop);
+	case 'T': {
+		/* This can be either "T (stopped)" or, for older
+		 * kernels, "T (tracing stop)".  */
+		if (!strcmp(status, "T (stopped)\n"))
+			RETURN(ps_stop);
+		else if (!strcmp(status, "T (tracing stop)\n"))
+			RETURN(ps_tracing_stop);
+		else {
+			fprintf(stderr, "Unknown process status: %s",
+				status);
+			RETURN(ps_stop); /* Some sort of stop
+					  * anyway.  */
+		}
+	}
+	}
+
+	RETURN(ps_other);
+#undef RETURN
 }
 
-char
+enum process_status
 process_status(pid_t pid)
 {
-	char ret = '?';
+	enum process_status ret = ps_invalid;
 	FILE * file = open_status_file(pid);
 	if (file != NULL) {
 		each_line_starting(file, "State:\t", &process_status_cb, &ret);
 		fclose(file);
 	}
+	if (ret == ps_invalid)
+		fprintf(stderr, "Couldn't determine status of process %d\n",
+			pid);
 	return ret;
 }
 

@@ -214,19 +214,18 @@ struct process_stopping_handler
 static enum pcb_status
 task_stopped(Process * task, void * data)
 {
-	int status;
-
 	/* If the task is already stopped, don't worry about it.
 	 * Likewise if it managed to become a zombie or terminate in
 	 * the meantime.  This can happen when the whole thread group
 	 * is terminating.  */
-	switch (status = process_status(task->pid))
-	case -1:
-	case 't':
-	case 'Z':
+	switch (process_status(task->pid)) {
+	case ps_invalid:
+	case ps_tracing_stop:
+	case ps_zombie:
 		return pcb_cont;
-
-	return pcb_stop;
+	default:
+		return pcb_stop;
+	}
 }
 
 static struct pid_task *
