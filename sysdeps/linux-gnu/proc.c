@@ -1,3 +1,4 @@
+#define _GNU_SOURCE /* For getline.  */
 #include "config.h"
 #include "common.h"
 
@@ -14,6 +15,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <sys/syscall.h>
+#include <error.h>
 
 
 /* /proc/pid doesn't exist just after the fork, and sometimes `ltrace'
@@ -174,10 +176,13 @@ process_status(pid_t pid)
 	if (file != NULL) {
 		each_line_starting(file, "State:\t", &process_status_cb, &ret);
 		fclose(file);
-	}
-	if (ret == ps_invalid)
-		fprintf(stderr, "Couldn't determine status of process %d\n",
-			pid);
+		if (ret == ps_invalid)
+			error(0, errno, "process_status %d", pid);
+	} else
+		/* If the file is not present, the process presumably
+		 * exited already.  */
+		ret = ps_zombie;
+
 	return ret;
 }
 

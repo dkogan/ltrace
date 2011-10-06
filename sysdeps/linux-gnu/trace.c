@@ -164,9 +164,11 @@ continue_process(pid_t pid)
 
 /**
  * This is used for bookkeeping related to PIDs that the event
- * handlers work with.  */
+ * handlers work with.
+ */
 struct pid_task {
-	pid_t pid;
+	pid_t pid;	/* This may be 0 for tasks that exited
+			 * mid-handling.  */
 	int sigstopped;
 	int got_event;
 	int delivered;
@@ -231,6 +233,7 @@ task_stopped(Process * task, void * data)
 static struct pid_task *
 get_task_info(struct pid_set * pids, pid_t pid)
 {
+	assert(pid != 0);
 	size_t i;
 	for (i = 0; i < pids->count; ++i)
 		if (pids->tasks[i].pid == pid)
@@ -307,7 +310,8 @@ process_stopping_done(struct process_stopping_handler * self, Process * leader)
 	      self->task_enabling_breakpoint->pid);
 	size_t i;
 	for (i = 0; i < self->pids.count; ++i)
-		if (self->pids.tasks[i].delivered)
+		if (self->pids.tasks[i].pid != 0
+		    && self->pids.tasks[i].delivered)
 			continue_process(self->pids.tasks[i].pid);
 	continue_process(self->task_enabling_breakpoint->pid);
 	destroy_event_handler(leader);
@@ -349,7 +353,8 @@ continue_for_sigstop_delivery(struct pid_set * pids)
 {
 	size_t i;
 	for (i = 0; i < pids->count; ++i) {
-		if (pids->tasks[i].sigstopped
+		if (pids->tasks[i].pid != 0
+		    && pids->tasks[i].sigstopped
 		    && !pids->tasks[i].delivered
 		    && pids->tasks[i].got_event) {
 			debug(DEBUG_PROCESS, "continue %d for SIGSTOP delivery",
@@ -360,11 +365,16 @@ continue_for_sigstop_delivery(struct pid_set * pids)
 }
 
 static int
+event_exit_p(Event * event)
+{
+	return event != NULL && (event->type == EVENT_EXIT
+				 || event->type == EVENT_EXIT_SIGNAL);
+}
+
+static int
 event_exit_or_none_p(Event * event)
 {
-	return event == NULL
-		|| event->type == EVENT_EXIT
-		|| event->type == EVENT_EXIT_SIGNAL
+	return event == NULL || event_exit_p(event)
 		|| event->type == EVENT_NONE;
 }
 
@@ -393,7 +403,8 @@ await_sigstop_delivery(struct pid_set * pids, struct pid_task * task_info,
 		int all_clear = 1;
 		size_t i;
 		for (i = 0; i < pids->count; ++i)
-			if (pids->tasks[i].sigstopped
+			if (pids->tasks[i].pid != 0
+			    && pids->tasks[i].sigstopped
 			    && !pids->tasks[i].delivered) {
 				all_clear = 0;
 				break;
@@ -435,8 +446,9 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 		if (each_task(leader, &task_stopped, NULL) == NULL) {
 			debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d",
 			      self->task_enabling_breakpoint->pid);
-			ptrace(PTRACE_SINGLESTEP,
-			       self->task_enabling_breakpoint->pid, 0, 0);
+			if (ptrace(PTRACE_SINGLESTEP,
+				   self->task_enabling_breakpoint->pid, 0, 0))
+				perror("PTRACE_SINGLESTEP");
 			self->state = state = psh_singlestep;
 		}
 		break;
@@ -469,6 +481,9 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 		if (await_sigstop_delivery(&self->pids, task_info, event))
 			process_stopping_done(self, leader);
 	}
+
+	if (event_exit_p(event) && task_info != NULL)
+		task_info->pid = 0;
 
 	if (event != NULL && event_to_queue) {
 		enque_event(event);
@@ -648,6 +663,9 @@ ltrace_exiting_install_handler(Process * proc)
 		size_t i;
 		for (i = 0; i < other->pids.count; ++i) {
 			struct pid_task * oti = &other->pids.tasks[i];
+			if (oti->pid == 0)
+				continue;
+
 			struct pid_task * task_info
 				= add_task_info(&handler->pids, oti->pid);
 			if (task_info == NULL) {
