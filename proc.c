@@ -220,6 +220,7 @@ remove_process(Process *proc)
 void
 install_event_handler(Process * proc, Event_Handler * handler)
 {
+	debug(DEBUG_FUNCTION, "install_event_handler(pid=%d, %p)", proc->pid, handler);
 	assert(proc->event_handler == NULL);
 	proc->event_handler = handler;
 }
@@ -228,6 +229,7 @@ void
 destroy_event_handler(Process * proc)
 {
 	Event_Handler * handler = proc->event_handler;
+	debug(DEBUG_FUNCTION, "destroy_event_handler(pid=%d, %p)", proc->pid, handler);
 	assert(handler != NULL);
 	handler->destroy(handler);
 	free(handler);

@@ -220,6 +220,10 @@ handle_clone(Event * event) {
 	p->pid = event->e_un.newpid;
 	p->parent = event->proc;
 
+	/* We save register values to the arch pointer, and these need
+	   to be per-thread.  */
+	p->arch_ptr = NULL;
+
 	if (pending_new(p->pid)) {
 		pending_new_remove(p->pid);
 		if (p->event_handler != NULL)
