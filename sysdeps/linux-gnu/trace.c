@@ -427,6 +427,8 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 	struct process_stopping_handler * self = (void *)super;
 	Process * task = event->proc;
 	Process * leader = task->leader;
+	Breakpoint * sbp = self->breakpoint_being_enabled;
+	Process * teb = self->task_enabling_breakpoint;
 
 	debug(DEBUG_PROCESS,
 	      "pid %d; event type %d; state %d",
@@ -449,9 +451,10 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 		/* If everyone is stopped, singlestep.  */
 		if (each_task(leader, &task_stopped, NULL) == NULL) {
 			debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d",
-			      self->task_enabling_breakpoint->pid);
-			if (ptrace(PTRACE_SINGLESTEP,
-				   self->task_enabling_breakpoint->pid, 0, 0))
+			      teb->pid);
+			if (sbp->enabled)
+				disable_breakpoint(teb, sbp);
+			if (ptrace(PTRACE_SINGLESTEP, teb->pid, 0, 0))
 				perror("PTRACE_SINGLESTEP");
 			self->state = state = psh_singlestep;
 		}
@@ -460,13 +463,11 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 	case psh_singlestep: {
 		/* In singlestep state, breakpoint signifies that we
 		 * have now stepped, and can re-enable the breakpoint.  */
-		if (event != NULL
-		    && task == self->task_enabling_breakpoint) {
+		if (event != NULL && task == teb) {
 			/* Essentially we don't care what event caused
 			 * the thread to stop.  We can do the
 			 * re-enablement now.  */
-			enable_breakpoint(self->task_enabling_breakpoint,
-					  self->breakpoint_being_enabled);
+			enable_breakpoint(teb, sbp);
 
 			continue_for_sigstop_delivery(&self->pids);
 
@@ -507,11 +508,10 @@ process_stopping_destroy(Event_Handler * super)
 void
 continue_after_breakpoint(Process *proc, Breakpoint *sbp)
 {
-	if (sbp->enabled)
-		disable_breakpoint(proc, sbp);
-
 	set_instruction_pointer(proc, sbp->addr);
 	if (sbp->enabled == 0) {
+		if (sbp->enabled)
+			disable_breakpoint(proc, sbp);
 		continue_process(proc->pid);
 	} else {
 		debug(DEBUG_PROCESS,
