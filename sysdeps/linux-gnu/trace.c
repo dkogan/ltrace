@@ -146,8 +146,8 @@ continue_process(pid_t pid)
 	debug(DEBUG_PROCESS, "continue_process: pid=%d", pid);
 
 	/* Only really continue the process if there are no events in
-	   the queue for this process.  Otherwise just for the other
-	   events to arrive.  */
+	   the queue for this process.  Otherwise just wait for the
+	   other events to arrive.  */
 	if (!have_events_for(pid))
 		/* We always trace syscalls to control fork(),
 		 * clone(), execve()... */
@@ -259,10 +259,14 @@ task_stopped(Process * task, void * data)
 	case ps_invalid:
 	case ps_tracing_stop:
 	case ps_zombie:
+	case ps_sleeping:
 		return pcb_cont;
-	default:
+	case ps_stop:
+	case ps_other:
 		return pcb_stop;
 	}
+
+	abort ();
 }
 
 /* Task is blocked if it's stopped, or if it's a vfork parent.  */
@@ -469,7 +473,10 @@ handle_stopping_event(struct pid_task * task_info, Event ** eventp)
 /* Some SIGSTOPs may have not been delivered to their respective tasks
  * yet.  They are still in the queue.  If we have seen an event for
  * that process, continue it, so that the SIGSTOP can be delivered and
- * caught by ltrace.  */
+ * caught by ltrace.  We don't mind that the process is after
+ * breakpoint (and therefore potentially doesn't have aligned IP),
+ * because the signal will be delivered without the process actually
+ * starting.  */
 static void
 continue_for_sigstop_delivery(struct pid_set * pids)
 {
