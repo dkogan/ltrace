@@ -605,6 +605,17 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 		/* In singlestep state, breakpoint signifies that we
 		 * have now stepped, and can re-enable the breakpoint.  */
 		if (event != NULL && task == teb) {
+
+			/* Let the outer shell handle this event and
+			 * continue the process.  The breakpoint
+			 * should arrive afterwards.  */
+			if (event->type == EVENT_SIGNAL) {
+				debug(DEBUG_PROCESS,
+				      "SIGNAL after SINGLESTEP %d", teb->pid);
+				event_to_queue = 0;
+				break;
+			}
+
 			/* Essentially we don't care what event caused
 			 * the thread to stop.  We can do the
 			 * re-enablement now.  */
