@@ -168,6 +168,7 @@ struct pid_task {
 	int got_event : 1;
 	int delivered : 1;
 	int vforked : 1;
+	int sysret : 1;
 } * pids;
 
 struct pid_set {
@@ -380,7 +381,8 @@ process_stopping_done(struct process_stopping_handler * self, Process * leader)
 	if (!self->exiting) {
 		for (i = 0; i < self->pids.count; ++i)
 			if (self->pids.tasks[i].pid != 0
-			    && self->pids.tasks[i].delivered)
+			    && (self->pids.tasks[i].delivered
+				|| self->pids.tasks[i].sysret))
 				continue_process(self->pids.tasks[i].pid);
 		continue_process(self->task_enabling_breakpoint->pid);
 		destroy_event_handler(leader);
@@ -594,6 +596,17 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 	/* Deactivate the entry if the task exits.  */
 	if (event_exit_p(event) && task_info != NULL)
 		task_info->pid = 0;
+
+	/* Always handle sysrets.  Whether sysret occurred and what
+	 * sys it rets from may need to be determined based on process
+	 * stack, so we need to keep that in sync with reality.  Note
+	 * that we don't continue the process after the sysret is
+	 * handled.  See continue_after_syscall.  */
+	if (event != NULL && event->type == EVENT_SYSRET) {
+		debug(1, "%d LT_EV_SYSRET", event->proc->pid);
+		event_to_queue = 0;
+		task_info->sysret = 1;
+	}
 
 	switch (state) {
 	case psh_stopping:
@@ -903,6 +916,17 @@ continue_after_vfork(Process * proc)
 	assert(proc->parent->leader != NULL);
 
 	change_process_leader(proc, proc->parent->leader);
+}
+
+void
+continue_after_syscall(Process * proc, int sysnum, int ret_p)
+{
+	/* Don't continue if we are mid-stopping.  */
+	if (ret_p && (proc->event_handler != NULL
+		      || (proc->leader != NULL
+			  && proc->leader->event_handler != NULL)))
+		return;
+	continue_process(proc->pid);
 }
 
 /* If ltrace gets SIGINT, the processes directly or indirectly run by

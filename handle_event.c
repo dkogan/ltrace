@@ -70,7 +70,9 @@ handle_event(Event *event) {
 
 		/* Note: the previous handler has a chance to alter
 		 * the event.  */
-		if (event->proc->leader != NULL) {
+		if (event->proc != NULL
+		    && event->proc->leader != NULL
+		    && event->proc != event->proc->leader) {
 			event = call_handler(event->proc->leader, event);
 			if (event == NULL)
 				return;
@@ -454,7 +456,7 @@ handle_syscall(Event *event) {
 			enable_all_breakpoints(event->proc);
 		}
 	}
-	continue_process(event->proc->pid);
+	continue_after_syscall(event->proc, event->e_un.sysnum, 0);
 }
 
 static void
@@ -533,9 +535,12 @@ handle_sysret(Event *event) {
 			output_right(LT_TOF_SYSCALLR, event->proc,
 					sysname(event->proc, event->e_un.sysnum));
 		}
+		assert(event->proc->callstack_depth > 0);
+		unsigned d = event->proc->callstack_depth - 1;
+		assert(event->proc->callstack[d].is_syscall);
 		callstack_pop(event->proc);
 	}
-	continue_process(event->proc->pid);
+	continue_after_syscall(event->proc, event->e_un.sysnum, 1);
 }
 
 static void

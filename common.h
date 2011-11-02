@@ -343,6 +343,7 @@ extern void disable_breakpoint(Process * proc, Breakpoint * sbp);
 extern int syscall_p(Process * proc, int status, int * sysnum);
 extern void continue_process(pid_t pid);
 extern void continue_after_signal(pid_t pid, int signum);
+extern void continue_after_syscall(Process *proc, int sysnum, int ret_p);
 extern void continue_after_breakpoint(Process * proc, Breakpoint * sbp);
 extern void continue_after_vfork(Process * proc);
 extern void ltrace_exiting(void);
