@@ -556,6 +556,14 @@ all_stops_accountable(struct pid_set * pids)
 	return 1;
 }
 
+static void
+singlestep(Process * proc)
+{
+	debug(1, "PTRACE_SINGLESTEP");
+	if (ptrace(PTRACE_SINGLESTEP, proc->pid, 0, 0))
+		perror("PTRACE_SINGLESTEP");
+}
+
 /* This event handler is installed when we are in the process of
  * stopping the whole thread group to do the pointer re-enablement for
  * one of the threads.  We pump all events to the queue for later
@@ -595,24 +603,19 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 			      teb->pid);
 			if (sbp->enabled)
 				disable_breakpoint(teb, sbp);
-			if (ptrace(PTRACE_SINGLESTEP, teb->pid, 0, 0))
-				perror("PTRACE_SINGLESTEP");
+			singlestep(teb);
 			self->state = state = psh_singlestep;
 		}
 		break;
 
-	case psh_singlestep: {
+	case psh_singlestep:
 		/* In singlestep state, breakpoint signifies that we
 		 * have now stepped, and can re-enable the breakpoint.  */
 		if (event != NULL && task == teb) {
 
-			/* Let the outer shell handle this event and
-			 * continue the process.  The breakpoint
-			 * should arrive afterwards.  */
+			/* This is not the singlestep that we are waiting for.  */
 			if (event->type == EVENT_SIGNAL) {
-				debug(DEBUG_PROCESS,
-				      "SIGNAL after SINGLESTEP %d", teb->pid);
-				event_to_queue = 0;
+				singlestep(task);
 				break;
 			}
 
@@ -631,7 +634,6 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 				event = NULL; // handled
 		} else
 			break;
-	}
 
 		/* fall-through */
 
