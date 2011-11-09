@@ -918,14 +918,24 @@ continue_after_vfork(Process * proc)
 	change_process_leader(proc, proc->parent->leader);
 }
 
+static int
+is_mid_stopping(Process *proc)
+{
+	return proc != NULL
+		&& proc->event_handler != NULL
+		&& proc->event_handler->on_event == &process_stopping_on_event;
+}
+
 void
 continue_after_syscall(Process * proc, int sysnum, int ret_p)
 {
 	/* Don't continue if we are mid-stopping.  */
-	if (ret_p && (proc->event_handler != NULL
-		      || (proc->leader != NULL
-			  && proc->leader->event_handler != NULL)))
+	if (ret_p && (is_mid_stopping(proc) || is_mid_stopping(proc->leader))) {
+		debug(DEBUG_PROCESS,
+		      "continue_after_syscall: don't continue %d",
+		      proc->pid);
 		return;
+	}
 	continue_process(proc->pid);
 }
 
