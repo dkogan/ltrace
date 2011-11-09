@@ -644,7 +644,7 @@ handle_breakpoint(Event *event) {
 			struct library_symbol *sym= event->proc->callstack[i].c_un.libfunc;
 			struct library_symbol *new_sym;
 			assert(sym);
-			addr = sym2addr(leader, sym);
+			addr = sym2addr(event->proc, sym);
 			sbp = dict_find_entry(leader->breakpoints, addr);
 			if (sbp) {
 				if (addr != sbp->addr) {
