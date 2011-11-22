@@ -9,6 +9,7 @@
 #include <string.h>
 #include <asm/ptrace_offsets.h>
 #include <asm/rse.h>
+#include <errno.h>
 
 #include "common.h"
 
@@ -48,9 +49,10 @@ int
 syscall_p(Process *proc, int status, int *sysnum) {
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
-		unsigned long slot =
-		    (ptrace(PTRACE_PEEKUSER, proc->pid, PT_CR_IPSR, 0) >> 41) &
-		    0x3;
+		long l = ptrace(PTRACE_PEEKUSER, proc->pid, PT_CR_IPSR, 0);
+		if (l == -1 && errno)
+			return -1;
+		unsigned long slot = ((unsigned long)l >> 41) & 0x3;
 		unsigned long ip =
 		    ptrace(PTRACE_PEEKUSER, proc->pid, PT_CR_IIP, 0);
 

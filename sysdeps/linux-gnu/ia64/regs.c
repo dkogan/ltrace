@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 #include <sys/ptrace.h>
+#include <errno.h>
 
 #include <asm/ptrace_offsets.h>
 #include <asm/rse.h>
@@ -36,12 +37,18 @@ set_instruction_pointer(Process *proc, void *addr) {
 
 void *
 get_stack_pointer(Process *proc) {
-	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, PT_R12, 0);
+	long l = ptrace(PTRACE_PEEKUSER, proc->pid, PT_R12, 0);
+	if (l == -1 && errno)
+		return NULL;
+	return (void *)l;
 }
 
 void *
 get_return_addr(Process *proc, void *stack_pointer) {
-	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, PT_B0, 0);
+	long l = ptrace(PTRACE_PEEKUSER, proc->pid, PT_B0, 0);
+	if (l == -1 && errno)
+		return NULL;
+	return (void *)l;
 }
 
 void
