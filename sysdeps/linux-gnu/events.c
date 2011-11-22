@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/ptrace.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "common.h"
 
@@ -138,6 +139,26 @@ next_event(void)
 	}
 	event.proc = pid2proc(pid);
 	if (!event.proc || event.proc->state == STATE_BEING_CREATED) {
+		/* Work around (presumably) a bug on some kernels,
+		 * where we are seeing a waitpid event even though the
+		 * process is still reported to be running.  Wait for
+		 * the tracing stop to propagate.  But don't get stuck
+		 * here forever.
+		 *
+		 * We need the process in T, because there's a lot of
+		 * ptracing going on all over the place, and these
+		 * calls fail when the process is not in T.
+		 *
+		 * N.B. This was observed on RHEL 5 Itanium, but I'm
+		 * turning this on globally, to save some poor soul
+		 * down the road (which could well be me a year from
+		 * now) the pain of figuring this out all over again.
+		 * Petr Machata 2011-11-22.  */
+		int i = 0;
+		for (; i < 100 && process_status(pid) != ps_tracing_stop; ++i) {
+			debug(2, "waiting for %d to stop", pid);
+			usleep(10000);
+		}
 		event.type = EVENT_NEW;
 		event.e_un.newpid = pid;
 		debug(DEBUG_EVENT, "event: NEW: pid=%d", pid);
