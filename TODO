@@ -27,10 +27,6 @@
   + When control hits one of our return addresses:
     - get return value...
     - change PC to the right place
-* To be able to work with processes sharing memory, we must:
-  + ptrace() every single thread
-  + place breakpoints only in places where the process control can continue
-    without having to remove it
 * List source dependencies in Makefile
 * Create different ltrace processes to trace different children
 * After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
