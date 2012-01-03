@@ -45,7 +45,8 @@ syscall_p(Process *proc, int status, int *sysnum) {
 }
 
 long
-gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info) {
+gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
+{
 	proc_archdep *a = (proc_archdep *) proc->arch_ptr;
 	if (!a->valid) {
 		fprintf(stderr, "Could not get child registers\n");

@@ -13,6 +13,7 @@
 
 #include "proc.h"
 #include "common.h"
+#include "type.h"
 
 /* What we think of as a bundle, ptrace thinks of it as two unsigned
  * longs */
@@ -245,7 +246,8 @@ gimme_float_arg(enum tof type, Process *proc, int arg_num) {
 }
 
 long
-gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info) {
+gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
+{
 	union {
 		long l;
 		float f;

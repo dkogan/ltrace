@@ -9,6 +9,7 @@
 #include "proc.h"
 #include "common.h"
 #include "mipsel.h"
+#include "type.h"
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
 #endif
@@ -118,7 +119,8 @@ I'm not doing any floating point support here.
 
 */
 long
-gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info) {
+gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
+{
 	long ret;
 	long addr;
 	debug(2,"type %d arg %d",type,arg_num);

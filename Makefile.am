@@ -30,7 +30,10 @@ libltrace_la_SOURCES = \
 	library.c \
 	filter.c \
 	glob.c \
-	vect.c
+	vect.c \
+	type.c \
+	value.c \
+	value_dict.c
 
 libltrace_la_LIBADD = \
 	$(libelf_LIBS) \
@@ -67,7 +70,10 @@ noinst_HEADERS = \
 	library.h \
 	filter.h \
 	glob.h \
-	vect.h
+	vect.h \
+	type.h \
+	value.h \
+	value_dict.h
 
 dist_man1_MANS = \
 	ltrace.1

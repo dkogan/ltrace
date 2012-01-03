@@ -11,6 +11,7 @@
 #include "common.h"
 #include "proc.h"
 #include "library.h"
+#include "type.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
@@ -161,7 +162,7 @@ output_left(enum tof type, struct Process *proc,
 {
 	const char *function_name = libsym->name;
 	Function *func;
-	static arg_type_info *arg_unknown = NULL;
+	static struct arg_type_info *arg_unknown = NULL;
 	if (arg_unknown == NULL)
 	    arg_unknown = lookup_prototype(ARGTYPE_UNKNOWN);
 
@@ -225,7 +226,7 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
 	Function *func = name2func(function_name);
-	static arg_type_info *arg_unknown = NULL;
+	static struct arg_type_info *arg_unknown = NULL;
 	if (arg_unknown == NULL)
 	    arg_unknown = lookup_prototype(ARGTYPE_UNKNOWN);
 

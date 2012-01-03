@@ -13,6 +13,7 @@
 #include "common.h"
 #include "ptrace.h"
 #include "proc.h"
+#include "type.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -112,7 +113,7 @@ gimme_arg32(enum tof type, Process *proc, int arg_num) {
 }
 
 static long
-gimme_arg_regset(Process *proc, int arg_num, arg_type_info *info,
+gimme_arg_regset(Process *proc, int arg_num, struct arg_type_info *info,
                  struct user_regs_struct *regs,
 		 struct user_fpregs_struct *fpregs)
 {
@@ -148,7 +149,7 @@ gimme_arg_regset(Process *proc, int arg_num, arg_type_info *info,
 	}
 }
 static long
-gimme_retval(Process *proc, int arg_num, arg_type_info *info,
+gimme_retval(Process *proc, int arg_num, struct arg_type_info *info,
              struct user_regs_struct *regs, struct user_fpregs_struct *fpregs)
 {
         if (info->type == ARGTYPE_FLOAT || info->type == ARGTYPE_DOUBLE)
@@ -158,7 +159,9 @@ gimme_retval(Process *proc, int arg_num, arg_type_info *info,
 }
 
 long
-gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info) {
+gimme_arg(enum tof type, Process *proc, int arg_num,
+	  struct arg_type_info *info)
+{
 	if (proc->mask_32bit)
 		return (unsigned int)gimme_arg32(type, proc, arg_num);
 

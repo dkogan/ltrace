@@ -19,6 +19,7 @@
 #include "breakpoint.h"
 #include "proc.h"
 #include "linux-gnu/trace.h"
+#include "type.h"
 
 /* If the system headers did not provide the constants, hard-code the normal
    values.  */
@@ -50,13 +51,14 @@
 #ifdef ARCH_HAVE_UMOVELONG
 extern int arch_umovelong (Process *, void *, long *, arg_type_info *);
 int
-umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
+umovelong(Process *proc, void *addr, long *result, arg_type_info *info) {
 	return arch_umovelong (proc, addr, result, info);
 }
 #else
 /* Read a single long from the process's memory address 'addr' */
 int
-umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
+umovelong(Process *proc, void *addr, long *result, struct arg_type_info *info)
+{
 	long pointed_to;
 
 	errno = 0;
@@ -66,7 +68,7 @@ umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 
 	*result = pointed_to;
 	if (info) {
-		switch(info->type) {
+		switch (info->type) {
 			case ARGTYPE_INT:
 				*result &= 0x00000000ffffffffUL;
 			default:

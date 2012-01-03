@@ -5,12 +5,13 @@
 #include <ctype.h>
 
 #include "common.h"
+#include "type.h"
 
 static int line_no;
 static char *filename;
 static int error_count = 0;
 
-static arg_type_info *parse_type(char **str);
+static struct arg_type_info *parse_type(char **str);
 
 Function *list_of_functions = NULL;
 
@@ -45,7 +46,7 @@ static struct list_of_pt_t {
 /* Array of prototype objects for each of the types. The order in this
  * array must exactly match the list of enumerated values in
  * common.h */
-static arg_type_info arg_type_prototypes[] = {
+static struct arg_type_info arg_type_prototypes[] = {
 	{ ARGTYPE_VOID },
 	{ ARGTYPE_INT },
 	{ ARGTYPE_UINT },
@@ -69,7 +70,7 @@ static arg_type_info arg_type_prototypes[] = {
 	{ ARGTYPE_UNKNOWN }
 };
 
-arg_type_info *
+struct arg_type_info *
 lookup_prototype(enum arg_type at) {
 	if (at >= 0 && at <= ARGTYPE_COUNT)
 		return &arg_type_prototypes[at];
@@ -77,7 +78,7 @@ lookup_prototype(enum arg_type at) {
 		return &arg_type_prototypes[ARGTYPE_COUNT]; /* UNKNOWN */
 }
 
-static arg_type_info *
+static struct arg_type_info *
 str2type(char **str) {
 	struct list_of_pt_t *tmp = &list_of_pt[0];
 
@@ -208,11 +209,11 @@ parse_argnum(char **str) {
 
 struct typedef_node_t {
 	char *name;
-	arg_type_info *info;
+	struct arg_type_info *info;
 	struct typedef_node_t *next;
 } *typedefs = NULL;
 
-static arg_type_info *
+static struct arg_type_info *
 lookup_typedef(char **str) {
 	struct typedef_node_t *node;
 	char *end = *str;
@@ -234,7 +235,7 @@ lookup_typedef(char **str) {
 static void
 parse_typedef(char **str) {
 	char *name;
-	arg_type_info *info;
+	struct arg_type_info *info;
 	struct typedef_node_t *binding;
 
 	(*str) += strlen("typedef");
@@ -267,7 +268,7 @@ parse_typedef(char **str) {
 }
 
 static size_t
-arg_sizeof(arg_type_info * arg) {
+arg_sizeof(struct arg_type_info * arg) {
 	if (arg->type == ARGTYPE_CHAR) {
 		return sizeof(char);
 	} else if (arg->type == ARGTYPE_SHORT || arg->type == ARGTYPE_USHORT) {
@@ -295,7 +296,7 @@ arg_sizeof(arg_type_info * arg) {
 #undef alignof
 #define alignof(field,st) ((size_t) ((char*) &st.field - (char*) &st))
 static size_t
-arg_align(arg_type_info * arg) {
+arg_align(struct arg_type_info * arg) {
 	struct { char c; char C; } cC;
 	struct { char c; short s; } cs;
 	struct { char c; int i; } ci;
@@ -355,7 +356,7 @@ align_skip(size_t alignment, size_t offset) {
 /* I'm sure this isn't completely correct, but just try to get most of
  * them right for now. */
 static void
-align_struct(arg_type_info* info) {
+align_struct(struct arg_type_info* info) {
 	size_t offset;
 	int i;
 
@@ -366,7 +367,7 @@ align_struct(arg_type_info* info) {
 	// various types.
 	offset = 0;
 	for (i = 0; info->u.struct_info.fields[i] != NULL; i++) {
-		arg_type_info *field = info->u.struct_info.fields[i];
+		struct arg_type_info *field = info->u.struct_info.fields[i];
 		offset += align_skip(arg_align(field), offset);
 		info->u.struct_info.offset[i] = offset;
 		offset += arg_sizeof(field);
@@ -375,10 +376,10 @@ align_struct(arg_type_info* info) {
 	info->u.struct_info.size = offset;
 }
 
-static arg_type_info *
+static struct arg_type_info *
 parse_nonpointer_type(char **str) {
-	arg_type_info *simple;
-	arg_type_info *info;
+	struct arg_type_info *simple;
+	struct arg_type_info *info;
 
 	if (strncmp(*str, "typedef", 7) == 0) {
 		parse_typedef(str);
@@ -556,11 +557,11 @@ parse_nonpointer_type(char **str) {
 	}
 }
 
-static arg_type_info *
+static struct arg_type_info *
 parse_type(char **str) {
-	arg_type_info *info = parse_nonpointer_type(str);
+	struct arg_type_info *info = parse_nonpointer_type(str);
 	while (**str == '*') {
-		arg_type_info *outer = malloc(sizeof(*info));
+		struct arg_type_info *outer = malloc(sizeof(*info));
 		outer->type = ARGTYPE_POINTER;
 		outer->u.ptr_info.info = info;
 		(*str)++;

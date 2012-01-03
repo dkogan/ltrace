@@ -15,6 +15,7 @@
 #include "ltrace-elf.h"
 #include "read_config_file.h"
 #include "proc.h"
+#include "forward.h"
 
 #if defined HAVE_LIBSUPC__ || defined HAVE_LIBSTDC__
 # define USE_CXA_DEMANGLE
@@ -26,77 +27,6 @@
 extern char * command;
 
 extern int exiting;  /* =1 if we have to exit ASAP */
-
-enum arg_type {
-	ARGTYPE_UNKNOWN = -1,
-	ARGTYPE_VOID,
-	ARGTYPE_INT,
-	ARGTYPE_UINT,
-	ARGTYPE_LONG,
-	ARGTYPE_ULONG,
-	ARGTYPE_OCTAL,
-	ARGTYPE_CHAR,
-	ARGTYPE_SHORT,
-	ARGTYPE_USHORT,
-	ARGTYPE_FLOAT,		/* float value, may require index */
-	ARGTYPE_DOUBLE,		/* double value, may require index */
-	ARGTYPE_ADDR,
-	ARGTYPE_FILE,
-	ARGTYPE_FORMAT,		/* printf-like format */
-	ARGTYPE_STRING,		/* NUL-terminated string */
-	ARGTYPE_STRING_N,	/* String of known maxlen */
-	ARGTYPE_ARRAY,		/* Series of values in memory */
-	ARGTYPE_ENUM,		/* Enumeration */
-	ARGTYPE_STRUCT,		/* Structure of values */
-	ARGTYPE_POINTER,	/* Pointer to some other type */
-	ARGTYPE_COUNT		/* number of ARGTYPE_* values */
-};
-
-typedef struct arg_type_info_t {
-	enum arg_type type;
-	union {
-		/* ARGTYPE_ENUM */
-		struct {
-			size_t entries;
-			char ** keys;
-			int * values;
-		} enum_info;
-
-		/* ARGTYPE_ARRAY */
-		struct {
-			struct arg_type_info_t * elt_type;
-			size_t elt_size;
-			int len_spec;
-		} array_info;
-
-		/* ARGTYPE_STRING_N */
-		struct {
-			int size_spec;
-		} string_n_info;
-
-		/* ARGTYPE_STRUCT */
-		struct {
-			struct arg_type_info_t ** fields;	/* NULL-terminated */
-			size_t * offset;
-			size_t size;
-		} struct_info;
-
-		/* ARGTYPE_POINTER */
-		struct {
-			struct arg_type_info_t * info;
-		} ptr_info;
-
-		/* ARGTYPE_FLOAT */
-		struct {
-			size_t float_index;
-		} float_info;
-
-		/* ARGTYPE_DOUBLE */
-		struct {
-			size_t float_index;
-		} double_info;
-	} u;
-} arg_type_info;
 
 enum tof {
 	LT_TOF_NONE = 0,
@@ -110,9 +40,9 @@ enum tof {
 typedef struct Function Function;
 struct Function {
 	const char * name;
-	arg_type_info * return_info;
+	struct arg_type_info *return_info;
 	int num_params;
-	arg_type_info * arg_info[MAX_ARGS];
+	struct arg_type_info *arg_info[MAX_ARGS];
 	int params_right;
 	Function * next;
 };
@@ -157,11 +87,10 @@ extern void enque_event(Event * event);
 extern void handle_event(Event * event);
 
 extern pid_t execute_program(const char * command, char ** argv);
-extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
+extern int display_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info);
 extern void disable_all_breakpoints(Process * proc);
 
 extern void show_summary(void);
-extern arg_type_info * lookup_prototype(enum arg_type at);
 
 struct breakpoint;
 struct library_symbol;
@@ -193,10 +122,12 @@ extern void continue_after_signal(pid_t pid, int signum);
 extern void continue_after_syscall(Process *proc, int sysnum, int ret_p);
 extern void continue_after_breakpoint(struct Process *proc, struct breakpoint *sbp);
 extern void continue_after_vfork(Process * proc);
-extern long gimme_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
+extern long gimme_arg(enum tof type, Process *proc, int arg_num,
+		      struct arg_type_info *info);
 extern void save_register_args(enum tof type, Process * proc);
 extern int umovestr(Process * proc, void * addr, int len, void * laddr);
-extern int umovelong (Process * proc, void * addr, long * result, arg_type_info * info);
+extern int umovelong(Process *proc, void *addr, long *result,
+		     struct arg_type_info *info);
 extern size_t umovebytes (Process *proc, void * addr, void * laddr, size_t count);
 extern int ffcheck(void * maddr);
 extern void * sym2addr(Process *, struct library_symbol *);

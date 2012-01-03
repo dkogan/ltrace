@@ -1,5 +1,17 @@
 2012-04-30  Petr Machata  <pmachata@redhat.com>
 
+	* type.c, type.h: New module with routines related to handling of
+	types.  Some of this was moved over from common.h.
+	* common.h: Adjust for this change.
+	* read_config_file.c: Likewise.
+	* display_args.c: Likewise.
+	* output.c: Likewise.
+	* sysdeps/linux-gnu/*/trace.c: Likewise.
+	* value.c, value.h: New module for values of arbitrary length.
+	* value_dict.c, value_dict.h: New module for value dictionaries.
+
+2012-04-30  Petr Machata  <pmachata@redhat.com>
+
 	* library.h (arch_translate_address): First argument is ltelf.
 	(arch_translate_address_dyn): New function.
 	* sysdeps/linux-gnu/ppc/plt.c: Implement above, use .opd to

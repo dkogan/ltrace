@@ -13,6 +13,7 @@
 #include "common.h"
 #include "ptrace.h"
 #include "breakpoint.h"
+#include "type.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -67,7 +68,8 @@ syscall_p(Process *proc, int status, int *sysnum) {
 }
 
 static long
-gimme_arg_regset(enum tof type, Process *proc, int arg_num, arg_type_info *info,
+gimme_arg_regset(enum tof type, Process *proc, int arg_num,
+		 struct arg_type_info *info,
 		 gregset_t *regs, fpregset_t *fpregs)
 {
 	union { long val; float fval; double dval; } cvt;
@@ -110,7 +112,7 @@ gimme_arg_regset(enum tof type, Process *proc, int arg_num, arg_type_info *info,
 }
 
 static long
-gimme_retval(Process *proc, int arg_num, arg_type_info *info,
+gimme_retval(Process *proc, int arg_num, struct arg_type_info *info,
 	     gregset_t *regs, fpregset_t *fpregs)
 {
 	union { long val; float fval; double dval; } cvt;
@@ -130,7 +132,7 @@ gimme_retval(Process *proc, int arg_num, arg_type_info *info,
 
 /* Grab functions arguments based on the PPC64 ABI.  */
 long
-gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info)
+gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 {
 	proc_archdep *arch = (proc_archdep *)proc->arch_ptr;
 	if (arch == NULL || !arch->valid)
@@ -173,7 +175,9 @@ save_register_args(enum tof type, Process *proc) {
 
 /* Read a single long from the process's memory address 'addr'.  */
 int
-arch_umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
+arch_umovelong (Process *proc, void *addr, long *result,
+		struct arg_type_info *info)
+{
 	long pointed_to;
 
 	errno = 0;
