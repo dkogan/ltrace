@@ -1,5 +1,11 @@
 2012-01-05  Petr Machata  <pmachata@redhat.com>
 
+	* output.h, output.c
+	(report_error, report_warning, report_global_error): New functions.
+	* read_config_file.c: Use them.
+
+2012-01-05  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (display_args): Remove
 	(format_argument): Add a new interface
 	(struct callstack_element.arguments): New field

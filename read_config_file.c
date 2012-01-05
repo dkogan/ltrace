@@ -30,6 +30,7 @@
 #include "common.h"
 #include "type.h"
 #include "expr.h"
+#include "errno.h"
 
 static int line_no;
 static char *filename;
@@ -127,6 +128,10 @@ eat_spaces(char **str) {
 static char *
 xstrndup(char *str, size_t len) {
 	char *ret = (char *) malloc(len + 1);
+	if (ret == NULL) {
+		report_global_error("malloc: %s", strerror(errno));
+		return NULL;
+	}
 	strncpy(ret, str, len);
 	ret[len] = 0;
 	return ret;
@@ -136,10 +141,8 @@ static char *
 parse_ident(char **str) {
 	char *ident = *str;
 
-	if (!isalnum(**str) && **str != '_') {
-		output_line(0, "Syntax error in `%s', line %d: Bad identifier",
-				filename, line_no);
-		error_count++;
+	if (!isalpha(**str) && **str != '_') {
+		report_error(filename, line_no, "bad identifier");
 		return NULL;
 	}
 
@@ -187,10 +190,8 @@ parse_int(char **str) {
 	char *end;
 	long n = strtol(*str, &end, 0);
 	if (end == *str) {
-		output_line(0, "Syntax error in `%s', line %d: Bad number (%s)",
-				filename, line_no, *str);
-		error_count++;
-		return 0;
+		report_error(filename, line_no, "bad number");
+		return -1;
 	}
 
 	*str = end;
@@ -249,6 +250,8 @@ parse_argnum(char **str)
 			expr_init_named(expr, "retval", 0);
 
 		} else {
+			report_error(filename, line_no,
+				     "Unknown length specifier: '%s'", name);
 			goto fail;
 		}
 		return expr;
@@ -536,17 +539,16 @@ process_line(char *buf) {
 	if (fun.return_info == NULL)
 		return NULL;
 	if (fun.return_info->type == ARGTYPE_UNKNOWN) {
+	err:
 		debug(3, " Skipping line %d", line_no);
 		return NULL;
 	}
 	debug(4, " return_type = %d", fun.return_info->type);
 	eat_spaces(&str);
 	tmp = start_of_arg_sig(str);
-	if (!tmp) {
-		output_line(0, "Syntax error in `%s', line %d", filename,
-				line_no);
-		error_count++;
-		return NULL;
+	if (tmp == NULL) {
+		report_error(filename, line_no, "syntax error");
+		goto err;
 	}
 	*tmp = '\0';
 	fun.name = strdup(str);
@@ -585,10 +587,9 @@ process_line(char *buf) {
 		} else {
 			if (str[strlen(str) - 1] == '\n')
 				str[strlen(str) - 1] = '\0';
-			output_line(0, "Syntax error in `%s', line %d at ...\"%s\"",
-					filename, line_no, str);
-			error_count++;
-			return NULL;
+			report_error(filename, line_no,
+				     "syntax error around \"%s\"", str);
+			goto err;
 		}
 	}
 	fun.num_params = i;

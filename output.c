@@ -405,3 +405,44 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 	current_proc = 0;
 	current_column = 0;
 }
+
+static void
+do_report(const char *filename, unsigned line_no, const char *severity,
+	  const char *fmt, va_list args)
+{
+	char buf[128];
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	buf[sizeof(buf) - 1] = 0;
+	if (filename != NULL)
+		output_line(0, "%s:%d: %s: %s",
+			    filename, line_no, severity, buf);
+	else
+		output_line(0, "%s: %s", severity, buf);
+}
+
+void
+report_error(const char *filename, unsigned line_no, char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	do_report(filename, line_no, "error", fmt, args);
+	va_end(args);
+}
+
+void
+report_warning(const char *filename, unsigned line_no, char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	do_report(filename, line_no, "warning", fmt, args);
+	va_end(args);
+}
+
+void
+report_global_error(char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	do_report(NULL, 0, "error", fmt, args);
+	va_end(args);
+}
