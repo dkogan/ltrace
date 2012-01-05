@@ -1,3 +1,27 @@
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2010 Joe Damato
+ * Copyright (C) 1997,1998,1999,2001,2002,2003,2004,2007,2008,2009 Juan Cespedes
+ * Copyright (C) 2006 Paul Gilliam
+ * Copyright (C) 2006 Ian Wienand
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #include "config.h"
 
 #include <stdio.h>
@@ -12,6 +36,8 @@
 #include "proc.h"
 #include "library.h"
 #include "type.h"
+#include "value.h"
+#include "value_dict.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
@@ -190,35 +216,61 @@ output_left(enum tof type, struct Process *proc,
 #endif
 
 	func = name2func(function_name);
+
+	struct value_dict *arguments = malloc(sizeof(*arguments));
+	if (arguments == NULL)
+		return;
+	val_dict_init(arguments);
+
+	int num, right;
 	if (!func) {
 		int i;
 		for (i = 0; i < 4; i++) {
-			current_column +=
-			    display_arg(type, proc, i, arg_unknown);
-			current_column += fprintf(options.output, ", ");
+			long l = gimme_arg(type, proc, i, arg_unknown);
+			struct value val;
+			value_init(&val, proc, NULL, arg_unknown, 0);
+			value_set_long(&val, l);
+			val_dict_push_next(arguments, &val);
 		}
-		current_column += display_arg(type, proc, 4, arg_unknown);
-		return;
+		right = 0;
+		num = 4;
 	} else {
 		int i;
-		for (i = 0; i < func->num_params - func->params_right - 1; i++) {
-			current_column +=
-			    display_arg(type, proc, i, func->arg_info[i]);
+		for (i = 0; i < func->num_params; i++) {
+			long l = gimme_arg(type, proc, i, func->arg_info[i]);
+			struct value val;
+			value_init(&val, proc, NULL, func->arg_info[i], 0);
+			value_set_long(&val, l);
+			val_dict_push_next(arguments, &val);
+		}
+		right = func->params_right;
+		num = func->num_params;
+	}
+
+	int i;
+	for (i = 0; i < num - right - 1; i++) {
+		current_column +=
+			format_argument(options.output,
+					val_dict_get_num(arguments, i),
+					arguments);
+		current_column += fprintf(options.output, ", ");
+	}
+
+	if (num > right) {
+		current_column +=
+			format_argument(options.output,
+					val_dict_get_num(arguments, i),
+					arguments);
+		if (right) {
 			current_column += fprintf(options.output, ", ");
 		}
-		if (func->num_params > func->params_right) {
-			current_column +=
-			    display_arg(type, proc, i, func->arg_info[i]);
-			if (func->params_right) {
-				current_column += fprintf(options.output, ", ");
-			}
-		}
-		if (func->params_right
-		    || func->return_info->type == ARGTYPE_STRING_N
-		    || func->return_info->type == ARGTYPE_ARRAY) {
-			save_register_args(type, proc);
-		}
 	}
+
+	struct callstack_element *stel
+		= &proc->callstack[proc->callstack_depth - 1];
+	stel->arguments = arguments;
+
+	save_register_args(type, proc);
 }
 
 void
@@ -280,32 +332,48 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 #endif
 	}
 
+	struct callstack_element *stel
+		= &proc->callstack[proc->callstack_depth - 1];
+
+	struct value retval;
+	struct arg_type_info *return_info = arg_unknown;
+	if (func != NULL)
+		return_info = func->return_info;
+	long l = gimme_arg(type, proc, -1, return_info);
+	value_init(&retval, proc, NULL, return_info, 0);
+	value_set_long(&retval, l);
+	val_dict_push_named(stel->arguments, &retval, "retval", 0);
+
 	if (!func) {
 		current_column += fprintf(options.output, ") ");
 		tabto(options.align - 1);
 		fprintf(options.output, "= ");
-		display_arg(type, proc, -1, arg_unknown);
 	} else {
 		int i;
 		for (i = func->num_params - func->params_right;
 		     i < func->num_params - 1; i++) {
 			current_column +=
-			    display_arg(type, proc, i, func->arg_info[i]);
+				format_argument(options.output,
+						val_dict_get_num
+							(stel->arguments, i),
+						stel->arguments);
 			current_column += fprintf(options.output, ", ");
 		}
 		if (func->params_right) {
 			current_column +=
-			    display_arg(type, proc, i, func->arg_info[i]);
+				format_argument(options.output,
+						val_dict_get_num
+							(stel->arguments, i),
+						stel->arguments);
 		}
 		current_column += fprintf(options.output, ") ");
 		tabto(options.align - 1);
 		fprintf(options.output, "= ");
-		if (func->return_info->type == ARGTYPE_VOID) {
-			fprintf(options.output, "<void>");
-		} else {
-			display_arg(type, proc, -1, func->return_info);
-		}
 	}
+
+	format_argument(options.output, &retval, stel->arguments);
+	val_dict_destroy(stel->arguments);
+
 	if (opt_T) {
 		fprintf(options.output, " <%lu.%06d>",
 			current_time_spent.tv_sec,

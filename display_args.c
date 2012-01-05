@@ -1,465 +1,429 @@
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 1998,2004,2007,2008,2009 Juan Cespedes
+ * Copyright (C) 2006 Ian Wienand
+ * Copyright (C) 2006 Steve Fink
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #include <ctype.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <limits.h>
+#include <assert.h>
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include "common.h"
 #include "proc.h"
+#include "value.h"
+#include "expr.h"
 #include "type.h"
+#include "common.h"
 
-static int display_char(int what);
-static int display_string(enum tof type, Process *proc,
-			  void* addr, size_t maxlen);
-static int display_value(enum tof type, Process *proc,
-			 long value, struct arg_type_info *info,
-			 void *st, struct arg_type_info *st_info);
-static int display_unknown(enum tof type, Process *proc, long value);
-static int display_format(enum tof type, Process *proc, int arg_num);
+static int format_argument_2(FILE *stream, struct value *value,
+			     struct value_dict *arguments);
 
-static size_t string_maxlength = INT_MAX;
-static size_t array_maxlength = INT_MAX;
-
-static long
-get_length(enum tof type, Process *proc, int len_spec,
-	   void *st, struct arg_type_info *st_info)
-{
-	long len;
-	struct arg_type_info info;
-
-	if (len_spec > 0)
-		return len_spec;
-	if (type == LT_TOF_STRUCT) {
-		umovelong(proc, st + st_info->u.struct_info.offset[-len_spec-1],
-			  &len, st_info->u.struct_info.fields[-len_spec-1]);
-		return len;
+#define READER(NAME, TYPE)						\
+	static int							\
+	NAME(struct value *value, TYPE *ret, struct value_dict *arguments) \
+	{								\
+		union {							\
+			TYPE val;					\
+			unsigned char buf[0];				\
+		} u;							\
+		if (value_extract_buf(value, u.buf, arguments) < 0)	\
+			return -1;					\
+		*ret = u.val;						\
+		return 0;						\
 	}
 
-	info.type = ARGTYPE_INT;
-	return gimme_arg(type, proc, -len_spec-1, &info);
+READER(read_float, float)
+READER(read_double, double)
+
+#undef READER
+
+#define HANDLE_WIDTH(BITS)						\
+	do {								\
+		long l;							\
+		if (value_extract_word(value, &l, arguments) < 0)	\
+			return -1;					\
+		int##BITS##_t i = l;					\
+		switch (format) {					\
+		case INT_FMT_unknown:					\
+			if (i < -10000 || i > 10000)			\
+		case INT_FMT_x:						\
+			return fprintf(stream, "%#"PRIx##BITS, i);	\
+		case INT_FMT_i:						\
+			return fprintf(stream, "%"PRIi##BITS, i);	\
+		case INT_FMT_u:						\
+			return fprintf(stream, "%"PRIu##BITS, i);	\
+		case INT_FMT_o:						\
+			return fprintf(stream, "%"PRIo##BITS, i);	\
+		}							\
+	} while (0)
+
+enum int_fmt_t
+{
+	INT_FMT_i,
+	INT_FMT_u,
+	INT_FMT_o,
+	INT_FMT_x,
+	INT_FMT_unknown,
+};
+
+static int
+format_integer(FILE *stream, struct value *value, enum int_fmt_t format,
+	       struct value_dict *arguments)
+{
+	switch (type_sizeof(value->inferior, value->type)) {
+
+	case 1: HANDLE_WIDTH(8);
+	case 2: HANDLE_WIDTH(16);
+	case 4: HANDLE_WIDTH(32);
+	case 8: HANDLE_WIDTH(64);
+
+	default:
+		assert(!"unsupported integer width");
+		abort();
+
+	case -1:
+		return -1;
+	}
+}
+
+#undef HANDLE_WIDTH
+
+static int
+format_enum(FILE *stream, struct value *value, struct value_dict *arguments)
+{
+	long l;
+	if (value_extract_word(value, &l, arguments) < 0)
+		return -1;
+
+	const char *name = type_enum_get(value->type, l);
+	if (name != NULL)
+		return fprintf(stream, "%s", name);
+
+	return format_integer(stream, value, INT_FMT_i, arguments);
 }
 
 static int
-display_ptrto(enum tof type, Process *proc, long item,
-			 struct arg_type_info * info,
-			 void *st, struct arg_type_info *st_info) {
-	struct arg_type_info temp;
-	temp.type = ARGTYPE_POINTER;
-	temp.u.ptr_info.info = info;
-	return display_value(type, proc, item, &temp, st, st_info);
+acc_fprintf(int *countp, FILE *stream, const char *format, ...)
+{
+	va_list pa;
+	va_start(pa, format);
+	int i = vfprintf(stream, format, pa);
+	va_end(pa);
+
+	if (i >= 0)
+		*countp += i;
+	return i;
+}
+
+static int
+format_char(FILE *stream, struct value *value, struct value_dict *arguments)
+{
+	long lc;
+	if (value_extract_word(value, &lc, arguments) < 0)
+		return -1;
+	int c = (int)lc;
+
+	/* If this value is not wrapped in array, then this is not a
+	 * string, and we need to display quotes.  */
+	int quote = !(value->parent != NULL
+		      && (value->parent->type->type == ARGTYPE_ARRAY
+			  || value->parent->type->type == ARGTYPE_STRING
+			  || value->parent->type->type == ARGTYPE_STRING_N));
+	int written = 0;
+	if (quote && acc_fprintf(&written, stream, "'") < 0)
+		return -1;
+
+	const char *fmt;
+	switch (c) {
+	case -1:
+		fmt = "EOF";
+		break;
+	case 0:
+		fmt = "\\0";
+		break;
+	case '\a':
+		fmt = "\\a";
+		break;
+	case '\b':
+		fmt = "\\b";
+		break;
+	case '\t':
+		fmt = "\\t";
+		break;
+	case '\n':
+		fmt = "\\n";
+		break;
+	case '\v':
+		fmt = "\\v";
+		break;
+	case '\f':
+		fmt = "\\f";
+		break;
+	case '\r':
+		fmt = "\\r";
+		break;
+	case '\\':
+		fmt = "\\\\";
+		break;
+	default:
+		if (isprint(c) || c == ' ')
+			fmt = "%c";
+		else if (acc_fprintf(&written, stream, "\\%03o",
+				     (unsigned char)c) < 0)
+			return -1;
+		else
+			fmt = NULL;
+	}
+
+	if (fmt != NULL && acc_fprintf(&written, stream, fmt, c) < 0)
+		return -1;
+	if (quote && acc_fprintf(&written, stream, "'") < 0)
+		return -1;
+	return written;
+}
+
+static int
+format_floating(FILE *stream, struct value *value, struct value_dict *arguments)
+{
+	switch (value->type->type) {
+		float f;
+		double d;
+	case ARGTYPE_FLOAT:
+		if (read_float(value, &f, arguments) < 0)
+			return -1;
+		return fprintf(stream, "%f", (double)f);
+	case ARGTYPE_DOUBLE:
+		if (read_double(value, &d, arguments) < 0)
+			return -1;
+		return fprintf(stream, "%f", d);
+	default:
+		abort();
+	}
+}
+
+static int
+format_struct(FILE *stream, struct value *value, struct value_dict *arguments)
+{
+	int written = 0;
+	if (acc_fprintf(&written, stream, "{ ") < 0)
+		return -1;
+	size_t i;
+	for (i = 0; i < type_struct_size(value->type); ++i) {
+		if (i > 0 && acc_fprintf(&written, stream, ", ") < 0)
+			return -1;
+
+		struct value element;
+		if (value_init_element(&element, value, i) < 0)
+			return -1;
+		int o = format_argument_2(stream, &element, arguments);
+		if (o < 0)
+			return -1;
+		written += o;
+	}
+	if (acc_fprintf(&written, stream, " }") < 0)
+		return -1;
+	return written;
+}
+
+int
+format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
+{
+	struct value element;
+	if (value_init_deref(&element, value) < 0)
+		return -1;
+	return format_argument_2(stream, &element, arguments);
 }
 
 /*
- * addr - A pointer to the first element of the array
+ * LENGTH is an expression whose evaluation will yield the actual
+ *    length of the array.
  *
- * The function name is used to indicate that we're not actually
- * looking at an 'array', which is a contiguous region of memory
- * containing a sequence of elements of some type; instead, we have a
- * pointer to that region of memory.
+ * MAXLEN is the actual maximum length that we care about
+ *
+ * BEFORE if LENGTH>MAXLEN, we display ellipsis.  We display it before
+ *    the closing parenthesis if BEFORE, otherwise after it.
+ *
+ * OPEN, CLOSE, DELIM are opening and closing parenthesis and element
+ *    delimiter.
  */
-static int
-display_arrayptr(enum tof type, Process *proc,
-			    void *addr, struct arg_type_info * info,
-			    void *st, struct arg_type_info *st_info) {
-	int len = 0;
-	size_t i;
-	size_t array_len;
-
-	if (addr == NULL)
-		return fprintf(options.output, "NULL");
-
-	array_len = get_length(type, proc, info->u.array_info.len_spec,
-			st, st_info);
-	len += fprintf(options.output, "[ ");
-	for (i = 0; i < options.arraylen && i < array_maxlength && i < array_len; i++) {
-		struct arg_type_info *elt_type = info->u.array_info.elt_type;
-		size_t elt_size = info->u.array_info.elt_size;
-		if (i != 0)
-			len += fprintf(options.output, ", ");
-		if (options.debug)
-			len += fprintf(options.output, "%p=", addr);
-		len +=
-			display_ptrto(type, proc, (long) addr, elt_type, st, st_info);
-		addr += elt_size;
-	}
-	if (i < array_len)
-		len += fprintf(options.output, "...");
-	len += fprintf(options.output, " ]");
-	return len;
-}
-
-/* addr - A pointer to the beginning of the memory region occupied by
- *        the struct (aka a pointer to the struct)
- */
-static int
-display_structptr(enum tof type, Process *proc,
-			     void *addr, struct arg_type_info * info) {
-	int i;
-	struct arg_type_info *field;
-	int len = 0;
-
-	if (addr == NULL)
-		return fprintf(options.output, "NULL");
-
-	len += fprintf(options.output, "{ ");
-	for (i = 0; (field = info->u.struct_info.fields[i]) != NULL; i++) {
-		if (i != 0)
-			len += fprintf(options.output, ", ");
-		if (options.debug)
-			len +=
-				fprintf(options.output, "%p=",
-						addr + info->u.struct_info.offset[i]);
-		len +=
-			display_ptrto(LT_TOF_STRUCT, proc,
-					(long) addr + info->u.struct_info.offset[i],
-					field, addr, info);
-	}
-	len += fprintf(options.output, " }");
-
-	return len;
-}
-
-static int
-display_pointer(enum tof type, Process *proc, long value,
-			   struct arg_type_info * info,
-			   void *st, struct arg_type_info *st_info) {
-	long pointed_to;
-	struct arg_type_info *inner = info->u.ptr_info.info;
-
-	if (inner->type == ARGTYPE_ARRAY) {
-		return display_arrayptr(type, proc, (void*) value, inner,
-				st, st_info);
-	} else if (inner->type == ARGTYPE_STRUCT) {
-		return display_structptr(type, proc, (void *) value, inner);
-	} else {
-		if (value == 0)
-			return fprintf(options.output, "NULL");
-		else if (umovelong (proc, (void *) value, &pointed_to,
-				    info->u.ptr_info.info) < 0)
-			return fprintf(options.output, "?");
-		else
-			return display_value(type, proc, pointed_to, inner,
-					st, st_info);
-	}
-}
-
-static int
-display_enum(enum tof type, Process *proc,
-		struct arg_type_info *info, long value) {
-	size_t ii;
-	for (ii = 0; ii < info->u.enum_info.entries; ++ii) {
-		if (info->u.enum_info.values[ii] == value)
-			return fprintf(options.output, "%s", info->u.enum_info.keys[ii]);
-	}
-
-	return display_unknown(type, proc, value);
-}
-
-/* Args:
-   type - syscall or shared library function or memory
-   proc - information about the traced process
-   value - the value to display
-   info - the description of the type to display
-   st - if the current value is a struct member, the address of the struct
-   st_info - type of the above struct
-
-   Those last two parameters are used for structs containing arrays or
-   strings whose length is given by another structure element.
-*/
 int
-display_value(enum tof type, Process *proc,
-		long value, struct arg_type_info *info,
-		void *st, struct arg_type_info *st_info) {
-	int tmp;
-
-	switch (info->type) {
-	case ARGTYPE_VOID:
-		return 0;
-	case ARGTYPE_INT:
-		return fprintf(options.output, "%d", (int) value);
-	case ARGTYPE_UINT:
-		return fprintf(options.output, "%u", (unsigned) value);
-	case ARGTYPE_LONG:
-		if (proc->mask_32bit)
-			return fprintf(options.output, "%d", (int) value);
-		else
-			return fprintf(options.output, "%ld", value);
-	case ARGTYPE_ULONG:
-		if (proc->mask_32bit)
-			return fprintf(options.output, "%u", (unsigned) value);
-		else
-			return fprintf(options.output, "%lu", (unsigned long) value);
-	case ARGTYPE_OCTAL:
-		return fprintf(options.output, "0%o", (unsigned) value);
-	case ARGTYPE_CHAR:
-		tmp = fprintf(options.output, "'");
-		tmp += display_char(value == -1 ? value : (char) value);
-		tmp += fprintf(options.output, "'");
-		return tmp;
-	case ARGTYPE_SHORT:
-		return fprintf(options.output, "%hd", (short) value);
-	case ARGTYPE_USHORT:
-		return fprintf(options.output, "%hu", (unsigned short) value);
-	case ARGTYPE_FLOAT: {
-		union { long l; float f; double d; } cvt;
-		cvt.l = value;
-		return fprintf(options.output, "%f", cvt.f);
-	}
-	case ARGTYPE_DOUBLE: {
-		union { long l; float f; double d; } cvt;
-		cvt.l = value;
-		return fprintf(options.output, "%lf", cvt.d);
-	}
-	case ARGTYPE_ADDR:
-		if (!value)
-			return fprintf(options.output, "NULL");
-		else
-			return fprintf(options.output, "0x%08lx", value);
-	case ARGTYPE_FORMAT:
-		fprintf(stderr, "Should never encounter a format anywhere but at the top level (for now?)\n");
-		exit(1);
-	case ARGTYPE_STRING:
-		return display_string(type, proc, (void*) value,
-				      string_maxlength);
-	case ARGTYPE_STRING_N:
-		return display_string(type, proc, (void*) value,
-				      get_length(type, proc,
-						 info->u.string_n_info.size_spec, st, st_info));
-	case ARGTYPE_ARRAY:
-		return fprintf(options.output, "<array without address>");
-	case ARGTYPE_ENUM:
-		return display_enum(type, proc, info, value);
-	case ARGTYPE_STRUCT:
-		return fprintf(options.output, "<struct without address>");
-	case ARGTYPE_POINTER:
-		return display_pointer(type, proc, value, info,
-				       st, st_info);
-	case ARGTYPE_UNKNOWN:
-	default:
-		return display_unknown(type, proc, value);
-	}
-}
-
-int
-display_arg(enum tof type, Process *proc, int arg_num,
-	    struct arg_type_info * info)
+format_array(FILE *stream, struct value *value, struct value_dict *arguments,
+	     struct expr_node *length, size_t maxlen, int before,
+	     const char *open, const char *close, const char *delim)
 {
-	long arg;
+	/* We need "long" to be long enough to cover the whole address
+	 * space.  */
+	typedef char assert__long_enough_long[-(sizeof(long) < sizeof(void *))];
+	long l = options.strlen;
+	if (length != NULL) /* XXX emulate node ZERO before it lands */
+		if (expr_eval_word(length, value, arguments, &l) < 0)
+			return -1;
+	size_t len = (size_t)l;
 
-	if (info->type == ARGTYPE_VOID) {
-		return 0;
-	} else if (info->type == ARGTYPE_FORMAT) {
-		return display_format(type, proc, arg_num);
-	} else {
-		arg = gimme_arg(type, proc, arg_num, info);
-		return display_value(type, proc, arg, info, NULL, NULL);
-	}
-}
+	int written = 0;
+	if (acc_fprintf(&written, stream, "%s", open) < 0)
+		return -1;
 
-static int
-display_char(int what) {
-	switch (what) {
-	case -1:
-		return fprintf(options.output, "EOF");
-	case '\r':
-		return fprintf(options.output, "\\r");
-	case '\n':
-		return fprintf(options.output, "\\n");
-	case '\t':
-		return fprintf(options.output, "\\t");
-	case '\b':
-		return fprintf(options.output, "\\b");
-	case '\\':
-		return fprintf(options.output, "\\\\");
-	default:
-		if (isprint(what)) {
-			return fprintf(options.output, "%c", what);
-		} else {
-			return fprintf(options.output, "\\%03o", (unsigned char)what);
-		}
-	}
-}
-
-#define MIN(a,b) (((a)<(b)) ? (a) : (b))
-
-static int
-display_string(enum tof type, Process *proc, void *addr,
-			  size_t maxlength) {
-	unsigned char *str1;
 	size_t i;
-	int len = 0;
-
-	if (!addr) {
-		return fprintf(options.output, "NULL");
-	}
-
-	str1 = malloc(MIN(options.strlen, maxlength) + 3);
-	if (!str1) {
-		return fprintf(options.output, "???");
-	}
-	umovestr(proc, addr, MIN(options.strlen, maxlength) + 1, str1);
-	len = fprintf(options.output, "\"");
-	for (i = 0; i < MIN(options.strlen, maxlength); i++) {
-		if (str1[i]) {
-			len += display_char(str1[i]);
-		} else {
+	for (i = 0; i < len && i <= maxlen; ++i) {
+		if (i == maxlen) {
+			if (before && acc_fprintf(&written, stream, "...") < 0)
+				return -1;
 			break;
 		}
+
+		if (i > 0 && acc_fprintf(&written, stream, "%s", delim) < 0)
+			return -1;
+
+		struct value element;
+		if (value_init_element(&element, value, i) < 0)
+			return -1;
+		if (value_is_zero(&element, arguments)) /* XXX emulate ZERO */
+			break;
+		int o = format_argument_2(stream, &element, arguments);
+		if (o < 0)
+			return -1;
+		written += o;
 	}
-	len += fprintf(options.output, "\"");
-	if (str1[i] && (options.strlen <= maxlength)) {
-		len += fprintf(options.output, "...");
-	}
-	free(str1);
-	return len;
+	if (acc_fprintf(&written, stream, "%s", close) < 0)
+		return -1;
+	if (i == maxlen && !before && acc_fprintf(&written, stream, "...") < 0)
+		return -1;
+
+	return written;
 }
 
 static int
-display_unknown(enum tof type, Process *proc, long value) {
-	if (proc->mask_32bit) {
-		if ((int)value < 1000000 && (int)value > -1000000)
-			return fprintf(options.output, "%d", (int)value);
-		else
-			return fprintf(options.output, "%p", (void *)value);
-	} else if (value < 1000000 && value > -1000000) {
-		return fprintf(options.output, "%ld", value);
+format_argument_2(FILE *stream, struct value *value,
+		  struct value_dict *arguments)
+{
+	struct expr_node *length = NULL;
+	switch (value->type->type) {
+	case ARGTYPE_VOID:
+		return fprintf(stream, "<void>");
+
+	case ARGTYPE_UNKNOWN:
+		return format_integer(stream, value, INT_FMT_unknown,
+				      arguments);
+
+	case ARGTYPE_SHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_LONG:
+		return format_integer(stream, value, INT_FMT_i, arguments);
+
+	case ARGTYPE_USHORT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_ULONG:
+		return format_integer(stream, value, INT_FMT_u, arguments);
+
+	case ARGTYPE_OCTAL:
+		return format_integer(stream, value, INT_FMT_o, arguments);
+
+	case ARGTYPE_CHAR:
+		return format_char(stream, value, arguments);
+
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+		return format_floating(stream, value, arguments);
+
+	case ARGTYPE_STRUCT:
+		return format_struct(stream, value, arguments);
+
+	case ARGTYPE_POINTER:
+		if (value->type->u.array_info.elt_type->type != ARGTYPE_VOID)
+			return format_pointer(stream, value, arguments);
+	case ARGTYPE_ADDR:
+	case ARGTYPE_FILE:
+		return format_integer(stream, value, INT_FMT_x, arguments);
+
+	case ARGTYPE_ARRAY:
+		if (value->type->u.array_info.elt_type->type != ARGTYPE_CHAR)
+			return format_array(stream, value, arguments,
+					    value->type->u.array_info.length,
+					    options.arraylen, 1,
+					    "[ ", " ]", ", ");
+
+		return format_array(stream, value, arguments,
+				    value->type->u.array_info.length,
+				    options.strlen, 0, "\"", "\"", "");
+
+	case ARGTYPE_STRING_N:
+		length = value->type->u.string_n_info.length;
+		/* fall-through */
+	case ARGTYPE_FORMAT:
+	case ARGTYPE_STRING: {
+		/* Strings are in fact char pointers.  Smuggle in the
+		 * pointer here.  */
+
+		struct arg_type_info info[2];
+		type_init_array(&info[1], type_get_simple(ARGTYPE_CHAR), 0,
+				length, 0);
+		type_init_pointer(&info[0], &info[1], 0);
+
+		struct value tmp;
+		value_clone(&tmp, value);
+		value_set_type(&tmp, info, 0);
+
+		int ret = format_argument_2(stream, &tmp, arguments);
+
+		value_destroy(&tmp);
+		type_destroy(&info[0]);
+		type_destroy(&info[1]);
+		return ret;
+	}
+
+	case ARGTYPE_ENUM:
+		return format_enum(stream, value, arguments);
+
+	case ARGTYPE_COUNT:
+		abort();
+	}
+	abort();
+}
+
+int
+format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
+{
+	/* Arrays decay into pointers for purposes of argument
+	 * passing.  Before the proper support for this lands, wrap
+	 * top-level arrays in pointers here.  */
+	if (value->type->type == ARGTYPE_ARRAY) {
+
+		struct arg_type_info info;
+		type_init_pointer(&info, value->type, 0);
+
+		struct value tmp;
+		value_clone(&tmp, value);
+		value_set_type(&tmp, &info, 0);
+
+		int ret = format_argument_2(stream, &tmp, arguments);
+
+		value_destroy(&tmp);
+		type_destroy(&info);
+
+		return ret;
+
 	} else {
-		return fprintf(options.output, "%p", (void *)value);
+		return format_argument_2(stream, value, arguments);
 	}
-}
-
-static int
-display_format(enum tof type, Process *proc, int arg_num) {
-	void *addr;
-	unsigned char *str1;
-	int i;
-	size_t len = 0;
-	struct arg_type_info info;
-
-	info.type = ARGTYPE_POINTER;
-	addr = (void *)gimme_arg(type, proc, arg_num, &info);
-	if (!addr) {
-		return fprintf(options.output, "NULL");
-	}
-
-	str1 = malloc(MIN(options.strlen, string_maxlength) + 3);
-	if (!str1) {
-		return fprintf(options.output, "???");
-	}
-	umovestr(proc, addr, MIN(options.strlen, string_maxlength) + 1, str1);
-	len = fprintf(options.output, "\"");
-	for (i = 0; len < MIN(options.strlen, string_maxlength) + 1; i++) {
-		if (str1[i]) {
-			len += display_char(str1[i]);
-		} else {
-			break;
-		}
-	}
-	len += fprintf(options.output, "\"");
-	if (str1[i] && (options.strlen <= string_maxlength)) {
-		len += fprintf(options.output, "...");
-	}
-	for (i = 0; str1[i]; i++) {
-		if (str1[i] == '%') {
-			int is_long = 0;
-			while (1) {
-				unsigned char c = str1[++i];
-				if (c == '%') {
-					break;
-				} else if (!c) {
-					break;
-				} else if (strchr("lzZtj", c)) {
-					is_long++;
-					if (c == 'j')
-						is_long++;
-					if (is_long > 1
-					    && (sizeof(long) < sizeof(long long)
-						|| proc->mask_32bit)) {
-						len += fprintf(options.output, ", ...");
-						str1[i + 1] = '\0';
-						break;
-					}
-				} else if (c == 'd' || c == 'i') {
-					info.type = ARGTYPE_LONG;
-					if (!is_long || proc->mask_32bit)
-						len +=
-						    fprintf(options.output, ", %d",
-							    (int)gimme_arg(type, proc, ++arg_num, &info));
-					else
-						len +=
-						    fprintf(options.output, ", %ld",
-							    gimme_arg(type, proc, ++arg_num, &info));
-					break;
-				} else if (c == 'u') {
-					info.type = ARGTYPE_LONG;
-					if (!is_long || proc->mask_32bit)
-						len +=
-						    fprintf(options.output, ", %u",
-							    (int)gimme_arg(type, proc, ++arg_num, &info));
-					else
-						len +=
-						    fprintf(options.output, ", %lu",
-							    gimme_arg(type, proc, ++arg_num, &info));
-					break;
-				} else if (c == 'o') {
-					info.type = ARGTYPE_LONG;
-					if (!is_long || proc->mask_32bit)
-						len +=
-						    fprintf(options.output, ", 0%o",
-							    (int)gimme_arg(type, proc, ++arg_num, &info));
-					else
-						len +=
-						    fprintf(options.output, ", 0%lo",
-							    gimme_arg(type, proc, ++arg_num, &info));
-					break;
-				} else if (c == 'x' || c == 'X') {
-					info.type = ARGTYPE_LONG;
-					if (!is_long || proc->mask_32bit)
-						len +=
-						    fprintf(options.output, ", %#x",
-							    (int)gimme_arg(type, proc, ++arg_num, &info));
-					else
-						len +=
-						    fprintf(options.output, ", %#lx",
-							    gimme_arg(type, proc, ++arg_num, &info));
-					break;
-				} else if (strchr("eEfFgGaACS", c)
-					   || (is_long
-					       && (c == 'c' || c == 's'))) {
-					len += fprintf(options.output, ", ...");
-					str1[i + 1] = '\0';
-					break;
-				} else if (c == 'c') {
-					info.type = ARGTYPE_LONG;
-					len += fprintf(options.output, ", '");
-					len +=
-					    display_char((int)
-							 gimme_arg(type, proc, ++arg_num, &info));
-					len += fprintf(options.output, "'");
-					break;
-				} else if (c == 's') {
-					info.type = ARGTYPE_POINTER;
-					len += fprintf(options.output, ", ");
-					len +=
-					    display_string(type, proc,
-							   (void *)gimme_arg(type, proc, ++arg_num, &info),
-							   string_maxlength);
-					break;
-				} else if (c == 'p' || c == 'n') {
-					info.type = ARGTYPE_POINTER;
-					len +=
-					    fprintf(options.output, ", %p",
-						    (void *)gimme_arg(type, proc, ++arg_num, &info));
-					break;
-				} else if (c == '*') {
-					info.type = ARGTYPE_LONG;
-					len +=
-					    fprintf(options.output, ", %d",
-						    (int)gimme_arg(type, proc, ++arg_num, &info));
-				}
-			}
-		}
-	}
-	free(str1);
-	return len;
 }

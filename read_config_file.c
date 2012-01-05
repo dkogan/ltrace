@@ -1,3 +1,26 @@
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 1998,1999,2003,2007,2008,2009 Juan Cespedes
+ * Copyright (C) 2006 Ian Wienand
+ * Copyright (C) 2006 Steve Fink
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #include "config.h"
 
 #include <string.h>
@@ -6,6 +29,7 @@
 
 #include "common.h"
 #include "type.h"
+#include "expr.h"
 
 static int line_no;
 static char *filename;
@@ -175,36 +199,64 @@ parse_int(char **str) {
 
 /*
  * Input:
- *  argN   : The value of argument #N, counting from 1 (arg0 = retval)
+ *  argN   : The value of argument #N, counting from 1
  *  eltN   : The value of element #N of the containing structure
  *  retval : The return value
- *  0      : Error
- *  N      : The numeric value N, if N > 0
- *
- * Output:
- * > 0   actual numeric value
- * = 0   return value
- * < 0   (arg -n), counting from one
+ *  N      : The numeric value N
  */
-static int
-parse_argnum(char **str) {
-	int multiplier = 1;
-	int n = 0;
+static struct expr_node *
+parse_argnum(char **str)
+{
+	struct expr_node *expr = malloc(sizeof(*expr));
+	if (expr == NULL)
+		return NULL;
 
-	if (strncmp(*str, "arg", 3) == 0) {
-		(*str) += 3;
-		multiplier = -1;
-	} else if (strncmp(*str, "elt", 3) == 0) {
-		(*str) += 3;
-		multiplier = -1;
-	} else if (strncmp(*str, "retval", 6) == 0) {
-		(*str) += 6;
-		return 0;
+	if (isdigit(**str)) {
+		expr_init_const_word(expr, parse_int(str),
+				     type_get_simple(ARGTYPE_LONG), 0);
+
+		return expr;
+
+	} else {
+		char *name = parse_ident(str);
+		if (name == NULL)
+			goto fail;
+
+		int is_arg = strncmp(name, "arg", 3) == 0;
+		int is_elt = !is_arg && strncmp(name, "elt", 3) == 0;
+		if (is_arg || is_elt) {
+			name += 3;
+			int l = parse_int(&name);
+			if (is_arg) {
+				expr_init_argno(expr, l - 1);
+			} else {
+				struct expr_node *e_up = malloc(sizeof(*e_up));
+				struct expr_node *e_ix = malloc(sizeof(*e_ix));
+				if (e_up == NULL || e_ix == NULL) {
+					free(e_up);
+					free(e_ix);
+					goto fail;
+				}
+
+				expr_init_up(e_up, expr_self(), 0);
+				struct arg_type_info *ti
+					= type_get_simple(ARGTYPE_LONG);
+				expr_init_const_word(e_ix, l - 1, ti, 0);
+				expr_init_index(expr, e_up, 1, e_ix, 1);
+			}
+
+		} else if (strcmp(name, "retval") == 0) {
+			expr_init_named(expr, "retval", 0);
+
+		} else {
+			goto fail;
+		}
+		return expr;
 	}
 
-	n = parse_int(str);
-
-	return n * multiplier;
+fail:
+	free(expr);
+	return NULL;
 }
 
 struct typedef_node_t {
@@ -267,113 +319,38 @@ parse_typedef(char **str) {
 	typedefs = binding;
 }
 
-static size_t
-arg_sizeof(struct arg_type_info * arg) {
-	if (arg->type == ARGTYPE_CHAR) {
-		return sizeof(char);
-	} else if (arg->type == ARGTYPE_SHORT || arg->type == ARGTYPE_USHORT) {
-		return sizeof(short);
-	} else if (arg->type == ARGTYPE_FLOAT) {
-		return sizeof(float);
-	} else if (arg->type == ARGTYPE_DOUBLE) {
-		return sizeof(double);
-	} else if (arg->type == ARGTYPE_ENUM) {
-		return sizeof(int);
-	} else if (arg->type == ARGTYPE_STRUCT) {
-		return arg->u.struct_info.size;
-	} else if (arg->type == ARGTYPE_POINTER) {
-		return sizeof(void*);
-	} else if (arg->type == ARGTYPE_ARRAY) {
-		if (arg->u.array_info.len_spec > 0)
-			return arg->u.array_info.len_spec * arg->u.array_info.elt_size;
-		else
-			return sizeof(void *);
-	} else {
-		return sizeof(int);
+/* Syntax: struct ( type,type,type,... ) */
+static int
+parse_struct(char **str, struct arg_type_info *info)
+{
+	eat_spaces(str);
+	if (**str != '(')
+		return -1;
+	++*str;
+
+	eat_spaces(str); // Empty arg list with whitespace inside
+
+	type_init_struct(info);
+
+	while (1) {
+		eat_spaces(str);
+		if (**str == 0 || **str == ')') {
+			++*str;
+			return 0;
+		}
+
+		/* Field delimiter.  */
+		if (type_struct_size(info) > 0)
+			++*str;
+
+		eat_spaces(str);
+		int own = 0;
+		struct arg_type_info *field = parse_type(str);
+		if (field == NULL || type_struct_add(info, field, own)) {
+			type_destroy(info);
+			return -1;
+		}
 	}
-}
-
-#undef alignof
-#define alignof(field,st) ((size_t) ((char*) &st.field - (char*) &st))
-static size_t
-arg_align(struct arg_type_info * arg) {
-	struct { char c; char C; } cC;
-	struct { char c; short s; } cs;
-	struct { char c; int i; } ci;
-	struct { char c; long l; } cl;
-	struct { char c; void* p; } cp;
-	struct { char c; float f; } cf;
-	struct { char c; double d; } cd;
-
-	static size_t char_alignment = alignof(C, cC);
-	static size_t short_alignment = alignof(s, cs);
-	static size_t int_alignment = alignof(i, ci);
-	static size_t long_alignment = alignof(l, cl);
-	static size_t ptr_alignment = alignof(p, cp);
-	static size_t float_alignment = alignof(f, cf);
-	static size_t double_alignment = alignof(d, cd);
-
-	switch (arg->type) {
-		case ARGTYPE_LONG:
-		case ARGTYPE_ULONG:
-			return long_alignment;
-		case ARGTYPE_CHAR:
-			return char_alignment;
-		case ARGTYPE_SHORT:
-		case ARGTYPE_USHORT:
-			return short_alignment;
-		case ARGTYPE_FLOAT:
-			return float_alignment;
-		case ARGTYPE_DOUBLE:
-			return double_alignment;
-		case ARGTYPE_ADDR:
-		case ARGTYPE_FILE:
-		case ARGTYPE_FORMAT:
-		case ARGTYPE_STRING:
-		case ARGTYPE_STRING_N:
-		case ARGTYPE_POINTER:
-			return ptr_alignment;
-
-		case ARGTYPE_ARRAY:
-			return arg_align(&arg->u.array_info.elt_type[0]);
-
-		case ARGTYPE_STRUCT:
-			return arg_align(arg->u.struct_info.fields[0]);
-
-		default:
-			return int_alignment;
-	}
-}
-
-static size_t
-align_skip(size_t alignment, size_t offset) {
-	if (offset % alignment)
-		return alignment - (offset % alignment);
-	else
-		return 0;
-}
-
-/* I'm sure this isn't completely correct, but just try to get most of
- * them right for now. */
-static void
-align_struct(struct arg_type_info* info) {
-	size_t offset;
-	int i;
-
-	if (info->u.struct_info.size != 0)
-		return;			// Already done
-
-	// Compute internal padding due to alignment constraints for
-	// various types.
-	offset = 0;
-	for (i = 0; info->u.struct_info.fields[i] != NULL; i++) {
-		struct arg_type_info *field = info->u.struct_info.fields[i];
-		offset += align_skip(arg_align(field), offset);
-		info->u.struct_info.offset[i] = offset;
-		offset += arg_sizeof(field);
-	}
-
-	info->u.struct_info.size = offset;
 }
 
 static struct arg_type_info *
@@ -409,11 +386,9 @@ parse_nonpointer_type(char **str) {
 		eat_spaces(str);
 		if ((info->u.array_info.elt_type = parse_type(str)) == NULL)
 			return NULL;
-		info->u.array_info.elt_size =
-			arg_sizeof(info->u.array_info.elt_type);
 		(*str)++;		// Get past comma
 		eat_spaces(str);
-		info->u.array_info.len_spec = parse_argnum(str);
+		info->u.array_info.length = parse_argnum(str);
 		(*str)++;		// Get past close paren
 		return info;
 
@@ -495,51 +470,26 @@ parse_nonpointer_type(char **str) {
 
 		/* Backwards compatibility for string0, string1, ... */
 		if (isdigit(**str)) {
-			info->u.string_n_info.size_spec = -parse_int(str);
+			info->u.string_n_info.length = parse_argnum(str);
 			return info;
 		}
 
 		(*str)++;		// Skip past opening [
 		eat_spaces(str);
-		info->u.string_n_info.size_spec = parse_argnum(str);
+		info->u.string_n_info.length = parse_argnum(str);
 		eat_spaces(str);
 		(*str)++;		// Skip past closing ]
 		return info;
 
 	// Syntax: struct ( type,type,type,... )
 	case ARGTYPE_STRUCT:{
-		int field_num = 0;
-		(*str)++;		// Get past open paren
-		info->u.struct_info.fields =
-			malloc((MAX_ARGS + 1) * sizeof(void *));
-		info->u.struct_info.offset =
-			malloc((MAX_ARGS + 1) * sizeof(size_t));
-		info->u.struct_info.size = 0;
-		eat_spaces(str); // Empty arg list with whitespace inside
-		while (**str && **str != ')') {
-			if (field_num == MAX_ARGS) {
-				output_line(0,
-						"Error in `%s', line %d: Too many structure elements",
-						filename, line_no);
-				error_count++;
-				return NULL;
-			}
-			eat_spaces(str);
-			if (field_num != 0) {
-				(*str)++;	// Get past comma
-				eat_spaces(str);
-			}
-			if ((info->u.struct_info.fields[field_num++] =
-						parse_type(str)) == NULL)
-				return NULL;
-
-			// Must trim trailing spaces so the check for
-			// the closing paren is simple
-			eat_spaces(str);
+		if (parse_struct(str, info) < 0) {
+			free(info);
+			output_line(0, "Parse error in `%s', line %d",
+				    filename, line_no);
+			error_count++;
+			return NULL;
 		}
-		(*str)++;		// Get past closing paren
-		info->u.struct_info.fields[field_num] = NULL;
-		align_struct(info);
 		return info;
 	}
 

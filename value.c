@@ -25,6 +25,7 @@
 #include "value.h"
 #include "type.h"
 #include "common.h"
+#include "expr.h"
 
 static void
 value_common_init(struct value *valp, struct Process *inferior,
@@ -197,31 +198,6 @@ value_clone(struct value *retp, struct value *val)
 	return 0;
 }
 
-#include "value_dict.h"
-static int
-expr_eval(int len_spec, struct value *val, struct value_dict *arguments,
-	  struct value *result)
-{
-	if (len_spec > 0) {
-		value_init(result, val->inferior, NULL,
-			   lookup_prototype(ARGTYPE_UINT), 0);
-		value_set_long(result, len_spec);
-		return 0;
-	}
-
-	struct value *v;
-	if (len_spec < 0)
-		v = val_dict_get_num(arguments, -len_spec);
-	else
-		v = val_dict_get_name(arguments, "retval");
-
-	if (v == NULL)
-		return -1;
-
-	*result = *v;
-	return 0;
-}
-
 size_t
 value_size(struct value *val, struct value_dict *arguments)
 {
@@ -232,7 +208,7 @@ value_size(struct value *val, struct value_dict *arguments)
 		return val->size = type_sizeof(val->inferior, val->type);
 
 	struct value length;
-	if (expr_eval(val->type->u.array_info.len_spec, val,
+	if (expr_eval(val->type->u.array_info.length, val,
 		      arguments, &length) < 0)
 		return (size_t)-1;
 

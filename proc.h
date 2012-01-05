@@ -73,6 +73,7 @@ struct callstack_element {
 	void * return_addr;
 	struct timeval time_spent;
 	void * arch_ptr;
+	struct value_dict *arguments;
 };
 
 /* XXX We should get rid of this.  */

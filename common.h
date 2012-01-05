@@ -1,3 +1,25 @@
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2010 Joe Damato
+ * Copyright (C) 2009 Juan Cespedes
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 
@@ -87,8 +109,6 @@ extern void enque_event(Event * event);
 extern void handle_event(Event * event);
 
 extern pid_t execute_program(const char * command, char ** argv);
-extern int display_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info);
-extern void disable_all_breakpoints(Process * proc);
 
 extern void show_summary(void);
 
@@ -190,5 +210,12 @@ int arch_process_exec(struct Process *proc);
 /* This is called after the dynamic linker is done with the
  * process startup.  */
 void arch_dynlink_done(struct Process *proc);
+
+/* Format VALUE into STREAM.  The dictionary of all arguments is given
+ * for purposes of evaluating array lengths and other dynamic
+ * expressions.  Returns number of characters outputted, -1 in case of
+ * failure.  */
+int format_argument(FILE *stream, struct value *value,
+		    struct value_dict *arguments);
 
 #endif

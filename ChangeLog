@@ -1,3 +1,24 @@
+2012-01-05  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (display_args): Remove
+	(format_argument): Add a new interface
+	(struct callstack_element.arguments): New field
+	* display_args.c: Adapt the code to format_argument interface
+	* expr.c, expr.h: New module for array length expressions
+	* forward.h: New header file with type declarations
+	* handle_event.c (handle_clone): Clone callstack_element.arguments
+	* output.c (output_left, output_right): Fetch all arguments up-front
+	* read_config_file.c (arg_align, align_skip, align_struct)
+	(arg_sizeof): Dropped.  Corresponding code is in type.c/type.h and
+	we don't cache it, for reasons of multi-ABI tracing
+	(parse_argnum): Rewritten to use expr.c/expr.h
+	(parse_struct): Extracted to separate function, dropped caching
+	* type.c: Support ARGTYPE_STRING{,_N} in a couple places
+	* type.c, value.c: Plug in expr module properly
+	* type.h (struct arg_type_info): Add u.array_info.length, remove
+	len_spec; likewise with u.string_n_info.
+	Drop u.struct_info, use u.fields instead.
+
 2012-04-30  Petr Machata  <pmachata@redhat.com>
 
 	* type.c, type.h: New module with routines related to handling of

@@ -24,21 +24,7 @@
 
 #include "type.h"
 #include "sysdep.h"
-
-static int
-expr_is_compile_constant(int len_spec)
-{
-	return len_spec > 0;
-}
-
-static int
-expr_eval_constant(int len_spec, long *result)
-{
-	if (len_spec <= 0)
-		return -1;
-	*result = len_spec;
-	return 0;
-}
+#include "expr.h"
 
 struct arg_type_info *
 type_get_simple(enum arg_type type)
@@ -116,11 +102,9 @@ type_enum_get(struct arg_type_info *info, int value)
 {
 	assert(info->type == ARGTYPE_ENUM);
 	size_t i;
-	for (i = 0; i < vect_size(&info->u.entries); ++i) {
-		struct enum_entry *entry = VECT_ELEMENT(&info->u.entries,
-							struct enum_entry, i);
-		if (value == entry->value)
-			return entry->key;
+	for (i = 0; i < info->u.enum_info.entries; ++i) {
+		if (value == info->u.enum_info.values[i])
+			return info->u.enum_info.keys[i];
 	}
 	return NULL;
 }
@@ -247,12 +231,13 @@ layout_struct(struct Process *proc, struct arg_type_info *info,
 void
 type_init_array(struct arg_type_info *info,
 		struct arg_type_info *element_info, int own_info,
-		int len_spec)
+		struct expr_node *length, int own_length)
 {
 	info->type = ARGTYPE_ARRAY;
 	info->u.array_info.elt_type = element_info;
 	info->u.array_info.own_info = own_info;
-	info->u.array_info.len_spec = len_spec;
+	info->u.array_info.length = length;
+	info->u.array_info.own_length = own_length;
 }
 
 static void
@@ -262,12 +247,19 @@ type_array_destroy(struct arg_type_info *info)
 		type_destroy(info->u.array_info.elt_type);
 		free(info->u.array_info.elt_type);
 	}
-	/*
 	if (info->u.array_info.own_length) {
 		expr_destroy(info->u.array_info.length);
 		free(info->u.array_info.length);
 	}
-	*/
+}
+
+static void
+type_string_n_destroy(struct arg_type_info *info)
+{
+	if (info->u.array_info.own_length) {
+		expr_destroy(info->u.string_n_info.length);
+		free(info->u.string_n_info.length);
+	}
 }
 
 void
@@ -310,6 +302,9 @@ type_destroy(struct arg_type_info *info)
 		type_pointer_destroy(info);
 		break;
 
+	case ARGTYPE_STRING_N:
+		type_string_n_destroy(info);
+
 	case ARGTYPE_UNKNOWN:
 	case ARGTYPE_VOID:
 	case ARGTYPE_INT:
@@ -328,7 +323,6 @@ type_destroy(struct arg_type_info *info)
 	case ARGTYPE_FILE:
 	case ARGTYPE_FORMAT:
 	case ARGTYPE_STRING:
-	case ARGTYPE_STRING_N:
 	case ARGTYPE_COUNT:
 		break;
 	}
@@ -409,9 +403,9 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 		return sizeof(void *);
 
 	case ARGTYPE_ARRAY:
-		if (expr_is_compile_constant(type->u.array_info.len_spec)) {
+		if (expr_is_compile_constant(type->u.array_info.length)) {
 			long l;
-			if (expr_eval_constant(type->u.array_info.len_spec,
+			if (expr_eval_constant(type->u.array_info.length,
 					       &l) < 0)
 				return -1;
 
@@ -511,7 +505,10 @@ size_t
 type_offsetof(struct Process *proc, struct arg_type_info *type, size_t emt)
 {
 	assert(type->type == ARGTYPE_STRUCT
-	       || type->type == ARGTYPE_ARRAY);
+	       || type->type == ARGTYPE_ARRAY
+	       /* XXX Temporary, this will be removed.  */
+	       || type->type == ARGTYPE_STRING
+	       || type->type == ARGTYPE_STRING_N);
 
 	switch (type->type) {
 		size_t alignment;
@@ -527,6 +524,10 @@ type_offsetof(struct Process *proc, struct arg_type_info *type, size_t emt)
 
 		return emt * align(size, alignment);
 
+	case ARGTYPE_STRING:
+	case ARGTYPE_STRING_N:
+		return emt;
+
 	case ARGTYPE_STRUCT:
 		if (layout_struct(proc, type, NULL, NULL, &emt) < 0)
 			return (size_t)-1;
@@ -541,7 +542,10 @@ struct arg_type_info *
 type_element(struct arg_type_info *info, size_t emt)
 {
 	assert(info->type == ARGTYPE_STRUCT
-	       || info->type == ARGTYPE_ARRAY);
+	       || info->type == ARGTYPE_ARRAY
+	       /* XXX Temporary, this will be removed.  */
+	       || info->type == ARGTYPE_STRING
+	       || info->type == ARGTYPE_STRING_N);
 
 	switch (info->type) {
 	case ARGTYPE_ARRAY:
@@ -550,6 +554,10 @@ type_element(struct arg_type_info *info, size_t emt)
 	case ARGTYPE_STRUCT:
 		assert(emt < type_struct_size(info));
 		return type_struct_get(info, emt);
+
+	case ARGTYPE_STRING:
+	case ARGTYPE_STRING_N:
+		return type_get_simple(ARGTYPE_CHAR);
 
 	default:
 		abort ();

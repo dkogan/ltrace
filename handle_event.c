@@ -1,6 +1,31 @@
-#define _GNU_SOURCE
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2010 Arnaud Patard, Mandriva SA
+ * Copyright (C) 1998,2001,2002,2003,2004,2007,2008,2009 Juan Cespedes
+ * Copyright (C) 2008 Luis Machado, IBM Corporation
+ * Copyright (C) 2006 Ian Wienand
+ * Copyright (C) 2006 Paul Gilliam, IBM Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #include "config.h"
 
+#define _GNU_SOURCE
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
@@ -9,6 +34,8 @@
 #include <string.h>
 #include <sys/time.h>
 
+#include "common.h"
+#include "value_dict.h"
 #include "breakpoint.h"
 #include "common.h"
 #include "library.h"
@@ -228,9 +255,11 @@ handle_clone(Event *event)
 	if (proc == NULL) {
 	fail:
 		free(proc);
-		/* XXX proper error handling here, please.  */
-		perror("malloc()");
-		exit(1);
+		fprintf(stderr,
+			"Error during init of tracing process %d\n"
+			"This process won't be traced.\n",
+			event->proc->pid);
+		return;
 	}
 
 	if (process_clone(proc, event->proc, event->e_un.newpid) < 0)
@@ -718,10 +747,6 @@ callstack_pop(Process *proc) {
 	if (!elem->is_syscall && elem->return_addr) {
 		assert(proc->leader != NULL);
 		delete_breakpoint(proc, elem->return_addr);
-	}
-	if (elem->arch_ptr != NULL) {
-		free(elem->arch_ptr);
-		elem->arch_ptr = NULL;
 	}
 	proc->callstack_depth--;
 }

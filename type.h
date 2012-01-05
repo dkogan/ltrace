@@ -66,22 +66,16 @@ struct arg_type_info {
 		/* ARGTYPE_ARRAY */
 		struct {
 			struct arg_type_info *elt_type;
-			size_t elt_size;
-			int len_spec;
+			struct expr_node *length;
 			int own_info:1;
+			int own_length:1;
 		} array_info;
 
 		/* ARGTYPE_STRING_N */
 		struct {
-			int size_spec;
+			struct expr_node *length;
+			int own_length:1;
 		} string_n_info;
-
-		/* ARGTYPE_STRUCT */
-		struct {
-			struct arg_type_info **fields;
-			size_t * offset;
-			size_t size;
-		} struct_info;
 
 		/* ARGTYPE_POINTER */
 		struct {
@@ -145,7 +139,7 @@ size_t type_struct_size(struct arg_type_info *info);
  * length are owned and destroyed together with INFO.  */
 void type_init_array(struct arg_type_info *info,
 		     struct arg_type_info *element_info, int own_info,
-		     int len_spec);
+		     struct expr_node *length, int own_length);
 
 /* Initialize INFO so it becomes ARGTYPE_POINTER.  The pointee type is
  * passed in POINTEE_INFO.  If OWN_INFO, the pointee type is owned and

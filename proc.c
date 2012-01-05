@@ -282,16 +282,38 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 		.error = 0,
 	};
 	dict_apply_to_all(proc->breakpoints, &clone_single_bp, &data);
+	if (data.error < 0)
+		goto fail2;
 
 	/* And finally the call stack.  */
 	memcpy(retp->callstack, proc->callstack, sizeof(retp->callstack));
 	retp->callstack_depth = proc->callstack_depth;
 
-	if (data.error < 0)
-		goto fail2;
+	size_t i;
+	for (i = 0; i < retp->callstack_depth; ++i) {
+		struct value_dict *args = retp->callstack[i].arguments;
+		if (args != NULL) {
+		fail3:
+			struct value_dict *nargs = malloc(sizeof(*nargs));
+			fprintf(stderr, "{A:%p->%p}", args, nargs);
+			if (nargs == NULL
+			    || val_dict_clone(nargs, args) < 0) {
+
+				int j;
+				for (j = 0; j < i; ++j) {
+					nargs = p->callstack[i].arguments;
+					val_dict_destroy(nargs);
+					free(nargs);
+					p->callstack[i].arguments = NULL;
+				}
+				goto fail2;
+			}
+			retp->callstack[i].arguments = nargs;
+		}
+	}
 
 	if (arch_process_clone(retp, proc) < 0)
-		goto fail2;
+		goto fail3;
 
 	return 0;
 }
