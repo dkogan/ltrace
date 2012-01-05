@@ -1,5 +1,10 @@
 2012-01-05  Petr Machata  <pmachata@redhat.com>
 
+	* read_config_file.c (read_int): Change the interface to enable
+	error propagation.  Adjust callers throughout.
+
+2012-01-05  Petr Machata  <pmachata@redhat.com>
+
 	* output.h, output.c
 	(report_error, report_warning, report_global_error): New functions.
 	* read_config_file.c: Use them.

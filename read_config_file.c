@@ -186,7 +186,8 @@ start_of_arg_sig(char *str) {
 }
 
 static int
-parse_int(char **str) {
+parse_int(char **str, long *ret)
+{
 	char *end;
 	long n = strtol(*str, &end, 0);
 	if (end == *str) {
@@ -195,7 +196,32 @@ parse_int(char **str) {
 	}
 
 	*str = end;
-	return n;
+	if (ret != NULL)
+		*ret = n;
+	return 0;
+}
+
+static int
+check_nonnegative(long l)
+{
+	if (l < 0) {
+		report_error(filename, line_no,
+			     "expected non-negative value, got %ld", l);
+		return -1;
+	}
+	return 0;
+}
+
+static int
+check_int(long l)
+{
+	int i = l;
+	if ((long)i != l) {
+		report_error(filename, line_no,
+			     "Number too large: %ld", l);
+		return -1;
+	}
+	return 0;
 }
 
 /*
@@ -213,8 +239,13 @@ parse_argnum(char **str)
 		return NULL;
 
 	if (isdigit(**str)) {
-		expr_init_const_word(expr, parse_int(str),
-				     type_get_simple(ARGTYPE_LONG), 0);
+		long l;
+		if (parse_int(str, &l) < 0
+		    || check_nonnegative(l) < 0
+		    || check_int(l) < 0)
+			goto fail;
+
+		expr_init_const_word(expr, l, type_get_simple(ARGTYPE_LONG), 0);
 
 		return expr;
 
@@ -226,8 +257,12 @@ parse_argnum(char **str)
 		int is_arg = strncmp(name, "arg", 3) == 0;
 		int is_elt = !is_arg && strncmp(name, "elt", 3) == 0;
 		if (is_arg || is_elt) {
+			long l;
 			name += 3;
-			int l = parse_int(&name);
+			if (parse_int(&name, &l) < 0
+			    || check_int(l) < 0)
+				goto fail;
+
 			if (is_arg) {
 				expr_init_argno(expr, l - 1);
 			} else {
@@ -421,6 +456,7 @@ parse_nonpointer_type(char **str) {
 			}
 			eat_spaces(str);
 			if (**str != '=') {
+			fail:
 				free(p->key);
 				free(p);
 				output_line(0,
@@ -431,7 +467,10 @@ parse_nonpointer_type(char **str) {
 			}
 			++(*str);
 			eat_spaces(str);
-			p->value = parse_int(str);
+			long l;
+			if (parse_int(str, &l) < 0 || check_int(l) < 0)
+				goto fail;
+			p->value = l;
 			p->next = list;
 			list = p;
 			++entries;
