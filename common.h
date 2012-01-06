@@ -50,13 +50,6 @@ extern char * command;
 
 extern int exiting;  /* =1 if we have to exit ASAP */
 
-enum tof {
-	LT_TOF_FUNCTION,	/* A real library function */
-	LT_TOF_FUNCTIONR,	/* Return from a real library function */
-	LT_TOF_SYSCALL,		/* A syscall */
-	LT_TOF_SYSCALLR,	/* Return from a syscall */
-};
-
 typedef struct Function Function;
 struct Function {
 	const char * name;
@@ -140,8 +133,6 @@ extern void continue_after_signal(pid_t pid, int signum);
 extern void continue_after_syscall(Process *proc, int sysnum, int ret_p);
 extern void continue_after_breakpoint(struct Process *proc, struct breakpoint *sbp);
 extern void continue_after_vfork(Process * proc);
-extern long gimme_arg(enum tof type, Process *proc, int arg_num,
-		      struct arg_type_info *info);
 extern size_t umovebytes (Process *proc, void * addr, void * laddr, size_t count);
 extern int ffcheck(void * maddr);
 extern void * sym2addr(Process *, struct library_symbol *);

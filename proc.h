@@ -64,6 +64,11 @@ enum process_state {
 	STATE_IGNORED  /* ignore this process (it's a fork and no -f was used) */
 };
 
+struct output_state {
+	size_t params_left;
+	int need_delim;
+};
+
 struct callstack_element {
 	union {
 		int syscall;
@@ -72,7 +77,9 @@ struct callstack_element {
 	int is_syscall;
 	void * return_addr;
 	struct timeval time_spent;
+	struct fetch_context *fetch_context;
 	struct value_dict *arguments;
+	struct output_state out;
 };
 
 /* XXX We should get rid of this.  */

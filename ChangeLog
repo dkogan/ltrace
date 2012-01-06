@@ -1,5 +1,18 @@
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
+	* fetch.c, fetch.h: New module.
+	* common.h (enum tof): Move to fetch.h
+	(struct output_state): New struct
+	(struct callstack_element.fetch_context, .out): New fields
+	* handle_event.c (handle_clone): Clone fetch_context's
+	* output.c (build_default_prototype): New function
+	(fetch_simple_param, fetch_param_stop, fetch_one_param)
+	(fetch_params, output_one, output_params): New functions.
+	(output_left, output_right): Do the parameter output using the
+	above functions.
+
+2012-01-06  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (enum tof.LT_TOF_NONE, .LT_TOF_STRUCT): Drop.
 	* output.c: Adjust.
 

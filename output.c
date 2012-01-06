@@ -31,6 +31,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "common.h"
 #include "proc.h"
@@ -38,6 +39,7 @@
 #include "type.h"
 #include "value.h"
 #include "value_dict.h"
+#include "fetch.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
@@ -125,27 +127,50 @@ begin_of_line(Process *proc, int is_func, int indent)
 	}
 }
 
+/* The default prototype is: long X(long, long, long, long).  */
+static Function *
+build_default_prototype(void)
+{
+	Function *ret = malloc(sizeof(*ret));
+	size_t i = 0;
+	if (ret == NULL)
+		goto err;
+	memset(ret, 0, sizeof(*ret));
+
+	struct arg_type_info *unknown_type = type_get_simple(ARGTYPE_UNKNOWN);
+
+	ret->return_info = unknown_type;
+
+	ret->num_params = 4;
+	for (i = 0; i < (size_t)ret->num_params; ++i)
+		ret->arg_info[i] = unknown_type;
+
+	return ret;
+
+err:
+	report_global_error("malloc: %s", strerror(errno));
+	free(ret);
+
+	return NULL;
+}
+
 static Function *
 name2func(char const *name) {
 	Function *tmp;
 	const char *str1, *str2;
 
-	tmp = list_of_functions;
-	while (tmp) {
-#ifdef USE_DEMANGLE
-		str1 = options.demangle ? my_demangle(tmp->name) : tmp->name;
-		str2 = options.demangle ? my_demangle(name) : name;
-#else
+	for (tmp = list_of_functions; tmp != NULL; tmp = tmp->next) {
 		str1 = tmp->name;
 		str2 = name;
-#endif
-		if (!strcmp(str1, str2)) {
-
+		if (!strcmp(str1, str2))
 			return tmp;
-		}
-		tmp = tmp->next;
 	}
-	return NULL;
+
+	static Function *def = NULL;
+	if (def == NULL)
+		def = build_default_prototype();
+
+	return def;
 }
 
 void
@@ -182,15 +207,128 @@ tabto(int col) {
 	}
 }
 
+static int
+account_output(int o)
+{
+	if (o < 0)
+		return -1;
+	current_column += o;
+	return 0;
+}
+
+static int
+output_error(void)
+{
+	return account_output(fprintf(options.output, "?"));
+}
+
+static int
+fetch_simple_param(enum tof type, Process *proc, struct fetch_context *context,
+		   struct value_dict *arguments, struct arg_type_info *info,
+		   struct value *valuep)
+{
+	/* Arrays decay into pointers per C standard.  We check for
+	 * this here, because here we also capture arrays that come
+	 * from parameter packs.  */
+	int own = 0;
+	if (info->type == ARGTYPE_ARRAY) {
+		struct arg_type_info *tmp = malloc(sizeof(*tmp));
+		if (tmp != NULL) {
+			type_init_pointer(tmp, info, 0);
+			info = tmp;
+			own = 1;
+		}
+	}
+
+	struct value value;
+	value_init(&value, proc, NULL, info, own);
+	if (fetch_arg_next(context, type, proc, info, &value) < 0)
+		return -1;
+
+	if (val_dict_push_next(arguments, &value) < 0) {
+		value_destroy(&value);
+		return -1;
+	}
+
+	if (valuep != NULL)
+		*valuep = value;
+
+	return 0;
+}
+
+static void
+fetch_param_stop(struct value_dict *arguments, ssize_t *params_leftp)
+{
+	if (*params_leftp == -1)
+		*params_leftp = val_dict_count(arguments);
+}
+
+static int
+fetch_one_param(enum tof type, Process *proc, struct fetch_context *context,
+		struct value_dict *arguments, struct arg_type_info *info,
+		ssize_t *params_leftp)
+{
+	return fetch_simple_param(type, proc, context, arguments,
+				  info, NULL);
+}
+
+static int
+fetch_params(enum tof type, Process *proc, struct fetch_context *context,
+	     struct value_dict *arguments, Function *func, ssize_t *params_leftp)
+{
+	size_t i;
+	for (i = 0; i < (size_t)func->num_params; ++i) {
+		if (i == (size_t)(func->num_params - func->params_right))
+			fetch_param_stop(arguments, params_leftp);
+		if (fetch_one_param(type, proc, context, arguments,
+				    func->arg_info[i], params_leftp) < 0)
+			return -1;
+	}
+
+	/* Implicit stop at the end of parameter list.  */
+	fetch_param_stop(arguments, params_leftp);
+	return 0;
+}
+
+static int
+output_one(struct value *val, struct value_dict *arguments)
+{
+	int o = format_argument(options.output, val, arguments);
+	if (account_output(o) < 0) {
+		if (output_error() < 0)
+			return -1;
+		o = 1;
+	}
+	return o;
+}
+
+static int
+output_params(struct value_dict *arguments, size_t start, size_t end,
+	      int *need_delimp)
+{
+	size_t i;
+	int need_delim = *need_delimp;
+	for (i = start; i < end; ++i) {
+		if (need_delim
+		    && account_output(fprintf(options.output, ", ")) < 0)
+			return -1;
+		struct value *value = val_dict_get_num(arguments, i);
+		if (value == NULL)
+			return -1;
+		need_delim = output_one(value, arguments);
+		if (need_delim < 0)
+			return -1;
+	}
+	*need_delimp = need_delim;
+	return 0;
+}
+
 void
 output_left(enum tof type, struct Process *proc,
 	    struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
 	Function *func;
-	static struct arg_type_info *arg_unknown = NULL;
-	if (arg_unknown == NULL)
-	    arg_unknown = lookup_prototype(ARGTYPE_UNKNOWN);
 
 	if (options.summary) {
 		return;
@@ -201,74 +339,46 @@ output_left(enum tof type, struct Process *proc,
 	}
 	current_proc = proc;
 	current_depth = proc->callstack_depth;
-	begin_of_line(type, type == LT_TOF_FUNCTION, 1);
+	begin_of_line(proc, type == LT_TOF_FUNCTION, 1);
 	if (!options.hide_caller && libsym->lib != NULL
 	    && libsym->plt_type != LS_TOPLT_NONE)
 		current_column += fprintf(options.output, "%s->",
 					  libsym->lib->soname);
+
+	const char *name = function_name;
 #ifdef USE_DEMANGLE
-	current_column +=
-		fprintf(options.output, "%s(",
-			(options.demangle
-			 ? my_demangle(function_name) : function_name));
-#else
-	current_column += fprintf(options.output, "%s(", function_name);
+	if (options.demangle)
+		name = my_demangle(function_name);
 #endif
+	if (account_output(fprintf(options.output, "%s(", name)) < 0)
+		return;
 
 	func = name2func(function_name);
+	if (func == NULL)
+		return;
 
+	struct fetch_context *context = fetch_arg_init(type, proc,
+						       func->return_info);
 	struct value_dict *arguments = malloc(sizeof(*arguments));
 	if (arguments == NULL)
 		return;
 	val_dict_init(arguments);
 
-	int num, right;
-	if (!func) {
-		int i;
-		for (i = 0; i < 4; i++) {
-			long l = gimme_arg(type, proc, i, arg_unknown);
-			struct value val;
-			value_init(&val, proc, NULL, arg_unknown, 0);
-			value_set_long(&val, l);
-			val_dict_push_next(arguments, &val);
-		}
-		right = 0;
-		num = 4;
-	} else {
-		int i;
-		for (i = 0; i < func->num_params; i++) {
-			long l = gimme_arg(type, proc, i, func->arg_info[i]);
-			struct value val;
-			value_init(&val, proc, NULL, func->arg_info[i], 0);
-			value_set_long(&val, l);
-			val_dict_push_next(arguments, &val);
-		}
-		right = func->params_right;
-		num = func->num_params;
-	}
-
-	int i;
-	for (i = 0; i < num - right - 1; i++) {
-		current_column +=
-			format_argument(options.output,
-					val_dict_get_num(arguments, i),
-					arguments);
-		current_column += fprintf(options.output, ", ");
-	}
-
-	if (num > right) {
-		current_column +=
-			format_argument(options.output,
-					val_dict_get_num(arguments, i),
-					arguments);
-		if (right) {
-			current_column += fprintf(options.output, ", ");
-		}
+	ssize_t params_left = -1;
+	int need_delim = 0;
+	if (fetch_params(type, proc, context, arguments, func, &params_left) < 0
+	    || output_params(arguments, 0, params_left, &need_delim) < 0) {
+		val_dict_destroy(arguments);
+		fetch_arg_done(context);
+		return;
 	}
 
 	struct callstack_element *stel
 		= &proc->callstack[proc->callstack_depth - 1];
+	stel->fetch_context = context;
 	stel->arguments = arguments;
+	stel->out.params_left = params_left;
+	stel->out.need_delim = need_delim;
 }
 
 void
@@ -276,9 +386,8 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
 	Function *func = name2func(function_name);
-	static struct arg_type_info *arg_unknown = NULL;
-	if (arg_unknown == NULL)
-	    arg_unknown = lookup_prototype(ARGTYPE_UNKNOWN);
+	if (func == NULL)
+		return;
 
 	if (options.summary) {
 		struct opt_c_struct *st;
@@ -333,44 +442,41 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 	struct callstack_element *stel
 		= &proc->callstack[proc->callstack_depth - 1];
 
-	struct value retval;
-	struct arg_type_info *return_info = arg_unknown;
-	if (func != NULL)
-		return_info = func->return_info;
-	long l = gimme_arg(type, proc, -1, return_info);
-	value_init(&retval, proc, NULL, return_info, 0);
-	value_set_long(&retval, l);
-	val_dict_push_named(stel->arguments, &retval, "retval", 0);
+	struct fetch_context *context = stel->fetch_context;
 
-	if (!func) {
-		current_column += fprintf(options.output, ") ");
-		tabto(options.align - 1);
-		fprintf(options.output, "= ");
-	} else {
-		int i;
-		for (i = func->num_params - func->params_right;
-		     i < func->num_params - 1; i++) {
-			current_column +=
-				format_argument(options.output,
-						val_dict_get_num
-							(stel->arguments, i),
-						stel->arguments);
-			current_column += fprintf(options.output, ", ");
+	/* Fetch & enter into dictionary the retval first, so that
+	 * other values can use it in expressions.  */
+	struct value retval;
+	int own_retval = 0;
+	if (context != NULL) {
+		value_init(&retval, proc, NULL, func->return_info, 0);
+		own_retval = 1;
+		if (fetch_retval(context, type, proc, func->return_info,
+				 &retval) == 0) {
+			if (stel->arguments != NULL
+			    && val_dict_push_named(stel->arguments, &retval,
+						   "retval", 0) == 0)
+				own_retval = 0;
 		}
-		if (func->params_right) {
-			current_column +=
-				format_argument(options.output,
-						val_dict_get_num
-							(stel->arguments, i),
-						stel->arguments);
-		}
-		current_column += fprintf(options.output, ") ");
-		tabto(options.align - 1);
-		fprintf(options.output, "= ");
 	}
 
-	format_argument(options.output, &retval, stel->arguments);
+	if (stel->arguments != NULL)
+		output_params(stel->arguments, stel->out.params_left,
+			      val_dict_count(stel->arguments),
+			      &stel->out.need_delim);
+
+	current_column += fprintf(options.output, ") ");
+	tabto(options.align - 1);
+	fprintf(options.output, "= ");
+
+	output_one(&retval, stel->arguments);
+
+	if (own_retval)
+		value_destroy(&retval);
+
 	val_dict_destroy(stel->arguments);
+	free(stel->arguments);
+	fetch_arg_done(context);
 
 	if (opt_T) {
 		fprintf(options.output, " <%lu.%06d>",

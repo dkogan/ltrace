@@ -291,11 +291,26 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 
 	size_t i;
 	for (i = 0; i < retp->callstack_depth; ++i) {
+		struct fetch_context *ctx = retp->callstack[i].fetch_context;
+		if (ctx != NULL) {
+			struct fetch_context *nctx = fetch_arg_clone(p, ctx);
+			if (nctx == NULL) {
+				int j;
+			release1:
+				for (j = 0; j < i; ++j) {
+					nctx = retp->callstack[i].fetch_context;
+					fetch_arg_done(nctx);
+					retp->callstack[i].fetch_context = NULL;
+				}
+				goto fail2;
+			}
+			retp->callstack[i].fetch_context = nctx;
+		}
+
 		struct value_dict *args = retp->callstack[i].arguments;
 		if (args != NULL) {
 		fail3:
 			struct value_dict *nargs = malloc(sizeof(*nargs));
-			fprintf(stderr, "{A:%p->%p}", args, nargs);
 			if (nargs == NULL
 			    || val_dict_clone(nargs, args) < 0) {
 
@@ -306,7 +321,12 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 					free(nargs);
 					p->callstack[i].arguments = NULL;
 				}
-				goto fail2;
+
+				/* Pretend that this round went well,
+				 * so that release1 frees I-th
+				 * fetch_context.  */
+				++i;
+				goto release1;
 			}
 			retp->callstack[i].arguments = nargs;
 		}

@@ -37,9 +37,9 @@
 #include "common.h"
 #include "value_dict.h"
 #include "breakpoint.h"
-#include "common.h"
 #include "library.h"
 #include "proc.h"
+#include "fetch.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);

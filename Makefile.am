@@ -34,6 +34,7 @@ libltrace_la_SOURCES = \
 	value.c \
 	value_dict.c \
 	expr.c \
+	fetch.c \
 	vect.c \
 
 libltrace_la_LIBADD = \
@@ -76,6 +77,7 @@ noinst_HEADERS = \
 	value.h \
 	value_dict.h \
 	expr.h \
+	fetch.h \
 	vect.h \
 
 dist_man1_MANS = \

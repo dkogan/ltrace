@@ -35,9 +35,6 @@
 #include "type.h"
 #include "common.h"
 
-static int format_argument_2(FILE *stream, struct value *value,
-			     struct value_dict *arguments);
-
 #define READER(NAME, TYPE)						\
 	static int							\
 	NAME(struct value *value, TYPE *ret, struct value_dict *arguments) \
@@ -235,7 +232,7 @@ format_struct(FILE *stream, struct value *value, struct value_dict *arguments)
 		struct value element;
 		if (value_init_element(&element, value, i) < 0)
 			return -1;
-		int o = format_argument_2(stream, &element, arguments);
+		int o = format_argument(stream, &element, arguments);
 		if (o < 0)
 			return -1;
 		written += o;
@@ -251,7 +248,7 @@ format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 	struct value element;
 	if (value_init_deref(&element, value) < 0)
 		return -1;
-	return format_argument_2(stream, &element, arguments);
+	return format_argument(stream, &element, arguments);
 }
 
 /*
@@ -300,7 +297,7 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 			return -1;
 		if (value_is_zero(&element, arguments)) /* XXX emulate ZERO */
 			break;
-		int o = format_argument_2(stream, &element, arguments);
+		int o = format_argument(stream, &element, arguments);
 		if (o < 0)
 			return -1;
 		written += o;
@@ -313,9 +310,8 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 	return written;
 }
 
-static int
-format_argument_2(FILE *stream, struct value *value,
-		  struct value_dict *arguments)
+int
+format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 {
 	struct expr_node *length = NULL;
 	switch (value->type->type) {
@@ -384,7 +380,7 @@ format_argument_2(FILE *stream, struct value *value,
 		value_clone(&tmp, value);
 		value_set_type(&tmp, info, 0);
 
-		int ret = format_argument_2(stream, &tmp, arguments);
+		int ret = format_argument(stream, &tmp, arguments);
 
 		value_destroy(&tmp);
 		type_destroy(&info[0]);
@@ -399,31 +395,4 @@ format_argument_2(FILE *stream, struct value *value,
 		abort();
 	}
 	abort();
-}
-
-int
-format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
-{
-	/* Arrays decay into pointers for purposes of argument
-	 * passing.  Before the proper support for this lands, wrap
-	 * top-level arrays in pointers here.  */
-	if (value->type->type == ARGTYPE_ARRAY) {
-
-		struct arg_type_info info;
-		type_init_pointer(&info, value->type, 0);
-
-		struct value tmp;
-		value_clone(&tmp, value);
-		value_set_type(&tmp, &info, 0);
-
-		int ret = format_argument_2(stream, &tmp, arguments);
-
-		value_destroy(&tmp);
-		type_destroy(&info);
-
-		return ret;
-
-	} else {
-		return format_argument_2(stream, value, arguments);
-	}
 }
