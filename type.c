@@ -99,9 +99,11 @@ type_enum_get(struct arg_type_info *info, int value)
 {
 	assert(info->type == ARGTYPE_ENUM);
 	size_t i;
-	for (i = 0; i < info->u.enum_info.entries; ++i) {
-		if (value == info->u.enum_info.values[i])
-			return info->u.enum_info.keys[i];
+	for (i = 0; i < vect_size(&info->u.entries); ++i) {
+		struct enum_entry *entry = VECT_ELEMENT(&info->u.entries,
+							struct enum_entry, i);
+		if (value == entry->value)
+			return entry->key;
 	}
 	return NULL;
 }

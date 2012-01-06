@@ -541,23 +541,26 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp)
 static int
 parse_enum(char **str, struct arg_type_info *info)
 {
-	struct enum_opt {
-		char *key;
-		int value;
-		struct enum_opt *next;
-	};
-	struct enum_opt *list = NULL;
-	struct enum_opt *p;
-	int entries = 0;
-	int ii;
+	eat_spaces(str);
+	if (parse_char(str, '(') < 0)
+		return -1;
 
-	eat_spaces(str);
-	(*str)++;		// Get past open paren
-	eat_spaces(str);
+	type_init_enum(info);
 
 	int last_val = 0;
-	while (**str && **str != ')') {
-		p = (struct enum_opt *) malloc(sizeof(*p));
+	while (1) {
+		eat_spaces(str);
+		if (**str == 0 || **str == ')') {
+			parse_char(str, ')');
+			return 0;
+		}
+
+		/* Field delimiter.  XXX should we support the C
+		 * syntax, where the enumeration can end in pending
+		 * comma?  */
+		if (type_enum_size(info) > 0)
+			parse_char(str, ',');
+
 		eat_spaces(str);
 		char *key = parse_ident(str);
 		if (key == NULL) {
@@ -578,32 +581,9 @@ parse_enum(char **str, struct arg_type_info *info)
 			last_val++;
 		}
 
-		p->key = key;
-		p->value = last_val;
-		p->next = list;
-		list = p;
-		++entries;
-
-		// Skip comma
-		eat_spaces(str);
-		if (**str == ',') {
-			(*str)++;
-			eat_spaces(str);
-		}
+		if (type_enum_add(info, key, 1, last_val) < 0)
+			goto err;
 	}
-
-	info->u.enum_info.entries = entries;
-	info->u.enum_info.keys = (char **) malloc(entries * sizeof(char *));
-	info->u.enum_info.values = (int *) malloc(entries * sizeof(int));
-	for (ii = 0, p = NULL; list; ++ii, list = list->next) {
-		if (p != NULL)
-			free(p);
-		info->u.enum_info.keys[ii] = list->key;
-		info->u.enum_info.values[ii] = list->value;
-		p = list;
-	}
-	if (p != NULL)
-		free(p);
 
 	return 0;
 }

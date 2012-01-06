@@ -53,13 +53,6 @@ struct arg_type_info {
 	union {
 		struct vect entries;
 
-		/* ARGTYPE_ENUM */
-		struct {
-			size_t entries;
-			char **keys;
-			int *values;
-		} enum_info;
-
 		/* ARGTYPE_ARRAY */
 		struct {
 			struct arg_type_info *elt_type;
