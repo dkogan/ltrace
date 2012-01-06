@@ -26,11 +26,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "common.h"
 #include "type.h"
 #include "expr.h"
 #include "errno.h"
+#include "zero.h"
 
 static int line_no;
 static char *filename;
@@ -237,6 +239,44 @@ parse_char(char **str, char expected)
 	return 0;
 }
 
+static struct expr_node *parse_argnum(char **str, int zero);
+
+static struct expr_node *
+parse_zero(char **str, struct expr_node *ret)
+{
+	eat_spaces(str);
+	if (**str == '(') {
+		++*str;
+		struct expr_node *arg = parse_argnum(str, 0);
+		if (arg == NULL)
+			return NULL;
+		if (parse_char(str, ')') < 0) {
+		fail:
+			expr_destroy(arg);
+			free(arg);
+			return NULL;
+		}
+
+		struct expr_node *ret = build_zero_w_arg(arg, 1);
+		if (ret == NULL)
+			goto fail;
+		return ret;
+
+	} else {
+		return expr_node_zero();
+	}
+}
+
+static int
+wrap_in_zero(struct expr_node **nodep)
+{
+	struct expr_node *n = build_zero_w_arg(*nodep, 1);
+	if (n == NULL)
+		return -1;
+	*nodep = n;
+	return 0;
+}
+
 /*
  * Input:
  *  argN   : The value of argument #N, counting from 1
@@ -245,7 +285,7 @@ parse_char(char **str, char expected)
  *  N      : The numeric value N
  */
 static struct expr_node *
-parse_argnum(char **str)
+parse_argnum(char **str, int zero)
 {
 	struct expr_node *expr = malloc(sizeof(*expr));
 	if (expr == NULL)
@@ -259,6 +299,9 @@ parse_argnum(char **str)
 			goto fail;
 
 		expr_init_const_word(expr, l, type_get_simple(ARGTYPE_LONG), 0);
+
+		if (zero && wrap_in_zero(&expr) < 0)
+			goto fail;
 
 		return expr;
 
@@ -297,11 +340,21 @@ parse_argnum(char **str)
 		} else if (strcmp(name, "retval") == 0) {
 			expr_init_named(expr, "retval", 0);
 
-		} else {
+		} else if (strcmp(name, "zero") == 0) {
+			struct expr_node *ret = parse_zero(str, expr);
+			if (ret == NULL)
+				goto fail;
+			return ret;
+
+ 		} else {
 			report_error(filename, line_no,
 				     "Unknown length specifier: '%s'", name);
 			goto fail;
 		}
+
+		if (zero && wrap_in_zero(&expr) < 0)
+			goto fail;
+
 		return expr;
 	}
 
@@ -397,6 +450,77 @@ parse_struct(char **str, struct arg_type_info *info)
 	}
 }
 
+/* Syntax: enum ( keyname=value,keyname=value,... ) */
+static int
+parse_enum(char **str, struct arg_type_info *info)
+{
+	struct enum_opt {
+		char *key;
+		int value;
+		struct enum_opt *next;
+	};
+	struct enum_opt *list = NULL;
+	struct enum_opt *p;
+	int entries = 0;
+	int ii;
+
+	eat_spaces(str);
+	(*str)++;		// Get past open paren
+	eat_spaces(str);
+
+	int last_val = 0;
+	while (**str && **str != ')') {
+		p = (struct enum_opt *) malloc(sizeof(*p));
+		eat_spaces(str);
+		char *key = parse_ident(str);
+		if (key == NULL) {
+		err:
+			free(key);
+			return -1;
+		}
+
+		if (**str == '=') {
+			++*str;
+			eat_spaces(str);
+			long l;
+			if (parse_int(str, &l) < 0 || check_int(l) < 0)
+				goto err;
+			last_val = l;
+
+		} else {
+			last_val++;
+		}
+
+		p->key = key;
+		p->value = last_val;
+		p->next = list;
+		list = p;
+		++entries;
+
+		// Skip comma
+		eat_spaces(str);
+		if (**str == ',') {
+			(*str)++;
+			eat_spaces(str);
+		}
+	}
+
+	info->u.enum_info.entries = entries;
+	info->u.enum_info.keys = (char **) malloc(entries * sizeof(char *));
+	info->u.enum_info.values = (int *) malloc(entries * sizeof(int));
+	for (ii = 0, p = NULL; list; ++ii, list = list->next) {
+		if (p != NULL)
+			free(p);
+		info->u.enum_info.keys[ii] = list->key;
+		info->u.enum_info.values[ii] = list->value;
+		p = list;
+	}
+	if (p != NULL)
+		free(p);
+
+	return 0;
+}
+
 static struct arg_type_info *
 parse_nonpointer_type(char **str) {
 	struct arg_type_info *simple;
@@ -422,6 +546,7 @@ parse_nonpointer_type(char **str) {
 	/* Code to parse parameterized types will go into the following
 	   switch statement. */
 
+	int (*parser) (char **, struct arg_type_info *) = NULL;
 	switch (info->type) {
 
 	/* Syntax: array ( type, N|argN ) */
@@ -432,80 +557,13 @@ parse_nonpointer_type(char **str) {
 			return NULL;
 		(*str)++;		// Get past comma
 		eat_spaces(str);
-		info->u.array_info.length = parse_argnum(str);
+		info->u.array_info.length = parse_argnum(str, 0);
 		(*str)++;		// Get past close paren
 		return info;
 
-	/* Syntax: enum ( keyname=value,keyname=value,... ) */
-	case ARGTYPE_ENUM:{
-		struct enum_opt {
-			char *key;
-			int value;
-			struct enum_opt *next;
-		};
-		struct enum_opt *list = NULL;
-		struct enum_opt *p;
-		int entries = 0;
-		int ii;
-
-		eat_spaces(str);
-		(*str)++;		// Get past open paren
-		eat_spaces(str);
-
-		while (**str && **str != ')') {
-			p = (struct enum_opt *) malloc(sizeof(*p));
-			eat_spaces(str);
-			p->key = parse_ident(str);
-			if (error_count) {
-				free(p);
-				return NULL;
-			}
-			eat_spaces(str);
-			if (**str != '=') {
-			fail:
-				free(p->key);
-				free(p);
-				output_line(0,
-						"Syntax error in `%s', line %d: expected '=', got '%c'",
-						filename, line_no, **str);
-				error_count++;
-				return NULL;
-			}
-			++(*str);
-			eat_spaces(str);
-			long l;
-			if (parse_int(str, &l) < 0 || check_int(l) < 0)
-				goto fail;
-			p->value = l;
-			p->next = list;
-			list = p;
-			++entries;
-
-			// Skip comma
-			eat_spaces(str);
-			if (**str == ',') {
-				(*str)++;
-				eat_spaces(str);
-			}
-		}
-
-		info->u.enum_info.entries = entries;
-		info->u.enum_info.keys =
-			(char **) malloc(entries * sizeof(char *));
-		info->u.enum_info.values =
-			(int *) malloc(entries * sizeof(int));
-		for (ii = 0, p = NULL; list; ++ii, list = list->next) {
-			if (p)
-				free(p);
-			info->u.enum_info.keys[ii] = list->key;
-			info->u.enum_info.values[ii] = list->value;
-			p = list;
-		}
-		if (p)
-			free(p);
-
-		return info;
-	}
+	case ARGTYPE_ENUM:
+		parser = parse_enum;
+		break;
 
 	case ARGTYPE_STRING:
 		if (!isdigit(**str) && **str != '[') {
@@ -518,28 +576,21 @@ parse_nonpointer_type(char **str) {
 
 		/* Backwards compatibility for string0, string1, ... */
 		if (isdigit(**str)) {
-			info->u.string_n_info.length = parse_argnum(str);
+			info->u.string_n_info.length = parse_argnum(str, 1);
 			return info;
 		}
 
 		(*str)++;		// Skip past opening [
 		eat_spaces(str);
-		info->u.string_n_info.length = parse_argnum(str);
+		info->u.string_n_info.length = parse_argnum(str, 1);
 		eat_spaces(str);
 		(*str)++;		// Skip past closing ]
 		return info;
 
 	// Syntax: struct ( type,type,type,... )
-	case ARGTYPE_STRUCT:{
-		if (parse_struct(str, info) < 0) {
-			free(info);
-			output_line(0, "Parse error in `%s', line %d",
-				    filename, line_no);
-			error_count++;
-			return NULL;
-		}
-		return info;
-	}
+	case ARGTYPE_STRUCT:
+		parser = parse_struct;
+		break;
 
 	default:
 		if (info->type == ARGTYPE_UNKNOWN) {
@@ -553,6 +604,14 @@ parse_nonpointer_type(char **str) {
 			return info;
 		}
 	}
+
+	assert(parser != NULL);
+	if (parser(str, info) < 0) {
+		free(info);
+		return NULL;
+	}
+
+	return info;
 }
 
 static struct arg_type_info *

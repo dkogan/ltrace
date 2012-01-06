@@ -34,6 +34,7 @@
 #include "expr.h"
 #include "type.h"
 #include "common.h"
+#include "zero.h"
 
 #define READER(NAME, TYPE)						\
 	static int							\
@@ -272,9 +273,8 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 	 * space.  */
 	typedef char assert__long_enough_long[-(sizeof(long) < sizeof(void *))];
 	long l = options.strlen;
-	if (length != NULL) /* XXX emulate node ZERO before it lands */
-		if (expr_eval_word(length, value, arguments, &l) < 0)
-			return -1;
+	if (expr_eval_word(length, value, arguments, &l) < 0)
+		return -1;
 	size_t len = (size_t)l;
 
 	int written = 0;
@@ -295,8 +295,6 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 		struct value element;
 		if (value_init_element(&element, value, i) < 0)
 			return -1;
-		if (value_is_zero(&element, arguments)) /* XXX emulate ZERO */
-			break;
 		int o = format_argument(stream, &element, arguments);
 		if (o < 0)
 			return -1;
@@ -313,7 +311,7 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 int
 format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 {
-	struct expr_node *length = NULL;
+	struct expr_node *length = expr_node_zero();
 	switch (value->type->type) {
 	case ARGTYPE_VOID:
 		return fprintf(stream, "<void>");
