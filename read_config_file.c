@@ -537,6 +537,40 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp)
 	}
 }
 
+/* Syntax: array ( type, N|argN ) */
+static int
+parse_array(char **str, struct arg_type_info *info)
+{
+	eat_spaces(str);
+	if (parse_char(str, '(') < 0)
+		return -1;
+
+	eat_spaces(str);
+	int own;
+	struct arg_type_info *elt_info = parse_type(str, &own);
+	if (elt_info == NULL)
+		return -1;
+
+	eat_spaces(str);
+	parse_char(str, ',');
+
+	eat_spaces(str);
+	struct expr_node *length = parse_argnum(str, 0);
+	if (length == NULL) {
+		if (own) {
+			type_destroy(elt_info);
+			free(elt_info);
+		}
+		return -1;
+	}
+
+	type_init_array(info, elt_info, own, length, 1);
+
+	eat_spaces(str);
+	parse_char(str, ')');
+	return 0;
+}
+
 /* Syntax: enum ( keyname=value,keyname=value,... ) */
 static int
 parse_enum(char **str, struct arg_type_info *info)
@@ -621,17 +655,9 @@ parse_nonpointer_type(char **str) {
 	int (*parser) (char **, struct arg_type_info *) = NULL;
 	switch (info->type) {
 
-	/* Syntax: array ( type, N|argN ) */
 	case ARGTYPE_ARRAY:
-		(*str)++;		// Get past open paren
-		eat_spaces(str);
-		if ((info->u.array_info.elt_type = parse_type(str)) == NULL)
-			return NULL;
-		(*str)++;		// Get past comma
-		eat_spaces(str);
-		info->u.array_info.length = parse_argnum(str, 0);
-		(*str)++;		// Get past close paren
-		return info;
+		parser = parse_array;
+		break;
 
 	case ARGTYPE_ENUM:
 		parser = parse_enum;
