@@ -173,37 +173,6 @@ save_register_args(enum tof type, Process *proc) {
 	memcpy(&arch->fpregs_copy, &arch->fpregs, sizeof(arch->fpregs));
 }
 
-/* Read a single long from the process's memory address 'addr'.  */
-int
-arch_umovelong (Process *proc, void *addr, long *result,
-		struct arg_type_info *info)
-{
-	long pointed_to;
-
-	errno = 0;
-
-	pointed_to = ptrace (PTRACE_PEEKTEXT, proc->pid, addr, 0);
-
-	if (pointed_to == -1 && errno)
-		return -errno;
-
-#if SIZEOF_LONG == 8
-	/* Since int's are 4-bytes (long is 8-bytes) in length for ppc64, we
-	   need to shift the long values returned by ptrace to end up with
-	   the correct value.  */
-
-	if (info) {
-		if (info->type == ARGTYPE_INT || (proc->mask_32bit && (info->type == ARGTYPE_POINTER
-		    || info->type == ARGTYPE_STRING))) {
-			pointed_to = (long) (((unsigned long) pointed_to) >> 32);
-		}
-	}
-#endif
-
-	*result = pointed_to;
-	return 0;
-}
-
 /* The atomic skip code is mostly taken from GDB.  */
 
 /* Instruction masks used during single-stepping of atomic

@@ -48,37 +48,6 @@
 
 #endif /* PTRACE_EVENT_FORK */
 
-#ifdef ARCH_HAVE_UMOVELONG
-extern int arch_umovelong (Process *, void *, long *, arg_type_info *);
-int
-umovelong(Process *proc, void *addr, long *result, arg_type_info *info) {
-	return arch_umovelong (proc, addr, result, info);
-}
-#else
-/* Read a single long from the process's memory address 'addr' */
-int
-umovelong(Process *proc, void *addr, long *result, struct arg_type_info *info)
-{
-	long pointed_to;
-
-	errno = 0;
-	pointed_to = ptrace (PTRACE_PEEKTEXT, proc->pid, addr, 0);
-	if (pointed_to == -1 && errno)
-		return -errno;
-
-	*result = pointed_to;
-	if (info) {
-		switch (info->type) {
-			case ARGTYPE_INT:
-				*result &= 0x00000000ffffffffUL;
-			default:
-				break;
-		};
-	}
-	return 0;
-}
-#endif
-
 void
 trace_fail_warning(pid_t pid)
 {
@@ -1234,33 +1203,4 @@ umovebytes(Process *proc, void *addr, void *laddr, size_t len) {
 	}
 
 	return bytes_read;
-}
-
-/* Read a series of bytes starting at the process's memory address
-   'addr' and continuing until a NUL ('\0') is seen or 'len' bytes
-   have been read.
-*/
-int
-umovestr(Process *proc, void *addr, int len, void *laddr) {
-	union {
-		long a;
-		char c[sizeof(long)];
-	} a;
-	unsigned i;
-	int offset = 0;
-
-	while (offset < len) {
-		a.a = ptrace(PTRACE_PEEKTEXT, proc->pid, addr + offset, 0);
-		for (i = 0; i < sizeof(long); i++) {
-			if (a.c[i] && offset + (signed)i < len) {
-				*(char *)(laddr + offset + i) = a.c[i];
-			} else {
-				*(char *)(laddr + offset + i) = '\0';
-				return 0;
-			}
-		}
-		offset += sizeof(long);
-	}
-	*(char *)(laddr + offset) = '\0';
-	return 0;
 }

@@ -145,9 +145,6 @@ extern void continue_after_vfork(Process * proc);
 extern long gimme_arg(enum tof type, Process *proc, int arg_num,
 		      struct arg_type_info *info);
 extern void save_register_args(enum tof type, Process * proc);
-extern int umovestr(Process * proc, void * addr, int len, void * laddr);
-extern int umovelong(Process *proc, void *addr, long *result,
-		     struct arg_type_info *info);
 extern size_t umovebytes (Process *proc, void * addr, void * laddr, size_t count);
 extern int ffcheck(void * maddr);
 extern void * sym2addr(Process *, struct library_symbol *);
