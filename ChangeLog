@@ -1,5 +1,14 @@
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
+	* printf.c, printf.h: New file with support for functions with
+	vararg parameter pack described by a printf-style format argument
+	* type.h (enum arg_type): Drop ARGTYPE_FORMAT
+	* type.c, display_args.c: Likewise
+	* read_config_file.c: Introduce backward-compatible support for
+	the "format" keyword
+
+2012-01-06  Petr Machata  <pmachata@redhat.com>
+
 	* type.h (struct arg_type_info): Drop float_info, double_info
 	* sysdeps/linux-gnu/ia64/trace.c (gimme_arg): Count float
 	arguments to compensate for the above

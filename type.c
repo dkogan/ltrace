@@ -49,8 +49,6 @@ type_get_simple(enum arg_type type)
 	HANDLE(ARGTYPE_FLOAT)
 	HANDLE(ARGTYPE_DOUBLE)
 
-	  HANDLE(ARGTYPE_FORMAT)
-
 #undef HANDLE
 
 	case ARGTYPE_STRING_N:
@@ -229,21 +227,21 @@ layout_struct(struct Process *proc, struct arg_type_info *info,
 void
 type_init_array(struct arg_type_info *info,
 		struct arg_type_info *element_info, int own_info,
-		struct expr_node *length, int own_length)
+		struct expr_node *length_expr, int own_length)
 {
 	info->type = ARGTYPE_ARRAY;
 	info->u.array_info.elt_type = element_info;
 	info->u.array_info.own_info = own_info;
-	info->u.array_info.length = length;
+	info->u.array_info.length = length_expr;
 	info->u.array_info.own_length = own_length;
 }
 
 void
 type_init_string(struct arg_type_info *info,
-		 struct expr_node *length, int own_length)
+		 struct expr_node *length_expr, int own_length)
 {
 	info->type = ARGTYPE_STRING_N;
-	info->u.string_n_info.length = length;
+	info->u.string_n_info.length = length_expr;
 	info->u.string_n_info.own_length = own_length;
 }
 
@@ -324,9 +322,6 @@ type_destroy(struct arg_type_info *info)
 	case ARGTYPE_USHORT:
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
-		break;
-
-	case ARGTYPE_FORMAT:
 		break;
 	}
 }
@@ -436,7 +431,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 	case ARGTYPE_UNKNOWN:
 		return sizeof(long);
 
-	case ARGTYPE_FORMAT:
 	case ARGTYPE_STRING_N:
 		return -1;
 	}

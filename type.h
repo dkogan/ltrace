@@ -39,7 +39,6 @@ enum arg_type {
 	ARGTYPE_USHORT,
 	ARGTYPE_FLOAT,
 	ARGTYPE_DOUBLE,
-	ARGTYPE_FORMAT,		/* printf-like format */
 	ARGTYPE_STRING_N,	/* String of known maxlen */
 	ARGTYPE_ARRAY,		/* Series of values in memory */
 	ARGTYPE_ENUM,		/* Enumeration */

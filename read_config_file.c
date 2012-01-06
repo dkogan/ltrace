@@ -33,14 +33,16 @@
 #include "common.h"
 #include "output.h"
 #include "expr.h"
-#include "zero.h"
 #include "param.h"
+#include "printf.h"
+#include "zero.h"
 #include "type.h"
 
 static int line_no;
 static char *filename;
 
-static struct arg_type_info *parse_type(char **str, int *ownp);
+static struct arg_type_info *parse_type(char **str, struct param **extra_param,
+					size_t param_num, int *ownp);
 
 Function *list_of_functions = NULL;
 
@@ -73,9 +75,6 @@ parse_arg_type(char **name, enum arg_type *ret)
 	KEYWORD("array", ARGTYPE_ARRAY);
 	KEYWORD("enum", ARGTYPE_ENUM);
 	KEYWORD("struct", ARGTYPE_STRUCT);
-
-	/* XXX temporary.  */
-	KEYWORD("format", ARGTYPE_FORMAT);
 
 	assert(rest == NULL);
 	return -1;
@@ -391,7 +390,7 @@ parse_typedef(char **str) {
 
 	// Parse the type
 	int own;
-	info = parse_type(str, &own);
+	info = parse_type(str, NULL, 0, &own);
 
 	insert_typedef(name, info, own);
 }
@@ -436,7 +435,7 @@ parse_struct(char **str, struct arg_type_info *info)
 
 		eat_spaces(str);
 		int own;
-		struct arg_type_info *field = parse_type(str, &own);
+		struct arg_type_info *field = parse_type(str, NULL, 0, &own);
 		if (field == NULL || type_struct_add(info, field, own)) {
 			type_destroy(info);
 			return -1;
@@ -511,7 +510,43 @@ parse_string(char **str, struct arg_type_info **retp)
 }
 
 static int
-parse_alias(char **str, struct arg_type_info **retp, int *ownp)
+build_printf_pack(struct param **packp, size_t param_num)
+{
+	if (packp == NULL) {
+		report_error(filename, line_no,
+			     "'format' type in unexpected context");
+		return -1;
+	}
+	if (*packp != NULL) {
+		report_error(filename, line_no,
+			     "only one 'format' type per function supported");
+		return -1;
+	}
+
+	*packp = malloc(sizeof(**packp));
+	if (*packp == NULL)
+		return -1;
+
+	struct expr_node *node = malloc(sizeof(*node));
+	if (node == NULL) {
+		free(*packp);
+		return -1;
+	}
+
+	expr_init_argno(node, param_num);
+
+	param_pack_init_printf(*packp, node, 1);
+
+	return 0;
+}
+
+/* XXX extra_param and param_num are a kludge to get in
+ * backward-compatible support for "format" parameter type.  The
+ * latter is only valid if the former is non-NULL, which is only in
+ * top-level context.  */
+static int
+parse_alias(char **str, struct arg_type_info **retp, int *ownp,
+	    struct param **extra_param, size_t param_num)
 {
 	/* For backward compatibility, we need to support things like
 	 * stringN (which is like string[argN], string[N], and also
@@ -521,6 +556,19 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp)
 	if (strncmp(*str, "string", 6) == 0) {
 		(*str) += 6;
 		return parse_string(str, retp);
+
+	} else if (strncmp(*str, "format", 6) == 0
+		   && !isalnum((*str)[6])
+		   && extra_param != NULL) {
+		/* For backward compatibility, format is parsed as
+		 * "string", but it smuggles to the parameter list of
+		 * a function a "printf" argument pack with this
+		 * parameter as argument.  */
+		(*str) += 6;
+		if (parse_string(str, retp) < 0)
+			return -1;
+
+		return build_printf_pack(extra_param, param_num);
 
 	} else {
 		*retp = NULL;
@@ -538,7 +586,7 @@ parse_array(char **str, struct arg_type_info *info)
 
 	eat_spaces(str);
 	int own;
-	struct arg_type_info *elt_info = parse_type(str, &own);
+	struct arg_type_info *elt_info = parse_type(str, NULL, 0, &own);
 	if (elt_info == NULL)
 		return -1;
 
@@ -614,12 +662,13 @@ parse_enum(char **str, struct arg_type_info *info)
 }
 
 static struct arg_type_info *
-parse_nonpointer_type(char **str, int *ownp)
+parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
+		      int *ownp)
 {
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
 		struct arg_type_info *simple;
-		if (parse_alias(str, &simple, ownp) < 0)
+		if (parse_alias(str, &simple, ownp, extra_param, param_num) < 0)
 			return NULL;
 		if (simple == NULL)
 			simple = lookup_typedef(str);
@@ -627,12 +676,14 @@ parse_nonpointer_type(char **str, int *ownp)
 			*ownp = 0;
 			return simple;
 		}
+
 		report_error(filename, line_no,
 			     "unknown type around '%s'", *str);
 		return NULL;
 	}
 
 	int (*parser) (char **, struct arg_type_info *) = NULL;
+
 	/* For some types that's all we need.  */
 	switch (type) {
 	case ARGTYPE_UNKNOWN:
@@ -647,7 +698,6 @@ parse_nonpointer_type(char **str, int *ownp)
 	case ARGTYPE_USHORT:
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
-	case ARGTYPE_FORMAT:
 		*ownp = 0;
 		return type_get_simple(type);
 
@@ -673,6 +723,7 @@ parse_nonpointer_type(char **str, int *ownp)
 		/* Pointer syntax is not based on keyword, so we
 		 * should never get this type.  */
 		assert(type != ARGTYPE_POINTER);
+		abort();
 	}
 
 	struct arg_type_info *info = malloc(sizeof(*info));
@@ -692,9 +743,10 @@ parse_nonpointer_type(char **str, int *ownp)
 }
 
 static struct arg_type_info *
-parse_type(char **str, int *ownp)
+parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp)
 {
-	struct arg_type_info *info = parse_nonpointer_type(str, ownp);
+	struct arg_type_info *info
+		= parse_nonpointer_type(str, extra_param, param_num, ownp);
 	if (info == NULL)
 		return NULL;
 
@@ -763,7 +815,7 @@ process_line(char *buf) {
 		return NULL;
 	}
 
-	fun->return_info = parse_type(&str, &fun->own_return_info);
+	fun->return_info = parse_type(&str, NULL, 0, &fun->own_return_info);
 	if (fun->return_info == NULL
 	    || fun->return_info->type == ARGTYPE_UNKNOWN) {
 	err:
@@ -814,7 +866,8 @@ process_line(char *buf) {
 		}
 
 		int own;
-		struct arg_type_info *type = parse_type(&str, &own);
+		struct arg_type_info *type = parse_type(&str, &extra_param,
+							fun->num_params, &own);
 		if (type == NULL) {
 			report_error(filename, line_no,
 				     "unknown argument type");

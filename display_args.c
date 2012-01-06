@@ -310,8 +310,11 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 int
 format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 {
-	struct expr_node *length = expr_node_zero();
 	switch (value->type->type) {
+		struct value tmp;
+		struct arg_type_info info[2];
+		int ret;
+
 	case ARGTYPE_VOID:
 		return fprintf(stream, "<void>");
 
@@ -359,28 +362,22 @@ format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 				    options.strlen, 0, "\"", "\"", "");
 
 	case ARGTYPE_STRING_N:
-		length = value->type->u.string_n_info.length;
-		/* fall-through */
-	case ARGTYPE_FORMAT: {
 		/* Strings are in fact char pointers.  Smuggle in the
 		 * pointer here.  */
 
-		struct arg_type_info info[2];
 		type_init_array(&info[1], type_get_simple(ARGTYPE_CHAR), 0,
-				length, 0);
+				value->type->u.string_n_info.length, 0);
 		type_init_pointer(&info[0], &info[1], 0);
 
-		struct value tmp;
 		value_clone(&tmp, value);
 		value_set_type(&tmp, info, 0);
 
-		int ret = format_argument(stream, &tmp, arguments);
+		ret = format_argument(stream, &tmp, arguments);
 
 		value_destroy(&tmp);
 		type_destroy(&info[0]);
 		type_destroy(&info[1]);
 		return ret;
-	}
 
 	case ARGTYPE_ENUM:
 		return format_enum(stream, value, arguments);
