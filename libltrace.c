@@ -106,6 +106,7 @@ ltrace_init(int argc, char **argv) {
 	signal(SIGTERM, signal_exit);	/*  ... or killed */
 
 	argv = process_options(argc, argv);
+	init_global_config();
 	while (opt_F) {
 		/* If filename begins with ~, expand it to the user's home */
 		/* directory. This does not correctly handle ~yoda, but that */

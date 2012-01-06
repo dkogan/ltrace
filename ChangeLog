@@ -1,5 +1,12 @@
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
+	* read_config_file.c (init_global_config): New function
+	(insert_typedef): New function
+	* read_config_file.h (init_global_config): Declaration
+	* libltrace.c (ltrace_init): Call it
+
+2012-01-06  Petr Machata  <pmachata@redhat.com>
+
 	* param.c, param.h: New module
 	* common.h (struct Function.params): New field
 	(arg_info, params_right): Drop fields

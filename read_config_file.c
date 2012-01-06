@@ -391,11 +391,21 @@ lookup_typedef(char **str) {
 	return NULL;
 }
 
+static struct typedef_node_t *
+insert_typedef(char *name, struct arg_type_info *info, int own_type)
+{
+	struct typedef_node_t *binding = malloc(sizeof(*binding));
+	binding->name = name;
+	binding->info = info;
+	binding->next = typedefs;
+	typedefs = binding;
+	return binding;
+}
+
 static void
 parse_typedef(char **str) {
 	char *name;
 	struct arg_type_info *info;
-	struct typedef_node_t *binding;
 
 	(*str) += strlen("typedef");
 	eat_spaces(str);
@@ -412,12 +422,7 @@ parse_typedef(char **str) {
 	// Parse the type
 	info = parse_type(str);
 
-	// Insert onto beginning of linked list
-	binding = malloc(sizeof(*binding));
-	binding->name = name;
-	binding->info = info;
-	binding->next = typedefs;
-	typedefs = binding;
+	insert_typedef(name, info, 0);
 }
 
 /* Syntax: struct ( type,type,type,... ) */
@@ -764,6 +769,11 @@ process_line(char *buf) {
         }
 
 	return fun;
+}
+
+void
+init_global_config(void)
+{
 }
 
 void
