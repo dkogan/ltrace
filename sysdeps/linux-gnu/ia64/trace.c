@@ -1,3 +1,25 @@
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2008,2009 Juan Cespedes
+ * Copyright (C) 2006 Steve Fink
+ * Copyright (C) 2006 Ian Wienand
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #include "config.h"
 
 #include <stdlib.h>
@@ -245,6 +267,8 @@ gimme_float_arg(enum tof type, Process *proc, int arg_num) {
 	exit(1);
 }
 
+static unsigned f_index;
+
 long
 gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 {
@@ -254,10 +278,15 @@ gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 		double d;
 	} cvt;
 
-	if (info->type == ARGTYPE_FLOAT)
-		cvt.f = gimme_float_arg(type, proc, info->u.float_info.float_index);
-	else if (info->type == ARGTYPE_DOUBLE)
-		cvt.d = gimme_float_arg(type, proc, info->u.double_info.float_index);
+	if ((type == LT_TOF_FUNCTION || type == LT_TOF_FUNCTIONR)
+	    && arg_num == 0)
+		/* See above for the parameter passing convention.  */
+		f_index = 0;
+
+	if (info != NULL && info->type == ARGTYPE_FLOAT)
+		cvt.f = gimme_float_arg(type, proc, f_index++);
+	else if (info != NULL && info->type == ARGTYPE_DOUBLE)
+		cvt.d = gimme_float_arg(type, proc, f_index++);
 	else
 		cvt.l = gimme_long_arg(type, proc, arg_num);
 

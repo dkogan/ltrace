@@ -37,8 +37,8 @@ enum arg_type {
 	ARGTYPE_CHAR,
 	ARGTYPE_SHORT,
 	ARGTYPE_USHORT,
-	ARGTYPE_FLOAT,		/* float value, may require index */
-	ARGTYPE_DOUBLE,		/* double value, may require index */
+	ARGTYPE_FLOAT,
+	ARGTYPE_DOUBLE,
 	ARGTYPE_FORMAT,		/* printf-like format */
 	ARGTYPE_STRING_N,	/* String of known maxlen */
 	ARGTYPE_ARRAY,		/* Series of values in memory */
@@ -71,16 +71,6 @@ struct arg_type_info {
 			struct arg_type_info *info;
 			int own_info:1;
 		} ptr_info;
-
-		/* ARGTYPE_FLOAT */
-		struct {
-			size_t float_index;
-		} float_info;
-
-		/* ARGTYPE_DOUBLE */
-		struct {
-			size_t float_index;
-		} double_info;
 	} u;
 };
 
@@ -128,7 +118,7 @@ size_t type_struct_size(struct arg_type_info *info);
  * length are owned and destroyed together with INFO.  */
 void type_init_array(struct arg_type_info *info,
 		     struct arg_type_info *element_info, int own_info,
-		     struct expr_node *length, int own_length);
+		     struct expr_node *length_expr, int own_length);
 
 /* Initialize INFO so it becomes ARGTYPE_STRING_N.  Length is passed
  * in LENGTH_EXPR.  If OWN_LENGTH is true, the length is owned and
