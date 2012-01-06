@@ -384,9 +384,6 @@ format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 
 	case ARGTYPE_ENUM:
 		return format_enum(stream, value, arguments);
-
-	case ARGTYPE_COUNT:
-		abort();
 	}
 	abort();
 }

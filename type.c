@@ -54,7 +54,6 @@ type_get_simple(enum arg_type type)
 #undef HANDLE
 
 	case ARGTYPE_STRING_N:
-	case ARGTYPE_COUNT:
 
 	case ARGTYPE_ARRAY:
 	case ARGTYPE_ENUM:
@@ -328,7 +327,6 @@ type_destroy(struct arg_type_info *info)
 		break;
 
 	case ARGTYPE_FORMAT:
-	case ARGTYPE_COUNT:
 		break;
 	}
 }
@@ -440,7 +438,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 
 	case ARGTYPE_FORMAT:
 	case ARGTYPE_STRING_N:
-	case ARGTYPE_COUNT:
 		return -1;
 	}
 

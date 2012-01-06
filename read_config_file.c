@@ -673,8 +673,6 @@ parse_nonpointer_type(char **str, int *ownp)
 		/* Pointer syntax is not based on keyword, so we
 		 * should never get this type.  */
 		assert(type != ARGTYPE_POINTER);
-	case ARGTYPE_COUNT:
-		abort();
 	}
 
 	struct arg_type_info *info = malloc(sizeof(*info));

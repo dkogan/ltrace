@@ -45,7 +45,6 @@ enum arg_type {
 	ARGTYPE_ENUM,		/* Enumeration */
 	ARGTYPE_STRUCT,		/* Structure of values */
 	ARGTYPE_POINTER,	/* Pointer to some other type */
-	ARGTYPE_COUNT		/* number of ARGTYPE_* values */
 };
 
 struct arg_type_info {
