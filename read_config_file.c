@@ -39,7 +39,6 @@
 
 static int line_no;
 static char *filename;
-static int error_count = 0;
 
 static struct arg_type_info *parse_type(char **str);
 
@@ -454,6 +453,90 @@ parse_struct(char **str, struct arg_type_info *info)
 	}
 }
 
+static int
+parse_string(char **str, struct arg_type_info **retp)
+{
+	struct arg_type_info *info = malloc(sizeof(*info));
+	if (info == NULL) {
+	fail:
+		free(info);
+		return -1;
+	}
+
+	struct expr_node *length;
+	int own_length;
+
+	if (isdigit(**str)) {
+		/* string0 is string[retval], length is zero(retval)
+		 * stringN is string[argN], length is zero(argN) */
+		long l;
+		if (parse_int(str, &l) < 0
+		    || check_int(l) < 0)
+			goto fail;
+
+		struct expr_node *length_arg = malloc(sizeof(*length_arg));
+		if (length_arg == NULL)
+			goto fail;
+
+		if (l == 0)
+			expr_init_named(length_arg, "retval", 0);
+		else
+			expr_init_argno(length_arg, l - 1);
+
+		length = build_zero_w_arg(length_arg, 1);
+		if (length == NULL) {
+			expr_destroy(length_arg);
+			free(length_arg);
+			goto fail;
+		}
+		own_length = 1;
+
+	} else {
+		eat_spaces(str);
+		if (**str == '[') {
+			(*str)++;
+			eat_spaces(str);
+
+			length = parse_argnum(str, 1);
+			if (length == NULL)
+				goto fail;
+			own_length = 1;
+
+			eat_spaces(str);
+			parse_char(str, ']');
+
+		} else {
+			/* It was just a simple string after all.  */
+			length = expr_node_zero();
+			own_length = 0;
+		}
+	}
+
+	/* String is a pointer to array of chars.  */
+	type_init_string(info, length, own_length);
+
+	*retp = info;
+	return 0;
+}
+
+static int
+parse_alias(char **str, struct arg_type_info **retp, int *ownp)
+{
+	/* For backward compatibility, we need to support things like
+	 * stringN (which is like string[argN], string[N], and also
+	 * bare string.  We might, in theory, replace this by
+	 * preprocessing configure file sources with M4, but for now,
+	 * "string" is syntax.  */
+	if (strncmp(*str, "string", 6) == 0) {
+		(*str) += 6;
+		return parse_string(str, retp);
+
+	} else {
+		*retp = NULL;
+		return 0;
+	}
+}
+
 /* Syntax: enum ( keyname=value,keyname=value,... ) */
 static int
 parse_enum(char **str, struct arg_type_info *info)
@@ -530,6 +613,11 @@ parse_nonpointer_type(char **str) {
 	struct arg_type_info *simple;
 	struct arg_type_info *info;
 
+	int own;
+	if (parse_alias(str, &simple, &own) < 0)
+		return NULL;
+	if (simple != NULL)
+		return simple;
 	if (strncmp(*str, "typedef", 7) == 0) {
 		parse_typedef(str);
 		return lookup_prototype(ARGTYPE_UNKNOWN);
@@ -569,29 +657,6 @@ parse_nonpointer_type(char **str) {
 		parser = parse_enum;
 		break;
 
-	case ARGTYPE_STRING:
-		if (!isdigit(**str) && **str != '[') {
-			/* Oops, was just a simple string after all */
-			free(info);
-			return simple;
-		}
-
-		info->type = ARGTYPE_STRING_N;
-
-		/* Backwards compatibility for string0, string1, ... */
-		if (isdigit(**str)) {
-			info->u.string_n_info.length = parse_argnum(str, 1);
-			return info;
-		}
-
-		(*str)++;		// Skip past opening [
-		eat_spaces(str);
-		info->u.string_n_info.length = parse_argnum(str, 1);
-		eat_spaces(str);
-		(*str)++;		// Skip past closing ]
-		return info;
-
-	// Syntax: struct ( type,type,type,... )
 	case ARGTYPE_STRUCT:
 		parser = parse_struct;
 		break;
@@ -762,7 +827,7 @@ process_line(char *buf) {
 		assert(fun->num_params < allocd);
 		memcpy(&fun->params[fun->num_params++], extra_param,
 		       sizeof(*extra_param));
-        }
+	}
 
 	return fun;
 }
@@ -800,7 +865,6 @@ read_config_file(char *file) {
 	while (fgets(buf, 1024, stream)) {
 		Function *tmp;
 
-		error_count = 0;
 		tmp = process_line(buf);
 
 		if (tmp) {

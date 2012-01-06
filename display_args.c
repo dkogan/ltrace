@@ -145,7 +145,6 @@ format_char(FILE *stream, struct value *value, struct value_dict *arguments)
 	 * string, and we need to display quotes.  */
 	int quote = !(value->parent != NULL
 		      && (value->parent->type->type == ARGTYPE_ARRAY
-			  || value->parent->type->type == ARGTYPE_STRING
 			  || value->parent->type->type == ARGTYPE_STRING_N));
 	int written = 0;
 	if (quote && acc_fprintf(&written, stream, "'") < 0)
@@ -362,8 +361,7 @@ format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 	case ARGTYPE_STRING_N:
 		length = value->type->u.string_n_info.length;
 		/* fall-through */
-	case ARGTYPE_FORMAT:
-	case ARGTYPE_STRING: {
+	case ARGTYPE_FORMAT: {
 		/* Strings are in fact char pointers.  Smuggle in the
 		 * pointer here.  */
 

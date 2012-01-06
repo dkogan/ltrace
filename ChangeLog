@@ -1,5 +1,16 @@
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (enum arg_type): Drop ARGTYPE_STRING
+	* common.c, common.h (type_init_string): New function
+	* read_config_file.c (parse_string): New function, parses all the
+	string syntax that we support
+	(parse_alias): New function, dispatches to everything that has
+	non-obvious syntax
+	(parse_nonpointer_type): Call parse_alias.  Drop ARGTYPE_STRING
+	* display_args.c: Drop ARGTYPE_STRING
+
+2012-01-06  Petr Machata  <pmachata@redhat.com>
+
 	* display_args.c, type.c, type.h: Drop ARGTYPE_ADDR, ARGTYPE_FILE
 	* read_config_file.c: Likewise
 	(init_global_config): Add default typedefs for "file" and "addr"
