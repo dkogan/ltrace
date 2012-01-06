@@ -677,12 +677,23 @@ parse_nonpointer_type(char **str) {
 static struct arg_type_info *
 parse_type(char **str) {
 	struct arg_type_info *info = parse_nonpointer_type(str);
-	while (**str == '*') {
-		struct arg_type_info *outer = malloc(sizeof(*info));
-		outer->type = ARGTYPE_POINTER;
-		outer->u.ptr_info.info = info;
-		(*str)++;
-		info = outer;
+	if (info == NULL)
+		return NULL;
+
+	while (1) {
+		eat_spaces(str);
+		if (**str == '*') {
+			struct arg_type_info *outer = malloc(sizeof(*outer));
+			if (outer == NULL) {
+				report_error(filename, line_no,
+					     "malloc: %s", strerror(errno));
+				return NULL;
+			}
+			type_init_pointer(outer, info, 0);
+			(*str)++;
+			info = outer;
+		} else
+			break;
 	}
 	return info;
 }
