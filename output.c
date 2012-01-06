@@ -56,7 +56,8 @@ output_indent(struct Process *proc)
 }
 
 static void
-begin_of_line(enum tof type, Process *proc) {
+begin_of_line(Process *proc, int is_func, int indent)
+{
 	current_column = 0;
 	if (!proc) {
 		return;
@@ -112,15 +113,14 @@ begin_of_line(enum tof type, Process *proc) {
 		}
 	}
 	if (opt_i) {
-		if (type == LT_TOF_FUNCTION || type == LT_TOF_FUNCTIONR) {
+		if (is_func)
 			current_column += fprintf(options.output, "[%p] ",
 						  proc->return_addr);
-		} else {
+		else
 			current_column += fprintf(options.output, "[%p] ",
 						  proc->instruction_pointer);
-		}
 	}
-	if (options.indent > 0 && type != LT_TOF_NONE) {
+	if (options.indent > 0 && indent) {
 		output_indent(proc);
 	}
 }
@@ -166,7 +166,7 @@ output_line(Process *proc, char *fmt, ...) {
 	if (!fmt) {
 		return;
 	}
-	begin_of_line(LT_TOF_NONE, proc);
+	begin_of_line(proc, 0, 0);
 
 	va_start(args, fmt);
 	vfprintf(options.output, fmt, args);
@@ -201,7 +201,7 @@ output_left(enum tof type, struct Process *proc,
 	}
 	current_proc = proc;
 	current_depth = proc->callstack_depth;
-	begin_of_line(type, proc);
+	begin_of_line(type, type == LT_TOF_FUNCTION, 1);
 	if (!options.hide_caller && libsym->lib != NULL
 	    && libsym->plt_type != LS_TOPLT_NONE)
 		current_column += fprintf(options.output, "%s->",
@@ -319,7 +319,7 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 		current_proc = 0;
 	}
 	if (current_proc != proc) {
-		begin_of_line(type, proc);
+		begin_of_line(proc, type == LT_TOF_FUNCTIONR, 1);
 #ifdef USE_DEMANGLE
 		current_column +=
 		    fprintf(options.output, "<... %s resumed> ",

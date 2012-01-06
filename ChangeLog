@@ -1,5 +1,10 @@
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (enum tof.LT_TOF_NONE, .LT_TOF_STRUCT): Drop.
+	* output.c: Adjust.
+
+2012-01-06  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (save_register_args): Drop unused function.
 	(struct callstack_element.arch_ptr): Drop unused interface.
 	* sysdeps/linux-gnu/*/trace.c (save_register_args): Likewise.

@@ -51,12 +51,10 @@ extern char * command;
 extern int exiting;  /* =1 if we have to exit ASAP */
 
 enum tof {
-	LT_TOF_NONE = 0,
 	LT_TOF_FUNCTION,	/* A real library function */
 	LT_TOF_FUNCTIONR,	/* Return from a real library function */
 	LT_TOF_SYSCALL,		/* A syscall */
 	LT_TOF_SYSCALLR,	/* Return from a syscall */
-	LT_TOF_STRUCT		/* Not a function; read args from struct */
 };
 
 typedef struct Function Function;
