@@ -346,8 +346,6 @@ format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 	case ARGTYPE_POINTER:
 		if (value->type->u.array_info.elt_type->type != ARGTYPE_VOID)
 			return format_pointer(stream, value, arguments);
-	case ARGTYPE_ADDR:
-	case ARGTYPE_FILE:
 		return format_integer(stream, value, INT_FMT_x, arguments);
 
 	case ARGTYPE_ARRAY:

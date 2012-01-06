@@ -63,8 +63,6 @@ static struct list_of_pt_t {
 	"ushort", ARGTYPE_USHORT}, {
 	"float", ARGTYPE_FLOAT}, {
 	"double", ARGTYPE_DOUBLE}, {
-	"addr", ARGTYPE_ADDR}, {
-	"file", ARGTYPE_FILE}, {
 	"format", ARGTYPE_FORMAT}, {
 	"string", ARGTYPE_STRING}, {
 	"array", ARGTYPE_ARRAY}, {
@@ -88,8 +86,6 @@ static struct arg_type_info arg_type_prototypes[] = {
 	{ ARGTYPE_USHORT },
 	{ ARGTYPE_FLOAT },
 	{ ARGTYPE_DOUBLE },
-	{ ARGTYPE_ADDR },
-	{ ARGTYPE_FILE },
 	{ ARGTYPE_FORMAT },
 	{ ARGTYPE_STRING },
 	{ ARGTYPE_STRING_N },
@@ -774,6 +770,17 @@ process_line(char *buf) {
 void
 init_global_config(void)
 {
+	struct arg_type_info *info = malloc(2 * sizeof(*info));
+	if (info == NULL)
+		error(1, errno, "malloc in init_global_config");
+
+	memset(info, 0, 2 * sizeof(*info));
+	info[0].type = ARGTYPE_POINTER;
+	info[0].u.ptr_info.info = &info[1];
+	info[1].type = ARGTYPE_VOID;
+
+	insert_typedef(strdup("addr"), info, 0);
+	insert_typedef(strdup("file"), info, 1);
 }
 
 void

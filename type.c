@@ -49,8 +49,6 @@ type_get_simple(enum arg_type type)
 	HANDLE(ARGTYPE_FLOAT)
 	HANDLE(ARGTYPE_DOUBLE)
 
-	  HANDLE(ARGTYPE_ADDR)
-	  HANDLE(ARGTYPE_FILE)
 	  HANDLE(ARGTYPE_FORMAT)
 
 #undef HANDLE
@@ -319,8 +317,6 @@ type_destroy(struct arg_type_info *info)
 	case ARGTYPE_DOUBLE:
 		break;
 
-	case ARGTYPE_ADDR:
-	case ARGTYPE_FILE:
 	case ARGTYPE_FORMAT:
 	case ARGTYPE_STRING:
 	case ARGTYPE_COUNT:
@@ -433,8 +429,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 	case ARGTYPE_UNKNOWN:
 		return sizeof(long);
 
-	case ARGTYPE_ADDR:
-	case ARGTYPE_FILE:
 	case ARGTYPE_FORMAT:
 	case ARGTYPE_STRING:
 	case ARGTYPE_STRING_N:

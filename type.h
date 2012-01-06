@@ -39,8 +39,6 @@ enum arg_type {
 	ARGTYPE_USHORT,
 	ARGTYPE_FLOAT,		/* float value, may require index */
 	ARGTYPE_DOUBLE,		/* double value, may require index */
-	ARGTYPE_ADDR,
-	ARGTYPE_FILE,
 	ARGTYPE_FORMAT,		/* printf-like format */
 	ARGTYPE_STRING,		/* NUL-terminated string */
 	ARGTYPE_STRING_N,	/* String of known maxlen */
