@@ -36,6 +36,7 @@ libltrace_la_SOURCES = \
 	expr.c \
 	fetch.c \
 	vect.c \
+	param.c \
 	zero.c
 
 libltrace_la_LIBADD = \
@@ -80,6 +81,7 @@ noinst_HEADERS = \
 	expr.h \
 	fetch.h \
 	vect.h \
+	param.h \
 	zero.h
 
 dist_man1_MANS = \

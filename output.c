@@ -32,6 +32,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "common.h"
 #include "proc.h"
@@ -39,6 +40,7 @@
 #include "type.h"
 #include "value.h"
 #include "value_dict.h"
+#include "param.h"
 #include "fetch.h"
 
 /* TODO FIXME XXX: include in common.h: */
@@ -142,13 +144,23 @@ build_default_prototype(void)
 	ret->return_info = unknown_type;
 
 	ret->num_params = 4;
-	for (i = 0; i < (size_t)ret->num_params; ++i)
-		ret->arg_info[i] = unknown_type;
+	ret->params = malloc(sizeof(*ret->params) * ret->num_params);
+	if (ret->params == NULL)
+		goto err;
+
+	for (i = 0; i < ret->num_params; ++i)
+		param_init_type(&ret->params[i], unknown_type, 0);
 
 	return ret;
 
 err:
 	report_global_error("malloc: %s", strerror(errno));
+	if (ret->params != NULL) {
+		while (i-- > 0)
+			param_destroy(&ret->params[i]);
+		free(ret->params);
+	}
+
 	free(ret);
 
 	return NULL;
@@ -264,12 +276,76 @@ fetch_param_stop(struct value_dict *arguments, ssize_t *params_leftp)
 }
 
 static int
+fetch_param_pack(enum tof type, Process *proc, struct fetch_context *context,
+		 struct value_dict *arguments, struct param *param,
+		 ssize_t *params_leftp)
+{
+	struct param_enum *e = param_pack_init(param, arguments);
+	if (e == NULL)
+		return -1;
+
+	int ret = 0;
+	while (1) {
+		int insert_stop = 0;
+		struct arg_type_info *info = malloc(sizeof(*info));
+		if (info == NULL
+		    || param_pack_next(param, e, info, &insert_stop) < 0) {
+		fail:
+			free(info);
+			ret = -1;
+			break;
+		}
+
+		if (insert_stop)
+			fetch_param_stop(arguments, params_leftp);
+
+		if (info->type == ARGTYPE_VOID)
+			break;
+
+		struct value val;
+		if (fetch_simple_param(type, proc, context, arguments,
+				       info, &val) < 0)
+			goto fail;
+
+		int stop = 0;
+		switch (param_pack_stop(param, e, &val)) {
+		case PPCB_ERR:
+			goto fail;
+		case PPCB_STOP:
+			stop = 1;
+		case PPCB_CONT:
+			break;
+		}
+
+		if (stop)
+			break;
+	}
+
+	param_pack_done(param, e);
+	return ret;
+}
+
+static int
 fetch_one_param(enum tof type, Process *proc, struct fetch_context *context,
-		struct value_dict *arguments, struct arg_type_info *info,
+		struct value_dict *arguments, struct param *param,
 		ssize_t *params_leftp)
 {
-	return fetch_simple_param(type, proc, context, arguments,
-				  info, NULL);
+	switch (param->flavor) {
+	case PARAM_FLAVOR_TYPE:
+		return fetch_simple_param(type, proc, context, arguments,
+					  param->u.type.type, NULL);
+
+	case PARAM_FLAVOR_PACK:
+		return fetch_param_pack(type, proc, context, arguments,
+					param, params_leftp);
+
+	case PARAM_FLAVOR_STOP:
+		fetch_param_stop(arguments, params_leftp);
+		return 0;
+	}
+
+	assert(!"Invalid param flavor!");
+	abort();
 }
 
 static int
@@ -277,16 +353,14 @@ fetch_params(enum tof type, Process *proc, struct fetch_context *context,
 	     struct value_dict *arguments, Function *func, ssize_t *params_leftp)
 {
 	size_t i;
-	for (i = 0; i < (size_t)func->num_params; ++i) {
-		if (i == (size_t)(func->num_params - func->params_right))
-			fetch_param_stop(arguments, params_leftp);
+	for (i = 0; i < func->num_params; ++i)
 		if (fetch_one_param(type, proc, context, arguments,
-				    func->arg_info[i], params_leftp) < 0)
+				    &func->params[i], params_leftp) < 0)
 			return -1;
-	}
 
 	/* Implicit stop at the end of parameter list.  */
 	fetch_param_stop(arguments, params_leftp);
+
 	return 0;
 }
 
@@ -370,7 +444,8 @@ output_left(enum tof type, struct Process *proc,
 	    || output_params(arguments, 0, params_left, &need_delim) < 0) {
 		val_dict_destroy(arguments);
 		fetch_arg_done(context);
-		return;
+		arguments = NULL;
+		context = NULL;
 	}
 
 	struct callstack_element *stel
@@ -474,9 +549,12 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 	if (own_retval)
 		value_destroy(&retval);
 
-	val_dict_destroy(stel->arguments);
-	free(stel->arguments);
-	fetch_arg_done(context);
+	if (stel->arguments != NULL) {
+		val_dict_destroy(stel->arguments);
+		free(stel->arguments);
+	}
+	if (context != NULL)
+		fetch_arg_done(context);
 
 	if (opt_T) {
 		fprintf(options.output, " <%lu.%06d>",

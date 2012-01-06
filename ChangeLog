@@ -1,5 +1,15 @@
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
+	* param.c, param.h: New module
+	* common.h (struct Function.params): New field
+	(arg_info, params_right): Drop fields
+	* output.c (fetch_param_pack): New function
+	(fetch_one_param, fetch_params): Adapt to use of parameters
+	* read_config_file.c (add_param): New function
+	(process_line): Adapt to use of parameters
+
+2012-01-06  Petr Machata  <pmachata@redhat.com>
+
 	* zero.c, zero.h: New module
 	* read_config_file.c (parse_zero, wrap_in_zero): New functions
 	(parse_argnum): Support "zero" length

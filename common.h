@@ -53,10 +53,9 @@ extern int exiting;  /* =1 if we have to exit ASAP */
 typedef struct Function Function;
 struct Function {
 	const char * name;
+	struct param *params;
 	struct arg_type_info *return_info;
-	int num_params;
-	struct arg_type_info *arg_info[MAX_ARGS];
-	int params_right;
+	size_t num_params;
 	Function * next;
 };
 

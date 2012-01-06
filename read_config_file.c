@@ -26,13 +26,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <errno.h>
+#include <error.h>
 #include <assert.h>
 
 #include "common.h"
-#include "type.h"
+#include "output.h"
 #include "expr.h"
-#include "errno.h"
 #include "zero.h"
+#include "param.h"
+#include "type.h"
 
 static int line_no;
 static char *filename;
@@ -346,7 +349,7 @@ parse_argnum(char **str, int zero)
 				goto fail;
 			return ret;
 
- 		} else {
+		} else {
 			report_error(filename, line_no,
 				     "Unknown length specifier: '%s'", name);
 			goto fail;
@@ -627,27 +630,57 @@ parse_type(char **str) {
 	return info;
 }
 
+static int
+add_param(Function *fun, size_t *allocdp)
+{
+	size_t allocd = *allocdp;
+	/* XXX +1 is for the extra_param handling hack.  */
+	if ((fun->num_params + 1) >= allocd) {
+		allocd = allocd > 0 ? 2 * allocd : 8;
+		void *na = realloc(fun->params, sizeof(*fun->params) * allocd);
+		if (na == NULL)
+			return -1;
+
+		fun->params = na;
+		*allocdp = allocd;
+	}
+	return 0;
+}
+
 static Function *
 process_line(char *buf) {
-	Function fun;
-	Function *fun_p;
 	char *str = buf;
 	char *tmp;
-	int i;
-	int float_num = 0;
 
 	line_no++;
 	debug(3, "Reading line %d of `%s'", line_no, filename);
 	eat_spaces(&str);
-	fun.return_info = parse_type(&str);
-	if (fun.return_info == NULL)
+
+	/* A comment or empty line.  */
+	if (*str == ';' || *str == 0)
 		return NULL;
-	if (fun.return_info->type == ARGTYPE_UNKNOWN) {
+
+	if (strncmp(str, "typedef", 7) == 0) {
+		parse_typedef(&str);
+		return NULL;
+	}
+
+	Function *fun = calloc(1, sizeof(*fun));
+	if (fun == NULL) {
+		report_error(filename, line_no,
+			     "alloc function: %s", strerror(errno));
+		return NULL;
+	}
+
+	fun->return_info = parse_type(&str);
+	if (fun->return_info == NULL
+	    || fun->return_info->type == ARGTYPE_UNKNOWN) {
 	err:
 		debug(3, " Skipping line %d", line_no);
 		return NULL;
 	}
-	debug(4, " return_type = %d", fun.return_info->type);
+	debug(4, " return_type = %d", fun->return_info->type);
+
 	eat_spaces(&str);
 	tmp = start_of_arg_sig(str);
 	if (tmp == NULL) {
@@ -655,33 +688,60 @@ process_line(char *buf) {
 		goto err;
 	}
 	*tmp = '\0';
-	fun.name = strdup(str);
+	fun->name = strdup(str);
 	str = tmp + 1;
-	debug(3, " name = %s", fun.name);
-	fun.params_right = 0;
-	for (i = 0; i < MAX_ARGS; i++) {
+	debug(3, " name = %s", fun->name);
+
+	size_t allocd = 0;
+	fun->num_params = 0;
+	struct param *extra_param = NULL;
+
+	int have_stop = 0;
+
+	while (1) {
 		eat_spaces(&str);
-		if (*str == ')') {
+		if (*str == ')')
 			break;
-		}
+
 		if (str[0] == '+') {
-			fun.params_right++;
+			if (have_stop == 0) {
+				if (add_param(fun, &allocd) < 0)
+					goto add_err;
+				param_init_stop
+					(&fun->params[fun->num_params++]);
+				have_stop = 1;
+			}
 			str++;
-		} else if (fun.params_right) {
-			fun.params_right++;
 		}
-		fun.arg_info[i] = parse_type(&str);
-		if (fun.arg_info[i] == NULL) {
-			output_line(0, "Syntax error in `%s', line %d"
-					": unknown argument type",
-					filename, line_no);
-			error_count++;
-			return NULL;
+
+		if (add_param(fun, &allocd) < 0) {
+		add_err:
+			report_error(filename, line_no, "(re)alloc params: %s",
+				     strerror(errno));
+			goto err;
 		}
-		if (fun.arg_info[i]->type == ARGTYPE_FLOAT)
-			fun.arg_info[i]->u.float_info.float_index = float_num++;
-		else if (fun.arg_info[i]->type == ARGTYPE_DOUBLE)
-			fun.arg_info[i]->u.double_info.float_index = float_num++;
+
+		struct arg_type_info *type = parse_type(&str);
+		if (type == NULL) {
+			report_error(filename, line_no,
+				     "unknown argument type");
+			goto err;
+		}
+
+		/* XXX We used to allow void parameter as a synonym to
+		 * an argument that shouldn't be displayed.  We may
+		 * wish to re-introduce this when lenses are
+		 * implemented, as a synonym, but backends generally
+		 * need to know the type, so disallow bare void for
+		 * now.  */
+		if (type->type == ARGTYPE_VOID) {
+			report_warning(filename, line_no,
+				       "void parameter assumed to be 'int'");
+			type = type_get_simple(ARGTYPE_INT);
+		}
+
+		param_init_type(&fun->params[fun->num_params++], type, 0);
+
 		eat_spaces(&str);
 		if (*str == ',') {
 			str++;
@@ -696,14 +756,14 @@ process_line(char *buf) {
 			goto err;
 		}
 	}
-	fun.num_params = i;
-	fun_p = malloc(sizeof(Function));
-	if (!fun_p) {
-		perror("ltrace: malloc");
-		exit(1);
-	}
-	memcpy(fun_p, &fun, sizeof(Function));
-	return fun_p;
+
+	if (extra_param != NULL) {
+		assert(fun->num_params < allocd);
+		memcpy(&fun->params[fun->num_params++], extra_param,
+		       sizeof(*extra_param));
+        }
+
+	return fun;
 }
 
 void
