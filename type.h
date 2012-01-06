@@ -166,6 +166,4 @@ struct arg_type_info *type_element(struct arg_type_info *type, size_t elt);
 size_t type_offsetof(struct Process *proc,
 		     struct arg_type_info *type, size_t elt);
 
-struct arg_type_info *lookup_prototype(enum arg_type at);
-
 #endif /* TYPE_H */

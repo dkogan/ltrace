@@ -44,78 +44,51 @@ static struct arg_type_info *parse_type(char **str);
 
 Function *list_of_functions = NULL;
 
-/* Map of strings to type names. These do not need to be in any
- * particular order */
-static struct list_of_pt_t {
-	char *name;
-	enum arg_type pt;
-} list_of_pt[] = {
-	{
-	"void", ARGTYPE_VOID}, {
-	"int", ARGTYPE_INT}, {
-	"uint", ARGTYPE_UINT}, {
-	"long", ARGTYPE_LONG}, {
-	"ulong", ARGTYPE_ULONG}, {
-	"octal", ARGTYPE_OCTAL}, {
-	"char", ARGTYPE_CHAR}, {
-	"short", ARGTYPE_SHORT}, {
-	"ushort", ARGTYPE_USHORT}, {
-	"float", ARGTYPE_FLOAT}, {
-	"double", ARGTYPE_DOUBLE}, {
-	"format", ARGTYPE_FORMAT}, {
-	"string", ARGTYPE_STRING}, {
-	"array", ARGTYPE_ARRAY}, {
-	"struct", ARGTYPE_STRUCT}, {
-	"enum", ARGTYPE_ENUM}, {
-	NULL, ARGTYPE_UNKNOWN}	/* Must finish with NULL */
-};
+static int
+parse_arg_type(char **name, enum arg_type *ret)
+{
+	char *rest = NULL;
+	enum arg_type candidate = ARGTYPE_UNKNOWN;
 
-/* Array of prototype objects for each of the types. The order in this
- * array must exactly match the list of enumerated values in
- * common.h */
-static struct arg_type_info arg_type_prototypes[] = {
-	{ ARGTYPE_VOID },
-	{ ARGTYPE_INT },
-	{ ARGTYPE_UINT },
-	{ ARGTYPE_LONG },
-	{ ARGTYPE_ULONG },
-	{ ARGTYPE_OCTAL },
-	{ ARGTYPE_CHAR },
-	{ ARGTYPE_SHORT },
-	{ ARGTYPE_USHORT },
-	{ ARGTYPE_FLOAT },
-	{ ARGTYPE_DOUBLE },
-	{ ARGTYPE_FORMAT },
-	{ ARGTYPE_STRING },
-	{ ARGTYPE_STRING_N },
-	{ ARGTYPE_ARRAY },
-	{ ARGTYPE_ENUM },
-	{ ARGTYPE_STRUCT },
-	{ ARGTYPE_POINTER },
-	{ ARGTYPE_UNKNOWN }
-};
+#define KEYWORD(KWD, TYPE)						\
+	do {								\
+		if (strncmp(*name, KWD, sizeof(KWD) - 1) == 0) {	\
+			rest = *name + sizeof(KWD) - 1;			\
+			candidate = TYPE;				\
+			goto ok;					\
+		}							\
+	} while (0)
 
-struct arg_type_info *
-lookup_prototype(enum arg_type at) {
-	if (at >= 0 && at <= ARGTYPE_COUNT)
-		return &arg_type_prototypes[at];
-	else
-		return &arg_type_prototypes[ARGTYPE_COUNT]; /* UNKNOWN */
-}
+	KEYWORD("void", ARGTYPE_VOID);
+	KEYWORD("int", ARGTYPE_INT);
+	KEYWORD("uint", ARGTYPE_UINT);
+	KEYWORD("long", ARGTYPE_LONG);
+	KEYWORD("ulong", ARGTYPE_ULONG);
+	KEYWORD("octal", ARGTYPE_OCTAL);
+	KEYWORD("char", ARGTYPE_CHAR);
+	KEYWORD("short", ARGTYPE_SHORT);
+	KEYWORD("ushort", ARGTYPE_USHORT);
+	KEYWORD("float", ARGTYPE_FLOAT);
+	KEYWORD("double", ARGTYPE_DOUBLE);
+	KEYWORD("array", ARGTYPE_ARRAY);
+	KEYWORD("enum", ARGTYPE_ENUM);
+	KEYWORD("struct", ARGTYPE_STRUCT);
 
-static struct arg_type_info *
-str2type(char **str) {
-	struct list_of_pt_t *tmp = &list_of_pt[0];
+	/* XXX temporary.  */
+	KEYWORD("format", ARGTYPE_FORMAT);
 
-	while (tmp->name) {
-		if (!strncmp(*str, tmp->name, strlen(tmp->name))
-				&& index(" ,()#*;012345[", *(*str + strlen(tmp->name)))) {
-			*str += strlen(tmp->name);
-			return lookup_prototype(tmp->pt);
-		}
-		tmp++;
-	}
-	return lookup_prototype(ARGTYPE_UNKNOWN);
+	assert(rest == NULL);
+	return -1;
+
+#undef KEYWORD
+
+ok:
+	if (isalnum(*rest))
+		return -1;
+
+	*name = rest;
+	*ret = candidate;
+	return 0;
 }
 
 static void
@@ -624,36 +597,40 @@ parse_enum(char **str, struct arg_type_info *info)
 
 static struct arg_type_info *
 parse_nonpointer_type(char **str) {
-	struct arg_type_info *simple;
-	struct arg_type_info *info;
 
 	int own;
-	if (parse_alias(str, &simple, &own) < 0)
+	enum arg_type type;
+	if (parse_arg_type(str, &type) < 0) {
+		struct arg_type_info *simple;
+		if (parse_alias(str, &simple, &own) < 0)
+			return NULL;
+		if (simple == NULL)
+			simple = lookup_typedef(str);
+		if (simple != NULL) {
+			return simple;
+		}
+		report_error(filename, line_no,
+			     "unknown type around '%s'", *str);
 		return NULL;
-	if (simple != NULL)
-		return simple;
-	if (strncmp(*str, "typedef", 7) == 0) {
-		parse_typedef(str);
-		return lookup_prototype(ARGTYPE_UNKNOWN);
 	}
-
-	simple = str2type(str);
-	if (simple->type == ARGTYPE_UNKNOWN) {
-		info = lookup_typedef(str);
-		if (info)
-			return info;
-		else
-			return simple;		// UNKNOWN
-	}
-
-	info = malloc(sizeof(*info));
-	info->type = simple->type;
-
-	/* Code to parse parameterized types will go into the following
-	   switch statement. */
 
 	int (*parser) (char **, struct arg_type_info *) = NULL;
-	switch (info->type) {
+	/* For some types that's all we need.  */
+	switch (type) {
+	case ARGTYPE_UNKNOWN:
+	case ARGTYPE_VOID:
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_OCTAL:
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+	case ARGTYPE_FORMAT:
+		return type_get_simple(type);
 
 	case ARGTYPE_ARRAY:
 		parser = parse_array;
@@ -667,17 +644,25 @@ parse_nonpointer_type(char **str) {
 		parser = parse_struct;
 		break;
 
-	default:
-		if (info->type == ARGTYPE_UNKNOWN) {
-			output_line(0, "Syntax error in `%s', line %d: "
-					"Unknown type encountered",
-					filename, line_no);
-			free(info);
-			error_count++;
-			return NULL;
-		} else {
-			return info;
-		}
+	case ARGTYPE_STRING_N:
+		/* Strings are handled in aliases, to support
+		 * "stringN" syntax cleanly.  */
+		assert(type != ARGTYPE_STRING_N);
+		abort();
+
+	case ARGTYPE_POINTER:
+		/* Pointer syntax is not based on keyword, so we
+		 * should never get this type.  */
+		assert(type != ARGTYPE_POINTER);
+	case ARGTYPE_COUNT:
+		abort();
+	}
+
+	struct arg_type_info *info = malloc(sizeof(*info));
+	if (info == NULL) {
+		report_error(filename, line_no,
+			     "malloc: %s", strerror(errno));
+		return NULL;
 	}
 
 	assert(parser != NULL);
