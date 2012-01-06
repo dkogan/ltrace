@@ -55,6 +55,7 @@ struct Function {
 	const char * name;
 	struct param *params;
 	struct arg_type_info *return_info;
+	int own_return_info;
 	size_t num_params;
 	Function * next;
 };

@@ -1,5 +1,12 @@
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (struct Function.own_return_info): New field
+	* output.c (build_default_prototype): Initialize it
+	* read_config_file.c: Use it throughout.  Now that it's tracked,
+	also init other ownership bits properly.
+
+2012-01-06  Petr Machata  <pmachata@redhat.com>
+
 	* read_config_file.c (list_of_pt, arg_type_prototypes): Drop
 	(lookup_prototype, str2type): Drop
 	(parse_arg_type): New function, similar in spirit to str2type

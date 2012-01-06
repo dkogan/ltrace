@@ -142,6 +142,7 @@ build_default_prototype(void)
 	struct arg_type_info *unknown_type = type_get_simple(ARGTYPE_UNKNOWN);
 
 	ret->return_info = unknown_type;
+	ret->own_return_info = 0;
 
 	ret->num_params = 4;
 	ret->params = malloc(sizeof(*ret->params) * ret->num_params);

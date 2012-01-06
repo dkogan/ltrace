@@ -40,7 +40,7 @@
 static int line_no;
 static char *filename;
 
-static struct arg_type_info *parse_type(char **str);
+static struct arg_type_info *parse_type(char **str, int *ownp);
 
 Function *list_of_functions = NULL;
 
@@ -337,6 +337,7 @@ fail:
 struct typedef_node_t {
 	char *name;
 	struct arg_type_info *info;
+	int own_type;
 	struct typedef_node_t *next;
 } *typedefs = NULL;
 
@@ -365,6 +366,7 @@ insert_typedef(char *name, struct arg_type_info *info, int own_type)
 	struct typedef_node_t *binding = malloc(sizeof(*binding));
 	binding->name = name;
 	binding->info = info;
+	binding->own_type = own_type;
 	binding->next = typedefs;
 	typedefs = binding;
 	return binding;
@@ -388,9 +390,25 @@ parse_typedef(char **str) {
 	eat_spaces(str);
 
 	// Parse the type
-	info = parse_type(str);
+	int own;
+	info = parse_type(str, &own);
 
-	insert_typedef(name, info, 0);
+	insert_typedef(name, info, own);
+}
+
+static void
+destroy_fun(Function *fun)
+{
+	size_t i;
+	if (fun == NULL)
+		return;
+	if (fun->own_return_info) {
+		type_destroy(fun->return_info);
+		free(fun->return_info);
+	}
+	for (i = 0; i < fun->num_params; ++i)
+		param_destroy(&fun->params[i]);
+	free(fun->params);
 }
 
 /* Syntax: struct ( type,type,type,... ) */
@@ -417,8 +435,8 @@ parse_struct(char **str, struct arg_type_info *info)
 			parse_char(str, ',');
 
 		eat_spaces(str);
-		int own = 0;
-		struct arg_type_info *field = parse_type(str);
+		int own;
+		struct arg_type_info *field = parse_type(str, &own);
 		if (field == NULL || type_struct_add(info, field, own)) {
 			type_destroy(info);
 			return -1;
@@ -596,17 +614,17 @@ parse_enum(char **str, struct arg_type_info *info)
 }
 
 static struct arg_type_info *
-parse_nonpointer_type(char **str) {
-
-	int own;
+parse_nonpointer_type(char **str, int *ownp)
+{
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
 		struct arg_type_info *simple;
-		if (parse_alias(str, &simple, &own) < 0)
+		if (parse_alias(str, &simple, ownp) < 0)
 			return NULL;
 		if (simple == NULL)
 			simple = lookup_typedef(str);
 		if (simple != NULL) {
+			*ownp = 0;
 			return simple;
 		}
 		report_error(filename, line_no,
@@ -630,6 +648,7 @@ parse_nonpointer_type(char **str) {
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
 	case ARGTYPE_FORMAT:
+		*ownp = 0;
 		return type_get_simple(type);
 
 	case ARGTYPE_ARRAY:
@@ -664,8 +683,8 @@ parse_nonpointer_type(char **str) {
 			     "malloc: %s", strerror(errno));
 		return NULL;
 	}
+	*ownp = 1;
 
-	assert(parser != NULL);
 	if (parser(str, info) < 0) {
 		free(info);
 		return NULL;
@@ -675,8 +694,9 @@ parse_nonpointer_type(char **str) {
 }
 
 static struct arg_type_info *
-parse_type(char **str) {
-	struct arg_type_info *info = parse_nonpointer_type(str);
+parse_type(char **str, int *ownp)
+{
+	struct arg_type_info *info = parse_nonpointer_type(str, ownp);
 	if (info == NULL)
 		return NULL;
 
@@ -685,11 +705,16 @@ parse_type(char **str) {
 		if (**str == '*') {
 			struct arg_type_info *outer = malloc(sizeof(*outer));
 			if (outer == NULL) {
+				if (*ownp) {
+					type_destroy(info);
+					free(info);
+				}
 				report_error(filename, line_no,
 					     "malloc: %s", strerror(errno));
 				return NULL;
 			}
-			type_init_pointer(outer, info, 0);
+			type_init_pointer(outer, info, *ownp);
+			*ownp = 1;
 			(*str)++;
 			info = outer;
 		} else
@@ -740,11 +765,12 @@ process_line(char *buf) {
 		return NULL;
 	}
 
-	fun->return_info = parse_type(&str);
+	fun->return_info = parse_type(&str, &fun->own_return_info);
 	if (fun->return_info == NULL
 	    || fun->return_info->type == ARGTYPE_UNKNOWN) {
 	err:
 		debug(3, " Skipping line %d", line_no);
+		destroy_fun(fun);
 		return NULL;
 	}
 	debug(4, " return_type = %d", fun->return_info->type);
@@ -789,7 +815,8 @@ process_line(char *buf) {
 			goto err;
 		}
 
-		struct arg_type_info *type = parse_type(&str);
+		int own;
+		struct arg_type_info *type = parse_type(&str, &own);
 		if (type == NULL) {
 			report_error(filename, line_no,
 				     "unknown argument type");
@@ -805,10 +832,15 @@ process_line(char *buf) {
 		if (type->type == ARGTYPE_VOID) {
 			report_warning(filename, line_no,
 				       "void parameter assumed to be 'int'");
+			if (own) {
+				type_destroy(type);
+				free(type);
+			}
 			type = type_get_simple(ARGTYPE_INT);
+			own = 0;
 		}
 
-		param_init_type(&fun->params[fun->num_params++], type, 0);
+		param_init_type(&fun->params[fun->num_params++], type, own);
 
 		eat_spaces(&str);
 		if (*str == ',') {
