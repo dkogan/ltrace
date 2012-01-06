@@ -224,6 +224,19 @@ check_int(long l)
 	return 0;
 }
 
+static int
+parse_char(char **str, char expected)
+{
+	if (**str != expected) {
+		report_error(filename, line_no,
+			     "expected '%c', got '%c'", expected, **str);
+		return -1;
+	}
+
+	++*str;
+	return 0;
+}
+
 /*
  * Input:
  *  argN   : The value of argument #N, counting from 1
@@ -336,14 +349,8 @@ parse_typedef(char **str) {
 
 	// Skip = sign
 	eat_spaces(str);
-	if (**str != '=') {
-		output_line(0,
-				"Syntax error in `%s', line %d: expected '=', got '%c'",
-				filename, line_no, **str);
-		error_count++;
+	if (parse_char(str, '=') < 0)
 		return;
-	}
-	(*str)++;
 	eat_spaces(str);
 
 	// Parse the type
@@ -362,9 +369,8 @@ static int
 parse_struct(char **str, struct arg_type_info *info)
 {
 	eat_spaces(str);
-	if (**str != '(')
+	if (parse_char(str, '(') < 0)
 		return -1;
-	++*str;
 
 	eat_spaces(str); // Empty arg list with whitespace inside
 
@@ -373,13 +379,13 @@ parse_struct(char **str, struct arg_type_info *info)
 	while (1) {
 		eat_spaces(str);
 		if (**str == 0 || **str == ')') {
-			++*str;
+			parse_char(str, ')');
 			return 0;
 		}
 
 		/* Field delimiter.  */
 		if (type_struct_size(info) > 0)
-			++*str;
+			parse_char(str, ',');
 
 		eat_spaces(str);
 		int own = 0;
