@@ -70,14 +70,3 @@ gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 	}
 	return 0;
 }
-
-void
-save_register_args(enum tof type, Process *proc) {
-	proc_archdep *a = (proc_archdep *) proc->arch_ptr;
-	if (a->valid) {
-		if (type == LT_TOF_FUNCTION)
-			memcpy(a->func_arg, &a->regs.u_regs[UREG_G7], sizeof(a->func_arg));
-		else
-			memcpy(a->sysc_arg, &a->regs.u_regs[UREG_G7], sizeof(a->sysc_arg));
-	}
-}

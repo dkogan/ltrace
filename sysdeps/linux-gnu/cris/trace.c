@@ -71,7 +71,3 @@ long gimme_arg(enum tof type, Process *proc, int arg_num,
 	}
 	return 0;
 }
-
-void save_register_args(enum tof type, Process *proc)
-{
-}

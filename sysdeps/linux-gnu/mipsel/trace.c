@@ -176,19 +176,4 @@ gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 	return 0;
 }
 
-/**
-   \param type Type of call/return
-   \param proc Process to work with.
-
-   Called by \c output_left(), which is called on a syscall or
-   function.
-
-   The other architectures stub this out, but seems to be the place to
-   stash off the arguments on a call so we have them on the return.
-
-*/
-void
-save_register_args(enum tof type, Process *proc) {
-}
-
 /**@}*/

@@ -269,8 +269,6 @@ output_left(enum tof type, struct Process *proc,
 	struct callstack_element *stel
 		= &proc->callstack[proc->callstack_depth - 1];
 	stel->arguments = arguments;
-
-	save_register_args(type, proc);
 }
 
 void

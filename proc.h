@@ -72,7 +72,6 @@ struct callstack_element {
 	int is_syscall;
 	void * return_addr;
 	struct timeval time_spent;
-	void * arch_ptr;
 	struct value_dict *arguments;
 };
 

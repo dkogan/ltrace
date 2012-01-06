@@ -171,34 +171,11 @@ gimme_arg(enum tof type, Process *proc, int arg_num,
 		return -1;
 
 	if (type == LT_TOF_FUNCTIONR) {
-		if (arg_num == -1)
-			return gimme_retval(proc, arg_num, info,
-					    &arch->regs, &arch->fpregs);
-		else {
-			struct callstack_element *elem
-				= proc->callstack + proc->callstack_depth - 1;
-			callstack_achdep *csad = elem->arch_ptr;
-			assert(csad != NULL);
-			return gimme_arg_regset(proc, arg_num, info,
-						&csad->regs_copy,
-						&csad->fpregs_copy);
-		}
+		assert(arg_num == -1);
+		return gimme_retval(proc, arg_num, info,
+				    &arch->regs, &arch->fpregs);
 	}
 	else
 		return gimme_arg_regset(proc, arg_num, info,
 					&arch->regs, &arch->fpregs);
-}
-
-void
-save_register_args(enum tof type, Process *proc) {
-        proc_archdep *arch = (proc_archdep *)proc->arch_ptr;
-        if (arch == NULL || !arch->valid)
-                return;
-
-	callstack_achdep *csad = malloc(sizeof(*csad));
-	memset(csad, 0, sizeof(*csad));
-	memcpy(&csad->regs_copy, &arch->regs, sizeof(arch->regs));
-	memcpy(&csad->fpregs_copy, &arch->fpregs, sizeof(arch->fpregs));
-
-	proc->callstack[proc->callstack_depth - 1].arch_ptr = csad;
 }

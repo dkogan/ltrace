@@ -163,15 +163,6 @@ gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 					&arch->regs, &arch->fpregs);
 }
 
-void
-save_register_args(enum tof type, Process *proc) {
-	proc_archdep *arch = (proc_archdep *)proc->arch_ptr;
-	if (arch == NULL || !arch->valid)
-		return;
-
-	memcpy(&arch->regs_copy, &arch->regs, sizeof(arch->regs));
-	memcpy(&arch->fpregs_copy, &arch->fpregs, sizeof(arch->fpregs));
-}
 
 /* The atomic skip code is mostly taken from GDB.  */
 

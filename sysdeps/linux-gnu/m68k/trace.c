@@ -85,7 +85,3 @@ gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 
 	return 0;
 }
-
-void
-save_register_args(enum tof type, Process *proc) {
-}

@@ -144,7 +144,6 @@ extern void continue_after_breakpoint(struct Process *proc, struct breakpoint *s
 extern void continue_after_vfork(Process * proc);
 extern long gimme_arg(enum tof type, Process *proc, int arg_num,
 		      struct arg_type_info *info);
-extern void save_register_args(enum tof type, Process * proc);
 extern size_t umovebytes (Process *proc, void * addr, void * laddr, size_t count);
 extern int ffcheck(void * maddr);
 extern void * sym2addr(Process *, struct library_symbol *);
