@@ -27,6 +27,11 @@ void func_strfixed(char* p)
 	strcpy(p, "Hello world");
 }
 
+void func_string(char* p)
+{
+	printf("%s\n", p);
+}
+
 void func_ppp(int*** ppp)
 {
 	printf("%d\n", ***ppp);
@@ -132,4 +137,68 @@ void func_call (char *x, char* y, void (*cb) (char *))
 {
   cb (y);
   *x = (*y)++;
+}
+
+struct S2 {
+	float f;
+	char a;
+	char b;
+};
+
+struct S3 {
+	char a[6];
+	float f;
+};
+
+struct S2
+func_struct_2(int i, struct S3 s3, double d)
+{
+	return (struct S2){ s3.f, s3.a[1], s3.a[2] };
+}
+
+struct S4 {
+	long a;
+	long b;
+	long c;
+	long d;
+};
+
+struct S4
+func_struct_large(struct S4 a, struct S4 b)
+{
+	return (struct S4){ a.a + b.a, a.b + b.b, a.c + b.c, a.d + b.d };
+}
+
+struct S5 {
+	char a;
+	char b;
+	long c;
+	long d;
+};
+
+struct S5
+func_struct_large2(struct S5 a, struct S5 b)
+{
+	return (struct S5){ a.a + b.a, a.b + b.b, a.c + b.c, a.d + b.d };
+}
+
+struct S6 {
+	long a;
+	long b;
+	char c;
+	char d;
+};
+
+struct S6
+func_struct_large3(struct S6 a, struct S6 b)
+{
+	return (struct S6){ a.a + b.a, a.b + b.b, a.c + b.c, a.d + b.d };
+}
+
+void
+func_many_args(int a, int b, long c, double d, char e, int f, float g, char h,
+	       int i, double j, int k, double l, char m, int n, short o, int p,
+	       char q, float r, float s, double t, long u, float v, float w,
+	       float x, float y)
+{
 }

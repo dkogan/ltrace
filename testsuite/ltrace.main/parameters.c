@@ -59,6 +59,7 @@ main ()
 
   func_intptr_ret(&x);
 
+  func_string("zero\0xxxxxxxxxxxxxx");
   func_strlen(buf);
   printf("%s\n", buf);
 
@@ -132,6 +133,69 @@ main ()
     char y[10] = {};
     func_call(x, y, call_func_work);
   }
+
+  struct S2 {
+    float f;
+    char a;
+    char b;
+  };
+  struct S3 {
+    char a[6];
+    float f;
+  };
+  struct S2 func_struct_2(int, struct S3 s3, double d);
+  func_struct_2(17, (struct S3){ "ABCDE", 0.25 }, 0.5);
+
+  struct S4 {
+    long a;
+    long b;
+    long c;
+    long d;
+  };
+  struct S4 func_struct_large(struct S4 a, struct S4 b);
+  func_struct_large((struct S4){ 1, 2, 3, 4 }, (struct S4){ 5, 6, 7, 8 });
+
+  struct S5 {
+    char a;
+    char b;
+    long c;
+    long d;
+  };
+  struct S5 func_struct_large2(struct S5 a, struct S5 b);
+  func_struct_large2((struct S5){ '0', '1', 3, 4 }, (struct S5){ '2', '3', 7, 8 });
+
+  struct S6 {
+    long a;
+    long b;
+    char c;
+    char d;
+  };
+  struct S6 func_struct_large3(struct S6 a, struct S6 b);
+  func_struct_large3((struct S6){ 3, 4, '0', '1' }, (struct S6){ 7, 8 ,'2', '3' });
+
+  void func_many_args(int a, int b, long c, double d, char e, int f, float g,
+		      char h, int i, double j, int k, double l, char m, int n,
+		      short o, int p, char q, float r, float s, double t,
+		      long u, float v, float w, float x, float y);
+  func_many_args(1, 2, 3, 4.0, '5', 6, 7.0,
+		 '8', 9, 10.0, 11, 12.0, 'A', 14,
+		 15, 16, 'B', 18.0, 19.0, 20.0,
+		 21, 22.0, 23.0, 24.0, 25.0);
+
+  printf("sotnuh %d %ld %g %c\n", 5, 6L, 1.5, 'X');
+  printf("sotnuh1 %d %ld %hd\n", 5, 6L, (short)7);
+  printf("sotnuh2 %s %10s %10s\n", "a string", "a trimmed string", "short");
+  printf("many_args"
+	 "%d %d %ld %g %c %d %g "
+	 "%c %d %g %d %g %c %d "
+	 "%hd %d %c %g %g %g "
+	 "%ld %g %g %g %g",
+	 1, 2, 3, 4.0, '5', 6, 7.0,
+	 '8', 9, 10.0, 11, 12.0, 'A', 14,
+	 (short)15, 16, 'B', 18.0, 19.0, 20.0,
+	 21L, 22.0, 23.0, 24.0, 25.0);
+
+  printf("sotnuh3 %*s\n", 4, "a trimmed string");
 
   return 0;
 }

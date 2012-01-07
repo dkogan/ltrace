@@ -36,6 +36,7 @@ if [regexp {ELF from incompatible architecture} $exec_output] {
 }
 
 set xfail_spec {"arm*-*" "i*86-*"}
+set xfail_spec_arm {"arm*-*"}
 
 # Verify the output
 set pattern "func_intptr(17)"
@@ -49,6 +50,8 @@ ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_ppp(80)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_stringp(\\\"Dude\\\")"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+set pattern "func_string(\\\"zero\\\")"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_enum(BLUE)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
@@ -79,6 +82,35 @@ set pattern "func_call( <unfinished ...>"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_work(\\\"x\\\")"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-eval "setup_xfail $xfail_spec"
+set pattern "func_struct_2(17, { \\\"ABCDE\\\\\\\\0\\\", 0.250* }, 0.50*).*= { 0.250*, 'B', 'C' }"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+eval "setup_xfail $xfail_spec_arm"
 set pattern "<... func_call resumed> \\\"x\\\", \\\"y\\\")"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_struct_large({ 1, 2, 3, 4 }, { 5, 6, 7, 8 }).*= { 6, 8, 10, 12 }"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_struct_large2({ '0', '1', 3, 4 }, { '2', '3', 7, 8 }).*= { 'b', 'd', 10, 12 }"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_struct_large3({ 3, 4, '0', '1' }, { 7, 8, '2', '3' }).*= { 10, 12, 'b', 'd' }"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_many_args(1, 2, 3, 4.00*, '5', 6, 7.00*, '8', 9, 10.00*, 11, 12.00*, 'A', 14, 15, 16, 'B', 18.00*, 19.00*, 20.00*, 21, 22.00*, 23.00*, 24.00*, 25.00*)"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "printf(\\\"sotnuh %d %ld %g %c.n\\\", 5, 6, 1.500*, 'X')"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "printf(\\\"sotnuh1 %d %ld %hd.n\\\", 5, 6, 7)"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "printf(\\\"sotnuh2 %s %10s %10s.n\\\", \\\"a string\\\", \\\"a trimmed \\\", \\\"short\\\")"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "printf(\\\"sotnuh3 %.s.n\\\", 4, \\\"a tr\\\")"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "printf(\\\"many_args%d %d %ld %g %c %d %g .*, 1, 2, 3, 4.00*, '5', 6, 7.00*, '8', 9, 10.00*, 11, 12.00*, 'A', 14, 15, 16, 'B', 18.00*, 19.00*, 20.00*, 21, 22.00*, 23.00*, 24.00*, 25.00*)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
