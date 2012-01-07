@@ -397,6 +397,8 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 			return (size_t)-1;
 		return size;
 
+	case ARGTYPE_STRING_N:
+		/* String is a char* in disguise.  */
 	case ARGTYPE_POINTER:
 		return sizeof(void *);
 
@@ -430,9 +432,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 	case ARGTYPE_OCTAL:
 	case ARGTYPE_UNKNOWN:
 		return sizeof(long);
-
-	case ARGTYPE_STRING_N:
-		return -1;
 	}
 
 	abort();

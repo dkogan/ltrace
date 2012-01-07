@@ -311,8 +311,7 @@ int
 format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 {
 	switch (value->type->type) {
-		struct value tmp;
-		struct arg_type_info info[2];
+		struct value *tmp;
 		int ret;
 
 	case ARGTYPE_VOID:
@@ -362,21 +361,11 @@ format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 				    options.strlen, 0, "\"", "\"", "");
 
 	case ARGTYPE_STRING_N:
-		/* Strings are in fact char pointers.  Smuggle in the
-		 * pointer here.  */
-
-		type_init_array(&info[1], type_get_simple(ARGTYPE_CHAR), 0,
-				value->type->u.string_n_info.length, 0);
-		type_init_pointer(&info[0], &info[1], 0);
-
-		value_clone(&tmp, value);
-		value_set_type(&tmp, info, 0);
-
-		ret = format_argument(stream, &tmp, arguments);
-
-		value_destroy(&tmp);
-		type_destroy(&info[0]);
-		type_destroy(&info[1]);
+		tmp = value_string_to_charp(value);
+		if (tmp == NULL)
+			return -1;
+		ret = format_argument(stream, tmp, arguments);
+		value_destroy(tmp);
 		return ret;
 
 	case ARGTYPE_ENUM:
