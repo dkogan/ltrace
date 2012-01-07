@@ -34,12 +34,12 @@
 #include <string.h>
 #include <sys/time.h>
 
-#include "common.h"
-#include "value_dict.h"
+#include "backend.h"
 #include "breakpoint.h"
 #include "library.h"
 #include "proc.h"
 #include "fetch.h"
+#include "value_dict.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);

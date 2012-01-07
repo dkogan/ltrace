@@ -1,3 +1,30 @@
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2006,2010,2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2010 Zachary T Welch, CodeSourcery
+ * Copyright (C) 2010 Joe Damato
+ * Copyright (C) 1997,1998,2001,2004,2007,2008,2009 Juan Cespedes
+ * Copyright (C) 2006 Olaf Hering, SUSE Linux GmbH
+ * Copyright (C) 2006 Eric Vaitl, Cisco Systems, Inc.
+ * Copyright (C) 2006 Paul Gilliam, IBM Corporation
+ * Copyright (C) 2006 Ian Wienand
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #include "config.h"
 
 #include <assert.h>
@@ -15,10 +42,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "common.h"
 #include "proc.h"
 #include "library.h"
 #include "filter.h"
+#include "backend.h"
 
 #ifdef PLT_REINITALISATION_BP
 extern char *PLTs_initialized_by_here;

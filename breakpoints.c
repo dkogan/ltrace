@@ -10,9 +10,9 @@
 #endif
 
 #include "breakpoint.h"
-#include "common.h"
 #include "proc.h"
 #include "library.h"
+#include "backend.h"
 
 #ifndef ARCH_HAVE_TRANSLATE_ADDRESS
 int

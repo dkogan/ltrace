@@ -26,6 +26,7 @@
 #include "type.h"
 #include "common.h"
 #include "expr.h"
+#include "backend.h"
 
 static void
 value_common_init(struct value *valp, struct Process *inferior,

@@ -14,7 +14,9 @@
 #include <pwd.h>
 #include <grp.h>
 
-#include "common.h"
+#include "backend.h"
+#include "options.h"
+#include "debug.h"
 
 static void
 change_uid(const char * command)

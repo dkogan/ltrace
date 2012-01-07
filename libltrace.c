@@ -33,6 +33,7 @@
 #include "common.h"
 #include "proc.h"
 #include "read_config_file.h"
+#include "backend.h"
 
 char *command = NULL;
 

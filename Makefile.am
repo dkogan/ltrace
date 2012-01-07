@@ -62,6 +62,7 @@ ltrace_LDADD = \
 
 
 noinst_HEADERS = \
+	backend.h \
 	common.h \
 	debug.h \
 	defs.h \

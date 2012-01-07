@@ -1,5 +1,12 @@
 2012-01-07  Petr Machata  <pmachata@redhat.com>
 
+	* backend.h: New file
+	* sysdeps/README: Point to backend.h
+	* common.h: Move a lot of functions to backend.h, add comments
+	describing the interfaces
+
+2012-01-07  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (enum ecb_status, each_qd_event, enque_event): Move...
 	* sysdeps/linux-gnu/events.h: ... here (new file)
 	* common.h (process_removed): New callback
