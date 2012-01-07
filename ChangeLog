@@ -1,3 +1,13 @@
+2012-01-07  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (enum ecb_status, each_qd_event, enque_event): Move...
+	* sysdeps/linux-gnu/events.h: ... here (new file)
+	* common.h (process_removed): New callback
+	* sysdeps/linux-gnu/events.c: Implement it here
+	* proc.c (remove_process): Call it here
+	(delete_events_for, event_for_proc): Move...
+	* sysdeps/linux-gnu/events.c: ... here
+
 2012-01-06  Petr Machata  <pmachata@redhat.com>
 
 	* printf.c, printf.h: New file with support for functions with

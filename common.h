@@ -86,17 +86,7 @@ enum process_status {
 };
 
 /* Events  */
-enum ecb_status {
-	ecb_cont, /* The iteration should continue.  */
-	ecb_yield, /* The iteration should stop, yielding this
-		    * event.  */
-	ecb_deque, /* Like ecb_stop, but the event should be removed
-		    * from the queue.  */
-};
 extern Event * next_event(void);
-extern Event * each_qd_event(enum ecb_status (* cb)(Event * event, void * data),
-			     void * data);
-extern void enque_event(Event * event);
 extern void handle_event(Event * event);
 
 extern pid_t execute_program(const char * command, char ** argv);
@@ -202,5 +192,8 @@ void arch_dynlink_done(struct Process *proc);
  * failure.  */
 int format_argument(FILE *stream, struct value *value,
 		    struct value_dict *arguments);
+
+/* Called when process PROC was removed.  */
+void process_removed(struct Process *proc);
 
 #endif

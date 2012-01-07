@@ -570,23 +570,6 @@ clear_leader(struct Process *proc, void *data)
 	return CBS_CONT;
 }
 
-static enum ecb_status
-event_for_proc(Event * event, void * data)
-{
-	if (event->proc == data)
-		return ecb_deque;
-	else
-		return ecb_cont;
-}
-
-static void
-delete_events_for(Process * proc)
-{
-	Event * event;
-	while ((event = each_qd_event(&event_for_proc, proc)) != NULL)
-		free(event);
-}
-
 void
 remove_process(Process *proc)
 {
@@ -596,7 +579,7 @@ remove_process(Process *proc)
 		each_task(proc, NULL, &clear_leader, NULL);
 
 	unlist_process(proc);
-	delete_events_for(proc);
+	process_removed(proc);
 	process_destroy(proc);
 	free(proc);
 }

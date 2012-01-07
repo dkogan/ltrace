@@ -14,6 +14,7 @@
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
+#include "events.h"
 
 static Event event;
 
@@ -310,4 +311,21 @@ next_event(void)
 	debug(DEBUG_EVENT, "event: BREAKPOINT: pid=%d, addr=%p", pid, event.e_un.brk_addr);
 
 	return &event;
+}
+
+static enum ecb_status
+event_for_proc(struct Event *event, void *data)
+{
+	if (event->proc == data)
+		return ecb_deque;
+	else
+		return ecb_cont;
+}
+
+void
+delete_events_for(struct Process *proc)
+{
+	struct Event *event;
+	while ((event = each_qd_event(&event_for_proc, proc)) != NULL)
+		free(event);
 }

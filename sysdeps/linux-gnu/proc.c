@@ -15,10 +15,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "config.h"
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
 #include "library.h"
+#include "events.h"
 
 /* /proc/pid doesn't exist just after the fork, and sometimes `ltrace'
  * couldn't open it to find the executable.  So it may be necessary to
@@ -587,4 +589,10 @@ task_kill (pid_t pid, int sig)
         errno = 0;
         ret = syscall (__NR_tkill, pid, sig);
 	return ret;
+}
+
+void
+process_removed(struct Process *proc)
+{
+	delete_events_for(proc);
 }

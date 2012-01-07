@@ -29,7 +29,8 @@ noinst_HEADERS = \
 	arch_syscallent.h \
 	signalent1.h \
 	syscallent1.h \
-	trace.h
+	trace.h \
+	events.h
 
 EXTRA_DIST = \
 	arch_mksyscallent \

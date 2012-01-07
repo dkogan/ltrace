@@ -20,6 +20,7 @@
 #include "proc.h"
 #include "linux-gnu/trace.h"
 #include "type.h"
+#include "events.h"
 
 /* If the system headers did not provide the constants, hard-code the normal
    values.  */
