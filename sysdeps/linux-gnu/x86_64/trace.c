@@ -112,6 +112,10 @@ gimme_arg32(enum tof type, Process *proc, int arg_num) {
 	exit(1);
 }
 
+static unsigned f_index;
+static unsigned i_index;
+static unsigned s_index;
+
 static long
 gimme_arg_regset(Process *proc, int arg_num, struct arg_type_info *info,
                  struct user_regs_struct *regs,
@@ -124,30 +128,40 @@ gimme_arg_regset(Process *proc, int arg_num, struct arg_type_info *info,
 		double dval;
 	} cvt;
 
-        if (info->type == ARGTYPE_FLOAT || info->type == ARGTYPE_DOUBLE) {
-		memcpy(cvt.sse, fpregs->xmm_space + 4*arg_num,
-		       sizeof(cvt.sse));
-		return cvt.lval;
+	if (arg_num == 0) {
+		f_index = 0;
+		i_index = 0;
+		s_index = 0;
 	}
 
-	switch (arg_num) {
-	case 0:
-		return regs->rdi;
-	case 1:
-		return regs->rsi;
-	case 2:
-		return regs->rdx;
-	case 3:
-		return regs->rcx;
-	case 4:
-		return regs->r8;
-	case 5:
-		return regs->r9;
-	default:
-		return ptrace(PTRACE_PEEKTEXT, proc->pid,
-			      proc->stack_pointer + 8 * (arg_num - 6 + 1), 0);
+        if (info->type == ARGTYPE_FLOAT || info->type == ARGTYPE_DOUBLE) {
+		if (f_index < 8) {
+			memcpy(cvt.sse, fpregs->xmm_space + 4 * f_index++,
+			       sizeof(cvt.sse));
+			return cvt.lval;
+		}
+
+	} else if (i_index < 6) {
+		switch (i_index++) {
+		case 0:
+			return regs->rdi;
+		case 1:
+			return regs->rsi;
+		case 2:
+			return regs->rdx;
+		case 3:
+			return regs->rcx;
+		case 4:
+			return regs->r8;
+		case 5:
+			return regs->r9;
+		}
 	}
+
+	return ptrace(PTRACE_PEEKTEXT, proc->pid,
+		      proc->stack_pointer + 8 * ++s_index, 0);
 }
+
 static long
 gimme_retval(Process *proc, int arg_num, struct arg_type_info *info,
              struct user_regs_struct *regs, struct user_fpregs_struct *fpregs)
