@@ -25,6 +25,7 @@
 #include "type.h"
 #include "sysdep.h"
 #include "expr.h"
+#include "lens.h"
 
 struct arg_type_info *
 type_get_simple(enum arg_type type)
@@ -62,6 +63,14 @@ type_get_simple(enum arg_type type)
 	abort();
 }
 
+static void
+type_init_common(struct arg_type_info *info, enum arg_type type)
+{
+	info->type = type;
+	info->lens = NULL;
+	info->own_lens = 0;
+}
+
 struct enum_entry {
 	char *key;
 	int own_key;
@@ -71,7 +80,7 @@ struct enum_entry {
 void
 type_init_enum(struct arg_type_info *info)
 {
-	info->type = ARGTYPE_ENUM;
+	type_init_common(info, ARGTYPE_ENUM);
 	VECT_INIT(&info->u.entries, struct enum_entry);
 }
 
@@ -127,7 +136,7 @@ struct struct_field {
 void
 type_init_struct(struct arg_type_info *info)
 {
-	info->type = ARGTYPE_STRUCT;
+	type_init_common(info, ARGTYPE_STRUCT);
 	VECT_INIT(&info->u.entries, struct struct_field);
 }
 
@@ -229,7 +238,7 @@ type_init_array(struct arg_type_info *info,
 		struct arg_type_info *element_info, int own_info,
 		struct expr_node *length_expr, int own_length)
 {
-	info->type = ARGTYPE_ARRAY;
+	type_init_common(info, ARGTYPE_ARRAY);
 	info->u.array_info.elt_type = element_info;
 	info->u.array_info.own_info = own_info;
 	info->u.array_info.length = length_expr;
@@ -240,7 +249,7 @@ void
 type_init_string(struct arg_type_info *info,
 		 struct expr_node *length_expr, int own_length)
 {
-	info->type = ARGTYPE_STRING_N;
+	type_init_common(info, ARGTYPE_STRING_N);
 	info->u.string_n_info.length = length_expr;
 	info->u.string_n_info.own_length = own_length;
 }
@@ -271,7 +280,7 @@ void
 type_init_pointer(struct arg_type_info *info,
 		  struct arg_type_info *pointee_info, int own_info)
 {
-	info->type = ARGTYPE_POINTER;
+	type_init_common(info, ARGTYPE_POINTER);
 	info->u.ptr_info.info = pointee_info;
 	info->u.ptr_info.own_info = own_info;
 }
@@ -293,7 +302,8 @@ type_destroy(struct arg_type_info *info)
 
 	switch (info->type) {
 	case ARGTYPE_ENUM:
-		return type_enum_destroy(info);
+		type_enum_destroy(info);
+		break;
 
 	case ARGTYPE_STRUCT:
 		type_struct_destroy(info);
@@ -323,6 +333,11 @@ type_destroy(struct arg_type_info *info)
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
 		break;
+	}
+
+	if (info->own_lens) {
+		lens_destroy(info->lens);
+		free(info->lens);
 	}
 }
 

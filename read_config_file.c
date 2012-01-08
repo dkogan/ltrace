@@ -37,11 +37,17 @@
 #include "printf.h"
 #include "zero.h"
 #include "type.h"
+#include "lens.h"
 
 static int line_no;
 static char *filename;
 
+static struct arg_type_info *parse_nonpointer_type(char **str,
+						   struct param **extra_param,
+						   size_t param_num, int *ownp);
 static struct arg_type_info *parse_type(char **str, struct param **extra_param,
+					size_t param_num, int *ownp);
+static struct arg_type_info *parse_lens(char **str, struct param **extra_param,
 					size_t param_num, int *ownp);
 
 Function *list_of_functions = NULL;
@@ -435,7 +441,7 @@ parse_struct(char **str, struct arg_type_info *info)
 
 		eat_spaces(str);
 		int own;
-		struct arg_type_info *field = parse_type(str, NULL, 0, &own);
+		struct arg_type_info *field = parse_lens(str, NULL, 0, &own);
 		if (field == NULL || type_struct_add(info, field, own)) {
 			type_destroy(info);
 			return -1;
@@ -540,6 +546,26 @@ build_printf_pack(struct param **packp, size_t param_num)
 	return 0;
 }
 
+/* Make a copy of INFO and set the *OWN bit if it's not already
+ * owned.  */
+static int
+unshare_type_info(struct arg_type_info **infop, int *ownp)
+{
+	if (*ownp)
+		return 0;
+
+	struct arg_type_info *ninfo = malloc(sizeof(*ninfo));
+	if (ninfo == NULL) {
+		report_error(filename, line_no,
+			     "malloc: %s", strerror(errno));
+		return -1;
+	}
+	*ninfo = **infop;
+	*infop = ninfo;
+	*ownp = 1;
+	return 0;
+}
+
 /* XXX extra_param and param_num are a kludge to get in
  * backward-compatible support for "format" parameter type.  The
  * latter is only valid if the former is non-NULL, which is only in
@@ -586,7 +612,7 @@ parse_array(char **str, struct arg_type_info *info)
 
 	eat_spaces(str);
 	int own;
-	struct arg_type_info *elt_info = parse_type(str, NULL, 0, &own);
+	struct arg_type_info *elt_info = parse_lens(str, NULL, 0, &own);
 	if (elt_info == NULL)
 		return -1;
 
@@ -742,6 +768,28 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 	return info;
 }
 
+static struct named_lens {
+	const char *name;
+	struct lens *lens;
+} lenses[] = {
+};
+
+static struct lens *
+name2lens(char **str, int *own_lensp)
+{
+	char *str2 = *str;
+	char *ident = parse_ident(&str2);
+	size_t i;
+	for (i = 0; i < sizeof(lenses)/sizeof(*lenses); ++i)
+		if (strcmp(ident, lenses[i].name) == 0) {
+			*str = str2;
+			*own_lensp = 0;
+			return lenses[i].lens;
+		}
+
+	return NULL;
+}
+
 static struct arg_type_info *
 parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp)
 {
@@ -770,6 +818,52 @@ parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp)
 		} else
 			break;
 	}
+	return info;
+}
+
+static struct arg_type_info *
+parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp)
+{
+	int own_lens;
+	struct lens *lens = name2lens(str, &own_lens);
+	int has_args = 1;
+	struct arg_type_info *info;
+	if (lens != NULL) {
+		eat_spaces(str);
+
+		if (parse_char(str, '(') < 0) {
+			report_error(filename, line_no,
+				     "expected type argument after the lens");
+			return NULL;
+		}
+	}
+
+	if (has_args) {
+		eat_spaces(str);
+		info = parse_type(str, extra_param, param_num, ownp);
+		if (info == NULL) {
+		fail:
+			if (own_lens && lens != NULL)
+				lens_destroy(lens);
+			return NULL;
+		}
+	}
+
+	if (lens != NULL && has_args) {
+		eat_spaces(str);
+		parse_char(str, ')');
+	}
+
+	/* We can't modify shared types.  Make a copy if we have a
+	 * lens.  */
+	if (lens != NULL && unshare_type_info(&info, ownp) < 0)
+		goto fail;
+
+	if (lens != NULL) {
+		info->lens = lens;
+		info->own_lens = own_lens;
+	}
+
 	return info;
 }
 
@@ -815,7 +909,7 @@ process_line(char *buf) {
 		return NULL;
 	}
 
-	fun->return_info = parse_type(&str, NULL, 0, &fun->own_return_info);
+	fun->return_info = parse_lens(&str, NULL, 0, &fun->own_return_info);
 	if (fun->return_info == NULL
 	    || fun->return_info->type == ARGTYPE_UNKNOWN) {
 	err:
@@ -866,7 +960,7 @@ process_line(char *buf) {
 		}
 
 		int own;
-		struct arg_type_info *type = parse_type(&str, &extra_param,
+		struct arg_type_info *type = parse_lens(&str, &extra_param,
 							fun->num_params, &own);
 		if (type == NULL) {
 			report_error(filename, line_no,

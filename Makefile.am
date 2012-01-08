@@ -17,7 +17,6 @@ libltrace_la_SOURCES = \
 	debug.c \
 	demangle.c \
 	dict.c \
-	display_args.c \
 	ltrace-elf.c \
 	execute_program.c \
 	handle_event.c \
@@ -38,7 +37,9 @@ libltrace_la_SOURCES = \
 	vect.c \
 	param.c \
 	printf.c \
-	zero.c
+	zero.c \
+	lens.c \
+	lens_default.c
 
 libltrace_la_LIBADD = \
 	$(libelf_LIBS) \
@@ -85,7 +86,9 @@ noinst_HEADERS = \
 	vect.h \
 	param.h \
 	printf.h \
-	zero.h
+	zero.h \
+	lens.h \
+	lens_default.h
 
 dist_man1_MANS = \
 	ltrace.1

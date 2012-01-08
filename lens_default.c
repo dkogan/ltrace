@@ -28,8 +28,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "common.h"
 #include "proc.h"
+#include "lens_default.h"
 #include "value.h"
 #include "expr.h"
 #include "type.h"
@@ -71,7 +71,7 @@ READER(read_double, double)
 		case INT_FMT_u:						\
 			return fprintf(stream, "%"PRIu##BITS, i);	\
 		case INT_FMT_o:						\
-			return fprintf(stream, "%"PRIo##BITS, i);	\
+			return fprintf(stream, "0%"PRIo##BITS, i);	\
 		}							\
 	} while (0)
 
@@ -271,7 +271,7 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 	/* We need "long" to be long enough to cover the whole address
 	 * space.  */
 	typedef char assert__long_enough_long[-(sizeof(long) < sizeof(void *))];
-	long l = options.strlen;
+	long l;
 	if (expr_eval_word(length, value, arguments, &l) < 0)
 		return -1;
 	size_t len = (size_t)l;
@@ -307,8 +307,9 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 	return written;
 }
 
-int
-format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
+static int
+toplevel_format_lens(struct lens *lens, FILE *stream,
+		     struct value *value, struct value_dict *arguments)
 {
 	switch (value->type->type) {
 		struct value *tmp;
@@ -373,3 +374,14 @@ format_argument(FILE *stream, struct value *value, struct value_dict *arguments)
 	}
 	abort();
 }
+
+static int
+default_lens_format_cb(struct lens *lens, FILE *stream,
+		       struct value *value, struct value_dict *arguments)
+{
+	return toplevel_format_lens(lens, stream, value, arguments);
+}
+
+struct lens default_lens = {
+	.format_cb = default_lens_format_cb,
+};

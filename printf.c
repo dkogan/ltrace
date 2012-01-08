@@ -186,6 +186,7 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 	enum arg_type elt_type = ARGTYPE_UNKNOWN;
 	char len_buf[25] = {};
 	size_t len_buf_len = 0;
+	struct lens *lens = NULL;
 
 	for (; self->ptr < self->end; ++self->ptr) {
 		if (!self->percent) {
@@ -320,6 +321,9 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 		if (form_next_param(self, format_type, elt_type, hlf, lng,
 				    len_buf, len_buf_len, infop) < 0)
 			return -1;
+
+		infop->lens = lens;
+		infop->own_lens = 0;
 
 		return 0;
 	}

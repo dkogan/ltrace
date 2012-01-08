@@ -71,6 +71,9 @@ struct arg_type_info {
 			int own_info:1;
 		} ptr_info;
 	} u;
+
+	struct lens *lens;
+	int own_lens;
 };
 
 /* Return a type info for simple type TYPE (which shall not be array,

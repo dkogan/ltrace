@@ -1,3 +1,12 @@
+2012-01-08  Petr Machata  <pmachata@redhat.com>
+
+	* lens.c, lens.h: New module
+	* display_args.c: Move this code...
+	* lens_default.c, lens_default.h: ... here
+	* read_config_file.c
+	(unshare_type_info, name2lens, parse_lens): New functions
+	* type.c, type.h: Add lenses throughout
+
 2012-01-07  Petr Machata  <pmachata@redhat.com>
 
 	* backend.h: New file
