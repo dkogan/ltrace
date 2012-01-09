@@ -56,7 +56,7 @@ static int
 parse_arg_type(char **name, enum arg_type *ret)
 {
 	char *rest = NULL;
-	enum arg_type candidate = ARGTYPE_UNKNOWN;
+	enum arg_type candidate;
 
 #define KEYWORD(KWD, TYPE)						\
 	do {								\
@@ -711,7 +711,6 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 
 	/* For some types that's all we need.  */
 	switch (type) {
-	case ARGTYPE_UNKNOWN:
 	case ARGTYPE_VOID:
 	case ARGTYPE_INT:
 	case ARGTYPE_UINT:
@@ -773,6 +772,7 @@ static struct named_lens {
 	{ "hide", &blind_lens },
 	{ "octal", &octal_lens },
 	{ "hex", &hex_lens },
+	{ "guess", &guess_lens },
 };
 
 static struct lens *
@@ -917,8 +917,7 @@ process_line(char *buf) {
 	}
 
 	fun->return_info = parse_lens(&str, NULL, 0, &fun->own_return_info);
-	if (fun->return_info == NULL
-	    || fun->return_info->type == ARGTYPE_UNKNOWN) {
+	if (fun->return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", line_no);
 		destroy_fun(fun);

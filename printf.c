@@ -119,10 +119,9 @@ form_next_param(struct param_enum *self,
 		  ARGTYPE_ULONG, ARGTYPE_ULONG };
 
 	struct arg_type_info *elt_info = NULL;
-	if (elt_type != ARGTYPE_UNKNOWN)
+	if (format_type == ARGTYPE_ARRAY || format_type == ARGTYPE_POINTER)
 		elt_info = type_get_simple(elt_type);
-
-	if (format_type == ARGTYPE_INT)
+	else if (format_type == ARGTYPE_INT)
 		format_type = ints[2 + lng - hlf];
 	else if (format_type == ARGTYPE_UINT)
 		format_type = uints[2 + lng - hlf];
@@ -182,8 +181,8 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 {
 	unsigned hlf = 0;
 	unsigned lng = 0;
-	enum arg_type format_type = ARGTYPE_UNKNOWN;
-	enum arg_type elt_type = ARGTYPE_UNKNOWN;
+	enum arg_type format_type = ARGTYPE_VOID;
+	enum arg_type elt_type = ARGTYPE_VOID;
 	char len_buf[25] = {};
 	size_t len_buf_len = 0;
 	struct lens *lens = NULL;
@@ -316,7 +315,7 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 		}
 
 		/* If we got here, the type must have been set.  */
-		assert(format_type != ARGTYPE_UNKNOWN);
+		assert(format_type != ARGTYPE_VOID);
 
 		if (form_next_param(self, format_type, elt_type, hlf, lng,
 				    len_buf, len_buf_len, infop) < 0)

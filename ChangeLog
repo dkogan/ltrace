@@ -1,5 +1,13 @@
 2012-01-08  Petr Machata  <pmachata@redhat.com>
 
+	* lens_default.c, lens_default.h (guess_lens): New global variable
+	* type.h, type.c (enum arg_type): Drop ARGTYPE_UNKNOWN
+	* read_config_file.c, printf.c: Adjust to above changes
+	* output.c: Likewise
+	(get_unknown_type): New function
+
+2012-01-08  Petr Machata  <pmachata@redhat.com>
+
 	* lens_default.c, lens_default.h (hex_lens, octal_lens): New
 	global variables
 	* read_config_file.c: Use it

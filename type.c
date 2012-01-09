@@ -37,7 +37,6 @@ type_get_simple(enum arg_type type)
 	}
 
 	switch (type) {
-	HANDLE(ARGTYPE_UNKNOWN)
 	HANDLE(ARGTYPE_VOID)
 	HANDLE(ARGTYPE_INT)
 	HANDLE(ARGTYPE_UINT)
@@ -319,7 +318,6 @@ type_destroy(struct arg_type_info *info)
 	case ARGTYPE_STRING_N:
 		type_string_n_destroy(info);
 
-	case ARGTYPE_UNKNOWN:
 	case ARGTYPE_VOID:
 	case ARGTYPE_INT:
 	case ARGTYPE_UINT:
@@ -439,11 +437,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 
 	case ARGTYPE_VOID:
 		return 0;
-
-	/* XXX these are in fact formatting conventions, not
-	 * data types.  They should be handled differently.  */
-	case ARGTYPE_UNKNOWN:
-		return sizeof(long);
 	}
 
 	abort();

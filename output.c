@@ -42,6 +42,7 @@
 #include "value_dict.h"
 #include "param.h"
 #include "fetch.h"
+#include "lens_default.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
@@ -129,6 +130,22 @@ begin_of_line(Process *proc, int is_func, int indent)
 	}
 }
 
+static struct arg_type_info *
+get_unknown_type(void)
+{
+	static struct arg_type_info *info = NULL;
+	if (info == NULL) {
+		info = malloc(sizeof(*info));
+		if (info == NULL) {
+			report_global_error("malloc: %s", strerror(errno));
+			abort();
+		}
+		*info = *type_get_simple(ARGTYPE_LONG);
+		info->lens = &guess_lens;
+	}
+	return info;
+}
+
 /* The default prototype is: long X(long, long, long, long).  */
 static Function *
 build_default_prototype(void)
@@ -139,7 +156,7 @@ build_default_prototype(void)
 		goto err;
 	memset(ret, 0, sizeof(*ret));
 
-	struct arg_type_info *unknown_type = type_get_simple(ARGTYPE_UNKNOWN);
+	struct arg_type_info *unknown_type = get_unknown_type();
 
 	ret->return_info = unknown_type;
 	ret->own_return_info = 0;
@@ -248,6 +265,7 @@ fetch_simple_param(enum tof type, Process *proc, struct fetch_context *context,
 		struct arg_type_info *tmp = malloc(sizeof(*tmp));
 		if (tmp != NULL) {
 			type_init_pointer(tmp, info, 0);
+			tmp->lens = info->lens;
 			info = tmp;
 			own = 1;
 		}

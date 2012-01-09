@@ -319,10 +319,6 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 	case ARGTYPE_VOID:
 		return fprintf(stream, "<void>");
 
-	case ARGTYPE_UNKNOWN:
-		return format_integer(stream, value, INT_FMT_unknown,
-				      arguments);
-
 	case ARGTYPE_SHORT:
 	case ARGTYPE_INT:
 	case ARGTYPE_LONG:
@@ -420,4 +416,17 @@ hex_lens_format_cb(struct lens *lens, FILE *stream,
 
 struct lens hex_lens = {
 	.format_cb = hex_lens_format_cb,
+};
+
+
+static int
+guess_lens_format_cb(struct lens *lens, FILE *stream,
+		     struct value *value, struct value_dict *arguments)
+{
+	return toplevel_format_lens(lens, stream, value, arguments,
+				    INT_FMT_unknown);
+}
+
+struct lens guess_lens = {
+	.format_cb = guess_lens_format_cb,
 };

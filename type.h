@@ -27,7 +27,6 @@
 #include "vect.h"
 
 enum arg_type {
-	ARGTYPE_UNKNOWN = -1,
 	ARGTYPE_VOID,
 	ARGTYPE_INT,
 	ARGTYPE_UINT,
