@@ -1,5 +1,13 @@
 2012-01-08  Petr Machata  <pmachata@redhat.com>
 
+	* lens_default.c, lens_default.h (hex_lens, octal_lens): New
+	global variables
+	* read_config_file.c: Use it
+	* type.c, type.h (enum arg_type): Drop ARGTYPE_OCTAL
+	* testsuite/ltrace.main/parameters*: Test the new lenses
+
+2012-01-08  Petr Machata  <pmachata@redhat.com>
+
 	* lens.c, lens.h: New module
 	* display_args.c: Move this code...
 	* lens_default.c, lens_default.h: ... here

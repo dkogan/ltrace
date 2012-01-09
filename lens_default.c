@@ -309,7 +309,8 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 
 static int
 toplevel_format_lens(struct lens *lens, FILE *stream,
-		     struct value *value, struct value_dict *arguments)
+		     struct value *value, struct value_dict *arguments,
+		     enum int_fmt_t int_fmt)
 {
 	switch (value->type->type) {
 		struct value *tmp;
@@ -325,15 +326,14 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 	case ARGTYPE_SHORT:
 	case ARGTYPE_INT:
 	case ARGTYPE_LONG:
-		return format_integer(stream, value, INT_FMT_i, arguments);
+		return format_integer(stream, value, int_fmt, arguments);
 
 	case ARGTYPE_USHORT:
 	case ARGTYPE_UINT:
 	case ARGTYPE_ULONG:
-		return format_integer(stream, value, INT_FMT_u, arguments);
-
-	case ARGTYPE_OCTAL:
-		return format_integer(stream, value, INT_FMT_o, arguments);
+		if (int_fmt == INT_FMT_i)
+			int_fmt = INT_FMT_u;
+		return format_integer(stream, value, int_fmt, arguments);
 
 	case ARGTYPE_CHAR:
 		return format_char(stream, value, arguments);
@@ -379,9 +379,45 @@ static int
 default_lens_format_cb(struct lens *lens, FILE *stream,
 		       struct value *value, struct value_dict *arguments)
 {
-	return toplevel_format_lens(lens, stream, value, arguments);
+	return toplevel_format_lens(lens, stream, value, arguments, INT_FMT_i);
 }
 
 struct lens default_lens = {
 	.format_cb = default_lens_format_cb,
+};
+
+
+static int
+blind_lens_format_cb(struct lens *lens, FILE *stream,
+		     struct value *value, struct value_dict *arguments)
+{
+	return 0;
+}
+
+struct lens blind_lens = {
+	.format_cb = blind_lens_format_cb,
+};
+
+
+static int
+octal_lens_format_cb(struct lens *lens, FILE *stream,
+		     struct value *value, struct value_dict *arguments)
+{
+	return toplevel_format_lens(lens, stream, value, arguments, INT_FMT_o);
+}
+
+struct lens octal_lens = {
+	.format_cb = octal_lens_format_cb,
+};
+
+
+static int
+hex_lens_format_cb(struct lens *lens, FILE *stream,
+		   struct value *value, struct value_dict *arguments)
+{
+	return toplevel_format_lens(lens, stream, value, arguments, INT_FMT_x);
+}
+
+struct lens hex_lens = {
+	.format_cb = hex_lens_format_cb,
 };

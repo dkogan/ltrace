@@ -72,7 +72,6 @@ parse_arg_type(char **name, enum arg_type *ret)
 	KEYWORD("uint", ARGTYPE_UINT);
 	KEYWORD("long", ARGTYPE_LONG);
 	KEYWORD("ulong", ARGTYPE_ULONG);
-	KEYWORD("octal", ARGTYPE_OCTAL);
 	KEYWORD("char", ARGTYPE_CHAR);
 	KEYWORD("short", ARGTYPE_SHORT);
 	KEYWORD("ushort", ARGTYPE_USHORT);
@@ -718,7 +717,6 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 	case ARGTYPE_UINT:
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
-	case ARGTYPE_OCTAL:
 	case ARGTYPE_CHAR:
 	case ARGTYPE_SHORT:
 	case ARGTYPE_USHORT:
@@ -772,6 +770,9 @@ static struct named_lens {
 	const char *name;
 	struct lens *lens;
 } lenses[] = {
+	{ "hide", &blind_lens },
+	{ "octal", &octal_lens },
+	{ "hex", &hex_lens },
 };
 
 static struct lens *
@@ -831,7 +832,13 @@ parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp)
 	if (lens != NULL) {
 		eat_spaces(str);
 
-		if (parse_char(str, '(') < 0) {
+		/* Octal lens gets special treatment, because of
+		 * backward compatibility.  */
+		if (lens == &octal_lens && **str != '(') {
+			has_args = 0;
+			info = type_get_simple(ARGTYPE_INT);
+			*ownp = 0;
+		} else if (parse_char(str, '(') < 0) {
 			report_error(filename, line_no,
 				     "expected type argument after the lens");
 			return NULL;

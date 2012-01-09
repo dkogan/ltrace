@@ -197,5 +197,8 @@ main ()
 
   printf("sotnuh3 %*s\n", 4, "a trimmed string");
 
+  void func_lens(int, long, short, long);
+  func_lens(22, 23, 24, 25);
+
   return 0;
 }

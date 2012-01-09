@@ -26,4 +26,13 @@
 /* Default lens that does reasonable job for most cases.  */
 extern struct lens default_lens;
 
+/* A lens that doesn't output anything.  */
+extern struct lens blind_lens;
+
+/* A lens that formats integers in octal.  */
+extern struct lens octal_lens;
+
+/* A lens that formats integers in hexadecimal.  */
+extern struct lens hex_lens;
+
 #endif /* LENS_DEFAULT_H */

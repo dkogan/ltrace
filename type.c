@@ -43,7 +43,6 @@ type_get_simple(enum arg_type type)
 	HANDLE(ARGTYPE_UINT)
 	HANDLE(ARGTYPE_LONG)
 	HANDLE(ARGTYPE_ULONG)
-	HANDLE(ARGTYPE_OCTAL)
 	HANDLE(ARGTYPE_CHAR)
 	HANDLE(ARGTYPE_SHORT)
 	HANDLE(ARGTYPE_USHORT)
@@ -326,7 +325,6 @@ type_destroy(struct arg_type_info *info)
 	case ARGTYPE_UINT:
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
-	case ARGTYPE_OCTAL:
 	case ARGTYPE_CHAR:
 	case ARGTYPE_SHORT:
 	case ARGTYPE_USHORT:
@@ -444,7 +442,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 
 	/* XXX these are in fact formatting conventions, not
 	 * data types.  They should be handled differently.  */
-	case ARGTYPE_OCTAL:
 	case ARGTYPE_UNKNOWN:
 		return sizeof(long);
 	}

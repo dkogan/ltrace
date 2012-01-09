@@ -202,3 +202,8 @@ func_many_args(int a, int b, long c, double d, char e, int f, float g, char h,
 	       float x, float y)
 {
 }
+
+void
+func_lens(int a, long b, short c, long d)
+{
+}
