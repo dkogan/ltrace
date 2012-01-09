@@ -40,4 +40,7 @@ extern struct lens hex_lens;
  * formatted in decimal).  */
 extern struct lens guess_lens;
 
+/* A lens for strings.  */
+extern struct lens string_lens;
+
 #endif /* LENS_DEFAULT_H */

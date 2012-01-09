@@ -37,7 +37,6 @@ enum arg_type {
 	ARGTYPE_USHORT,
 	ARGTYPE_FLOAT,
 	ARGTYPE_DOUBLE,
-	ARGTYPE_STRING_N,	/* String of known maxlen */
 	ARGTYPE_ARRAY,		/* Series of values in memory */
 	ARGTYPE_ENUM,		/* Enumeration */
 	ARGTYPE_STRUCT,		/* Structure of values */
@@ -56,12 +55,6 @@ struct arg_type_info {
 			int own_info:1;
 			int own_length:1;
 		} array_info;
-
-		/* ARGTYPE_STRING_N */
-		struct {
-			struct expr_node *length;
-			int own_length:1;
-		} string_n_info;
 
 		/* ARGTYPE_POINTER */
 		struct {
@@ -119,12 +112,6 @@ size_t type_struct_size(struct arg_type_info *info);
 void type_init_array(struct arg_type_info *info,
 		     struct arg_type_info *element_info, int own_info,
 		     struct expr_node *length_expr, int own_length);
-
-/* Initialize INFO so it becomes ARGTYPE_STRING_N.  Length is passed
- * in LENGTH_EXPR.  If OWN_LENGTH is true, the length is owned and
- * destroyed together with INFO.  */
-void type_init_string(struct arg_type_info *info,
-		      struct expr_node *length, int own_length);
 
 /* Initialize INFO so it becomes ARGTYPE_POINTER.  The pointee type is
  * passed in POINTEE_INFO.  If OWN_INFO, the pointee type is owned and

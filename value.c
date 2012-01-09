@@ -199,28 +199,6 @@ value_clone(struct value *retp, struct value *val)
 	return 0;
 }
 
-struct value *
-value_string_to_charp(struct value *value)
-{
-	struct arg_type_info *info = malloc(sizeof(*info) * 2);
-	if (info == NULL) {
-	fail:
-		free(info);
-		return NULL;
-	}
-	type_init_array(&info[1], type_get_simple(ARGTYPE_CHAR), 0,
-			value->type->u.string_n_info.length, 0);
-	type_init_pointer(&info[0], &info[1], 0);
-
-	struct value *tmp = malloc(sizeof(*tmp));
-	if (tmp == NULL)
-		goto fail;
-
-	value_clone(tmp, value);
-	value_set_type(tmp, info, 1);
-	return tmp;
-}
-
 size_t
 value_size(struct value *val, struct value_dict *arguments)
 {

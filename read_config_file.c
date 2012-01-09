@@ -449,9 +449,9 @@ parse_struct(char **str, struct arg_type_info *info)
 }
 
 static int
-parse_string(char **str, struct arg_type_info **retp)
+parse_string(char **str, struct arg_type_info **retp, int *ownp)
 {
-	struct arg_type_info *info = malloc(sizeof(*info));
+	struct arg_type_info *info = malloc(sizeof(*info) * 2);
 	if (info == NULL) {
 	fail:
 		free(info);
@@ -460,6 +460,7 @@ parse_string(char **str, struct arg_type_info **retp)
 
 	struct expr_node *length;
 	int own_length;
+	int with_arg = 0;
 
 	if (isdigit(**str)) {
 		/* string0 is string[retval], length is zero(retval)
@@ -500,6 +501,22 @@ parse_string(char **str, struct arg_type_info **retp)
 			eat_spaces(str);
 			parse_char(str, ']');
 
+		} else if (**str == '(') {
+			/* Usage of "string" as lens.  */
+			++*str;
+
+			free(info);
+
+			eat_spaces(str);
+			info = parse_type(str, NULL, 0, ownp);
+			if (info == NULL)
+				goto fail;
+
+			eat_spaces(str);
+			parse_char(str, ')');
+
+			with_arg = 1;
+
 		} else {
 			/* It was just a simple string after all.  */
 			length = expr_node_zero();
@@ -508,7 +525,16 @@ parse_string(char **str, struct arg_type_info **retp)
 	}
 
 	/* String is a pointer to array of chars.  */
-	type_init_string(info, length, own_length);
+	if (!with_arg) {
+		type_init_array(&info[1], type_get_simple(ARGTYPE_CHAR), 0,
+				length, own_length);
+
+		type_init_pointer(&info[0], &info[1], 0);
+		*ownp = 1;
+	}
+
+	info->lens = &string_lens;
+	info->own_lens = 0;
 
 	*retp = info;
 	return 0;
@@ -594,7 +620,7 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp,
 	 * "string" is syntax.  */
 	if (strncmp(*str, "string", 6) == 0) {
 		(*str) += 6;
-		return parse_string(str, retp);
+		return parse_string(str, retp, ownp);
 
 	} else if (try_parse_kwd(str, "format") >= 0
 		   && extra_param != NULL) {
@@ -602,7 +628,7 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp,
 		 * "string", but it smuggles to the parameter list of
 		 * a function a "printf" argument pack with this
 		 * parameter as argument.  */
-		if (parse_string(str, retp) < 0)
+		if (parse_string(str, retp, ownp) < 0)
 			return -1;
 
 		return build_printf_pack(extra_param, param_num);
@@ -747,12 +773,6 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 	case ARGTYPE_STRUCT:
 		parser = parse_struct;
 		break;
-
-	case ARGTYPE_STRING_N:
-		/* Strings are handled in aliases, to support
-		 * "stringN" syntax cleanly.  */
-		assert(type != ARGTYPE_STRING_N);
-		abort();
 
 	case ARGTYPE_POINTER:
 		/* Pointer syntax is not based on keyword, so we

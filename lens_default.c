@@ -141,15 +141,7 @@ format_char(FILE *stream, struct value *value, struct value_dict *arguments)
 		return -1;
 	int c = (int)lc;
 
-	/* If this value is not wrapped in array, then this is not a
-	 * string, and we need to display quotes.  */
-	int quote = !(value->parent != NULL
-		      && (value->parent->type->type == ARGTYPE_ARRAY
-			  || value->parent->type->type == ARGTYPE_STRING_N));
 	int written = 0;
-	if (quote && acc_fprintf(&written, stream, "'") < 0)
-		return -1;
-
 	const char *fmt;
 	switch (c) {
 	case -1:
@@ -194,8 +186,19 @@ format_char(FILE *stream, struct value *value, struct value_dict *arguments)
 
 	if (fmt != NULL && acc_fprintf(&written, stream, fmt, c) < 0)
 		return -1;
-	if (quote && acc_fprintf(&written, stream, "'") < 0)
+	return written;
+}
+
+static int
+format_naked_char(FILE *stream, struct value *value,
+		  struct value_dict *arguments)
+{
+	int written = 0;
+	if (acc_fprintf(&written, stream, "'") < 0
+	    || format_char(stream, value, arguments) < 0
+	    || acc_fprintf(&written, stream, "'") < 0)
 		return -1;
+
 	return written;
 }
 
@@ -313,9 +316,6 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 		     enum int_fmt_t int_fmt)
 {
 	switch (value->type->type) {
-		struct value *tmp;
-		int ret;
-
 	case ARGTYPE_VOID:
 		return fprintf(stream, "<void>");
 
@@ -332,7 +332,7 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 		return format_integer(stream, value, int_fmt, arguments);
 
 	case ARGTYPE_CHAR:
-		return format_char(stream, value, arguments);
+		return format_naked_char(stream, value, arguments);
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
@@ -347,23 +347,9 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 		return format_integer(stream, value, INT_FMT_x, arguments);
 
 	case ARGTYPE_ARRAY:
-		if (value->type->u.array_info.elt_type->type != ARGTYPE_CHAR)
-			return format_array(stream, value, arguments,
-					    value->type->u.array_info.length,
-					    options.arraylen, 1,
-					    "[ ", " ]", ", ");
-
 		return format_array(stream, value, arguments,
 				    value->type->u.array_info.length,
-				    options.strlen, 0, "\"", "\"", "");
-
-	case ARGTYPE_STRING_N:
-		tmp = value_string_to_charp(value);
-		if (tmp == NULL)
-			return -1;
-		ret = format_argument(stream, tmp, arguments);
-		value_destroy(tmp);
-		return ret;
+				    options.arraylen, 1, "[ ", " ]", ", ");
 
 	case ARGTYPE_ENUM:
 		return format_enum(stream, value, arguments);
@@ -429,4 +415,66 @@ guess_lens_format_cb(struct lens *lens, FILE *stream,
 
 struct lens guess_lens = {
 	.format_cb = guess_lens_format_cb,
+};
+
+
+static int
+string_lens_format_cb(struct lens *lens, FILE *stream,
+		      struct value *value, struct value_dict *arguments)
+{
+	switch (value->type->type) {
+	case ARGTYPE_POINTER:
+		/* This should really be written as either "string",
+		 * or, if lens, then string(array(char, zero)*).  But
+		 * I suspect people are so used to the char * C idiom,
+		 * that string(char *) might actually turn up.  So
+		 * let's just support it.  */
+		if (value->type->u.ptr_info.info->type == ARGTYPE_CHAR) {
+			struct arg_type_info info[2];
+			type_init_array(&info[1],
+					value->type->u.ptr_info.info, 0,
+					expr_node_zero(), 0);
+			type_init_pointer(&info[0], &info[1], 0);
+			info->lens = lens;
+			info->own_lens = 0;
+			struct value tmp;
+			if (value_clone(&tmp, value) < 0)
+				return -1;
+			value_set_type(&tmp, info, 0);
+			int ret = string_lens_format_cb(lens, stream, &tmp,
+							arguments);
+			type_destroy(&info[0]);
+			type_destroy(&info[1]);
+			value_destroy(&tmp);
+			return ret;
+		}
+
+		/* fall-through */
+	case ARGTYPE_VOID:
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+	case ARGTYPE_STRUCT:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_ENUM:
+		return toplevel_format_lens(lens, stream, value,
+					    arguments, INT_FMT_i);
+
+	case ARGTYPE_CHAR:
+		return format_char(stream, value, arguments);
+
+	case ARGTYPE_ARRAY:
+		return format_array(stream, value, arguments,
+				    value->type->u.array_info.length,
+				    options.strlen, 0, "\"", "\"", "");
+	}
+	abort();
+}
+
+struct lens string_lens = {
+	.format_cb = string_lens_format_cb,
 };

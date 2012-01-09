@@ -1,5 +1,15 @@
 2012-01-09  Petr Machata  <pmachata@redhat.com>
 
+	* lens_default.c, lens_default.h (string_lens): New global variable
+	(format_naked_char): New function
+	* type.h, type.c (enum arg_type): Drop ARGTYPE_STRING
+	(type_init_string): Drop
+	* printf.c: Drop handling of ARGTYPE_STRING
+	* read_config_file.c: Likewise; support lens syntax of "string"
+	* value.c, value.h (value_string_to_charp): Drop
+
+2012-01-09  Petr Machata  <pmachata@redhat.com>
+
 	* read_config_file.c (try_parse_kwd): New function
 	(name2lens, parse_alias): Use it
 

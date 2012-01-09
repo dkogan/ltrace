@@ -149,10 +149,4 @@ struct value *value_get_parental_struct(struct value *val);
  * if it isn't, <0 on error.  */
 int value_is_zero(struct value *val, struct value_dict *arguments);
 
-/* Take a VALUE of type ARGTYPE_STRING_N, and allocate a new value
- * that is ARGTYPE_POINTER to ARGTYPE_CHAR with the same length
- * expression.  Returns NULL on failure or a value, which you need to
- * free properly (i.e. call value_destroy and free).  */
-struct value *value_string_to_charp(struct value *value);
-
 #endif /* VALUE_H */

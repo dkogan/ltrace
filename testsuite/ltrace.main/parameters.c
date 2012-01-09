@@ -200,5 +200,15 @@ main ()
   void func_lens(int, long, short, long);
   func_lens(22, 23, 24, 25);
 
+  int func_bool(int a, int b);
+  func_bool(1, 10);
+  func_bool(2, 0);
+
+  void func_hide(int a, int b, int c, int d, int e, int f);
+  func_hide(1, 2, 3, 4, 5, 6);
+
+  void func_charp_string(char *p);
+  func_charp_string("null-terminated string");
+
   return 0;
 }

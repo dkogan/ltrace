@@ -30,6 +30,7 @@
 #include "expr.h"
 #include "zero.h"
 #include "param.h"
+#include "lens_default.h"
 
 struct param_enum {
 	struct value array;
@@ -47,11 +48,10 @@ param_printf_init(struct value *cb_args, size_t nargs,
 	assert(nargs == 1);
 
 	/* We expect a char array pointer.  */
-	if (cb_args->type->type != ARGTYPE_STRING_N
-	    && (cb_args->type->type != ARGTYPE_POINTER
-		|| cb_args->type->u.ptr_info.info->type != ARGTYPE_ARRAY
-		|| (cb_args->type->u.ptr_info.info->u.array_info.elt_type->type
-		    != ARGTYPE_CHAR)))
+	if (cb_args->type->type != ARGTYPE_POINTER
+	    || cb_args->type->u.ptr_info.info->type != ARGTYPE_ARRAY
+	    || (cb_args->type->u.ptr_info.info->u.array_info.elt_type->type
+		!= ARGTYPE_CHAR))
 		return NULL;
 
 	struct param_enum *self = malloc(sizeof(*self));
@@ -61,18 +61,7 @@ param_printf_init(struct value *cb_args, size_t nargs,
 		return NULL;
 	}
 
-	if (cb_args->type->type == ARGTYPE_STRING_N) {
-		struct value *tmp = value_string_to_charp(cb_args);
-		if (tmp == NULL)
-			goto fail;
-
-		if (value_init_deref(&self->array, tmp) < 0) {
-			value_destroy(tmp);
-			goto fail;
-		}
-		free(tmp);
-
-	} else if (value_init_deref(&self->array, cb_args) < 0)
+	if (value_init_deref(&self->array, cb_args) < 0)
 		goto fail;
 
 	assert(self->array.type->type == ARGTYPE_ARRAY);
@@ -294,6 +283,7 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 			/* XXX "ls" means wchar_t string.  */
 			elt_type = ARGTYPE_CHAR;
 			self->percent = 0;
+			lens = &string_lens;
 			break;
 
 		case 'p':

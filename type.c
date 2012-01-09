@@ -50,8 +50,6 @@ type_get_simple(enum arg_type type)
 
 #undef HANDLE
 
-	case ARGTYPE_STRING_N:
-
 	case ARGTYPE_ARRAY:
 	case ARGTYPE_ENUM:
 	case ARGTYPE_STRUCT:
@@ -243,15 +241,6 @@ type_init_array(struct arg_type_info *info,
 	info->u.array_info.own_length = own_length;
 }
 
-void
-type_init_string(struct arg_type_info *info,
-		 struct expr_node *length_expr, int own_length)
-{
-	type_init_common(info, ARGTYPE_STRING_N);
-	info->u.string_n_info.length = length_expr;
-	info->u.string_n_info.own_length = own_length;
-}
-
 static void
 type_array_destroy(struct arg_type_info *info)
 {
@@ -262,15 +251,6 @@ type_array_destroy(struct arg_type_info *info)
 	if (info->u.array_info.own_length) {
 		expr_destroy(info->u.array_info.length);
 		free(info->u.array_info.length);
-	}
-}
-
-static void
-type_string_n_destroy(struct arg_type_info *info)
-{
-	if (info->u.array_info.own_length) {
-		expr_destroy(info->u.string_n_info.length);
-		free(info->u.string_n_info.length);
 	}
 }
 
@@ -314,9 +294,6 @@ type_destroy(struct arg_type_info *info)
 	case ARGTYPE_POINTER:
 		type_pointer_destroy(info);
 		break;
-
-	case ARGTYPE_STRING_N:
-		type_string_n_destroy(info);
 
 	case ARGTYPE_VOID:
 	case ARGTYPE_INT:
@@ -408,8 +385,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 			return (size_t)-1;
 		return size;
 
-	case ARGTYPE_STRING_N:
-		/* String is a char* in disguise.  */
 	case ARGTYPE_POINTER:
 		return sizeof(void *);
 
@@ -502,9 +477,7 @@ size_t
 type_offsetof(struct Process *proc, struct arg_type_info *type, size_t emt)
 {
 	assert(type->type == ARGTYPE_STRUCT
-	       || type->type == ARGTYPE_ARRAY
-	       /* XXX Temporary, this will be removed.  */
-	       || type->type == ARGTYPE_STRING_N);
+	       || type->type == ARGTYPE_ARRAY);
 
 	switch (type->type) {
 		size_t alignment;
@@ -520,16 +493,13 @@ type_offsetof(struct Process *proc, struct arg_type_info *type, size_t emt)
 
 		return emt * align(size, alignment);
 
-	case ARGTYPE_STRING_N:
-		return emt;
-
 	case ARGTYPE_STRUCT:
 		if (layout_struct(proc, type, NULL, NULL, &emt) < 0)
 			return (size_t)-1;
 		return emt;
 
 	default:
-		abort ();
+		abort();
 	}
 }
 
@@ -537,9 +507,7 @@ struct arg_type_info *
 type_element(struct arg_type_info *info, size_t emt)
 {
 	assert(info->type == ARGTYPE_STRUCT
-	       || info->type == ARGTYPE_ARRAY
-	       /* XXX Temporary, this will be removed.  */
-	       || info->type == ARGTYPE_STRING_N);
+	       || info->type == ARGTYPE_ARRAY);
 
 	switch (info->type) {
 	case ARGTYPE_ARRAY:
@@ -549,10 +517,7 @@ type_element(struct arg_type_info *info, size_t emt)
 		assert(emt < type_struct_size(info));
 		return type_struct_get(info, emt);
 
-	case ARGTYPE_STRING_N:
-		return type_get_simple(ARGTYPE_CHAR);
-
 	default:
-		abort ();
+		abort();
 	}
 }

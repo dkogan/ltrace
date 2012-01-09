@@ -117,3 +117,15 @@ ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
 set pattern "func_lens(026, 027, 0x18, 0x19)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_bool(1, true).*= false"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_bool(2, false).*= true"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_hide(1, 4, 6)"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_charp_string(\\\"null-terminated string\\\")"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1

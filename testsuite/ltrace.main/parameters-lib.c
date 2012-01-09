@@ -207,3 +207,19 @@ void
 func_lens(int a, long b, short c, long d)
 {
 }
+
+int
+func_bool(int a, int b)
+{
+	return !b;
+}
+
+void
+func_hide(int a, int b, int c, int d, int e, int f)
+{
+}
+
+void
+func_charp_string(char *p)
+{
+}
