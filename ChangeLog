@@ -1,3 +1,8 @@
+2012-01-09  Petr Machata  <pmachata@redhat.com>
+
+	* read_config_file.c (try_parse_kwd): New function
+	(name2lens, parse_alias): Use it
+
 2012-01-08  Petr Machata  <pmachata@redhat.com>
 
 	* lens_default.c, lens_default.h (guess_lens): New global variable

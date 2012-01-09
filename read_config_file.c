@@ -545,6 +545,20 @@ build_printf_pack(struct param **packp, size_t param_num)
 	return 0;
 }
 
+/* Match and consume KWD if it's next in stream, and return 0.
+ * Otherwise return negative number.  */
+static int
+try_parse_kwd(char **str, const char *kwd)
+{
+	size_t len = strlen(kwd);
+	if (strncmp(*str, kwd, len) == 0
+	    && !isalnum((*str)[len])) {
+		(*str) += len;
+		return 0;
+	}
+	return -1;
+}
+
 /* Make a copy of INFO and set the *OWN bit if it's not already
  * owned.  */
 static int
@@ -582,14 +596,12 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp,
 		(*str) += 6;
 		return parse_string(str, retp);
 
-	} else if (strncmp(*str, "format", 6) == 0
-		   && !isalnum((*str)[6])
+	} else if (try_parse_kwd(str, "format") >= 0
 		   && extra_param != NULL) {
 		/* For backward compatibility, format is parsed as
 		 * "string", but it smuggles to the parameter list of
 		 * a function a "printf" argument pack with this
 		 * parameter as argument.  */
-		(*str) += 6;
 		if (parse_string(str, retp) < 0)
 			return -1;
 
@@ -778,12 +790,9 @@ static struct named_lens {
 static struct lens *
 name2lens(char **str, int *own_lensp)
 {
-	char *str2 = *str;
-	char *ident = parse_ident(&str2);
 	size_t i;
 	for (i = 0; i < sizeof(lenses)/sizeof(*lenses); ++i)
-		if (strcmp(ident, lenses[i].name) == 0) {
-			*str = str2;
+		if (try_parse_kwd(str, lenses[i].name) == 0) {
 			*own_lensp = 0;
 			return lenses[i].lens;
 		}
@@ -937,7 +946,6 @@ process_line(char *buf) {
 	debug(3, " name = %s", fun->name);
 
 	size_t allocd = 0;
-	fun->num_params = 0;
 	struct param *extra_param = NULL;
 
 	int have_stop = 0;
