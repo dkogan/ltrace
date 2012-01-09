@@ -1,5 +1,10 @@
 2012-01-09  Petr Machata  <pmachata@redhat.com>
 
+	* sysdeps/linux-gnu/*/arch.h
+	(ARCH_ENDIAN_BIG, ARCH_ENDIAN_LITTLE): Declare either at each backend
+
+2012-01-09  Petr Machata  <pmachata@redhat.com>
+
 	* lens_default.c, lens_default.h (bool_lens): New global variable
 	* read_config_file.c: Plug it in
 	* testsuite/ltrace.main/parameters*: Test it
