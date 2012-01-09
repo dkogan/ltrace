@@ -1,5 +1,15 @@
 2012-01-09  Petr Machata  <pmachata@redhat.com>
 
+	* lens_enum.c, lens_enum.h: New files
+	* type.c, type.h (enum arg_type): Drop ARGTYPE_ENUM
+	(type_is_integral, type_is_signed): New functions
+	* read_config_file.c: Rewrite enum parsing
+	* testsuite/ltrace.main/parameters*: Test it
+	* lens_default.c: Drop support for ARGTYPE_ENUM
+	* sysdeps/linux-gnu/x86_64/trace.c: Likewise
+
+2012-01-09  Petr Machata  <pmachata@redhat.com>
+
 	* sysdeps/linux-gnu/*/arch.h
 	(ARCH_ENDIAN_BIG, ARCH_ENDIAN_LITTLE): Declare either at each backend
 

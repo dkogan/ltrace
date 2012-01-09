@@ -207,6 +207,14 @@ main ()
   void func_hide(int a, int b, int c, int d, int e, int f);
   func_hide(1, 2, 3, 4, 5, 6);
 
+  enum ab { A, B };
+  long *func_short_enums(short abs[]);
+  func_short_enums((short[]){ A, B, A, A });
+
+  long func_negative_enum(short a, unsigned short b, int c, unsigned d,
+                         long e, unsigned long f);
+  func_negative_enum(-1, -1, -1, -1, -1, -1);
+
   void func_charp_string(char *p);
   func_charp_string("null-terminated string");
 

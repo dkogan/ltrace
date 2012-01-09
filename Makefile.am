@@ -39,7 +39,8 @@ libltrace_la_SOURCES = \
 	printf.c \
 	zero.c \
 	lens.c \
-	lens_default.c
+	lens_default.c \
+	lens_enum.c
 
 libltrace_la_LIBADD = \
 	$(libelf_LIBS) \
@@ -88,7 +89,8 @@ noinst_HEADERS = \
 	printf.h \
 	zero.h \
 	lens.h \
-	lens_default.h
+	lens_default.h \
+	lens_enum.h
 
 dist_man1_MANS = \
 	ltrace.1

@@ -107,20 +107,6 @@ format_integer(FILE *stream, struct value *value, enum int_fmt_t format,
 #undef HANDLE_WIDTH
 
 static int
-format_enum(FILE *stream, struct value *value, struct value_dict *arguments)
-{
-	long l;
-	if (value_extract_word(value, &l, arguments) < 0)
-		return -1;
-
-	const char *name = type_enum_get(value->type, l);
-	if (name != NULL)
-		return fprintf(stream, "%s", name);
-
-	return format_integer(stream, value, INT_FMT_i, arguments);
-}
-
-static int
 acc_fprintf(int *countp, FILE *stream, const char *format, ...)
 {
 	va_list pa;
@@ -350,9 +336,6 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 		return format_array(stream, value, arguments,
 				    value->type->u.array_info.length,
 				    options.arraylen, 1, "[ ", " ]", ", ");
-
-	case ARGTYPE_ENUM:
-		return format_enum(stream, value, arguments);
 	}
 	abort();
 }
@@ -433,7 +416,6 @@ bool_lens_format_cb(struct lens *lens, FILE *stream,
 					    arguments, INT_FMT_i);
 
 		int zero;
-	case ARGTYPE_ENUM:
 	case ARGTYPE_SHORT:
 	case ARGTYPE_INT:
 	case ARGTYPE_LONG:
@@ -498,7 +480,6 @@ string_lens_format_cb(struct lens *lens, FILE *stream,
 	case ARGTYPE_USHORT:
 	case ARGTYPE_UINT:
 	case ARGTYPE_ULONG:
-	case ARGTYPE_ENUM:
 		return toplevel_format_lens(lens, stream, value,
 					    arguments, INT_FMT_i);
 

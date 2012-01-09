@@ -38,7 +38,6 @@ enum arg_type {
 	ARGTYPE_FLOAT,
 	ARGTYPE_DOUBLE,
 	ARGTYPE_ARRAY,		/* Series of values in memory */
-	ARGTYPE_ENUM,		/* Enumeration */
 	ARGTYPE_STRUCT,		/* Structure of values */
 	ARGTYPE_POINTER,	/* Pointer to some other type */
 };
@@ -68,26 +67,9 @@ struct arg_type_info {
 };
 
 /* Return a type info for simple type TYPE (which shall not be array,
- * struct, enum or pointer.  Each call with the same TYPE yields the
- * same arg_type_info pointer.  */
+ * struct, or pointer.  Each call with the same TYPE yields the same
+ * arg_type_info pointer.  */
 struct arg_type_info *type_get_simple(enum arg_type type);
-
-/* Initialize INFO so it becomes ARGTYPE_ENUM.  Returns 0 on success
- * or negative value on failure.  */
-void type_init_enum(struct arg_type_info *info);
-
-/* Push another member of the enumeration, named KEY, with given
- * VALUE.  If OWN_KEY, KEY is owned and released after the type is
- * destroyed.  KEY is typed as const char *, but note that if
- * OWN_KEY, this value will be freed.  */
-int type_enum_add(struct arg_type_info *info,
-		  const char *key, int own_key, int value);
-
-/* Return number of enum elements of type INFO.  */
-size_t type_enum_size(struct arg_type_info *info);
-
-/* Look up enum key with given VALUE in INFO.  */
-const char *type_enum_get(struct arg_type_info *info, int value);
 
 /* Initialize INFO so it becomes ARGTYPE_STRUCT.  The created
  * structure contains no fields.  Use type_struct_add to populate the
@@ -141,5 +123,11 @@ struct arg_type_info *type_element(struct arg_type_info *type, size_t elt);
  * arrays and structures.  Return (size_t)-1 for error.  */
 size_t type_offsetof(struct Process *proc,
 		     struct arg_type_info *type, size_t elt);
+
+/* Whether TYPE is an integral type as defined by the C standard.  */
+int type_is_integral(enum arg_type type);
+
+/* Whether TYPE, which shall be integral, is a signed type.  */
+int type_is_signed(enum arg_type type);
 
 #endif /* TYPE_H */

@@ -455,7 +455,6 @@ classify(Process *proc, struct fetch_context *context,
 	case ARGTYPE_UINT:
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
-	case ARGTYPE_ENUM:
 
 	case ARGTYPE_POINTER:
 		/* and LONGLONG */
@@ -612,7 +611,6 @@ arch_fetch_retval_32(struct fetch_context *context, enum tof type,
 	case ARGTYPE_CHAR:
 	case ARGTYPE_SHORT:
 	case ARGTYPE_USHORT:
-	case ARGTYPE_ENUM:
 	case ARGTYPE_POINTER:
 		cls = allocate_integer(context, valuep, sz, 0, POOL_RETVAL);
 		assert(cls == CLASS_INTEGER);
@@ -858,7 +856,6 @@ arch_type_sizeof(Process *proc, struct arg_type_info *info)
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
 	case ARGTYPE_POINTER:
-	case ARGTYPE_ENUM:
 		return 4;
 	}
 	abort();
@@ -890,7 +887,6 @@ arch_type_alignof(Process *proc, struct arg_type_info *info)
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
 	case ARGTYPE_POINTER:
-	case ARGTYPE_ENUM:
 		return 4;
 
 	case ARGTYPE_VOID:

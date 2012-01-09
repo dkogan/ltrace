@@ -219,6 +219,24 @@ func_hide(int a, int b, int c, int d, int e, int f)
 {
 }
 
+long *
+func_short_enums(short values[])
+{
+	static long retvals[4];
+	retvals[0] = values[0];
+	retvals[1] = values[1];
+	retvals[2] = values[2];
+	retvals[3] = values[3];
+	return retvals;
+}
+
+long
+func_negative_enum(short a, unsigned short b, int c, unsigned d,
+		   long e, unsigned long f)
+{
+	return -1;
+}
+
 void
 func_charp_string(char *p)
 {

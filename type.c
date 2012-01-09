@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "type.h"
 #include "sysdep.h"
@@ -51,7 +52,6 @@ type_get_simple(enum arg_type type)
 #undef HANDLE
 
 	case ARGTYPE_ARRAY:
-	case ARGTYPE_ENUM:
 	case ARGTYPE_STRUCT:
 	case ARGTYPE_POINTER:
 		assert(!"Not a simple type!");
@@ -65,63 +65,6 @@ type_init_common(struct arg_type_info *info, enum arg_type type)
 	info->type = type;
 	info->lens = NULL;
 	info->own_lens = 0;
-}
-
-struct enum_entry {
-	char *key;
-	int own_key;
-	int value;
-};
-
-void
-type_init_enum(struct arg_type_info *info)
-{
-	type_init_common(info, ARGTYPE_ENUM);
-	VECT_INIT(&info->u.entries, struct enum_entry);
-}
-
-int
-type_enum_add(struct arg_type_info *info,
-	      const char *key, int own_key, int value)
-{
-	assert(info->type == ARGTYPE_ENUM);
-	struct enum_entry entry = { (char *)key, own_key, value };
-	return VECT_PUSHBACK(&info->u.entries, &entry);
-}
-
-size_t
-type_enum_size(struct arg_type_info *info)
-{
-	assert(info->type == ARGTYPE_ENUM);
-	return vect_size(&info->u.entries);
-}
-
-const char *
-type_enum_get(struct arg_type_info *info, int value)
-{
-	assert(info->type == ARGTYPE_ENUM);
-	size_t i;
-	for (i = 0; i < vect_size(&info->u.entries); ++i) {
-		struct enum_entry *entry = VECT_ELEMENT(&info->u.entries,
-							struct enum_entry, i);
-		if (value == entry->value)
-			return entry->key;
-	}
-	return NULL;
-}
-
-static void
-enum_entry_dtor(struct enum_entry *entry, void *data)
-{
-	if (entry->own_key)
-		free(entry->key);
-}
-
-static void
-type_enum_destroy(struct arg_type_info *info)
-{
-	VECT_DESTROY(&info->u.entries, struct enum_entry,
-		     enum_entry_dtor, NULL);
 }
 
 struct struct_field {
@@ -279,10 +222,6 @@ type_destroy(struct arg_type_info *info)
 		return;
 
 	switch (info->type) {
-	case ARGTYPE_ENUM:
-		type_enum_destroy(info);
-		break;
-
 	case ARGTYPE_STRUCT:
 		type_struct_destroy(info);
 		break;
@@ -367,7 +306,6 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 
 	case ARGTYPE_INT:
 	case ARGTYPE_UINT:
-	case ARGTYPE_ENUM:
 		return sizeof(int);
 
 	case ARGTYPE_LONG:
@@ -520,4 +458,58 @@ type_element(struct arg_type_info *info, size_t emt)
 	default:
 		abort();
 	}
+}
+
+int
+type_is_integral(enum arg_type type)
+{
+	switch (type) {
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+		return 1;
+
+	case ARGTYPE_VOID:
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+	case ARGTYPE_POINTER:
+		return 0;
+	}
+	abort();
+}
+
+int
+type_is_signed(enum arg_type type)
+{
+	assert(type_is_integral(type));
+
+	switch (type) {
+	case ARGTYPE_CHAR:
+		return CHAR_MIN != 0;
+
+	case ARGTYPE_SHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_LONG:
+		return 1;
+
+	case ARGTYPE_UINT:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_USHORT:
+		return 0;
+
+	case ARGTYPE_VOID:
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+	case ARGTYPE_POINTER:
+		abort();
+	}
+	abort();
 }

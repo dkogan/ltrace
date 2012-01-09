@@ -38,6 +38,8 @@
 #include "zero.h"
 #include "type.h"
 #include "lens.h"
+#include "lens_default.h"
+#include "lens_enum.h"
 
 static int line_no;
 static char *filename;
@@ -49,6 +51,7 @@ static struct arg_type_info *parse_type(char **str, struct param **extra_param,
 					size_t param_num, int *ownp);
 static struct arg_type_info *parse_lens(char **str, struct param **extra_param,
 					size_t param_num, int *ownp);
+static int parse_enum(char **str, struct arg_type_info **retp, int *ownp);
 
 Function *list_of_functions = NULL;
 
@@ -78,7 +81,6 @@ parse_arg_type(char **name, enum arg_type *ret)
 	KEYWORD("float", ARGTYPE_FLOAT);
 	KEYWORD("double", ARGTYPE_DOUBLE);
 	KEYWORD("array", ARGTYPE_ARRAY);
-	KEYWORD("enum", ARGTYPE_ENUM);
 	KEYWORD("struct", ARGTYPE_STRUCT);
 
 	assert(rest == NULL);
@@ -633,6 +635,10 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp,
 
 		return build_printf_pack(extra_param, param_num);
 
+	} else if (try_parse_kwd(str, "enum") >=0) {
+
+		return parse_enum(str, retp, ownp);
+
 	} else {
 		*retp = NULL;
 		return 0;
@@ -673,17 +679,64 @@ parse_array(char **str, struct arg_type_info *info)
 	return 0;
 }
 
-/* Syntax: enum ( keyname=value,keyname=value,... ) */
+/* Syntax:
+ *   enum (keyname[=value],keyname[=value],... )
+ *   enum<type> (keyname[=value],keyname[=value],... )
+ */
 static int
-parse_enum(char **str, struct arg_type_info *info)
+parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 {
+	/* Optional type argument.  */
+	eat_spaces(str);
+	if (**str == '[') {
+		parse_char(str, '[');
+		eat_spaces(str);
+		*retp = parse_nonpointer_type(str, NULL, 0, ownp);
+		if (*retp == NULL)
+			return -1;
+
+		if (!type_is_integral((*retp)->type)) {
+			report_error(filename, line_no,
+				     "integral type required as enum argument");
+		fail:
+			if (*ownp) {
+				/* This also releases associated lens
+				 * if any was set so far.  */
+				type_destroy(*retp);
+				free(*retp);
+			}
+			return -1;
+		}
+
+		eat_spaces(str);
+		if (parse_char(str, ']') < 0)
+			goto fail;
+
+	} else {
+		*retp = type_get_simple(ARGTYPE_INT);
+		*ownp = 0;
+	}
+
+	/* We'll need to set the lens, so unshare.  */
+	if (unshare_type_info(retp, ownp) < 0)
+		goto fail;
+
 	eat_spaces(str);
 	if (parse_char(str, '(') < 0)
+		goto fail;
+
+	struct enum_lens *lens = malloc(sizeof(*lens));
+	if (lens == NULL) {
+		report_error(filename, line_no,
+			     "malloc enum lens: %s", strerror(errno));
 		return -1;
+	}
 
-	type_init_enum(info);
+	lens_init_enum(lens);
+	(*retp)->lens = &lens->super;
+	(*retp)->own_lens = 1;
 
-	int last_val = 0;
+	long last_val = 0;
 	while (1) {
 		eat_spaces(str);
 		if (**str == 0 || **str == ')') {
@@ -694,7 +747,7 @@ parse_enum(char **str, struct arg_type_info *info)
 		/* Field delimiter.  XXX should we support the C
 		 * syntax, where the enumeration can end in pending
 		 * comma?  */
-		if (type_enum_size(info) > 0)
+		if (lens_enum_size(lens) > 0)
 			parse_char(str, ',');
 
 		eat_spaces(str);
@@ -702,23 +755,26 @@ parse_enum(char **str, struct arg_type_info *info)
 		if (key == NULL) {
 		err:
 			free(key);
-			return -1;
+			goto fail;
 		}
 
 		if (**str == '=') {
 			++*str;
 			eat_spaces(str);
-			long l;
-			if (parse_int(str, &l) < 0 || check_int(l) < 0)
+			if (parse_int(str, &last_val) < 0)
 				goto err;
-			last_val = l;
-
-		} else {
-			last_val++;
 		}
 
-		if (type_enum_add(info, key, 1, last_val) < 0)
+		struct value *value = malloc(sizeof(*value));
+		if (value == NULL)
 			goto err;
+		value_init_detached(value, NULL, *retp, 0);
+		value_set_long(value, last_val);
+
+		if (lens_enum_add(lens, key, 1, value, 1) < 0)
+			goto err;
+
+		last_val++;
 	}
 
 	return 0;
@@ -764,10 +820,6 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 
 	case ARGTYPE_ARRAY:
 		parser = parse_array;
-		break;
-
-	case ARGTYPE_ENUM:
-		parser = parse_enum;
 		break;
 
 	case ARGTYPE_STRUCT:
