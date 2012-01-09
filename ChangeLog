@@ -1,5 +1,9 @@
 2012-01-09  Petr Machata  <pmachata@redhat.com>
 
+	* sysdeps/linux-gnu/x86_64/trace.c: Rewrite
+
+2012-01-09  Petr Machata  <pmachata@redhat.com>
+
 	* lens_default.c, lens_default.h (string_lens): New global variable
 	(format_naked_char): New function
 	* type.h, type.c (enum arg_type): Drop ARGTYPE_STRING
