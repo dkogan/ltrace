@@ -419,6 +419,44 @@ struct lens guess_lens = {
 
 
 static int
+bool_lens_format_cb(struct lens *lens, FILE *stream,
+		    struct value *value, struct value_dict *arguments)
+{
+	switch (value->type->type) {
+	case ARGTYPE_VOID:
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+	case ARGTYPE_STRUCT:
+	case ARGTYPE_POINTER:
+	case ARGTYPE_ARRAY:
+		return toplevel_format_lens(lens, stream, value,
+					    arguments, INT_FMT_i);
+
+		int zero;
+	case ARGTYPE_ENUM:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_CHAR:
+		if ((zero = value_is_zero(value, arguments)) < 0)
+			return -1;
+		if (zero)
+			return fprintf(stream, "false");
+		else
+			return fprintf(stream, "true");
+	}
+	abort();
+}
+
+struct lens bool_lens = {
+	.format_cb = bool_lens_format_cb,
+};
+
+
+static int
 string_lens_format_cb(struct lens *lens, FILE *stream,
 		      struct value *value, struct value_dict *arguments)
 {

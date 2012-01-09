@@ -35,6 +35,9 @@ extern struct lens octal_lens;
 /* A lens that formats integers in hexadecimal.  */
 extern struct lens hex_lens;
 
+/* A lens that formats integers as either "true" or "false".  */
+extern struct lens bool_lens;
+
 /* A lens that tries to guess whether the value is "large" (i.e. a
  * pointer, and should be formatted in hex), or "small" (and should be
  * formatted in decimal).  */

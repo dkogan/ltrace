@@ -804,6 +804,7 @@ static struct named_lens {
 	{ "hide", &blind_lens },
 	{ "octal", &octal_lens },
 	{ "hex", &hex_lens },
+	{ "bool", &bool_lens },
 	{ "guess", &guess_lens },
 };
 

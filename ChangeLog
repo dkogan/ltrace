@@ -1,5 +1,11 @@
 2012-01-09  Petr Machata  <pmachata@redhat.com>
 
+	* lens_default.c, lens_default.h (bool_lens): New global variable
+	* read_config_file.c: Plug it in
+	* testsuite/ltrace.main/parameters*: Test it
+
+2012-01-09  Petr Machata  <pmachata@redhat.com>
+
 	* sysdeps/linux-gnu/x86_64/trace.c: Rewrite
 
 2012-01-09  Petr Machata  <pmachata@redhat.com>
