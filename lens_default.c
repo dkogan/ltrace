@@ -107,15 +107,21 @@ format_integer(FILE *stream, struct value *value, enum int_fmt_t format,
 #undef HANDLE_WIDTH
 
 static int
+account(int *countp, int c)
+{
+	if (c >= 0)
+		*countp += c;
+	return c;
+}
+
+static int
 acc_fprintf(int *countp, FILE *stream, const char *format, ...)
 {
 	va_list pa;
 	va_start(pa, format);
-	int i = vfprintf(stream, format, pa);
+	int i = account(countp, vfprintf(stream, format, pa));
 	va_end(pa);
 
-	if (i >= 0)
-		*countp += i;
 	return i;
 }
 
@@ -175,7 +181,7 @@ format_naked_char(FILE *stream, struct value *value,
 {
 	int written = 0;
 	if (acc_fprintf(&written, stream, "'") < 0
-	    || format_char(stream, value, arguments) < 0
+	    || account(&written, format_char(stream, value, arguments)) < 0
 	    || acc_fprintf(&written, stream, "'") < 0)
 		return -1;
 
