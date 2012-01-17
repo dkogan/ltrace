@@ -127,7 +127,6 @@ format_char(FILE *stream, struct value *value, struct value_dict *arguments)
 		return -1;
 	int c = (int)lc;
 
-	int written = 0;
 	const char *fmt;
 	switch (c) {
 	case -1:
@@ -163,16 +162,11 @@ format_char(FILE *stream, struct value *value, struct value_dict *arguments)
 	default:
 		if (isprint(c) || c == ' ')
 			fmt = "%c";
-		else if (acc_fprintf(&written, stream, "\\%03o",
-				     (unsigned char)c) < 0)
-			return -1;
 		else
-			fmt = NULL;
+			fmt = "\\%03o";
 	}
 
-	if (fmt != NULL && acc_fprintf(&written, stream, fmt, c) < 0)
-		return -1;
-	return written;
+	return fprintf(stream, fmt, c);
 }
 
 static int
