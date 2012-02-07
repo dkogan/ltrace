@@ -7,6 +7,12 @@
 
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (struct Process.breakpoints_enabled): Drop.
+	* breakpoints.c, proc.c: Drop uses of breakpoints_enabled.
+	* sysdeps/linux-gnu/events.c: Likewise.
+
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
 	* breakpoint.h (struct bp_callbacks): New structure.
 	(struct breakpoint.cbs): New field of above type.
 	(breakpoint_on_hit, breakpoint_on_destroy): New interfaces.

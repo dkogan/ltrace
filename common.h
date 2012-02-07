@@ -180,7 +180,6 @@ struct Process {
 	 * processes.  */
 	Dict * breakpoints;
 
-	int breakpoints_enabled;  /* -1:not enabled yet, 0:disabled, 1:enabled */
 	int mask_32bit;           /* 1 if 64-bit ltrace is tracing 32-bit process */
 	unsigned int personality;
 	int tracesysgood;         /* signal indicating a PTRACE_SYSCALL trap */

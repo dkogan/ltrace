@@ -27,7 +27,6 @@ open_program(char *filename, pid_t pid, int enable) {
 	}
 
 	proc->filename = strdup(filename);
-	proc->breakpoints_enabled = -1;
 	proc->pid = pid;
 #if defined(HAVE_LIBUNWIND)
 	proc->unwind_priv = _UPT_create(pid);
@@ -40,13 +39,15 @@ open_program(char *filename, pid_t pid, int enable) {
 		return NULL;
 	}
 
-	if (proc->leader == proc)
+	if (proc->leader == proc) {
+		trace_set_options(proc, proc->pid);
 		if (breakpoints_init(proc, enable)) {
 			fprintf(stderr, "failed to init breakpoints %d\n",
 				proc->pid);
 			remove_process(proc);
 			return NULL;
 		}
+	}
 
 	return proc;
 }
@@ -74,11 +75,10 @@ open_one_pid(pid_t pid)
 	return 0;
 }
 
-enum pcb_status
+static enum pcb_status
 start_one_pid(Process * proc, void * data)
 {
 	continue_process(proc->pid);
-	proc->breakpoints_enabled = 1;
 	return pcb_cont;
 }
 

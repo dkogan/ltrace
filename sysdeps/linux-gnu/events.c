@@ -173,8 +173,6 @@ next_event(void)
 	}
 	get_arch_dep(event.proc);
 	debug(3, "event from pid %u", pid);
-	if (event.proc->breakpoints_enabled == -1)
-		trace_set_options(event.proc, event.proc->pid);
 	Process *leader = event.proc->leader;
 	if (leader == event.proc) {
 		if (!event.proc->libdl_hooked) {
