@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "arch.h"
 #include "sysdep.h"
 #include "breakpoint.h"
 #include "proc.h"

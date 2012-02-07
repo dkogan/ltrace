@@ -166,6 +166,8 @@ extern arg_type_info * lookup_prototype(enum arg_type at);
 struct breakpoint;
 struct library_symbol;
 
+struct breakpoint;
+
 /* Arch-dependent stuff: */
 extern char * pid2name(pid_t pid);
 extern pid_t process_leader(pid_t pid);
