@@ -89,6 +89,8 @@ execute_program(const char * command, char **argv)
 		_exit(1);
 	}
 
+	wait_for_proc(pid);
+
 	debug(1, "PID=%d", pid);
 
 	return pid;

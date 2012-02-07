@@ -1,5 +1,11 @@
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
+	* common.h (wait_for_proc): New interface.
+	* sysdeps/linux-gnu/trace.c: Implement it.
+	* execute_program.c: Call it.
+
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
 	* configure.ac (ELF_HASH_TAKES_SIGNED_CHAR): Rename to
 	ELF_HASH_TAKES_CHARP, adjust configure message accordingly.
 	* ltrace-elf.c: Adapt to the rename

@@ -77,6 +77,29 @@ trace_me(void) {
 	}
 }
 
+/* There's a (hopefully) brief period of time after the child process
+ * exec's when we can't trace it yet.  Here we wait for kernel to
+ * prepare the process.  */
+void
+wait_for_proc(pid_t pid)
+{
+	size_t i;
+	for (i = 0; i < 100; ++i) {
+		/* We read from memory address 0, but that shouldn't
+		 * be a problem: the reading will just fail.  We are
+		 * looking for a particular reason of failure.  */
+		if (ptrace(PTRACE_PEEKTEXT, pid, 0, 0) != -1
+		    || errno != ESRCH)
+			return;
+
+		usleep(1000);
+	}
+
+	fprintf(stderr, "\
+I consistently fail to read a word from the freshly launched process.\n\
+I'll now try to proceed with tracing, but this shouldn't be happening.\n");
+}
+
 int
 trace_pid(pid_t pid) {
 	debug(DEBUG_PROCESS, "trace_pid: pid=%d", pid);
