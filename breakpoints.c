@@ -124,22 +124,6 @@ void
 enable_all_breakpoints(Process *proc)
 {
 	debug(DEBUG_FUNCTION, "enable_all_breakpoints(pid=%d)", proc->pid);
-#ifdef __powerpc__
-	unsigned long a;
-
-	/*
-	 * PPC HACK! (XXX FIXME TODO)
-	 * If the dynamic linker hasn't populated the PLT then
-	 * dont enable the breakpoints
-	 */
-	if (options.libcalls) {
-		a = ptrace(PTRACE_PEEKTEXT, proc->pid,
-			   sym2addr(proc, proc->list_of_symbols),
-			   0);
-		if (a == 0x0)
-			return;
-	}
-#endif
 
 	debug(1, "Enabling breakpoints for pid %u...", proc->pid);
 	if (proc->breakpoints) {
