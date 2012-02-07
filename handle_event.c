@@ -581,29 +581,6 @@ handle_breakpoint(Event *event)
 	      event->proc->pid, brk_addr);
 	debug(2, "event: breakpoint (%p)", brk_addr);
 
-#ifdef __powerpc__
-	/* Need to skip following NOP's to prevent a fake function from being stacked.  */
-	long stub_addr = (long) get_count_register(event->proc);
-	Breakpoint *stub_bp = NULL;
-	char nop_instruction[] = PPC_NOP;
-
-	stub_bp = address2bpstruct(leader, brk_addr);
-
-	if (stub_bp) {
-		unsigned char *bp_instruction = stub_bp->orig_value;
-
-		if (memcmp(bp_instruction, nop_instruction,
-			    PPC_NOP_LENGTH) == 0) {
-			if (stub_addr != (long) brk_addr) {
-				set_instruction_pointer(event->proc,
-							brk_addr + 4);
-				continue_process(event->proc->pid);
-				return;
-			}
-		}
-	}
-#endif
-
 	for (i = event->proc->callstack_depth - 1; i >= 0; i--) {
 		if (brk_addr == event->proc->callstack[i].return_addr) {
 #ifdef __powerpc__
