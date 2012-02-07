@@ -1,6 +1,5 @@
 #define _GNU_SOURCE /* For getline.  */
 #include "config.h"
-#include "common.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -17,6 +16,7 @@
 #include <sys/syscall.h>
 #include <error.h>
 
+#include "common.h"
 #include "breakpoint.h"
 
 /* /proc/pid doesn't exist just after the fork, and sometimes `ltrace'
