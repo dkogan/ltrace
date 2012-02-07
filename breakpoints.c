@@ -13,7 +13,8 @@
 /*****************************************************************************/
 
 Breakpoint *
-address2bpstruct(Process *proc, void *addr) {
+address2bpstruct(Process *proc, void *addr)
+{
 	assert(proc != NULL);
 	assert(proc->breakpoints != NULL);
 	assert(proc->leader == proc);
@@ -23,7 +24,8 @@ address2bpstruct(Process *proc, void *addr) {
 
 void
 insert_breakpoint(Process *proc, void *addr,
-		  struct library_symbol *libsym, int enable) {
+		  struct library_symbol *libsym, int enable)
+{
 	Breakpoint *sbp;
 
 	Process * leader = proc->leader;
@@ -49,9 +51,9 @@ insert_breakpoint(Process *proc, void *addr,
 		libsym->needs_init = 0;
 
 	sbp = dict_find_entry(leader->breakpoints, addr);
-	if (!sbp) {
-		sbp = calloc(1, sizeof(Breakpoint));
-		if (!sbp) {
+	if (sbp == NULL) {
+		sbp = calloc(1, sizeof(*sbp));
+		if (sbp == NULL) {
 			return;	/* TODO FIXME XXX: error_mem */
 		}
 		dict_enter(leader->breakpoints, addr, sbp);
@@ -70,7 +72,8 @@ insert_breakpoint(Process *proc, void *addr,
 }
 
 void
-delete_breakpoint(Process *proc, void *addr) {
+delete_breakpoint(Process *proc, void *addr)
+{
 	Breakpoint *sbp;
 
 	debug(DEBUG_FUNCTION, "delete_breakpoint(pid=%d, addr=%p)", proc->pid, addr);
@@ -91,7 +94,8 @@ delete_breakpoint(Process *proc, void *addr) {
 }
 
 static void
-enable_bp_cb(void *addr, void *sbp, void *proc) {
+enable_bp_cb(void *addr, void *sbp, void *proc)
+{
 	debug(DEBUG_FUNCTION, "enable_bp_cb(pid=%d)", ((Process *)proc)->pid);
 	if (((Breakpoint *)sbp)->enabled) {
 		enable_breakpoint(proc, sbp);
@@ -158,7 +162,8 @@ enable_all_breakpoints(Process *proc) {
 }
 
 static void
-disable_bp_cb(void *addr, void *sbp, void *proc) {
+disable_bp_cb(void *addr, void *sbp, void *proc)
+{
 	debug(DEBUG_FUNCTION, "disable_bp_cb(pid=%d)", ((Process *)proc)->pid);
 	if (((Breakpoint *)sbp)->enabled) {
 		disable_breakpoint(proc, sbp);

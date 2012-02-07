@@ -1,6 +1,6 @@
+#define _GNU_SOURCE
 #include "config.h"
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -9,11 +9,11 @@
 #include <sys/time.h>
 #include <errno.h>
 
-#include "common.h"
-
 #ifdef __powerpc__
 #include <sys/ptrace.h>
 #endif
+
+#include "common.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);
@@ -155,19 +155,19 @@ address_clone(void * addr, void * data)
 }
 
 static void *
-breakpoint_clone(void * bp, void * data)
+breakpoint_clone(void *bp, void *data)
 {
 	Breakpoint * b;
-	Dict * map = data;
+	Dict *map = data;
 	debug(DEBUG_FUNCTION, "breakpoint_clone(%p)", bp);
 	b = malloc(sizeof(Breakpoint));
 	if (!b) {
 		perror("malloc()");
 		exit(1);
 	}
-	memcpy(b, bp, sizeof(Breakpoint));
+	memcpy(b, bp, sizeof(*b));
 	if (b->libsym != NULL) {
-		struct library_symbol * sym = dict_find_entry(map, b->libsym);
+		struct library_symbol *sym = dict_find_entry(map, b->libsym);
 		if (b->libsym == NULL) {
 			fprintf(stderr, "Can't find cloned symbol %s.\n",
 				b->libsym->name);
@@ -564,7 +564,8 @@ void *get_count_register (Process *proc);
 #endif
 
 static void
-handle_breakpoint(Event *event) {
+handle_breakpoint(Event *event)
+{
 	int i, j;
 	Breakpoint *sbp;
 	Process *leader = event->proc->leader;

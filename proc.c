@@ -116,7 +116,7 @@ open_pid(pid_t pid)
 		if (process_tasks(pid, &tasks, &ntasks) < 0) {
 			fprintf(stderr, "Cannot obtain tasks of pid %u: %s\n",
 				pid, strerror(errno));
-			goto start;
+			break;
 		}
 
 		have_all = 1;
@@ -135,7 +135,6 @@ open_pid(pid_t pid)
 	/* Done.  Now initialize breakpoints and then continue
 	 * everyone.  */
 	Process * leader;
-start:
 	leader = pid2proc(pid)->leader;
 	enable_all_breakpoints(leader);
 
