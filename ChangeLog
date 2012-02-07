@@ -7,6 +7,14 @@
 
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
+	* breakpoint.h (struct bp_callbacks): New structure.
+	(struct breakpoint.cbs): New field of above type.
+	(breakpoint_on_hit, breakpoint_on_destroy): New interfaces.
+	* breakpoints.c: Implement the new interfaces.
+	* handle_event.c (handle_breakpoint): Call breakpoint_on_hit.
+
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
 	* breakpoint.h: New header file.
 	* common.h (struct breakpoint): Move to breakpoint.h.
 	(address2bpstruct, breakpoints_init, insert_breakpoint)

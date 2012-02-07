@@ -11,6 +11,22 @@
 #include "breakpoint.h"
 #include "common.h"
 
+void
+breakpoint_on_hit(struct breakpoint *bp, struct Process *proc)
+{
+	assert(bp != NULL);
+	if (bp->cbs != NULL && bp->cbs->on_hit != NULL)
+		(bp->cbs->on_hit) (bp, proc);
+}
+
+void
+breakpoint_on_destroy(struct breakpoint *bp)
+{
+	assert(bp != NULL);
+	if (bp->cbs != NULL && bp->cbs->on_destroy != NULL)
+		(bp->cbs->on_destroy) (bp);
+}
+
 /*****************************************************************************/
 
 struct breakpoint *

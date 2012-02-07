@@ -710,6 +710,7 @@ handle_breakpoint(Event *event)
 	}
 
 	if ((sbp = address2bpstruct(leader, brk_addr))) {
+		breakpoint_on_hit(sbp, event->proc);
 		if (sbp->libsym == NULL) {
 			continue_after_breakpoint(event->proc, sbp);
 			return;

@@ -59,9 +59,16 @@
 #include "arch.h"
 
 struct Process;
+struct breakpoint;
+
+struct bp_callbacks {
+	void (*on_hit) (struct breakpoint *bp, struct Process *proc);
+	void (*on_destroy) (struct breakpoint *bp);
+};
 
 typedef struct breakpoint Breakpoint;
 struct breakpoint {
+	struct bp_callbacks *cbs;
 	void *addr;
 	unsigned char orig_value[BREAKPOINT_LENGTH];
 	int enabled;
@@ -70,6 +77,12 @@ struct breakpoint {
 	int thumb_mode;
 #endif
 };
+
+/* Call on-hit handler of BP, if any is set.  */
+void breakpoint_on_hit(struct breakpoint *bp, struct Process *proc);
+
+/* Call on-destroy handler of BP, if any is set.  */
+void breakpoint_on_destroy(struct breakpoint *bp);
 
 /* This is actually three functions rolled in one:
  *  - breakpoint_init
