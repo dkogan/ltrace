@@ -66,7 +66,6 @@ struct bp_callbacks {
 	void (*on_destroy) (struct breakpoint *bp);
 };
 
-typedef struct breakpoint Breakpoint;
 struct breakpoint {
 	struct bp_callbacks *cbs;
 	void *addr;

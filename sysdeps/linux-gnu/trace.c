@@ -248,7 +248,7 @@ struct process_stopping_handler
 	Process * task_enabling_breakpoint;
 
 	/* The pointer being re-enabled.  */
-	Breakpoint * breakpoint_being_enabled;
+	struct breakpoint *breakpoint_being_enabled;
 
 	/* Artificial atomic skip breakpoint, if any needed.  */
 	void *atomic_skip_bp_addr;
@@ -422,7 +422,7 @@ static void
 ugly_workaround(Process * proc)
 {
 	void * ip = get_instruction_pointer(proc);
-	Breakpoint * sbp = dict_find_entry(proc->leader->breakpoints, ip);
+	struct breakpoint *sbp = dict_find_entry(proc->leader->breakpoints, ip);
 	if (sbp != NULL)
 		enable_breakpoint(proc, sbp);
 	else
@@ -708,7 +708,7 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 	struct process_stopping_handler * self = (void *)super;
 	Process * task = event->proc;
 	Process * leader = task->leader;
-	Breakpoint * sbp = self->breakpoint_being_enabled;
+	struct breakpoint *sbp = self->breakpoint_being_enabled;
 	Process * teb = self->task_enabling_breakpoint;
 
 	debug(DEBUG_PROCESS,
@@ -819,7 +819,7 @@ process_stopping_destroy(Event_Handler * super)
 }
 
 void
-continue_after_breakpoint(Process *proc, Breakpoint *sbp)
+continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
 {
 	set_instruction_pointer(proc, sbp->addr);
 	if (sbp->enabled == 0) {
@@ -983,7 +983,7 @@ static Event *
 process_vfork_on_event(Event_Handler * super, Event * event)
 {
 	struct process_vfork_handler * self = (void *)super;
-	Breakpoint * sbp;
+	struct breakpoint *sbp;
 	assert(self != NULL);
 
 	switch (event->type) {

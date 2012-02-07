@@ -116,13 +116,13 @@ static void
 enable_bp_cb(void *addr, void *sbp, void *proc)
 {
 	debug(DEBUG_FUNCTION, "enable_bp_cb(pid=%d)", ((Process *)proc)->pid);
-	if (((Breakpoint *)sbp)->enabled) {
+	if (((struct breakpoint *)sbp)->enabled)
 		enable_breakpoint(proc, sbp);
-	}
 }
 
 void
-enable_all_breakpoints(Process *proc) {
+enable_all_breakpoints(Process *proc)
+{
 	debug(DEBUG_FUNCTION, "enable_all_breakpoints(pid=%d)", proc->pid);
 #ifdef __powerpc__
 	unsigned long a;
@@ -181,9 +181,8 @@ static void
 disable_bp_cb(void *addr, void *sbp, void *proc)
 {
 	debug(DEBUG_FUNCTION, "disable_bp_cb(pid=%d)", ((Process *)proc)->pid);
-	if (((Breakpoint *)sbp)->enabled) {
+	if (((struct breakpoint *)sbp)->enabled)
 		disable_breakpoint(proc, sbp);
-	}
 }
 
 void

@@ -567,7 +567,7 @@ static void
 handle_breakpoint(Event *event)
 {
 	int i, j;
-	Breakpoint *sbp;
+	struct breakpoint *sbp;
 	Process *leader = event->proc->leader;
 	void *brk_addr = event->e_un.brk_addr;
 
@@ -678,6 +678,7 @@ handle_breakpoint(Event *event)
 
 	if ((sbp = address2bpstruct(leader, brk_addr))) {
 		breakpoint_on_hit(sbp, event->proc);
+
 		if (sbp->libsym == NULL) {
 			continue_after_breakpoint(event->proc, sbp);
 			return;

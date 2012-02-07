@@ -7,6 +7,13 @@
 
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
+	* breakpoint.h (typedef Breakpoint): Drop.
+	* breakpoints.c, handle_event.c, sysdeps/linux-gnu/breakpoint.c,
+	sysdeps/linux-gnu/trace.c, sysdeps/linux-gnu/arm/breakpoint.c,
+	sysdeps/linux-gnu/ia64/breakpoint.c: Adjust.
+
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (struct Process.breakpoints_enabled): Drop.
 	* breakpoints.c, proc.c: Drop uses of breakpoints_enabled.
 	* sysdeps/linux-gnu/events.c: Likewise.
