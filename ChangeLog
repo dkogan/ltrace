@@ -1,3 +1,9 @@
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
+	* configure.ac (ELF_HASH_TAKES_SIGNED_CHAR): Rename to
+	ELF_HASH_TAKES_CHARP, adjust configure message accordingly.
+	* ltrace-elf.c: Adapt to the rename
+
 2011-07-08  Petr Machata  <pmachata@redhat.com>
 
 	* common.h (ltrace_exiting): New interface called when ^C is hit.

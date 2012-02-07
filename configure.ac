@@ -158,12 +158,12 @@ int main () {
 
 saved_CFLAGS="${CFLAGS}"
 CFLAGS="${CFLAGS} -Wall -Werror"
-AC_MSG_CHECKING([whether elf_hash takes a signed char string])
+AC_MSG_CHECKING([whether elf_hash takes a char* argument])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <libelf.h>]], [[
 	(void) elf_hash("name");
 	]])],
-	[AC_DEFINE([ELF_HASH_TAKES_SIGNED_CHAR], [1],
-		[elf_hash() takes signed char])
+	[AC_DEFINE([ELF_HASH_TAKES_CHARP], [1],
+		[elf_hash() takes char* (as opposed to unsigned char *)])
 	 AC_MSG_RESULT([yes])],
 	[AC_MSG_RESULT([no])])
 CFLAGS="${saved_CFLAGS}"
