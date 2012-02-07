@@ -230,8 +230,9 @@ breakpoints_init(Process *proc, int enable)
 	destroy_library_symbol_chain(proc->list_of_symbols);
 	proc->list_of_symbols = NULL;
 
+	GElf_Addr entry;
 	if (options.libcalls && proc->filename) {
-		proc->list_of_symbols = read_elf(proc);
+		proc->list_of_symbols = read_elf(proc, &entry);
 		if (proc->list_of_symbols == NULL) {
 			/* XXX leak breakpoints */
 			return -1;

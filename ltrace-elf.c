@@ -662,7 +662,8 @@ opd2addr(struct ltelf *lte, GElf_Addr addr) {
 }
 
 struct library_symbol *
-read_elf(Process *proc) {
+read_elf(Process *proc, GElf_Addr *entryp)
+{
 	struct ltelf lte[MAX_LIBRARIES + 1];
 	size_t i;
 	struct opt_x_t *xptr;
@@ -848,6 +849,11 @@ read_elf(Process *proc) {
 			debug(2, "done, found everything: %d\n", found_count);
 			break;
 		}
+	}
+
+	if (lte->ehdr.e_entry != 0) {
+		*entryp = lte->ehdr.e_entry;
+	} else {
 	}
 
 	for (xptr = opt_x_loc; xptr; xptr = xptr->next)
