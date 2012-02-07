@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "arch.h"
+#include "breakpoint.h"
 
 #ifdef ARCH_HAVE_ENABLE_BREAKPOINT
 extern void arch_enable_breakpoint(pid_t, Breakpoint *);

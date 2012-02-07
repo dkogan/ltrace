@@ -7,6 +7,15 @@
 
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
+	* breakpoint.h: New header file.
+	* common.h (struct breakpoint): Move to breakpoint.h.
+	(address2bpstruct, breakpoints_init, insert_breakpoint)
+	(delete_breakpoint, enable_all_breakpoints, enable_breakpoint)
+	(disable_breakpoint, reinitialize_breakpoints): Likewise.
+	(insert_breakpoint): Now returns the created breakpoint.
+
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
 	* common.h (wait_for_proc): New interface.
 	* sysdeps/linux-gnu/trace.c: Implement it.
 	* execute_program.c: Call it.

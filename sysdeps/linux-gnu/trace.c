@@ -16,6 +16,7 @@
 
 #include "ptrace.h"
 #include "common.h"
+#include "breakpoint.h"
 
 /* If the system headers did not provide the constants, hard-code the normal
    values.  */

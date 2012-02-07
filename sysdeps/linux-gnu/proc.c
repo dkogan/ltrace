@@ -17,6 +17,7 @@
 #include <sys/syscall.h>
 #include <error.h>
 
+#include "breakpoint.h"
 
 /* /proc/pid doesn't exist just after the fork, and sometimes `ltrace'
  * couldn't open it to find the executable.  So it may be necessary to

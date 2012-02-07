@@ -8,11 +8,12 @@
 #include <sys/ptrace.h>
 #endif
 
+#include "breakpoint.h"
 #include "common.h"
 
 /*****************************************************************************/
 
-Breakpoint *
+struct breakpoint *
 address2bpstruct(Process *proc, void *addr)
 {
 	assert(proc != NULL);
@@ -22,11 +23,11 @@ address2bpstruct(Process *proc, void *addr)
 	return dict_find_entry(proc->breakpoints, addr);
 }
 
-void
+struct breakpoint *
 insert_breakpoint(Process *proc, void *addr,
 		  struct library_symbol *libsym, int enable)
 {
-	Breakpoint *sbp;
+	struct breakpoint *sbp;
 
 	Process * leader = proc->leader;
 
@@ -45,7 +46,7 @@ insert_breakpoint(Process *proc, void *addr,
 	debug(1, "symbol=%s, addr=%p", libsym?libsym->name:"(nil)", addr);
 
 	if (!addr)
-		return;
+		return NULL;
 
 	if (libsym)
 		libsym->needs_init = 0;
@@ -54,7 +55,7 @@ insert_breakpoint(Process *proc, void *addr,
 	if (sbp == NULL) {
 		sbp = calloc(1, sizeof(*sbp));
 		if (sbp == NULL) {
-			return;	/* TODO FIXME XXX: error_mem */
+			return NULL;	/* TODO FIXME XXX: error_mem */
 		}
 		dict_enter(leader->breakpoints, addr, sbp);
 		sbp->addr = addr;
@@ -69,12 +70,14 @@ insert_breakpoint(Process *proc, void *addr,
 		assert(proc->pid != 0);
 		enable_breakpoint(proc, sbp);
 	}
+
+	return sbp;
 }
 
 void
 delete_breakpoint(Process *proc, void *addr)
 {
-	Breakpoint *sbp;
+	struct breakpoint *sbp;
 
 	debug(DEBUG_FUNCTION, "delete_breakpoint(pid=%d, addr=%p)", proc->pid, addr);
 

@@ -26,17 +26,6 @@ extern char * command;
 
 extern int exiting;  /* =1 if we have to exit ASAP */
 
-typedef struct Breakpoint Breakpoint;
-struct Breakpoint {
-	void * addr;
-	unsigned char orig_value[BREAKPOINT_LENGTH];
-	int enabled;
-	struct library_symbol * libsym;
-#ifdef __arm__
-	int thumb_mode;
-#endif
-};
-
 enum arg_type {
 	ARGTYPE_UNKNOWN = -1,
 	ARGTYPE_VOID,
@@ -187,7 +176,7 @@ struct Process {
 	pid_t pid;
 
 	/* Dictionary of breakpoints (which is a mapping
-	 * address->Breakpoint).  This is NULL for non-leader
+	 * address->breakpoint).  This is NULL for non-leader
 	 * processes.  */
 	Dict * breakpoints;
 
@@ -296,14 +285,7 @@ extern void destroy_event_handler(Process * proc);
 
 extern pid_t execute_program(const char * command, char ** argv);
 extern int display_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
-extern Breakpoint * address2bpstruct(Process * proc, void * addr);
-extern int breakpoints_init(Process * proc, int enable);
-extern void insert_breakpoint(Process * proc, void * addr,
-			      struct library_symbol * libsym, int enable);
-extern void delete_breakpoint(Process * proc, void * addr);
-extern void enable_all_breakpoints(Process * proc);
 extern void disable_all_breakpoints(Process * proc);
-extern void reinitialize_breakpoints(Process *);
 
 extern Process * open_program(char * filename, pid_t pid, int init_breakpoints);
 extern void open_pid(pid_t pid);
@@ -322,6 +304,8 @@ extern struct library_symbol * clone_library_symbol(struct library_symbol * s);
 extern void destroy_library_symbol(struct library_symbol * s);
 extern void destroy_library_symbol_chain(struct library_symbol * chain);
 
+struct breakpoint;
+
 /* Arch-dependent stuff: */
 extern char * pid2name(pid_t pid);
 extern pid_t process_leader(pid_t pid);
@@ -339,13 +323,13 @@ extern void set_instruction_pointer(Process * proc, void * addr);
 extern void * get_stack_pointer(Process * proc);
 extern void * get_return_addr(Process * proc, void * stack_pointer);
 extern void set_return_addr(Process * proc, void * addr);
-extern void enable_breakpoint(Process * proc, Breakpoint * sbp);
-extern void disable_breakpoint(Process * proc, Breakpoint * sbp);
+extern void enable_breakpoint(Process * proc, struct breakpoint *sbp);
+extern void disable_breakpoint(Process * proc, struct breakpoint *sbp);
 extern int syscall_p(Process * proc, int status, int * sysnum);
 extern void continue_process(pid_t pid);
 extern void continue_after_signal(pid_t pid, int signum);
 extern void continue_after_syscall(Process *proc, int sysnum, int ret_p);
-extern void continue_after_breakpoint(Process * proc, Breakpoint * sbp);
+extern void continue_after_breakpoint(Process * proc, struct breakpoint *sbp);
 extern void continue_after_vfork(Process * proc);
 extern long gimme_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern void save_register_args(enum tof type, Process * proc);

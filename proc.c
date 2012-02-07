@@ -14,6 +14,7 @@
 #include <error.h>
 
 #include "common.h"
+#include "breakpoint.h"
 
 Process *
 open_program(char *filename, pid_t pid, int enable) {

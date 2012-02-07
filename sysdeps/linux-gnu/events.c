@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "breakpoint.h"
 
 static Event event;
 

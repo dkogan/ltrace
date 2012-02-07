@@ -14,6 +14,7 @@
 #endif
 
 #include "common.h"
+#include "breakpoint.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);
@@ -158,10 +159,9 @@ address_clone(void * addr, void * data)
 static void *
 breakpoint_clone(void *bp, void *data)
 {
-	Breakpoint * b;
 	Dict *map = data;
 	debug(DEBUG_FUNCTION, "breakpoint_clone(%p)", bp);
-	b = malloc(sizeof(Breakpoint));
+	struct breakpoint *b = malloc(sizeof(*b));
 	if (!b) {
 		perror("malloc()");
 		exit(1);
