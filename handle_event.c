@@ -550,10 +550,6 @@ handle_arch_sysret(Event *event) {
 	continue_process(event->proc->pid);
 }
 
-#ifdef __powerpc__
-void *get_count_register (Process *proc);
-#endif
-
 static void
 output_right_tos(struct Process *proc)
 {
