@@ -207,11 +207,18 @@ free_bp_cb(void *addr, void *sbp, void *data) {
 	free(sbp);
 }
 
+static void
+entry_callback_hit(struct breakpoint *bp, struct Process *proc)
+{
+	if (proc == NULL || proc->leader == NULL)
+		return;
+	delete_breakpoint(proc, bp->addr); // xxx
+	reinitialize_breakpoints(proc->leader);
+}
+
 int
 breakpoints_init(Process *proc, int enable)
 {
-	struct library_symbol *sym;
-
 	debug(DEBUG_FUNCTION, "breakpoints_init(pid=%d)", proc->pid);
 	if (proc->breakpoints) {	/* let's remove that struct */
 		dict_apply_to_all(proc->breakpoints, free_bp_cb, NULL);
@@ -234,6 +241,7 @@ breakpoints_init(Process *proc, int enable)
 	if (options.libcalls && proc->filename) {
 		proc->list_of_symbols = read_elf(proc, &entry);
 		if (proc->list_of_symbols == NULL) {
+		fail:
 			/* XXX leak breakpoints */
 			return -1;
 		}
@@ -260,8 +268,17 @@ breakpoints_init(Process *proc, int enable)
 		}
 	}
 
-	for (sym = proc->list_of_symbols; sym; sym = sym->next)
-		insert_breakpoint(proc, sym2addr(proc, sym), sym, enable);
+	struct breakpoint *entry_bp
+		= insert_breakpoint(proc, (void *)entry, NULL, 1);
+	if (entry_bp == NULL) {
+		fprintf(stderr, "fail!\n");
+		goto fail;
+	}
+
+	static struct bp_callbacks entry_callbacks = {
+		.on_hit = entry_callback_hit,
+	};
+	entry_bp->cbs = &entry_callbacks;
 
 	proc->callstack_depth = 0;
 	proc->breakpoints_enabled = -1;

@@ -177,15 +177,7 @@ next_event(void)
 		trace_set_options(event.proc, event.proc->pid);
 	Process *leader = event.proc->leader;
 	if (leader == event.proc) {
-		if (event.proc->breakpoints_enabled == -1) {
-			event.type = EVENT_NONE;
-			enable_all_breakpoints(event.proc);
-			continue_process(event.proc->pid);
-			debug(DEBUG_EVENT,
-			      "event: NONE: pid=%d (enabling breakpoints)",
-			      pid);
-			return &event;
-		} else if (!event.proc->libdl_hooked) {
+		if (!event.proc->libdl_hooked) {
 			/* debug struct may not have been written yet.. */
 			if (linkmap_init(event.proc, &main_lte) == 0) {
 				event.proc->libdl_hooked = 1;

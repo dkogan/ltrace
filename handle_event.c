@@ -453,9 +453,6 @@ handle_syscall(Event *event) {
 			output_left(LT_TOF_SYSCALL, event->proc,
 				    sysname(event->proc, event->e_un.sysnum));
 		}
-		if (event->proc->breakpoints_enabled == 0) {
-			enable_all_breakpoints(event->proc);
-		}
 	}
 	continue_after_syscall(event->proc, event->e_un.sysnum, 0);
 }
@@ -463,7 +460,6 @@ handle_syscall(Event *event) {
 static void
 handle_exec(Event * event) {
 	Process * proc = event->proc;
-	pid_t saved_pid;
 
 	debug(DEBUG_FUNCTION, "handle_exec(pid=%d)", proc->pid);
 	if (proc->state == STATE_IGNORED) {
@@ -477,10 +473,7 @@ handle_exec(Event * event) {
 	proc->arch_ptr = NULL;
 	free(proc->filename);
 	proc->filename = pid2name(proc->pid);
-	saved_pid = proc->pid;
-	proc->pid = 0;
 	breakpoints_init(proc, 0);
-	proc->pid = saved_pid;
 	proc->callstack_depth = 0;
 	continue_process(proc->pid);
 }
@@ -493,9 +486,6 @@ handle_arch_syscall(Event *event) {
 		if (options.syscalls) {
 			output_left(LT_TOF_SYSCALL, event->proc,
 					arch_sysname(event->proc, event->e_un.sysnum));
-		}
-		if (event->proc->breakpoints_enabled == 0) {
-			enable_all_breakpoints(event->proc);
 		}
 	}
 	continue_process(event->proc->pid);
@@ -728,12 +718,6 @@ handle_breakpoint(Event *event)
 			callstack_push_symfunc(event->proc, sbp->libsym);
 			output_left(LT_TOF_FUNCTION, event->proc, sbp->libsym->name);
 		}
-#ifdef PLT_REINITALISATION_BP
-		if (event->proc->need_to_reinitialize_breakpoints
-		    && (strcmp(sbp->libsym->name, PLTs_initialized_by_here) ==
-			0))
-			reinitialize_breakpoints(leader);
-#endif
 
 		continue_after_breakpoint(event->proc, sbp);
 		return;

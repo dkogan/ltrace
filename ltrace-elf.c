@@ -701,7 +701,6 @@ read_elf(Process *proc, GElf_Addr *entryp)
 #ifdef __mips__
 		// MIPS doesn't use the PLT and the GOT entries get changed
 		// on startup.
-		proc->need_to_reinitialize_breakpoints = 1;
 		for(i=lte->mips_gotsym; i<lte->dynsym_count;i++){
 			GElf_Sym sym;
 			const char *name;
@@ -746,11 +745,6 @@ read_elf(Process *proc, GElf_Addr *entryp)
 						"Couldn't get relocation from \"%s\"",
 						proc->filename);
 
-#ifdef PLT_REINITALISATION_BP
-			if (!sym.st_value && PLTs_initialized_by_here)
-				proc->need_to_reinitialize_breakpoints = 1;
-#endif
-
 			name = lte->dynstr + sym.st_name;
 			count = library_num ? library_num+1 : 0;
 
@@ -773,30 +767,6 @@ read_elf(Process *proc, GElf_Addr *entryp)
 			}
 		}
 #endif // !__mips__
-#ifdef PLT_REINITALISATION_BP
-		struct opt_x_t *main_cheat;
-
-		if (proc->need_to_reinitialize_breakpoints) {
-			/* Add "PLTs_initialized_by_here" to opt_x list, if not
-				 already there. */
-			main_cheat = (struct opt_x_t *)malloc(sizeof(struct opt_x_t));
-			if (main_cheat == NULL)
-				error(EXIT_FAILURE, 0, "Couldn't allocate memory");
-			main_cheat->next = opt_x_loc;
-			main_cheat->found = 0;
-			main_cheat->name = PLTs_initialized_by_here;
-
-			for (xptr = opt_x_loc; xptr; xptr = xptr->next)
-				if (strcmp(xptr->name, PLTs_initialized_by_here) == 0
-						&& main_cheat) {
-					free(main_cheat);
-					main_cheat = NULL;
-					break;
-				}
-			if (main_cheat)
-				opt_x_loc = main_cheat;
-		}
-#endif
 	} else {
 		lib_tail = &library_symbols;
 	}
@@ -862,10 +832,6 @@ read_elf(Process *proc, GElf_Addr *entryp)
 #ifdef PLT_REINITALISATION_BP
 			if (strcmp(xptr->name, PLTs_initialized_by_here) == 0) {
 				if (lte->ehdr.e_entry) {
-					add_library_symbol (
-						opd2addr (lte, lte->ehdr.e_entry),
-						PLTs_initialized_by_here,
-						lib_tail, 1, 0);
 					fprintf (stderr, "WARNING: Using e_ent"
 						 "ry from elf header (%p) for "
 						 "address of \"%s\"\n", (void*)
