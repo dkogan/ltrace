@@ -822,7 +822,7 @@ read_elf(Process *proc, GElf_Addr *entryp)
 	}
 
 	if (lte->ehdr.e_entry != 0) {
-		*entryp = lte->ehdr.e_entry;
+		*entryp = opd2addr(lte, lte->ehdr.e_entry);
 	} else {
 	}
 
