@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 
 #include "common.h"
+#include "proc.h"
 
 char *command = NULL;
 

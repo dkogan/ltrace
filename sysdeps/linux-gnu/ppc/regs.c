@@ -4,6 +4,7 @@
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
 
+#include "proc.h"
 #include "common.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))

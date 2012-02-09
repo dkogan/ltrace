@@ -17,6 +17,7 @@
 #include "ptrace.h"
 #include "common.h"
 #include "breakpoint.h"
+#include "proc.h"
 
 /* If the system headers did not provide the constants, hard-code the normal
    values.  */
@@ -242,7 +243,7 @@ struct pid_set {
  */
 struct process_stopping_handler
 {
-	Event_Handler super;
+	struct event_handler super;
 
 	/* The task that is doing the re-enablement.  */
 	Process * task_enabling_breakpoint;
@@ -341,7 +342,7 @@ task_blocked(Process * task, void * data)
 	return task_stopped(task, NULL);
 }
 
-static Event * process_vfork_on_event(Event_Handler * super, Event * event);
+static Event *process_vfork_on_event(struct event_handler *super, Event *event);
 
 static enum pcb_status
 task_vforked(Process * task, void * data)
@@ -703,7 +704,7 @@ singlestep_error(struct process_stopping_handler *self, Event **eventp)
  * happens, we let the re-enablement thread to PTRACE_SINGLESTEP,
  * re-enable, and continue everyone.  */
 static Event *
-process_stopping_on_event(Event_Handler * super, Event * event)
+process_stopping_on_event(struct event_handler *super, Event *event)
 {
 	struct process_stopping_handler * self = (void *)super;
 	Process * task = event->proc;
@@ -812,7 +813,7 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 }
 
 static void
-process_stopping_destroy(Event_Handler * super)
+process_stopping_destroy(struct event_handler *super)
 {
 	struct process_stopping_handler * self = (void *)super;
 	free(self->pids.tasks);
@@ -872,12 +873,12 @@ continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
  */
 struct ltrace_exiting_handler
 {
-	Event_Handler super;
+	struct event_handler super;
 	struct pid_set pids;
 };
 
 static Event *
-ltrace_exiting_on_event(Event_Handler * super, Event * event)
+ltrace_exiting_on_event(struct event_handler *super, Event *event)
 {
 	struct ltrace_exiting_handler * self = (void *)super;
 	Process * task = event->proc;
@@ -904,7 +905,7 @@ ltrace_exiting_on_event(Event_Handler * super, Event * event)
 }
 
 static void
-ltrace_exiting_destroy(Event_Handler * super)
+ltrace_exiting_destroy(struct event_handler *super)
 {
 	struct ltrace_exiting_handler * self = (void *)super;
 	free(self->pids.tasks);
@@ -975,12 +976,12 @@ ltrace_exiting_install_handler(Process * proc)
 
 struct process_vfork_handler
 {
-	Event_Handler super;
+	struct event_handler super;
 	void * bp_addr;
 };
 
 static Event *
-process_vfork_on_event(Event_Handler * super, Event * event)
+process_vfork_on_event(struct event_handler *super, Event *event)
 {
 	struct process_vfork_handler * self = (void *)super;
 	struct breakpoint *sbp;

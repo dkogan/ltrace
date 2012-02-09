@@ -11,6 +11,7 @@
 #include <asm/rse.h>
 #include <errno.h>
 
+#include "proc.h"
 #include "common.h"
 
 /* What we think of as a bundle, ptrace thinks of it as two unsigned

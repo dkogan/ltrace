@@ -1,3 +1,6 @@
+#ifndef _LTRACE_H_
+#define _LTRACE_H_
+
 typedef enum Event_type Event_type;
 enum Event_type {
 	EVENT_NONE=0,
@@ -38,3 +41,5 @@ typedef void (*callback_func) (Event *);
 extern void ltrace_init(int argc, char **argv);
 extern void ltrace_add_callback(callback_func f, Event_type type);
 extern void ltrace_main(void);
+
+#endif /* _LTRACE_H_ */

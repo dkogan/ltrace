@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "proc.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;

@@ -12,6 +12,7 @@
 
 #include "common.h"
 #include "ptrace.h"
+#include "proc.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR

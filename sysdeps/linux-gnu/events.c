@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include "breakpoint.h"
+#include "proc.h"
 
 static Event event;
 

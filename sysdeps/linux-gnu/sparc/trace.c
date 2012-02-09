@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <string.h>
 #include "ptrace.h"
+#include "proc.h"
 #include "common.h"
 
 void

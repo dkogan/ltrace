@@ -5,6 +5,7 @@
 #include <limits.h>
 
 #include "common.h"
+#include "proc.h"
 
 static int display_char(int what);
 static int display_string(enum tof type, Process *proc,

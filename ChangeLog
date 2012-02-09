@@ -5,6 +5,12 @@
 	* proc.c: Call it.
 	* configure.ac: Add support for libselinux.
 
+2012-02-09  Petr Machata  <pmachata@redhat.com>
+
+	* proc.h: New file.  Move there struct Process and related types
+	and function declarations. Update includes across the code.
+	(struct Event_Handler): Rename to struct event_handler.
+
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
 	* breakpoint.h (typedef Breakpoint): Drop.

@@ -13,6 +13,7 @@
 #include <assert.h>
 
 #include "common.h"
+#include "proc.h"
 
 void do_close_elf(struct ltelf *lte);
 void add_library_symbol(GElf_Addr addr, const char *name,

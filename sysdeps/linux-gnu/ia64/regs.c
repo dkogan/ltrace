@@ -8,6 +8,7 @@
 #include <asm/rse.h>
 
 #include <stddef.h>
+#include "proc.h"
 #include "common.h"
 
 void *

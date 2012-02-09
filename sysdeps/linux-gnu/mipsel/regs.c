@@ -5,6 +5,7 @@
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
 
+#include "proc.h"
 #include "common.h"
 #include "mipsel.h"
 

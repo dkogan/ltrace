@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "proc.h"
 #include "common.h"
 #include "ptrace.h"
 

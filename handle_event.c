@@ -15,6 +15,7 @@
 
 #include "common.h"
 #include "breakpoint.h"
+#include "proc.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);
@@ -42,7 +43,7 @@ call_handler(Process * proc, Event * event)
 {
 	assert(proc != NULL);
 
-	Event_Handler * handler = proc->event_handler;
+	struct event_handler *handler = proc->event_handler;
 	if (handler == NULL)
 		return event;
 

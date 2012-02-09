@@ -10,6 +10,7 @@
 
 #include "breakpoint.h"
 #include "common.h"
+#include "proc.h"
 
 void
 breakpoint_on_hit(struct breakpoint *bp, struct Process *proc)

@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 #include "ptrace.h"
+#include "proc.h"
 #include "common.h"
 
 void *
