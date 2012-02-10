@@ -3,6 +3,7 @@
 
 #include <gelf.h>
 #include <stdlib.h>
+#include "proc.h"
 
 struct ltelf {
 	int fd;

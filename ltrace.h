@@ -21,11 +21,10 @@ enum Event_type {
 	EVENT_MAX
 };
 
-typedef struct Process Process;
 typedef struct Event Event;
 struct Event {
 	struct Event * next;
-	Process * proc;
+	struct Process * proc;
 	Event_type type;
 	union {
 		int ret_val;     /* EVENT_EXIT */

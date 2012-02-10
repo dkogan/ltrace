@@ -47,6 +47,7 @@ struct callstack_element {
  * have Process for the whole group and Task for what's there for
  * per-thread stuff.  But for now this is the less invasive way of
  * structuring it.  */
+typedef struct Process Process;
 struct Process {
 	enum process_state state;
 	Process * parent;         /* needed by STATE_BEING_CREATED */
