@@ -123,7 +123,7 @@ extern Function * list_of_functions;
 extern char *PLTs_initialized_by_here;
 
 struct library_symbol {
-	char * name;
+	const char *name;
 	void * enter_addr;
 	char needs_init;
 	enum toplt plt_type;
@@ -178,6 +178,9 @@ extern int do_init_elf(struct ltelf *lte, const char *filename);
 extern void do_close_elf(struct ltelf *lte);
 extern int in_load_libraries(const char *name, struct ltelf *lte, size_t count, GElf_Sym *sym);
 extern struct library_symbol *library_symbols;
+extern void library_symbol_init(struct library_symbol *libsym,
+				GElf_Addr addr, const char *name,
+				enum toplt type_of_plt, int is_weak);
 extern void add_library_symbol(GElf_Addr addr, const char *name,
 		struct library_symbol **library_symbolspp,
 		enum toplt type_of_plt, int is_weak);

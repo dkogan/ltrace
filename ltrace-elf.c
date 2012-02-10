@@ -477,19 +477,34 @@ do_close_elf(struct ltelf *lte) {
 	close(lte->fd);
 }
 
+void
+library_symbol_init(struct library_symbol *libsym,
+		    GElf_Addr addr, const char *name,
+		    enum toplt type_of_plt, int is_weak)
+{
+	libsym->needs_init = 0;
+	libsym->is_weak = is_weak;
+	libsym->plt_type = type_of_plt;
+	libsym->name = name;
+	libsym->enter_addr = (void *)(uintptr_t)addr;
+	libsym->next = NULL;
+}
+
 static struct library_symbol *
-create_library_symbol(const char * name, GElf_Addr addr)
+create_library_symbol(const char *name, GElf_Addr addr,
+		      enum toplt type_of_plt, int is_weak)
 {
 	size_t namel = strlen(name) + 1;
-	struct library_symbol * sym = calloc(sizeof(*sym) + namel, 1);
-	if (sym == NULL) {
+	struct library_symbol * libsym = calloc(sizeof(*libsym) + namel, 1);
+	if (libsym == NULL) {
 		perror("create_library_symbol");
 		return NULL;
 	}
-	sym->name = (char *)(sym + 1);
-	memcpy(sym->name, name, namel);
-	sym->enter_addr = (void *)(uintptr_t) addr;
-	return sym;
+	memcpy(libsym + 1, name, namel);
+	library_symbol_init(libsym, addr,
+			    (char *)(libsym + 1), type_of_plt, is_weak);
+
+	return libsym;
 }
 
 void
@@ -497,18 +512,14 @@ add_library_symbol(GElf_Addr addr, const char *name,
 		   struct library_symbol **library_symbolspp,
 		   enum toplt type_of_plt, int is_weak)
 {
-	struct library_symbol *s;
-
 	debug(DEBUG_FUNCTION, "add_library_symbol()");
 
-	s = create_library_symbol(name, addr);
+	struct library_symbol *s = create_library_symbol(name, addr,
+							 type_of_plt, is_weak);
 	if (s == NULL)
 		error(EXIT_FAILURE, errno, "add_library_symbol failed");
 
 	s->needs_init = 1;
-	s->is_weak = is_weak;
-	s->plt_type = type_of_plt;
-
 	s->next = *library_symbolspp;
 	*library_symbolspp = s;
 
@@ -516,17 +527,14 @@ add_library_symbol(GElf_Addr addr, const char *name,
 }
 
 struct library_symbol *
-clone_library_symbol(struct library_symbol * sym)
+clone_library_symbol(struct library_symbol *libsym)
 {
-	struct library_symbol * copy
-		= create_library_symbol(sym->name,
-					(GElf_Addr)(uintptr_t)sym->enter_addr);
-	if (copy == NULL)
-		return NULL;
-
-	copy->needs_init = sym->needs_init;
-	copy->is_weak = sym->is_weak;
-	copy->plt_type = sym->plt_type;
+	GElf_Addr addr = (uintptr_t)libsym->enter_addr;
+	struct library_symbol *copy
+		= create_library_symbol(libsym->name, addr,
+					libsym->plt_type, libsym->is_weak);
+	if (copy != NULL)
+		copy->needs_init = libsym->needs_init;
 
 	return copy;
 }

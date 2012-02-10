@@ -5,6 +5,11 @@
 	* proc.c: Call it.
 	* configure.ac: Add support for libselinux.
 
+2012-02-10  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (library_symbol_init): New interface
+	* ltrace-elf.c: Implemented and reused here
+
 2012-02-09  Petr Machata  <pmachata@redhat.com>
 
 	* proc.h: New file.  Move there struct Process and related types
