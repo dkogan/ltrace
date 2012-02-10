@@ -211,7 +211,8 @@ output_left(enum tof type, Process *proc, char const *function_name) {
 }
 
 void
-output_right(enum tof type, Process *proc, char *function_name) {
+output_right(enum tof type, Process *proc, const char *function_name)
+{
 	Function *func = name2func(function_name);
 	static arg_type_info *arg_unknown = NULL;
 	if (arg_unknown == NULL)
