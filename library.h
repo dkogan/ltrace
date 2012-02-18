@@ -43,6 +43,7 @@ typedef void *target_address_t;
 
 struct library_symbol {
 	struct library_symbol *next;
+	struct library *lib;
 	const char *name;
 	target_address_t enter_addr;
 	enum toplt plt_type;
@@ -56,7 +57,7 @@ struct library_symbol {
 /* XXX note that we shouldn't use GElf_Addr for ADDR either.  The fact
  * that Elf is used is a back-end detail.  At least ltrace pretends
  * that it would like to be cross-platform like that one day.  */
-void library_symbol_init(struct library_symbol *libsym,
+void library_symbol_init(struct library_symbol *libsym, struct library *lib,
 			 GElf_Addr addr, const char *name, int own_name,
 			 enum toplt type_of_plt, int is_weak);
 

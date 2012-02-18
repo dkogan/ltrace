@@ -173,7 +173,7 @@ open_elf(struct ltelf *lte, const char *filename)
 
 /* XXX temporarily non-static */
 int
-do_init_elf(struct ltelf *lte, const char *filename)
+do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr base)
 {
 	int i;
 	GElf_Addr relplt_addr = 0;
@@ -189,20 +189,27 @@ do_init_elf(struct ltelf *lte, const char *filename)
 	Elf_Data *plt_data = NULL;
 	GElf_Addr ppcgot = 0;
 
-	/* For non-DSO objects, find out the base address.  */
-	if (lte->ehdr.e_type == ET_EXEC) {
+	/* Find out the bias.  For DSOs, this will be just BASE,
+	 * unless the DSO is pre-linked.  For ET_EXEC files, this will
+	 * turn out to be 0.  */
+	{
 		GElf_Phdr phdr;
 		for (i = 0; gelf_getphdr (lte->elf, i, &phdr) != NULL; ++i) {
 			if (phdr.p_type == PT_LOAD) {
-				fprintf(stderr, " + loadable segment at %#lx\n",
-					phdr.p_vaddr);
-				lte->base_addr = phdr.p_vaddr;
+				if (lte->ehdr.e_type == ET_EXEC)
+					lte->base_addr = phdr.p_vaddr;
+				else
+					lte->base_addr = base;
+				lte->bias = lte->base_addr - phdr.p_vaddr;
+				fprintf(stderr,
+					" + vaddr=%#lx, base=%#lx, bias=%#lx\n",
+					lte->base_addr, base, lte->bias);
 				break;
 			}
 		}
 	}
 
-	lte->entry_addr = lte->ehdr.e_entry;
+	lte->entry_addr = lte->ehdr.e_entry + lte->bias;
 
 	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
 		Elf_Scn *scn;
@@ -452,10 +459,8 @@ struct library *
 ltelf_read_library(const char *filename, GElf_Addr base)
 {
 	 // XXX we leak LTE contents
-	struct ltelf lte = {
-		.base_addr = base,
-	};
-	if (do_init_elf(&lte, filename) < 0)
+	struct ltelf lte = {};
+	if (do_init_elf(&lte, filename, base) < 0)
 		return NULL;
 
 	struct library *lib = malloc(sizeof(*lib));
@@ -527,7 +532,7 @@ ltelf_read_library(const char *filename, GElf_Addr base)
 		struct library_symbol *libsym = malloc(sizeof(*libsym));
 		if (libsym == NULL)
 			goto fail2;
-		library_symbol_init(libsym, addr, name, 1, pltt,
+		library_symbol_init(libsym, lib, addr + lte.bias, name, 1, pltt,
 				    ELF64_ST_BIND(sym.st_info) == STB_WEAK);
 		library_add_symbol(lib, libsym);
 	}

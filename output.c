@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "proc.h"
+#include "library.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
@@ -154,7 +155,10 @@ tabto(int col) {
 }
 
 void
-output_left(enum tof type, Process *proc, char const *function_name) {
+output_left(enum tof type, struct Process *proc,
+	    struct library_symbol *libsym)
+{
+	const char *function_name = libsym->name;
 	Function *func;
 	static arg_type_info *arg_unknown = NULL;
 	if (arg_unknown == NULL)
@@ -172,10 +176,13 @@ output_left(enum tof type, Process *proc, char const *function_name) {
 	begin_of_line(type, proc);
 #ifdef USE_DEMANGLE
 	current_column +=
-	    fprintf(options.output, "%s(",
-		    options.demangle ? my_demangle(function_name) : function_name);
+		fprintf(options.output, "%s@%s(",
+			(options.demangle
+			 ? my_demangle(function_name) : function_name),
+			libsym->lib->name);
 #else
-	current_column += fprintf(options.output, "%s(", function_name);
+	current_column += fprintf(options.output, "%s@%s(", function_name,
+				  libsym->lib->name);
 #endif
 
 	func = name2func(function_name);
@@ -211,8 +218,9 @@ output_left(enum tof type, Process *proc, char const *function_name) {
 }
 
 void
-output_right(enum tof type, Process *proc, const char *function_name)
+output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 {
+	const char *function_name = libsym->name;
 	Function *func = name2func(function_name);
 	static arg_type_info *arg_unknown = NULL;
 	if (arg_unknown == NULL)

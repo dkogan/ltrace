@@ -42,17 +42,18 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 }
 
 void
-library_symbol_init(struct library_symbol *libsym,
+library_symbol_init(struct library_symbol *libsym, struct library *lib,
 		    GElf_Addr addr, const char *name, int own_name,
 		    enum toplt type_of_plt, int is_weak)
 {
+	libsym->next = NULL;
+	libsym->lib = lib;
 	libsym->needs_init = 0;
 	libsym->is_weak = is_weak;
 	libsym->plt_type = type_of_plt;
 	libsym->name = name;
 	libsym->own_name = own_name;
 	libsym->enter_addr = (void *)(uintptr_t)addr;
-	libsym->next = NULL;
 }
 
 void
@@ -69,7 +70,7 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 	if (strdup_if_owned(&name, libsym->name, libsym->own_name) < 0)
 		return -1;
 
-	library_symbol_init(retp, (GElf_Addr)libsym->enter_addr,
+	library_symbol_init(retp, libsym->lib, (GElf_Addr)libsym->enter_addr,
 			    name, libsym->own_name, libsym->plt_type,
 			    libsym->is_weak);
 	retp->needs_init = libsym->needs_init;
@@ -129,6 +130,7 @@ library_clone(struct library *retp, struct library *lib)
 			return -1;
 		}
 
+		(*nsymp)->lib = retp;
 		nsymp = &(*nsymp)->next;
 	}
 	return 0;

@@ -414,15 +414,51 @@ handle_exit_signal(Event *event) {
 	remove_process(event->proc);
 }
 
+static struct library_symbol *
+temporary_syscall_symbol(const char *name)
+{
+	struct library *syscalls = malloc(sizeof(*syscalls));
+	struct library_symbol *syscall = malloc(sizeof(*syscall));
+	if (syscalls == NULL || syscall == NULL) {
+		free(syscalls);
+		free(syscall);
+		return NULL;
+	}
+	library_init(syscalls, "SYS", 0);
+	library_symbol_init(syscall, syscalls, 0, name, 0, LS_TOPLT_NONE, 0);
+	library_add_symbol(syscalls, syscall);
+	return syscall;
+}
+
+static void
+output_syscall_left(struct Process *proc, const char *name)
+{
+	struct library_symbol *syscall = temporary_syscall_symbol(name);
+	output_left(LT_TOF_SYSCALL, proc, syscall);
+	struct library *lib = syscall->lib;
+	library_destroy(lib);
+	free(lib);
+}
+
+static void
+output_syscall_right(struct Process *proc, const char *name)
+{
+	struct library_symbol *syscall = temporary_syscall_symbol(name);
+	output_right(LT_TOF_SYSCALLR, proc, syscall);
+	struct library *lib = syscall->lib;
+	library_destroy(lib);
+	free(lib);
+}
+
 static void
 handle_syscall(Event *event) {
 	debug(DEBUG_FUNCTION, "handle_syscall(pid=%d, sysnum=%d)", event->proc->pid, event->e_un.sysnum);
 	if (event->proc->state != STATE_IGNORED) {
 		callstack_push_syscall(event->proc, event->e_un.sysnum);
-		if (options.syscalls) {
-			output_left(LT_TOF_SYSCALL, event->proc,
-				    sysname(event->proc, event->e_un.sysnum));
-		}
+		if (options.syscalls)
+			output_syscall_left(event->proc,
+					    sysname(event->proc,
+						    event->e_un.sysnum));
 	}
 	continue_after_syscall(event->proc, event->e_un.sysnum, 0);
 }
@@ -454,8 +490,9 @@ handle_arch_syscall(Event *event) {
 	if (event->proc->state != STATE_IGNORED) {
 		callstack_push_syscall(event->proc, 0xf0000 + event->e_un.sysnum);
 		if (options.syscalls) {
-			output_left(LT_TOF_SYSCALL, event->proc,
-					arch_sysname(event->proc, event->e_un.sysnum));
+			output_syscall_left(event->proc,
+					    arch_sysname(event->proc,
+							 event->e_un.sysnum));
 		}
 	}
 	continue_process(event->proc->pid);
@@ -492,10 +529,11 @@ handle_sysret(Event *event) {
 		if (opt_T || options.summary) {
 			calc_time_spent(event->proc);
 		}
-		if (options.syscalls) {
-			output_right(LT_TOF_SYSCALLR, event->proc,
-					sysname(event->proc, event->e_un.sysnum));
-		}
+		if (options.syscalls)
+			output_syscall_right(event->proc,
+					     sysname(event->proc,
+						     event->e_un.sysnum));
+
 		assert(event->proc->callstack_depth > 0);
 		unsigned d = event->proc->callstack_depth - 1;
 		assert(event->proc->callstack[d].is_syscall);
@@ -511,10 +549,10 @@ handle_arch_sysret(Event *event) {
 		if (opt_T || options.summary) {
 			calc_time_spent(event->proc);
 		}
-		if (options.syscalls) {
-			output_right(LT_TOF_SYSCALLR, event->proc,
-					arch_sysname(event->proc, event->e_un.sysnum));
-		}
+		if (options.syscalls)
+			output_syscall_right(event->proc,
+					     arch_sysname(event->proc,
+							  event->e_un.sysnum));
 		callstack_pop(event->proc);
 	}
 	continue_process(event->proc->pid);
@@ -651,7 +689,7 @@ handle_breakpoint(Event *event)
 			event->proc->return_addr =
 				get_return_addr(event->proc, event->proc->stack_pointer);
 			callstack_push_symfunc(event->proc, sbp->libsym);
-			output_left(LT_TOF_FUNCTION, event->proc, sbp->libsym->name);
+			output_left(LT_TOF_FUNCTION, event->proc, sbp->libsym);
 		}
 
 		continue_after_breakpoint(event->proc, sbp);
