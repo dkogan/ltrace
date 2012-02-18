@@ -16,6 +16,7 @@
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
+#include "library.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);
@@ -149,37 +150,6 @@ handle_event(Event *event)
 	}
 }
 
-/* TODO */
-static void *
-address_clone(void * addr, void * data)
-{
-	debug(DEBUG_FUNCTION, "address_clone(%p)", addr);
-	return addr;
-}
-
-static void *
-breakpoint_clone(void *bp, void *data)
-{
-	Dict *map = data;
-	debug(DEBUG_FUNCTION, "breakpoint_clone(%p)", bp);
-	struct breakpoint *b = malloc(sizeof(*b));
-	if (!b) {
-		perror("malloc()");
-		exit(1);
-	}
-	memcpy(b, bp, sizeof(*b));
-	if (b->libsym != NULL) {
-		struct library_symbol *sym = dict_find_entry(map, b->libsym);
-		if (b->libsym == NULL) {
-			fprintf(stderr, "Can't find cloned symbol %s.\n",
-				b->libsym->name);
-			return NULL;
-		}
-		b->libsym = sym;
-	}
-	return b;
-}
-
 typedef struct Pending_New Pending_New;
 struct Pending_New {
 	pid_t pid;
@@ -241,6 +211,7 @@ pending_new_remove(pid_t pid) {
 	}
 }
 
+#if 0
 static int
 clone_breakpoints(Process * proc, Process * orig_proc)
 {
@@ -274,50 +245,48 @@ clone_breakpoints(Process * proc, Process * orig_proc)
 	dict_clear(map);
 	return 0;
 }
+#endif
 
 static void
-handle_clone(Event * event) {
-	Process *p;
-
+handle_clone(Event *event)
+{
 	debug(DEBUG_FUNCTION, "handle_clone(pid=%d)", event->proc->pid);
 
-	p = malloc(sizeof(Process));
-	if (!p) {
+	struct Process *proc = malloc(sizeof(*proc));
+	if (proc == NULL) {
+	fail:
+		free(proc);
+		/* XXX proper error handling here, please.  */
 		perror("malloc()");
 		exit(1);
 	}
-	memcpy(p, event->proc, sizeof(Process));
-	p->pid = event->e_un.newpid;
-	p->parent = event->proc;
+
+	if (process_clone(proc, event->proc, event->e_un.newpid) < 0)
+		goto fail;
+	proc->parent = event->proc;
 
 	/* We save register values to the arch pointer, and these need
 	   to be per-thread.  */
-	p->arch_ptr = NULL;
+	proc->arch_ptr = NULL;
 
-	if (pending_new(p->pid)) {
-		pending_new_remove(p->pid);
-		if (p->event_handler != NULL)
-			destroy_event_handler(p);
-		if (event->proc->state == STATE_ATTACHED && options.follow) {
-			p->state = STATE_ATTACHED;
-		} else {
-			p->state = STATE_IGNORED;
-		}
-		continue_process(p->pid);
-		add_process(p);
+	if (pending_new(proc->pid)) {
+		pending_new_remove(proc->pid);
+		/* XXX this used to be destroy_event_handler call, but
+		 * I don't think we want to call that on a shared
+		 * state.  */
+		proc->event_handler = NULL;
+		if (event->proc->state == STATE_ATTACHED && options.follow)
+			proc->state = STATE_ATTACHED;
+		else
+			proc->state = STATE_IGNORED;
+		continue_process(proc->pid);
 	} else {
-		p->state = STATE_BEING_CREATED;
-		add_process(p);
+		proc->state = STATE_BEING_CREATED;
 	}
-
-	if (p->leader == p)
-		clone_breakpoints(p, event->proc->leader);
-	else
-		/* Thread groups share breakpoints.  */
-		p->breakpoints = NULL;
+	add_process(proc);
 
 	if (event->type == EVENT_VFORK)
-		continue_after_vfork(p);
+		continue_after_vfork(proc);
 	else
 		continue_process(event->proc->pid);
 }
@@ -676,17 +645,8 @@ handle_breakpoint(Event *event)
 	if ((sbp = address2bpstruct(leader, brk_addr))) {
 		breakpoint_on_hit(sbp, event->proc);
 
-		if (sbp->libsym == NULL) {
-			continue_after_breakpoint(event->proc, sbp);
-			return;
-		}
-
-		if (strcmp(sbp->libsym->name, "") == 0) {
-			debug(DEBUG_PROCESS, "Hit _dl_debug_state breakpoint!\n");
-			arch_check_dbg(leader);
-		}
-
-		if (event->proc->state != STATE_IGNORED) {
+		if (event->proc->state != STATE_IGNORED
+		    && sbp->libsym != NULL) {
 			event->proc->stack_pointer = get_stack_pointer(event->proc);
 			event->proc->return_addr =
 				get_return_addr(event->proc, event->proc->stack_pointer);

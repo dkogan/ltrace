@@ -9,3 +9,8 @@
 
 #define LT_ELFCLASS	ELFCLASS32
 #define LT_ELF_MACHINE	EM_ARM
+
+#define ARCH_HAVE_BREAKPOINT_DATA
+struct arch_breakpoint_data {
+	int thumb_mode;
+};

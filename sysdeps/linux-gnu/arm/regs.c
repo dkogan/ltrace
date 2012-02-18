@@ -40,9 +40,15 @@ void *
 get_return_addr(Process *proc, void *stack_pointer) {
 	long addr = ptrace(PTRACE_PEEKUSER, proc->pid, off_lr, 0);
 
+	/* Remember & unset the thumb mode bit.  XXX This is really a
+	 * bit of a hack, as we assume that the following
+	 * insert_breakpoint call will be related to this address.
+	 * This interface should really be get_return_breakpoint, or
+	 * maybe install_return_breakpoint.  */
 	proc->thumb_mode = addr & 1;
 	if (proc->thumb_mode)
 		addr &= ~1;
+
 	return (void *)addr;
 }
 

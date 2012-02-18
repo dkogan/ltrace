@@ -22,10 +22,10 @@ static Event event;
 static Event * delayed_events = NULL;
 static Event * end_delayed_events = NULL;
 
-static enum pcb_status
+static enum callback_status
 first (Process * proc, void * data)
 {
-	return pcb_stop;
+	return CBS_STOP;
 }
 
 void
@@ -175,14 +175,6 @@ next_event(void)
 	get_arch_dep(event.proc);
 	debug(3, "event from pid %u", pid);
 	Process *leader = event.proc->leader;
-	if (leader == event.proc) {
-		if (!event.proc->libdl_hooked) {
-			/* debug struct may not have been written yet.. */
-			if (linkmap_init(event.proc, &main_lte) == 0) {
-				event.proc->libdl_hooked = 1;
-			}
-		}
-	}
 
 	/* The process should be stopped after the waitpid call.  But
 	 * when the whole thread group is terminated, we see

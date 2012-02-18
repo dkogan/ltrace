@@ -82,3 +82,14 @@ arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
 		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), current.l);
 	}
 }
+
+int
+arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp)
+{
+	int thumb_mode = (int)addr & 1;
+	if (thumb_mode)
+		addr = (void *)((int)addr & ~1);
+	sbp->arch.thumb_mode = thumb_mode | proc->thumb_mode;
+	proc->thumb_mode = 0;
+	return 0;
+}

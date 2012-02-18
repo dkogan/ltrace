@@ -19,6 +19,7 @@
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
+#include "library.h"
 
 /* /proc/pid doesn't exist just after the fork, and sometimes `ltrace'
  * couldn't open it to find the executable.  So it may be necessary to
@@ -78,27 +79,28 @@ find_line_starting(FILE * file, const char * prefix, size_t len)
 }
 
 static void
-each_line_starting(FILE * file, const char *prefix,
-		   enum pcb_status (*cb)(const char * line, const char * prefix,
-					 void * data),
-		   void * data)
+each_line_starting(FILE *file, const char *prefix,
+		   enum callback_status (*cb)(const char *line,
+					      const char *prefix,
+					      void *data),
+		   void *data)
 {
 	size_t len = strlen(prefix);
 	char * line;
 	while ((line = find_line_starting(file, prefix, len)) != NULL) {
-		enum pcb_status st = (*cb)(line, prefix, data);
+		enum callback_status st = (*cb)(line, prefix, data);
 		free (line);
-		if (st == pcb_stop)
+		if (st == CBS_STOP)
 			return;
 	}
 }
 
-static enum pcb_status
-process_leader_cb(const char * line, const char * prefix, void * data)
+static enum callback_status
+process_leader_cb(const char *line, const char *prefix, void *data)
 {
 	pid_t * pidp = data;
 	*pidp = atoi(line + strlen(prefix));
-	return pcb_stop;
+	return CBS_STOP;
 }
 
 pid_t
@@ -114,13 +116,13 @@ process_leader(pid_t pid)
 	return tgid;
 }
 
-static enum pcb_status
-process_stopped_cb(const char * line, const char * prefix, void * data)
+static enum callback_status
+process_stopped_cb(const char *line, const char *prefix, void *data)
 {
 	char c = line[strlen(prefix)];
 	// t:tracing stop, T:job control stop
 	*(int *)data = (c == 't' || c == 'T');
-	return pcb_stop;
+	return CBS_STOP;
 }
 
 int
@@ -136,15 +138,15 @@ process_stopped(pid_t pid)
 	return is_stopped;
 }
 
-static enum pcb_status
-process_status_cb(const char * line, const char * prefix, void * data)
+static enum callback_status
+process_status_cb(const char *line, const char *prefix, void *data)
 {
 	const char * status = line + strlen(prefix);
 	const char c = *status;
 
 #define RETURN(C) do {					\
 		*(enum process_status *)data = C;	\
-		return pcb_stop;			\
+		return CBS_STOP;			\
 	} while (0)
 
 	switch (c) {
@@ -245,6 +247,8 @@ process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
 
 static int
 find_dynamic_entry_addr(Process *proc, void *pvAddr, int d_tag, void **addr) {
+	fprintf(stderr, "find_dynamic_entry_addr %d %p %d\n",
+		proc->pid, pvAddr, d_tag);
 	int i = 0, done = 0;
 	ElfW(Dyn) entry;
 
@@ -257,7 +261,9 @@ find_dynamic_entry_addr(Process *proc, void *pvAddr, int d_tag, void **addr) {
 	while ((!done) && (i < ELF_MAX_SEGMENTS) &&
 		(sizeof(entry) == umovebytes(proc, pvAddr, &entry, sizeof(entry))) &&
 		(entry.d_tag != DT_NULL)) {
+		fprintf(stderr, " entry %ld %#lx\n", entry.d_tag, entry.d_un.d_val);
 		if (entry.d_tag == d_tag) {
+			fprintf(stderr, "   hit\n");
 			done = 1;
 			*addr = (void *)entry.d_un.d_val;
 		}
@@ -275,15 +281,16 @@ find_dynamic_entry_addr(Process *proc, void *pvAddr, int d_tag, void **addr) {
 	}
 }
 
-struct cb_data {
-	const char *lib_name;
-	struct ltelf *lte;
-	ElfW(Addr) addr;
-	Process *proc;
-};
+enum callback_status
+find_library_addr(struct Process *proc, struct library *lib, void *data)
+{
+	target_address_t addr = (target_address_t)*(GElf_Addr *)data;
+	return lib->base == addr ? CBS_STOP : CBS_CONT;
+}
 
 static void
-crawl_linkmap(Process *proc, struct r_debug *dbg, void (*callback)(void *), struct cb_data *data) {
+crawl_linkmap(Process *proc, struct r_debug *dbg)
+{
 	struct link_map rlm;
 	char lib_name[BUFSIZ];
 	struct link_map *lm = NULL;
@@ -311,19 +318,33 @@ crawl_linkmap(Process *proc, struct r_debug *dbg, void (*callback)(void *), stru
 
 		umovebytes(proc, rlm.l_name, lib_name, sizeof(lib_name));
 
-		if (lib_name[0] == '\0') {
-			debug(2, "Library name is an empty string");
+		debug(2, "Dispatching callback for: %s, "
+		      "Loaded at 0x%" PRI_ELF_ADDR "\n",
+		      lib_name, rlm.l_addr);
+		fprintf(stderr, "DSO addr=%#lx, name='%s'\n", rlm.l_addr, lib_name);
+
+		/* Do we have that library already?  */
+		struct library *lib
+			= proc_each_library(proc, NULL, find_library_addr,
+					    &rlm.l_addr);
+		if (lib != NULL)
+			continue;
+
+		if (*lib_name == '\0') {
+			/* VDSO.  No associated file, XXX but we might
+			 * load it from the address space of the
+			 * process.  */
 			continue;
 		}
 
-		if (callback) {
-			debug(2, "Dispatching callback for: %s, "
-					"Loaded at 0x%" PRI_ELF_ADDR "\n",
-					lib_name, rlm.l_addr);
-			data->addr = rlm.l_addr;
-			data->lib_name = lib_name;
-			callback(data);
+		lib = ltelf_read_library(lib_name, rlm.l_addr);
+		if (lib == NULL) {
+			error(0, errno, "Couldn't load ELF object %s\n",
+			      lib_name);
+			continue;
 		}
+
+		proc_add_library(proc, lib);
 	}
 	return;
 }
@@ -349,63 +370,11 @@ load_debug_struct(Process *proc) {
 }
 
 static void
-linkmap_add_cb(void *data) { //const char *lib_name, ElfW(Addr) addr) {
-	size_t i = 0;
-	struct cb_data *lm_add = data;
-	struct ltelf lte;
-	struct opt_x_t *xptr;
-
-	debug(DEBUG_FUNCTION, "linkmap_add_cb");
-
-	/*
-		XXX
-		iterate through library[i]'s to see if this lib is in the list.
-		if not, add it
-	 */
-	for(;i < library_num;i++) {
-		if (strcmp(library[i], lm_add->lib_name) == 0) {
-			/* found it, so its not new */
-			return;
-		}
-	}
-
-	/* new library linked! */
-	debug(2, "New libdl loaded library found: %s\n", lm_add->lib_name);
-
-	if (library_num < MAX_LIBRARIES) {
-		library[library_num++] = strdup(lm_add->lib_name);
-		memset(&lte, 0, sizeof(struct ltelf));
-		lte.base_addr = lm_add->addr;
-		do_init_elf(&lte, library[library_num-1]);
-		/* add bps */
-		for (xptr = opt_x; xptr; xptr = xptr->next) {
-			if (xptr->found)
-				continue;
-
-			GElf_Sym sym;
-			GElf_Addr addr;
-
-			if (in_load_libraries(xptr->name, &lte, 1, &sym)) {
-				debug(2, "found symbol %s @ %#" PRIx64
-						", adding it.",
-						xptr->name, sym.st_value);
-				addr = sym.st_value;
-				add_library_symbol(addr, xptr->name, &library_symbols, LS_TOPLT_NONE, 0);
-				xptr->found = 1;
-				insert_breakpoint(lm_add->proc,
-						  sym2addr(lm_add->proc,
-							   library_symbols),
-						  library_symbols, 1);
-			}
-		}
-		do_close_elf(&lte);
-	}
-}
-
-void
-arch_check_dbg(Process *proc) {
+rdebug_callback_hit(struct breakpoint *bp, struct Process *proc)
+{
+	fprintf(stderr, "======= HIT\n");
 	struct r_debug *dbg = NULL;
-	struct cb_data data;
+	//struct cb_data data;
 
 	debug(DEBUG_FUNCTION, "arch_check_dbg");
 
@@ -418,8 +387,9 @@ arch_check_dbg(Process *proc) {
 		debug(2, "Linkmap is now consistent");
 		if (proc->debug_state == RT_ADD) {
 			debug(2, "Adding DSO to linkmap");
-			data.proc = proc;
-			crawl_linkmap(proc, dbg, linkmap_add_cb, &data);
+			//data.proc = proc;
+			crawl_linkmap(proc, dbg);
+			//&data);
 		} else if (proc->debug_state == RT_DELETE) {
 			debug(2, "Removing DSO from linkmap");
 		} else {
@@ -428,45 +398,19 @@ arch_check_dbg(Process *proc) {
 	}
 
 	proc->debug_state = dbg->r_state;
-
 	return;
 }
 
-static void
-hook_libdl_cb(void *data) {
-	struct cb_data *hook_data = data;
-	const char *lib_name = NULL;
-	ElfW(Addr) addr;
-	struct ltelf *lte = NULL;
-
-	debug(DEBUG_FUNCTION, "add_library_cb");
-
-	if (!data) {
-		debug(2, "No callback data");
-		return;
-	}
-
-	lib_name = hook_data->lib_name;
-	addr = hook_data->addr;
-	lte = hook_data->lte;
-
-	if (library_num < MAX_LIBRARIES) {
-		lte[library_num].base_addr = addr;
-		library[library_num++] = strdup(lib_name);
-	}
-	else {
-		fprintf (stderr, "MAX LIBS REACHED\n");
-		exit(EXIT_FAILURE);
-	}
-}
-
+void *dyn_addr;
 int
-linkmap_init(Process *proc, struct ltelf *lte) {
-	void *dbg_addr = NULL, *dyn_addr = GELF_ADDR_CAST(lte->dyn_addr);
+linkmap_init(struct Process *proc)
+{
+	void *dbg_addr = NULL;
 	struct r_debug *rdbg = NULL;
-	struct cb_data data;
+	//struct cb_data data;
 
 	debug(DEBUG_FUNCTION, "linkmap_init()");
+	fprintf(stderr, "linkmap_init dyn_addr=%p\n", dyn_addr);
 
 	if (find_dynamic_entry_addr(proc, dyn_addr, DT_DEBUG, &dbg_addr) == -1) {
 		debug(2, "Couldn't find debug structure!");
@@ -480,13 +424,23 @@ linkmap_init(Process *proc, struct ltelf *lte) {
 		return -1;
 	}
 
-	data.lte = lte;
+	//data.lte = lte;
 
-	add_library_symbol(rdbg->r_brk, "", &library_symbols, LS_TOPLT_NONE, 0);
-	insert_breakpoint(proc, sym2addr(proc, library_symbols),
-			  library_symbols, 1);
+	void *addr;
+	{
+		struct library_symbol libsym;
+		library_symbol_init(&libsym, rdbg->r_brk, NULL, 0,
+				    LS_TOPLT_NONE, 0);
+		addr = sym2addr(proc, &libsym);
+		library_symbol_destroy(&libsym);
+	}
+	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL, 1);
+	static struct bp_callbacks rdebug_callbacks = {
+		.on_hit = rdebug_callback_hit,
+	};
+	rdebug_bp->cbs = &rdebug_callbacks;
 
-	crawl_linkmap(proc, rdbg, hook_libdl_cb, &data);
+	crawl_linkmap(proc, rdbg);
 
 	free(rdbg);
 	return 0;

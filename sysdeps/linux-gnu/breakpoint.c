@@ -7,6 +7,7 @@
 #include "arch.h"
 #include "breakpoint.h"
 #include "proc.h"
+#include "library.h"
 
 #ifdef ARCH_HAVE_ENABLE_BREAKPOINT
 extern void arch_enable_breakpoint(pid_t, struct breakpoint *);

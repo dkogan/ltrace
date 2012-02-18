@@ -57,6 +57,7 @@
  */
 
 #include "arch.h"
+#include "library.h"
 
 struct Process;
 struct breakpoint;
@@ -66,15 +67,18 @@ struct bp_callbacks {
 	void (*on_destroy) (struct breakpoint *bp);
 };
 
+#ifndef ARCH_HAVE_BREAKPOINT_DATA
+struct arch_breakpoint_data {
+};
+#endif
+
 struct breakpoint {
 	struct bp_callbacks *cbs;
 	void *addr;
 	unsigned char orig_value[BREAKPOINT_LENGTH];
 	int enabled;
 	struct library_symbol *libsym;
-#ifdef __arm__
-	int thumb_mode;
-#endif
+	struct arch_breakpoint_data arch;
 };
 
 /* Call on-hit handler of BP, if any is set.  */
@@ -82,6 +86,14 @@ void breakpoint_on_hit(struct breakpoint *bp, struct Process *proc);
 
 /* Call on-destroy handler of BP, if any is set.  */
 void breakpoint_on_destroy(struct breakpoint *bp);
+
+/* Initialize a breakpoint structure.  That doesn't actually realize
+ * the breakpoint.  The breakpoint is initially assumed to be
+ * disabled.  orig_value has to be set separately.  CBS may be
+ * NULL.  */
+int breakpoint_init(struct breakpoint *bp, struct Process *proc,
+		    target_address_t addr, struct library_symbol *libsym,
+		    struct bp_callbacks *cbs);
 
 /* This is actually three functions rolled in one:
  *  - breakpoint_init
@@ -99,8 +111,5 @@ struct breakpoint *address2bpstruct(struct Process *proc, void *addr);
 void enable_all_breakpoints(struct Process *proc);
 void disable_all_breakpoints(struct Process *proc);
 int breakpoints_init(struct Process *proc, int enable);
-
-void reinitialize_breakpoints(struct Process *proc);
-
 
 #endif /* BREAKPOINT_H */

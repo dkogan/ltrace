@@ -9,6 +9,7 @@
 #include <sys/ioctl.h>
 
 #include <getopt.h>
+#include <assert.h>
 
 #include "common.h"
 
@@ -36,8 +37,6 @@ struct options_t options = {
 	.follow = 0,                  /* trace child processes */
 };
 
-char *library[MAX_LIBRARIES];
-size_t library_num = 0;
 static char *progname;		/* Program name (`ltrace') */
 int opt_i = 0;			/* instruction pointer */
 int opt_r = 0;			/* print relative timestamp */
@@ -316,13 +315,8 @@ process_options(int argc, char **argv) {
 			opt_i++;
 			break;
 		case 'l':
-			if (library_num == MAX_LIBRARIES) {
-				fprintf(stderr,
-					"Too many libraries.  Maximum is %i.\n",
-					MAX_LIBRARIES);
-				exit(1);
-			}
-			library[library_num++] = optarg;
+			assert(!"-l support not yet implemented");
+			abort();
 			break;
 		case 'L':
 			options.libcalls = 0;

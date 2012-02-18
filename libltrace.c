@@ -16,8 +16,8 @@ char *command = NULL;
 
 int exiting = 0;		/* =1 if a SIGINT or SIGTERM has been received */
 
-static enum pcb_status
-stop_non_p_processes (Process * proc, void * data)
+static enum callback_status
+stop_non_p_processes(Process *proc, void *data)
 {
 	int stop = 1;
 
@@ -39,7 +39,7 @@ stop_non_p_processes (Process * proc, void * data)
 		kill(proc->pid, SIGSTOP);
 	}
 
-	return pcb_cont;
+	return CBS_CONT;
 }
 
 static void

@@ -8,6 +8,7 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela) {
 	return rela->r_offset;
 }
 
+/* XXX Apparently PPC64 doesn't support PLT breakpoints.  */
 void *
 sym2addr(Process *proc, struct library_symbol *sym) {
 	void *addr = sym->enter_addr;
@@ -53,6 +54,8 @@ sym2addr(Process *proc, struct library_symbol *sym) {
 		addr = (void *)pt_ret;
 	}
 #else
+	/* XXX Um, so where exactly are we dealing with the non-secure
+	   PLT thing?  */
 	addr = (void *)pt_ret;
 #endif
 

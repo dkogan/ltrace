@@ -304,8 +304,8 @@ add_task_info(struct pid_set * pids, pid_t pid)
 	return task_info;
 }
 
-static enum pcb_status
-task_stopped(Process * task, void * data)
+static enum callback_status
+task_stopped(struct Process *task, void *data)
 {
 	enum process_status st = process_status(task->pid);
 	if (data != NULL)
@@ -319,38 +319,38 @@ task_stopped(Process * task, void * data)
 	case ps_invalid:
 	case ps_tracing_stop:
 	case ps_zombie:
-		return pcb_cont;
+		return CBS_CONT;
 	case ps_sleeping:
 	case ps_stop:
 	case ps_other:
-		return pcb_stop;
+		return CBS_STOP;
 	}
 
 	abort ();
 }
 
 /* Task is blocked if it's stopped, or if it's a vfork parent.  */
-static enum pcb_status
-task_blocked(Process * task, void * data)
+static enum callback_status
+task_blocked(struct Process *task, void *data)
 {
 	struct pid_set * pids = data;
 	struct pid_task * task_info = get_task_info(pids, task->pid);
 	if (task_info != NULL
 	    && task_info->vforked)
-		return pcb_cont;
+		return CBS_CONT;
 
 	return task_stopped(task, NULL);
 }
 
 static Event *process_vfork_on_event(struct event_handler *super, Event *event);
 
-static enum pcb_status
-task_vforked(Process * task, void * data)
+static enum callback_status
+task_vforked(struct Process *task, void *data)
 {
 	if (task->event_handler != NULL
 	    && task->event_handler->on_event == &process_vfork_on_event)
-		return pcb_stop;
-	return pcb_cont;
+		return CBS_STOP;
+	return CBS_CONT;
 }
 
 static int
@@ -359,8 +359,8 @@ is_vfork_parent(Process * task)
 	return each_task(task->leader, &task_vforked, NULL) != NULL;
 }
 
-static enum pcb_status
-send_sigstop(Process * task, void * data)
+static enum callback_status
+send_sigstop(struct Process *task, void *data)
 {
 	Process * leader = task->leader;
 	struct pid_set * pids = data;
@@ -373,24 +373,24 @@ send_sigstop(Process * task, void * data)
 		perror("send_sigstop: add_task_info");
 		destroy_event_handler(leader);
 		/* Signal failure upwards.  */
-		return pcb_stop;
+		return CBS_STOP;
 	}
 
 	/* This task still has not been attached to.  It should be
 	   stopped by the kernel.  */
 	if (task->state == STATE_BEING_CREATED)
-		return pcb_cont;
+		return CBS_CONT;
 
 	/* Don't bother sending SIGSTOP if we are already stopped, or
 	 * if we sent the SIGSTOP already, which happens when we are
 	 * handling "onexit" and inherited the handler from breakpoint
 	 * re-enablement.  */
 	enum process_status st;
-	if (task_stopped(task, &st) == pcb_cont)
-		return pcb_cont;
+	if (task_stopped(task, &st) == CBS_CONT)
+		return CBS_CONT;
 	if (task_info->sigstopped) {
 		if (!task_info->delivered)
-			return pcb_cont;
+			return CBS_CONT;
 		task_info->delivered = 0;
 	}
 
@@ -401,7 +401,7 @@ send_sigstop(Process * task, void * data)
 	if (st == ps_sleeping
 	    && is_vfork_parent (task)) {
 		task_info->vforked = 1;
-		return pcb_cont;
+		return CBS_CONT;
 	}
 
 	if (task_kill(task->pid, SIGSTOP) >= 0) {
@@ -411,7 +411,7 @@ send_sigstop(Process * task, void * data)
 		fprintf(stderr,
 			"Warning: couldn't send SIGSTOP to %d\n", task->pid);
 
-	return pcb_cont;
+	return CBS_CONT;
 }
 
 /* On certain kernels, detaching right after a singlestep causes the
@@ -465,21 +465,21 @@ undo_breakpoint(Event * event, void * data)
 	return ecb_cont;
 }
 
-static enum pcb_status
-untrace_task(Process * task, void * data)
+static enum callback_status
+untrace_task(struct Process *task, void *data)
 {
 	if (task != data)
 		untrace_pid(task->pid);
-	return pcb_cont;
+	return CBS_CONT;
 }
 
-static enum pcb_status
-remove_task(Process * task, void * data)
+static enum callback_status
+remove_task(struct Process *task, void *data)
 {
 	/* Don't untrace leader just yet.  */
 	if (task != data)
 		remove_process(task);
-	return pcb_cont;
+	return CBS_CONT;
 }
 
 static void

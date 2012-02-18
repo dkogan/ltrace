@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "ltrace-elf.h"
 #include "read_config_file.h"
+#include "proc.h"
 
 #if defined HAVE_LIBIBERTY || defined HAVE_LIBSUPC__
 # define USE_DEMANGLE
@@ -113,23 +114,8 @@ struct Function {
 	Function * next;
 };
 
-enum toplt {
-	LS_TOPLT_NONE = 0,	/* PLT not used for this symbol. */
-	LS_TOPLT_EXEC,		/* PLT for this symbol is executable. */
-	LS_TOPLT_POINT		/* PLT for this symbol is a non-executable. */
-};
-
 extern Function * list_of_functions;
 extern char *PLTs_initialized_by_here;
-
-struct library_symbol {
-	const char *name;
-	void * enter_addr;
-	char needs_init;
-	enum toplt plt_type;
-	char is_weak;
-	struct library_symbol * next;
-};
 
 struct opt_c_struct {
 	int count;
@@ -174,22 +160,8 @@ extern void disable_all_breakpoints(Process * proc);
 extern void show_summary(void);
 extern arg_type_info * lookup_prototype(enum arg_type at);
 
-extern int do_init_elf(struct ltelf *lte, const char *filename);
-extern void do_close_elf(struct ltelf *lte);
-extern int in_load_libraries(const char *name, struct ltelf *lte, size_t count, GElf_Sym *sym);
-extern struct library_symbol *library_symbols;
-extern void library_symbol_init(struct library_symbol *libsym,
-				GElf_Addr addr, const char *name,
-				enum toplt type_of_plt, int is_weak);
-extern void add_library_symbol(GElf_Addr addr, const char *name,
-		struct library_symbol **library_symbolspp,
-		enum toplt type_of_plt, int is_weak);
-
-extern struct library_symbol * clone_library_symbol(struct library_symbol * s);
-extern void destroy_library_symbol(struct library_symbol * s);
-extern void destroy_library_symbol_chain(struct library_symbol * chain);
-
 struct breakpoint;
+struct library_symbol;
 
 /* Arch-dependent stuff: */
 extern char * pid2name(pid_t pid);
@@ -223,7 +195,7 @@ extern int umovelong (Process * proc, void * addr, long * result, arg_type_info 
 extern size_t umovebytes (Process *proc, void * addr, void * laddr, size_t count);
 extern int ffcheck(void * maddr);
 extern void * sym2addr(Process *, struct library_symbol *);
-extern int linkmap_init(Process *, struct ltelf *);
+extern int linkmap_init(struct Process *);
 extern void arch_check_dbg(Process *proc);
 extern int task_kill (pid_t pid, int sig);
 
