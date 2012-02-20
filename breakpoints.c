@@ -94,10 +94,10 @@ breakpoint_destroy(struct breakpoint *bp)
 }
 
 struct breakpoint *
-insert_breakpoint(Process *proc, void *addr,
-		  struct library_symbol *libsym, int enable)
+insert_breakpoint(struct Process *proc, void *addr,
+		  struct library_symbol *libsym)
 {
-	Process * leader = proc->leader;
+	Process *leader = proc->leader;
 
 	/* Only the group leader should be getting the breakpoints and
 	 * thus have ->breakpoint initialized.  */
@@ -127,7 +127,7 @@ insert_breakpoint(Process *proc, void *addr,
 	}
 
 	sbp->enabled++;
-	if (sbp->enabled == 1 && enable) {
+	if (sbp->enabled == 1) {
 		assert(proc->pid != 0);
 		enable_breakpoint(proc, sbp);
 	}
@@ -267,7 +267,7 @@ breakpoints_init(Process *proc, int enable)
 			lib->name);
 
 		struct breakpoint *entry_bp
-			= insert_breakpoint(proc, lib->entry, NULL, 1);
+			= insert_breakpoint(proc, lib->entry, NULL);
 		if (entry_bp == NULL) {
 			error(0, errno, "couldn't insert entry breakpoint");
 			goto fail;

@@ -103,7 +103,7 @@ void breakpoint_destroy(struct breakpoint *bp);
  *  - breakpoint_enable
  * XXX I think it should be broken up somehow.  */
 struct breakpoint *insert_breakpoint(struct Process *proc, void *addr,
-				     struct library_symbol *libsym, int enable);
+				     struct library_symbol *libsym);
 
 /* Name of a symbol associated with BP.  May be NULL.  */
 const char *breakpoint_name(const struct breakpoint *bp);

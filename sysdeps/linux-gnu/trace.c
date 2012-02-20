@@ -354,7 +354,7 @@ ugly_workaround(Process * proc)
 	if (sbp != NULL)
 		enable_breakpoint(proc, sbp);
 	else
-		insert_breakpoint(proc, ip, NULL, 1);
+		insert_breakpoint(proc, ip, NULL);
 	ptrace(PTRACE_CONT, proc->pid, 0, 0);
 }
 
@@ -969,8 +969,7 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 					      self->bp_addr);
 			if (sbp != NULL)
 				insert_breakpoint(event->proc->parent,
-						  self->bp_addr,
-						  sbp->libsym, 1);
+						  self->bp_addr, sbp->libsym);
 		}
 
 		continue_process(event->proc->parent->pid);

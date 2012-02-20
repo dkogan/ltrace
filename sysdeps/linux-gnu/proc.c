@@ -435,7 +435,7 @@ linkmap_init(struct Process *proc)
 		addr = sym2addr(proc, &libsym);
 		library_symbol_destroy(&libsym);
 	}
-	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL, 1);
+	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);
 	static struct bp_callbacks rdebug_callbacks = {
 		.on_hit = rdebug_callback_hit,
 	};

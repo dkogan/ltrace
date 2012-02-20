@@ -747,9 +747,8 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 	elem->c_un.libfunc = sym;
 
 	elem->return_addr = proc->return_addr;
-	if (elem->return_addr) {
-		insert_breakpoint(proc, elem->return_addr, NULL, 1);
-	}
+	if (elem->return_addr)
+		insert_breakpoint(proc, elem->return_addr, NULL);
 
 	/* handle functions like atexit() on mips which have no return */
 	if (opt_T || options.summary) {
