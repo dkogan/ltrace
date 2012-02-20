@@ -462,27 +462,28 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 	proc->e_machine = lte.ehdr.e_machine;
 
 	struct library *lib = malloc(sizeof(*lib));
-	char *soname = NULL;
+	char *libname = NULL;
 	if (lib == NULL) {
 	fail:
-		free(soname);
+		free(libname);
 		library_destroy(lib);
 		free(lib);
 		lib = NULL;
 		goto done;
 	}
 
-	if (lte.soname != NULL) {
-		soname = strdup(lte.soname);
-		if (soname == NULL)
-			goto fail;
-	}
+	if (lte.soname != NULL)
+		libname = strdup(lte.soname);
+	else
+		libname = strdup(filename);
+	if (libname == NULL)
+		goto fail;
 
 	target_address_t entry = (target_address_t)lte.entry_addr;
 	if (arch_translate_address(proc, entry + lte.bias, &entry) < 0)
 		goto fail;
 
-	library_init(lib, soname, soname != NULL);
+	library_init(lib, libname, 1);
 	lib->base = (target_address_t)lte.base_addr;
 	lib->entry = entry;
 
