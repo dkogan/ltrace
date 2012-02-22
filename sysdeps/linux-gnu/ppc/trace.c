@@ -14,6 +14,7 @@
 #include "ptrace.h"
 #include "breakpoint.h"
 #include "type.h"
+#include "backend.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
