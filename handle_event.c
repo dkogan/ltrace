@@ -730,7 +730,6 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 	if (elem->return_addr)
 		insert_breakpoint(proc, elem->return_addr, NULL);
 
-	/* handle functions like atexit() on mips which have no return */
 	if (opt_T || options.summary) {
 		struct timezone tz;
 		gettimeofday(&elem->time_spent, &tz);
