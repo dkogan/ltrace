@@ -249,7 +249,6 @@ static int
 find_dynamic_entry_addr(Process *proc, void *pvAddr, int d_tag, void **addr) {
 	fprintf(stderr, "find_dynamic_entry_addr %d %p %d\n",
 		proc->pid, pvAddr, d_tag);
-	int i = 0, done = 0;
 	ElfW(Dyn) entry;
 
 	debug(DEBUG_FUNCTION, "find_dynamic_entry()");
@@ -258,27 +257,20 @@ find_dynamic_entry_addr(Process *proc, void *pvAddr, int d_tag, void **addr) {
 		return -1;
 	}
 
-	while ((!done) && (i < ELF_MAX_SEGMENTS) &&
-		(sizeof(entry) == umovebytes(proc, pvAddr, &entry, sizeof(entry))) &&
-		(entry.d_tag != DT_NULL)) {
+	while ((sizeof(entry) == umovebytes(proc, pvAddr, &entry, sizeof(entry))) &&
+	       (entry.d_tag != DT_NULL)) {
 		fprintf(stderr, " entry %ld %#lx\n", entry.d_tag, entry.d_un.d_val);
 		if (entry.d_tag == d_tag) {
 			fprintf(stderr, "   hit\n");
-			done = 1;
 			*addr = (void *)entry.d_un.d_val;
+			debug(2, "found address: 0x%p in dtag %d\n", *addr, d_tag);
+			return 0;
 		}
 		pvAddr += sizeof(entry);
-		i++;
 	}
 
-	if (done) {
-		debug(2, "found address: 0x%p in dtag %d\n", *addr, d_tag);
-		return 0;
-	}
-	else {
-		debug(2, "Couldn't address for dtag!\n");
-		return -1;
-	}
+	debug(2, "Couldn't address for dtag!\n");
+	return -1;
 }
 
 enum callback_status

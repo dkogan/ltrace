@@ -43,7 +43,6 @@ struct ltelf {
 	struct arch_ltelf_data arch;
 };
 
-#define ELF_MAX_SEGMENTS  50
 #define LTE_PLT_EXECUTABLE 2
 
 #define PLTS_ARE_EXECUTABLE(lte) (((lte)->lte_flags & LTE_PLT_EXECUTABLE) != 0)
