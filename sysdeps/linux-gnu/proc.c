@@ -253,7 +253,7 @@ find_dynamic_entry_addr(Process *proc, void *pvAddr, int d_tag, void **addr) {
 
 	debug(DEBUG_FUNCTION, "find_dynamic_entry()");
 
-	if (addr ==	NULL || pvAddr == NULL || d_tag < 0 || d_tag > DT_NUM) {
+	if (addr == NULL || pvAddr == NULL || d_tag < 0 || d_tag > DT_NUM) {
 		return -1;
 	}
 
