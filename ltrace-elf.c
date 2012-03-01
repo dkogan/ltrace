@@ -196,10 +196,9 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr base)
 		GElf_Phdr phdr;
 		for (i = 0; gelf_getphdr (lte->elf, i, &phdr) != NULL; ++i) {
 			if (phdr.p_type == PT_LOAD) {
-				if (lte->ehdr.e_type == ET_EXEC)
-					lte->base_addr = phdr.p_vaddr;
-				else
-					lte->base_addr = base;
+				if (base == 0)
+					base = phdr.p_vaddr;
+				lte->base_addr = base;
 				lte->bias = lte->base_addr - phdr.p_vaddr;
 				fprintf(stderr,
 					" + vaddr=%#lx, base=%#lx, bias=%#lx\n",
