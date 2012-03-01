@@ -402,6 +402,7 @@ handle_exit(Event *event) {
 				event->e_un.ret_val);
 	}
 	remove_process(event->proc);
+	free(event->proc);
 }
 
 static void
@@ -412,6 +413,7 @@ handle_exit_signal(Event *event) {
 				shortsignal(event->proc, event->e_un.signum));
 	}
 	remove_process(event->proc);
+	free(event->proc);
 }
 
 static struct library_symbol *
@@ -471,6 +473,7 @@ handle_exec(Event * event) {
 	if (proc->state == STATE_IGNORED) {
 		untrace_pid(proc->pid);
 		remove_process(proc);
+		free(proc);
 		return;
 	}
 	output_line(proc, "--- Called exec() ---");

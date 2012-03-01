@@ -450,7 +450,6 @@ remove_process(Process *proc)
 
 	unlist_process(proc);
 	delete_events_for(proc);
-	free(proc);
 }
 
 void
