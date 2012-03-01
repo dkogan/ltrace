@@ -78,6 +78,7 @@ execute_program(const char * command, char **argv)
 
 	pid = fork();
 	if (pid < 0) {
+	fail:
 		perror("ltrace: fork");
 		exit(1);
 	} else if (!pid) {	/* child */
@@ -89,9 +90,9 @@ execute_program(const char * command, char **argv)
 		_exit(1);
 	}
 
-	wait_for_proc(pid);
+	if (wait_for_proc(pid) < 0)
+		goto fail;
 
 	debug(1, "PID=%d", pid);
-
 	return pid;
 }

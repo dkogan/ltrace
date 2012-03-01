@@ -118,7 +118,9 @@ ltrace_init(int argc, char **argv) {
 		struct ltelf lte = {};
 		open_elf(&lte, command);
 
-		open_program(command, execute_program(command, argv), 0);
+		pid_t pid = execute_program(command, argv);
+		open_program(command, pid, 0);
+		continue_process(pid);
 	}
 	opt_p_tmp = opt_p;
 	while (opt_p_tmp) {
