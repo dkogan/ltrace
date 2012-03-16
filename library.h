@@ -120,10 +120,10 @@ void library_destroy(struct library *lib);
 void library_set_name(struct library *lib, const char *new_name, int own_name);
 
 /* Iterate through list of symbols of library LIB.  Restarts are
- * supported via START (see each_process for details of iteration
- * interface).  */
+ * supported via START_AFTER (see each_process for details of
+ * iteration interface).  */
 struct library_symbol *library_each_symbol
-	(struct library *lib, struct library_symbol *start,
+	(struct library *lib, struct library_symbol *start_after,
 	 enum callback_status (*cb)(struct library_symbol *, void *),
 	 void *data);
 

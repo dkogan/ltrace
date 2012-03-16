@@ -144,26 +144,25 @@ int process_clone(struct Process *retp, struct Process *proc, pid_t pid);
  * called for each process.  Tasks are considered to be processes for
  * the purpose of this iterator.
  *
- * Notes on this iteration interface: DATA is passed verbatim to CB.
- * If CB returns CBS_STOP, the iteration stops and the current
- * iterator is returned.  That iterator can then be used to restart
- * the iteration.  If you don't want CB to see the same process more
- * than once, restart with IT->next instead of just IT.  NULL is
+ * Notes on this iteration interface: The iteration starts after the
+ * process designated by START_AFTER, or at the first process if
+ * START_AFTER is NULL.  DATA is passed verbatim to CB.  If CB returns
+ * CBS_STOP, the iteration stops and the current iterator is returned.
+ * That iterator can then be used to restart the iteration.  NULL is
  * returned when iteration ends.
  *
  * There's no provision for returning error states.  Errors need to be
  * signaled to the caller via DATA, together with any other data that
  * the callback needs.  */
-Process *each_process(Process *start,
+Process *each_process(Process *start_after,
 		      enum callback_status (*cb)(struct Process *proc,
 						 void *data),
 		      void *data);
 
-/* Iterate through list of tasks of given process START.  Normally you
- * start the iteration by calling this on PROC->leader, the iterator
- * doesn't do this for you (so as to support restarts).  See above for
- * details on the iteration interface.  */
-Process *each_task(Process *start,
+/* Iterate through list of tasks of given process PROC.  Restarts are
+ * supported via START_AFTER (see each_process for details of
+ * iteration interface).  */
+Process *each_task(struct Process *proc, struct Process *start_after,
 		   enum callback_status (*cb)(struct Process *proc,
 					      void *data),
 		   void *data);

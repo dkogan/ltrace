@@ -340,9 +340,9 @@ task_vforked(struct Process *task, void *data)
 }
 
 static int
-is_vfork_parent(Process * task)
+is_vfork_parent(struct Process *task)
 {
-	return each_task(task->leader, &task_vforked, NULL) != NULL;
+	return each_task(task->leader, NULL, &task_vforked, NULL) != NULL;
 }
 
 static enum callback_status
@@ -481,11 +481,11 @@ detach_process(Process * leader)
 		if (proc == NULL)
 			continue;
 		if (proc->leader == leader) {
-			each_task(leader, &untrace_task, NULL);
+			each_task(leader, NULL, &untrace_task, NULL);
 			break;
 		}
 	}
-	each_task(leader, &remove_task, leader);
+	each_task(leader, NULL, &remove_task, leader);
 	destroy_event_handler(leader);
 	remove_task(leader, NULL);
 }
@@ -728,7 +728,8 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 	switch (state) {
 	case psh_stopping:
 		/* If everyone is stopped, singlestep.  */
-		if (each_task(leader, &task_blocked, &self->pids) == NULL) {
+		if (each_task(leader, NULL, &task_blocked,
+			      &self->pids) == NULL) {
 			debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d",
 			      teb->pid);
 			if (sbp->enabled)
@@ -835,7 +836,7 @@ continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
 		handler->breakpoint_being_enabled = sbp;
 		install_event_handler(proc->leader, &handler->super);
 
-		if (each_task(proc->leader, &send_sigstop,
+		if (each_task(proc->leader, NULL, &send_sigstop,
 			      &handler->pids) != NULL)
 			goto fatal;
 
@@ -934,7 +935,7 @@ ltrace_exiting_install_handler(Process * proc)
 	handler->super.destroy = ltrace_exiting_destroy;
 	install_event_handler(proc->leader, &handler->super);
 
-	if (each_task(proc->leader, &send_sigstop,
+	if (each_task(proc->leader, NULL, &send_sigstop,
 		      &handler->pids) != NULL)
 		goto fatal;
 

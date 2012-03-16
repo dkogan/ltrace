@@ -290,7 +290,7 @@ open_pid(pid_t pid)
 	leader = pid2proc(pid)->leader;
 	enable_all_breakpoints(leader);
 
-	each_task(pid2proc(pid)->leader, start_one_pid, NULL);
+	each_task(pid2proc(pid)->leader, NULL, start_one_pid, NULL);
 }
 
 static enum callback_status
@@ -330,15 +330,16 @@ unlist_process(Process * proc)
 }
 
 struct Process *
-each_process(struct Process *it,
+each_process(struct Process *start_after,
 	     enum callback_status(*cb)(struct Process *proc, void *data),
 	     void *data)
 {
-	if (it == NULL)
-		it = list_of_processes;
-	for (; it != NULL; ) {
+	struct Process *it = start_after == NULL ? list_of_processes
+		: start_after->next;
+
+	while (it != NULL) {
 		/* Callback might call remove_process.  */
-		Process * next = it->next;
+		struct Process *next = it->next;
 		switch ((*cb)(it, data)) {
 		case CBS_STOP:
 			return it;
@@ -351,15 +352,19 @@ each_process(struct Process *it,
 }
 
 Process *
-each_task(struct Process *it,
+each_task(struct Process *proc, struct Process *start_after,
 	  enum callback_status(*cb)(struct Process *proc, void *data),
 	  void *data)
 {
+	assert(proc != NULL);
+	struct Process *it = start_after == NULL ? proc->leader
+		: start_after->next;
+
 	if (it != NULL) {
-		Process * leader = it->leader;
-		for (; it != NULL && it->leader == leader; ) {
+		struct Process *leader = it->leader;
+		while (it != NULL && it->leader == leader) {
 			/* Callback might call remove_process.  */
-			Process * next = it->next;
+			struct Process *next = it->next;
 			switch ((*cb)(it, data)) {
 			case CBS_STOP:
 				return it;
@@ -446,7 +451,7 @@ remove_process(Process *proc)
 	debug(DEBUG_FUNCTION, "remove_proc(pid=%d)", proc->pid);
 
 	if (proc->leader == proc)
-		each_task(proc, &clear_leader, NULL);
+		each_task(proc, NULL, &clear_leader, NULL);
 
 	unlist_process(proc);
 	delete_events_for(proc);
@@ -495,10 +500,8 @@ proc_add_library(struct Process *proc, struct library *lib)
 
 	struct library_symbol *libsym = NULL;
 	while ((libsym = library_each_symbol(lib, libsym, breakpoint_for_symbol,
-					     proc)) != NULL) {
+					     proc)) != NULL)
 		error(0, errno, "insert breakpoint for %s", libsym->name);
-		libsym = libsym->next;
-	}
 }
 
 int

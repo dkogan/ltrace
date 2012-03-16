@@ -162,12 +162,12 @@ library_set_name(struct library *lib, const char *new_name, int own_name)
 }
 
 struct library_symbol *
-library_each_symbol(struct library *lib, struct library_symbol *it,
+library_each_symbol(struct library *lib, struct library_symbol *start_after,
 		    enum callback_status (*cb)(struct library_symbol *, void *),
 		    void *data)
 {
-	if (it == NULL)
-		it = lib->symbols;
+	struct library_symbol *it = start_after == NULL ? lib->symbols
+		: start_after->next;
 
 	while (it != NULL) {
 		struct library_symbol *next = it->next;
