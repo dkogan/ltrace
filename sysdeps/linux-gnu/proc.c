@@ -429,7 +429,8 @@ linkmap_init(struct Process *proc)
 	void *addr;
 	{
 		struct library_symbol libsym;
-		library_symbol_init(&libsym, NULL, rdbg->r_brk, NULL, 0,
+		library_symbol_init(&libsym, NULL,
+				    (target_address_t)rdbg->r_brk, NULL, 0,
 				    LS_TOPLT_NONE, 0);
 		addr = sym2addr(proc, &libsym);
 		library_symbol_destroy(&libsym);

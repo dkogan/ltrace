@@ -43,7 +43,7 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 
 void
 library_symbol_init(struct library_symbol *libsym, struct library *lib,
-		    GElf_Addr addr, const char *name, int own_name,
+		    target_address_t addr, const char *name, int own_name,
 		    enum toplt type_of_plt, int is_weak)
 {
 	libsym->next = NULL;
@@ -70,7 +70,7 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 	if (strdup_if_owned(&name, libsym->name, libsym->own_name) < 0)
 		return -1;
 
-	library_symbol_init(retp, libsym->lib, (GElf_Addr)libsym->enter_addr,
+	library_symbol_init(retp, libsym->lib, libsym->enter_addr,
 			    name, libsym->own_name, libsym->plt_type,
 			    libsym->is_weak);
 	retp->needs_init = libsym->needs_init;

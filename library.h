@@ -54,11 +54,8 @@ struct library_symbol {
 
 /* Init LIBSYM.  NAME will be freed when LIBSYM is destroyed if
  * OWN_NAME.  */
-/* XXX note that we shouldn't use GElf_Addr for ADDR either.  The fact
- * that Elf is used is a back-end detail.  At least ltrace pretends
- * that it would like to be cross-platform like that one day.  */
 void library_symbol_init(struct library_symbol *libsym, struct library *lib,
-			 GElf_Addr addr, const char *name, int own_name,
+			 target_address_t addr, const char *name, int own_name,
 			 enum toplt type_of_plt, int is_weak);
 
 /* Copy library symbol SYM into the area pointed-to by RETP.  Return 0
