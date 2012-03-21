@@ -47,7 +47,6 @@ struct library_symbol {
 	const char *name;
 	target_address_t enter_addr;
 	enum toplt plt_type;
-	char needs_init;
 	char is_weak;
 	char own_name;
 };

@@ -88,9 +88,6 @@ insert_breakpoint(Process *proc, void *addr,
 		return NULL;
 	}
 
-	if (libsym)
-		libsym->needs_init = 0;
-
 	struct breakpoint *sbp = dict_find_entry(leader->breakpoints, addr);
 	if (sbp == NULL) {
 		sbp = malloc(sizeof(*sbp));

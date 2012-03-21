@@ -48,7 +48,6 @@ library_symbol_init(struct library_symbol *libsym, struct library *lib,
 {
 	libsym->next = NULL;
 	libsym->lib = lib;
-	libsym->needs_init = 0;
 	libsym->is_weak = is_weak;
 	libsym->plt_type = type_of_plt;
 	libsym->name = name;
@@ -73,7 +72,6 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 	library_symbol_init(retp, libsym->lib, libsym->enter_addr,
 			    name, libsym->own_name, libsym->plt_type,
 			    libsym->is_weak);
-	retp->needs_init = libsym->needs_init;
 	return 0;
 }
 
