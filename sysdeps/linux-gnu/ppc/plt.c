@@ -1,11 +1,60 @@
 #include <gelf.h>
 #include <sys/ptrace.h>
+#include <errno.h>
+#include <error.h>
+#include <inttypes.h>
+#include <assert.h>
+
 #include "proc.h"
 #include "common.h"
+#include "library.h"
+
+#define PPC_PLT_STUB_SIZE 16
+
+static inline int
+is_ppc64()
+{
+#ifdef __powerpc64__
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+static inline int
+is_ppc32()
+{
+	return !is_ppc64();
+}
 
 GElf_Addr
 arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela) {
-	return rela->r_offset;
+	if (lte->arch.plt_stub_vma != 0)
+		return lte->arch.plt_stub_vma + PPC_PLT_STUB_SIZE * ndx;
+	else
+		return rela->r_offset;
+}
+
+int
+arch_translate_address(struct Process *proc,
+		       target_address_t addr, target_address_t *ret)
+{
+	if (is_ppc64() && proc->e_machine == EM_PPC64) {
+		fprintf (stderr, "32-bit\n");
+
+		long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
+		fprintf(stderr, "arch_translate_address %p->%#lx\n",
+			addr, l);
+		if (l == -1 && errno) {
+			error(0, errno, ".opd translation of %p", addr);
+			return -1;
+		}
+		*ret = (target_address_t)l;
+		return 0;
+	}
+
+	*ret = addr;
+	return 0;
 }
 
 /* XXX Apparently PPC64 doesn't support PLT breakpoints.  */
@@ -60,4 +109,89 @@ sym2addr(Process *proc, struct library_symbol *sym) {
 #endif
 
 	return addr;
+}
+
+static GElf_Addr
+get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
+{
+	Elf_Scn *ppcgot_sec = NULL;
+	GElf_Shdr ppcgot_shdr;
+	if (ppcgot != 0
+	    && elf_get_section_covering(lte, ppcgot,
+					&ppcgot_sec, &ppcgot_shdr) < 0)
+		// xxx should be the log out
+		fprintf(stderr,
+			"DT_PPC_GOT=%#" PRIx64 ", but no such section found.\n",
+			ppcgot);
+
+	if (ppcgot_sec != NULL) {
+		Elf_Data *data = elf_loaddata(ppcgot_sec, &ppcgot_shdr);
+		if (data == NULL || data->d_size < 8 ) {
+			fprintf(stderr, "Couldn't read GOT data.\n");
+		} else {
+			// where PPCGOT begins in .got
+			size_t offset = ppcgot - ppcgot_shdr.sh_addr;
+			assert(offset % 4 == 0);
+			uint32_t glink_vma;
+			if (elf_read_u32(data, offset + 4, &glink_vma) < 0) {
+				fprintf(stderr,
+					"Couldn't read glink VMA address"
+					" at %zd@GOT\n", offset);
+				return 0;
+			}
+			if (glink_vma != 0) {
+				debug(1, "PPC GOT glink_vma address: %#" PRIx32,
+				      glink_vma);
+				fprintf(stderr, "PPC GOT glink_vma "
+					"address: %#"PRIx32"\n", glink_vma);
+				return (GElf_Addr)glink_vma;
+			}
+		}
+	}
+
+	if (plt_data != NULL) {
+		uint32_t glink_vma;
+		if (elf_read_u32(plt_data, 0, &glink_vma) < 0) {
+			fprintf(stderr,
+				"Couldn't read glink VMA address at 0@.plt\n");
+			return 0;
+		}
+		debug(1, ".plt glink_vma address: %#" PRIx32, glink_vma);
+		fprintf(stderr, ".plt glink_vma address: "
+			"%#"PRIx32"\n", glink_vma);
+		return (GElf_Addr)glink_vma;
+	}
+
+	return 0;
+}
+
+int
+arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn)
+{
+	if (dyn.d_tag == DT_PPC_GOT) {
+		lte->arch.ppcgot = dyn.d_un.d_val;
+		debug(1, "ppcgot %#" PRIx64, lte->arch.ppcgot);
+	}
+	return 0;
+}
+
+int
+arch_elf_init(struct ltelf *lte)
+{
+	if (lte->ehdr.e_machine == EM_PPC) {
+		GElf_Addr glink_vma
+			= get_glink_vma(lte, lte->arch.ppcgot, lte->plt_data);
+
+		assert (lte->relplt_size % 12 == 0);
+		size_t count = lte->relplt_size / 12; // size of RELA entry
+		lte->arch.plt_stub_vma = glink_vma
+			- (GElf_Addr)count * PPC_PLT_STUB_SIZE;
+		debug(1, "stub_vma is %#" PRIx64, lte->arch.plt_stub_vma);
+	}
+
+	/* Override the value that we gleaned from flags on the .plt
+	 * section.  The PLT entries are in fact executable, they are
+	 * just not in .plt.  */
+	lte->lte_flags |= LTE_PLT_EXECUTABLE;
+	return 0;
 }

@@ -70,4 +70,41 @@ sym2addr(Process *proc, struct library_symbol *sym) {
     return (void *)ret;;
 }
 
+/**
+  MIPS ABI Supplement:
+
+  DT_PLTGOT This member holds the address of the .got section.
+
+  DT_MIPS_SYMTABNO This member holds the number of entries in the
+  .dynsym section.
+
+  DT_MIPS_LOCAL_GOTNO This member holds the number of local global
+  offset table entries.
+
+  DT_MIPS_GOTSYM This member holds the index of the first dyamic
+  symbol table entry that corresponds to an entry in the gobal offset
+  table.
+
+ */
+int
+arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn)
+{
+	if(dyn.d_tag == DT_PLTGOT) {
+		lte->arch.pltgot_addr = dyn.d_un.d_ptr;
+	}
+	if(dyn.d_tag == DT_MIPS_LOCAL_GOTNO){
+		lte->arch.mips_local_gotno = dyn.d_un.d_val;
+	}
+	if(dyn.d_tag == DT_MIPS_GOTSYM){
+		lte->arch.mips_gotsym = dyn.d_un.d_val;
+	}
+	return 0;
+}
+
+int
+arch_elf_init(struct ltelf *lte)
+{
+	return 0;
+}
+
 /**@}*/

@@ -4,6 +4,15 @@
 #include <gelf.h>
 #include <stdlib.h>
 
+#define DEFINING_LTELF
+#include "arch.h"
+#undef DEFINING_LTELF
+
+#ifndef ARCH_HAVE_LTELF_DATA
+struct arch_ltelf_data {
+};
+#endif
+
 struct Process;
 struct library;
 
@@ -23,6 +32,7 @@ struct ltelf {
 	GElf_Addr plt_addr;
 	size_t plt_size;
 	Elf_Data *relplt;
+	Elf_Data *plt_data;
 	size_t relplt_count;
 	Elf_Data *symtab;
 	const char *strtab;
@@ -34,15 +44,11 @@ struct ltelf {
 	int lte_flags;
 	GElf_Addr dyn_addr;
 	size_t dyn_sz;
+	size_t relplt_size;
 	GElf_Addr bias;
 	GElf_Addr entry_addr;
 	GElf_Addr base_addr;
-#ifdef __mips__
-	size_t pltgot_addr;
-	size_t mips_local_gotno;
-	size_t mips_gotsym;
-#endif // __mips__
-	GElf_Addr plt_stub_vma;
+	struct arch_ltelf_data arch;
 };
 
 #define ELF_MAX_SEGMENTS  50
@@ -62,6 +68,18 @@ struct library *ltelf_read_library(const char *filename, GElf_Addr base);
 struct library *ltelf_read_main_binary(struct Process *proc, const char *path);
 
 GElf_Addr arch_plt_sym_val(struct ltelf *, size_t, GElf_Rela *);
+
+Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
+int elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
+			     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
+
+/* Read, respectively, 2, 4, or 8 bytes from Elf data at given OFFSET,
+ * and store it in *RETP.  Returns 0 on success or a negative value if
+ * there's not enough data.  */
+int elf_read_u16(Elf_Data *data, size_t offset, uint16_t *retp);
+int elf_read_u32(Elf_Data *data, size_t offset, uint32_t *retp);
+int elf_read_u64(Elf_Data *data, size_t offset, uint64_t *retp);
+
 
 #if __WORDSIZE == 32
 #define PRI_ELF_ADDR		PRIx32

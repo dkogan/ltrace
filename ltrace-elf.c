@@ -24,9 +24,23 @@ extern char *PLTs_initialized_by_here;
 # define DT_PPC_GOT		(DT_LOPROC + 0)
 #endif
 
-#define PPC_PLT_STUB_SIZE 16
 
-static Elf_Data *loaddata(Elf_Scn *scn, GElf_Shdr *shdr)
+#ifndef ARCH_HAVE_LTELF_DATA
+int
+arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn)
+{
+	return 0;
+}
+
+int
+arch_elf_init(struct ltelf *lte)
+{
+	return 0;
+}
+#endif
+
+Elf_Data *
+elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr)
 {
 	Elf_Data *data = elf_getdata(scn, NULL);
 	if (data == NULL || elf_getdata(scn, data) != NULL
@@ -35,15 +49,17 @@ static Elf_Data *loaddata(Elf_Scn *scn, GElf_Shdr *shdr)
 	return data;
 }
 
-static int inside(GElf_Addr addr, GElf_Shdr *shdr)
+static int
+inside(GElf_Addr addr, GElf_Shdr *shdr)
 {
 	return addr >= shdr->sh_addr
 		&& addr < shdr->sh_addr + shdr->sh_size;
 }
 
-static int maybe_pick_section(GElf_Addr addr,
-			      Elf_Scn *in_sec, GElf_Shdr *in_shdr,
-			      Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
+static int
+section_covers(GElf_Addr addr,
+	       Elf_Scn *in_sec, GElf_Shdr *in_shdr,
+	       Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
 {
 	if (inside(addr, in_shdr)) {
 		*tgt_sec = in_sec;
@@ -53,8 +69,9 @@ static int maybe_pick_section(GElf_Addr addr,
 	return 0;
 }
 
-static int get_section_covering(struct ltelf *lte, GElf_Addr addr,
-				Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
+int
+elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
+			 Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
 {
 	int i;
 	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
@@ -64,68 +81,49 @@ static int get_section_covering(struct ltelf *lte, GElf_Addr addr,
 		scn = elf_getscn(lte->elf, i);
 		if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL) {
 			debug(1, "Couldn't read section or header.");
+			return -1;
+		}
+
+		if (section_covers(addr, scn, &shdr, tgt_sec, tgt_shdr))
 			return 0;
-		}
-
-		if (maybe_pick_section(addr, scn, &shdr, tgt_sec, tgt_shdr))
-			return 1;
 	}
 
+	return -1;
+}
+
+static int
+need_data(Elf_Data *data, size_t offset, size_t size)
+{
+	assert(data != NULL);
+	if (data->d_size < size || offset > data->d_size - size) {
+		debug(1, "Not enough data to read %zd-byte value"
+		      " at offset %zd.", size, offset);
+		return -1;
+	}
 	return 0;
 }
 
-static GElf_Addr read32be(Elf_Data *data, size_t offset)
-{
-	if (data->d_size < offset + 4) {
-		debug(1, "Not enough data to read 32bit value at offset %zd.",
-		      offset);
-		return 0;
+#define DEF_READER(NAME, SIZE)						\
+	int								\
+	NAME(Elf_Data *data, size_t offset, uint##SIZE##_t *retp)	\
+	{								\
+		if (!need_data(data, offset, SIZE / 8) < 0)		\
+			return -1;					\
+									\
+		union {							\
+			uint##SIZE##_t dst;				\
+			char buf[0];					\
+		} u;							\
+		memcpy(u.buf, data->d_buf + offset, sizeof(u.dst));	\
+		*retp = u.dst;						\
+		return 0;						\
 	}
 
-	unsigned char const *buf = data->d_buf + offset;
-	return ((Elf32_Word)buf[0] << 24)
-		| ((Elf32_Word)buf[1] << 16)
-		| ((Elf32_Word)buf[2] << 8)
-		| ((Elf32_Word)buf[3]);
-}
+DEF_READER(elf_read_u16, 16)
+DEF_READER(elf_read_u32, 32)
+DEF_READER(elf_read_u64, 64)
 
-static GElf_Addr get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot,
-			       Elf_Data *plt_data)
-{
-	Elf_Scn *ppcgot_sec = NULL;
-	GElf_Shdr ppcgot_shdr;
-	if (ppcgot != 0
-	    && !get_section_covering(lte, ppcgot, &ppcgot_sec, &ppcgot_shdr))
-		// xxx should be the log out
-		fprintf(stderr,
-			"DT_PPC_GOT=%#" PRIx64 ", but no such section found.\n",
-			ppcgot);
-
-	if (ppcgot_sec != NULL) {
-		Elf_Data *data = loaddata(ppcgot_sec, &ppcgot_shdr);
-		if (data == NULL
-		    || data->d_size < 8 )
-			debug(1, "Couldn't read GOT data.");
-		else {
-			// where PPCGOT begins in .got
-			size_t offset = ppcgot - ppcgot_shdr.sh_addr;
-			GElf_Addr glink_vma = read32be(data, offset + 4);
-			if (glink_vma != 0) {
-				debug(1, "PPC GOT glink_vma address: %#" PRIx64,
-				      glink_vma);
-				return glink_vma;
-			}
-		}
-	}
-
-	if (plt_data != NULL) {
-		GElf_Addr glink_vma = read32be(plt_data, 0);
-		debug(1, ".plt glink_vma address: %#" PRIx64, glink_vma);
-		return glink_vma;
-	}
-
-	return 0;
-}
+#undef DEF_READER
 
 int
 open_elf(struct ltelf *lte, const char *filename)
@@ -171,14 +169,12 @@ open_elf(struct ltelf *lte, const char *filename)
 	return 0;
 }
 
-/* XXX temporarily non-static */
-int
-do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr base)
+static int
+do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 {
 	int i;
 	GElf_Addr relplt_addr = 0;
 	GElf_Addr soname_offset = 0;
-	size_t relplt_size = 0;
 
 	debug(DEBUG_FUNCTION, "do_init_elf(filename=%s)", filename);
 	debug(1, "Reading ELF from %s...", filename);
@@ -301,58 +297,26 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr base)
 					error(EXIT_FAILURE, 0,
 					      "Couldn't get .dynamic data from \"%s\"",
 					      filename);
-#ifdef __mips__
-/**
-  MIPS ABI Supplement:
-
-  DT_PLTGOT This member holds the address of the .got section.
-
-  DT_MIPS_SYMTABNO This member holds the number of entries in the
-  .dynsym section.
-
-  DT_MIPS_LOCAL_GOTNO This member holds the number of local global
-  offset table entries.
-
-  DT_MIPS_GOTSYM This member holds the index of the first dyamic
-  symbol table entry that corresponds to an entry in the gobal offset
-  table.
-
- */
-				if(dyn.d_tag==DT_PLTGOT){
-					lte->pltgot_addr=dyn.d_un.d_ptr;
-				}
-				if(dyn.d_tag==DT_MIPS_LOCAL_GOTNO){
-					lte->mips_local_gotno=dyn.d_un.d_val;
-				}
-				if(dyn.d_tag==DT_MIPS_GOTSYM){
-					lte->mips_gotsym=dyn.d_un.d_val;
-				}
-#endif // __mips__
 				if (dyn.d_tag == DT_JMPREL)
 					relplt_addr = dyn.d_un.d_ptr;
 				else if (dyn.d_tag == DT_PLTRELSZ)
-					relplt_size = dyn.d_un.d_val;
-				else if (dyn.d_tag == DT_PPC_GOT) {
-					ppcgot = dyn.d_un.d_val;
-					debug(1, "ppcgot %#" PRIx64, ppcgot);
-				} else if (dyn.d_tag == DT_SONAME) {
+					lte->relplt_size = dyn.d_un.d_val;
+				else if (dyn.d_tag == DT_SONAME)
 					soname_offset = dyn.d_un.d_val;
-				}
+				else if (arch_elf_dynamic_tag(lte, dyn) < 0)
+					goto backend_fail;
 			}
 		} else if (shdr.sh_type == SHT_PROGBITS
 			   || shdr.sh_type == SHT_NOBITS) {
 			if (strcmp(name, ".plt") == 0) {
 				lte->plt_addr = shdr.sh_addr;
 				lte->plt_size = shdr.sh_size;
-				if (shdr.sh_flags & SHF_EXECINSTR) {
+				lte->plt_data = elf_loaddata(scn, &shdr);
+				if (lte->plt_data == NULL)
+					fprintf(stderr,
+						"Can't load .plt data\n");
+				if (shdr.sh_flags & SHF_EXECINSTR)
 					lte->lte_flags |= LTE_PLT_EXECUTABLE;
-				}
-				if (lte->ehdr.e_machine == EM_PPC) {
-					plt_data = loaddata(scn, &shdr);
-					if (plt_data == NULL)
-						fprintf(stderr,
-							"Can't load .plt data\n");
-				}
 			}
 #ifdef ARCH_SUPPORTS_OPD
 			else if (strcmp(name, ".opd") == 0) {
@@ -368,25 +332,21 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr base)
 		error(EXIT_FAILURE, 0,
 		      "Couldn't find .dynsym or .dynstr in \"%s\"", filename);
 
+	if (arch_elf_init(lte) < 0) {
+	backend_fail:
+		fprintf(stderr, "Backend initialization failed.\n");
+		return -1;
+	}
+
 	if (!relplt_addr || !lte->plt_addr) {
 		debug(1, "%s has no PLT relocations", filename);
 		lte->relplt = NULL;
 		lte->relplt_count = 0;
-	} else if (relplt_size == 0) {
+	} else if (lte->relplt_size == 0) {
 		debug(1, "%s has unknown PLT size", filename);
 		lte->relplt = NULL;
 		lte->relplt_count = 0;
 	} else {
-		if (lte->ehdr.e_machine == EM_PPC) {
-			GElf_Addr glink_vma
-				= get_glink_vma(lte, ppcgot, plt_data);
-
-			assert (relplt_size % 12 == 0);
-			size_t count = relplt_size / 12; // size of RELA entry
-			lte->plt_stub_vma = glink_vma
-				- (GElf_Addr)count * PPC_PLT_STUB_SIZE;
-			debug(1, "stub_vma is %#" PRIx64, lte->plt_stub_vma);
-		}
 
 		for (i = 1; i < lte->ehdr.e_shnum; ++i) {
 			Elf_Scn *scn;
@@ -398,7 +358,7 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr base)
 				      "Couldn't get section header from \"%s\"",
 				      filename);
 			if (shdr.sh_addr == relplt_addr
-			    && shdr.sh_size == relplt_size) {
+			    && shdr.sh_size == lte->relplt_size) {
 				lte->relplt = elf_getdata(scn, NULL);
 				lte->relplt_count =
 				    shdr.sh_size / shdr.sh_entsize;
@@ -461,6 +421,7 @@ ltelf_read_library(const char *filename, GElf_Addr base)
 	struct ltelf lte = {};
 	if (do_init_elf(&lte, filename, base) < 0)
 		return NULL;
+	proc->e_machine = lte.ehdr.e_machine;
 
 	struct library *lib = malloc(sizeof(*lib));
 	char *soname = NULL;
@@ -488,7 +449,6 @@ ltelf_read_library(const char *filename, GElf_Addr base)
 		GElf_Rel rel;
 		GElf_Rela rela;
 		GElf_Sym sym;
-		GElf_Addr addr;
 		void *ret;
 
 		if (lte.relplt->d_type == ELF_T_REL) {
@@ -518,15 +478,9 @@ ltelf_read_library(const char *filename, GElf_Addr base)
 			goto fail;
 		}
 
-		enum toplt pltt;
-		if (sym.st_value == 0 && lte.plt_stub_vma != 0) {
-			pltt = LS_TOPLT_EXEC;
-			addr = lte.plt_stub_vma + PPC_PLT_STUB_SIZE * i;
-		} else {
-			pltt = PLTS_ARE_EXECUTABLE(&lte)
-				?  LS_TOPLT_EXEC : LS_TOPLT_POINT;
-			addr = arch_plt_sym_val(&lte, i, &rela);
-		}
+		enum toplt pltt = PLTS_ARE_EXECUTABLE(&lte)
+			?  LS_TOPLT_EXEC : LS_TOPLT_POINT;
+		GElf_Addr addr = arch_plt_sym_val(&lte, i, &rela);
 
 		struct library_symbol *libsym = malloc(sizeof(*libsym));
 		if (libsym == NULL)

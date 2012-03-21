@@ -215,10 +215,13 @@ void trace_fail_warning(pid_t pid);
  * If the call to OS_LTRACE_EXITING_SIGHANDLER didn't handle the
  * request, OS_LTRACE_EXITING is called when the next event is
  * generated.  Therefore it's called in "safe" context, without
- * re-entrancy concerns, but it's only called after an even is
+ * re-entrancy concerns, but it's only called after an event is
  * generated.  */
 int os_ltrace_exiting_sighandler(void);
 void os_ltrace_exiting(void);
+
+int arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn);
+int arch_elf_init(struct ltelf *lte);
 
 extern struct ltelf main_lte;
 
