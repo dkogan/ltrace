@@ -2,6 +2,8 @@
 
 #include <sys/ptrace.h>
 #include <string.h>
+#include <errno.h>
+#include <error.h>
 
 #include "common.h"
 #include "sysdep.h"
@@ -27,6 +29,10 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
 		long a = ptrace(PTRACE_PEEKTEXT, pid,
 				sbp->addr + i * sizeof(long), 0);
+		if (a == -1 && errno) {
+			error(0, errno, "enable_breakpoint pid=%d, addr=%p", pid, sbp->addr);
+			return;
+		}
 		for (j = 0;
 		     j < sizeof(long)
 		     && i * sizeof(long) + j < BREAKPOINT_LENGTH; j++) {
@@ -35,7 +41,11 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 			sbp->orig_value[i * sizeof(long) + j] = bytes[j];
 			bytes[j] = break_insn[i * sizeof(long) + j];
 		}
-		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), a);
+		a = ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), a);
+		if (a == -1) {
+			error(0, errno, "enable_breakpoint pid=%d, addr=%p", pid, sbp->addr);
+			return;
+		}
 	}
 }
 #endif				/* ARCH_HAVE_ENABLE_BREAKPOINT */

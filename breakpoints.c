@@ -80,8 +80,13 @@ insert_breakpoint(Process *proc, void *addr,
 	debug(DEBUG_FUNCTION, "insert_breakpoint(pid=%d, addr=%p, symbol=%s)", proc->pid, addr, libsym ? libsym->name : "NULL");
 	debug(1, "symbol=%s, addr=%p", libsym?libsym->name:"(nil)", addr);
 
-	if (!addr)
+	if (addr == 0) {
+		/* XXX we need a better way to deal with this.  For
+		 * now, just abuse errno to carry the error
+		 * information.  */
+		errno = EINVAL;
 		return NULL;
+	}
 
 	if (libsym)
 		libsym->needs_init = 0;
