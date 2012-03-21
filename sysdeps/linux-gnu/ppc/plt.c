@@ -12,7 +12,7 @@
 #define PPC_PLT_STUB_SIZE 16
 
 static inline int
-is_ppc64()
+host_powerpc64()
 {
 #ifdef __powerpc64__
 	return 1;
@@ -21,27 +21,29 @@ is_ppc64()
 #endif
 }
 
-static inline int
-is_ppc32()
-{
-	return !is_ppc64();
-}
-
 GElf_Addr
-arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela) {
-	if (lte->arch.plt_stub_vma != 0)
+arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
+{
+	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
+		assert(lte->arch.plt_stub_vma != 0);
 		return lte->arch.plt_stub_vma + PPC_PLT_STUB_SIZE * ndx;
-	else
+
+	} else if (lte->ehdr.e_machine == EM_PPC) {
 		return rela->r_offset;
+
+	} else {
+		assert(lte->ehdr.e_machine == EM_PPC64);
+		fprintf(stderr, "PPC64\n");
+		abort();
+		return rela->r_offset;
+	}
 }
 
 int
 arch_translate_address(struct Process *proc,
 		       target_address_t addr, target_address_t *ret)
 {
-	if (is_ppc64() && proc->e_machine == EM_PPC64) {
-		fprintf (stderr, "32-bit\n");
-
+	if (host_powerpc64() && proc->e_machine == EM_PPC64) {
 		long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 		fprintf(stderr, "arch_translate_address %p->%#lx\n",
 			addr, l);
@@ -178,7 +180,8 @@ arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn)
 int
 arch_elf_init(struct ltelf *lte)
 {
-	if (lte->ehdr.e_machine == EM_PPC) {
+	lte->arch.secure_plt = !(lte->lte_flags & LTE_PLT_EXECUTABLE);
+	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
 		GElf_Addr glink_vma
 			= get_glink_vma(lte, lte->arch.ppcgot, lte->plt_data);
 

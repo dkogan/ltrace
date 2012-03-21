@@ -483,8 +483,9 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 	struct Process *proc = data;
 	fprintf(stderr, "  %s@%p\n", libsym->name, libsym->enter_addr);
 
-	if (insert_breakpoint(proc, libsym->enter_addr, libsym, 1) == NULL)
+	if (insert_breakpoint(proc, libsym->enter_addr, libsym, 0) == NULL) {
 		return CBS_STOP;
+	}
 
 	return CBS_CONT;
 }

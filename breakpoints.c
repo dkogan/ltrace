@@ -197,28 +197,6 @@ disable_all_breakpoints(Process *proc) {
 	dict_apply_to_all(proc->breakpoints, disable_bp_cb, proc);
 }
 
-static enum callback_status
-reinitialize_breakpoints(struct Process *proc, struct library *library,
-			 void *data)
-{
-	debug(DEBUG_FUNCTION, "reinitialize_breakpoints_in(pid=%d, %s)",
-	      proc->pid, library->name);
-
-	struct library_symbol *sym;
-	for (sym = library->symbols; sym != NULL; sym = sym->next)
-		if (sym->needs_init) {
-			target_address_t addr = sym2addr(proc, sym);
-			if (insert_breakpoint(proc, addr, sym, 1) == NULL
-			    || (sym->needs_init && !sym->is_weak))
-				fprintf(stderr,
-					"could not re-initialize breakpoint "
-					"for \"%s\" in file \"%s\"\n",
-					sym->name, proc->filename);
-		}
-
-	return CBS_CONT;
-}
-
 static void
 entry_callback_hit(struct breakpoint *bp, struct Process *proc)
 {
@@ -226,9 +204,9 @@ entry_callback_hit(struct breakpoint *bp, struct Process *proc)
 	if (proc == NULL || proc->leader == NULL)
 		return;
 	delete_breakpoint(proc, bp->addr); // xxx
+	enable_all_breakpoints(proc);
 
 	linkmap_init(proc);
-	proc_each_library(proc->leader, NULL, reinitialize_breakpoints, NULL);
 }
 
 int

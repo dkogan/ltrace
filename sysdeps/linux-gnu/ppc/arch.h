@@ -29,5 +29,6 @@
 struct arch_ltelf_data {
 	GElf_Addr ppcgot;
 	GElf_Addr plt_stub_vma;
+	int secure_plt;
 };
 #endif
