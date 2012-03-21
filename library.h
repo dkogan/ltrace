@@ -144,4 +144,16 @@ enum callback_status library_named_cb(struct Process *proc,
 enum callback_status library_with_base_cb(struct Process *proc,
 					  struct library *lib, void *basep);
 
+/* XXX this should really be in backend.h (as on pmachata/revamp
+ * branch), or, on this branch, in common.h.  But we need
+ * target_address_t (which should also be in backend.h, I reckon), so
+ * stuff it here for the time being.  */
+/* This function is implemented in the back end.  It is called for all
+ * raw addresses as gleaned from symbol tables etc.  If necessary on
+ * given architecture, this function should translate the address
+ * according to .opd or other indirection mechanism.  Returns 0 on
+ * success and a negative value on failure.  */
+int arch_translate_address(struct Process *proc,
+			   target_address_t addr, target_address_t *ret);
+
 #endif /* _LIBRARY_H_ */

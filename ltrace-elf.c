@@ -393,27 +393,6 @@ do_close_elf(struct ltelf *lte) {
 	close(lte->fd);
 }
 
-/* XXX non-static for now, as it's not called anywhere.  But we want
- * this code around.  */
-GElf_Addr
-opd2addr(struct ltelf *lte, GElf_Addr addr) {
-#ifdef ARCH_SUPPORTS_OPD
-	unsigned long base, offset;
-
-	if (!lte->opd)
-		return addr;
-
-	base = (unsigned long)lte->opd->d_buf;
-	offset = (unsigned long)addr - (unsigned long)lte->opd_addr;
-	if (offset > lte->opd_size)
-		error(EXIT_FAILURE, 0, "static plt not in .opd");
-
-	return *(GElf_Addr*)(base + offset);
-#else //!ARCH_SUPPORTS_OPD
-	return addr;
-#endif
-}
-
 struct library *
 ltelf_read_library(const char *filename, GElf_Addr base)
 {
