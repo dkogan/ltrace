@@ -337,7 +337,7 @@ crawl_linkmap(Process *proc, struct r_debug *dbg)
 			continue;
 		}
 
-		lib = ltelf_read_library(lib_name, rlm.l_addr);
+		lib = ltelf_read_library(proc, lib_name, rlm.l_addr);
 		if (lib == NULL) {
 			error(0, errno, "Couldn't load ELF object %s\n",
 			      lib_name);

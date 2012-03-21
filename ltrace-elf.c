@@ -182,28 +182,27 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 	if (open_elf(lte, filename) < 0)
 		return -1;
 
-	Elf_Data *plt_data = NULL;
-	GElf_Addr ppcgot = 0;
-
-	/* Find out the bias.  For DSOs, this will be just BASE,
-	 * unless the DSO is pre-linked.  For ET_EXEC files, this will
-	 * turn out to be 0.  */
+	/* Find out the base address.  */
 	{
 		GElf_Phdr phdr;
 		for (i = 0; gelf_getphdr (lte->elf, i, &phdr) != NULL; ++i) {
 			if (phdr.p_type == PT_LOAD) {
-				if (base == 0)
-					base = phdr.p_vaddr;
-				lte->base_addr = base;
-				lte->bias = lte->base_addr - phdr.p_vaddr;
+				lte->base_addr = phdr.p_vaddr - bias;
 				fprintf(stderr,
-					" + vaddr=%#lx, base=%#lx, bias=%#lx\n",
-					lte->base_addr, base, lte->bias);
+					" + vaddr=%#lx, bias=%#lx, base=%#lx\n",
+					phdr.p_vaddr, bias, lte->base_addr);
 				break;
 			}
 		}
 	}
 
+	if (lte->base_addr == 0) {
+		fprintf(stderr, "Couldn't determine base address of %s\n",
+			filename);
+		return -1;
+	}
+
+	lte->bias = bias;
 	lte->entry_addr = lte->ehdr.e_entry + lte->bias;
 
 	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
@@ -394,11 +393,11 @@ do_close_elf(struct ltelf *lte) {
 }
 
 struct library *
-ltelf_read_library(const char *filename, GElf_Addr base)
+ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 {
 	 // XXX we leak LTE contents
 	struct ltelf lte = {};
-	if (do_init_elf(&lte, filename, base) < 0)
+	if (do_init_elf(&lte, filename, bias) < 0)
 		return NULL;
 	proc->e_machine = lte.ehdr.e_machine;
 
@@ -419,9 +418,13 @@ ltelf_read_library(const char *filename, GElf_Addr base)
 			goto fail;
 	}
 
+	target_address_t entry = (target_address_t)lte.entry_addr;
+	if (arch_translate_address(proc, entry + lte.bias, &entry) < 0)
+		goto fail;
+
 	library_init(lib, soname, soname != NULL);
-	lib->entry = (target_address_t)lte.entry_addr;
 	lib->base = (target_address_t)lte.base_addr;
+	lib->entry = entry;
 
 	size_t i;
 	for (i = 0; i < lte.relplt_count; ++i) {
@@ -464,7 +467,15 @@ ltelf_read_library(const char *filename, GElf_Addr base)
 		struct library_symbol *libsym = malloc(sizeof(*libsym));
 		if (libsym == NULL)
 			goto fail2;
-		library_symbol_init(libsym, lib, addr + lte.bias, name, 1, pltt,
+
+		target_address_t taddr = (target_address_t)(addr + lte.bias);
+		if (libsym == NULL
+		    || arch_translate_address(proc, taddr, &taddr) < 0) {
+			free(libsym);
+			goto fail2;
+		}
+
+		library_symbol_init(libsym, lib, taddr, name, 1, pltt,
 				    ELF64_ST_BIND(sym.st_info) == STB_WEAK);
 		library_add_symbol(lib, libsym);
 	}
@@ -479,7 +490,8 @@ ltelf_read_main_binary(struct Process *proc, const char *path)
 {
 	fprintf(stderr, "ltelf_read_main_binary %d %s\n", proc->pid, path);
 	char *fname = pid2name(proc->pid);
-	struct library *lib = ltelf_read_library(fname, 0);
-	library_set_name(lib, path, 0);
+	struct library *lib = ltelf_read_library(proc, fname, 0);
+	if (lib != NULL)
+		library_set_name(lib, path, 0);
 	return lib;
 }
