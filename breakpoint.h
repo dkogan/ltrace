@@ -56,7 +56,7 @@
  * So that's for sometimes.
  */
 
-#include "arch.h"
+#include "sysdep.h"
 #include "library.h"
 
 struct Process;
