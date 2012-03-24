@@ -4,10 +4,78 @@
 #include <error.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <string.h>
 
 #include "proc.h"
 #include "common.h"
 #include "library.h"
+
+/* There are two PLT types on 32-bit PPC: old-style, BSS PLT, and
+ * new-style "secure" PLT.  We can tell one from the other by the
+ * flags on the .plt section.  If it's +X (executable), it's BSS PLT,
+ * otherwise it's secure.
+ *
+ * BSS PLT works the same way as most architectures: the .plt section
+ * contains trampolines and we put breakpoints to those.  With secure
+ * PLT, the .plt section doesn't contain instructions but addresses.
+ * The real PLT table is stored in .text.  Addresses of those PLT
+ * entries can be computed, and it fact that's what the glink deal
+ * below does.
+ *
+ * If not prelinked, BSS PLT entries in the .plt section contain
+ * zeroes that are overwritten by the dynamic linker during start-up.
+ * For that reason, ltrace realizes those breakpoints only after
+ * .start is hit.
+ *
+ * 64-bit PPC is more involved.  Program linker creates for each
+ * library call a _stub_ symbol named xxxxxxxx.plt_call.<callee>
+ * (where xxxxxxxx is a hexadecimal number).  That stub does the call
+ * dispatch: it loads an address of a function to call from the
+ * section .plt, and branches.  PLT entries themselves are essentially
+ * a curried call to the resolver.  When the symbol is resolved, the
+ * resolver updates the value stored in .plt, and the next time
+ * around, the stub calls the library function directly.  So we make
+ * at most one trip (none if the binary is prelinked) through each PLT
+ * entry, and correspondingly that is useless as a breakpoint site.
+ *
+ * Note the three confusing terms: stubs (that play the role of PLT
+ * entries), PLT entries, .plt section.
+ *
+ * We first check symbol tables and see if we happen to have stub
+ * symbols available.  If yes we just put breakpoints to those, and
+ * treat them as usual breakpoints.  The only tricky part is realizing
+ * that there can be more than one breakpoint per symbol.
+ *
+ * The case that we don't have the stub symbols available is harder.
+ * The following scheme uses two kinds of PLT breakpoints: unresolved
+ * and resolved (to some address).  When the process starts (or when
+ * we attach), we distribute unresolved PLT breakpoints to the PLT
+ * entries (not stubs).  Then we look in .plt, and for each entry
+ * whose value is different than the corresponding PLT entry address,
+ * we assume it was already resolved, and convert the breakpoint to
+ * resolved.  We also rewrite the resolved value in .plt back to the
+ * PLT address.
+ *
+ * When a PLT entry hits a resolved breakpoint (which happens because
+ * we put back the unresolved addresses to .plt), we move the
+ * instruction pointer to the corresponding address and continue the
+ * process as if nothing happened.
+ *
+ * When unresolved PLT entry is called for the first time, we need to
+ * catch the new value that the resolver will write to a .plt slot.
+ * We also need to prevent another thread from racing through and
+ * taking the branch without ltrace noticing.  So when unresolved PLT
+ * entry hits, we have to stop all threads.  We then single-step
+ * through the resolver, until the .plt slot changes.  When it does,
+ * we treat it the same way as above: convert the PLT breakpoint to
+ * resolved, and rewrite the .plt value back to PLT address.  We then
+ * start all threads again.
+ *
+ * In theory we might find the exact instruction that will update the
+ * .plt slot, and emulate it, updating the PLT breakpoint immediately,
+ * and then just skip it.  But that's even messier than the thread
+ * stopping business and single stepping that needs to be done.
+ */
 
 #define PPC_PLT_STUB_SIZE 16
 
@@ -222,9 +290,125 @@ arch_elf_init(struct ltelf *lte)
 	 * section.  The PLT entries are in fact executable, they are
 	 * just not in .plt.  */
 	lte->lte_flags |= LTE_PLT_EXECUTABLE;
+
+	/* On PPC64, look for stub symbols in symbol table.  These are
+	 * called: xxxxxxxx.plt_call.callee_name@version+addend.  */
+	if (lte->ehdr.e_machine == EM_PPC64
+	    && lte->symtab != NULL && lte->strtab != NULL) {
+
+		/* N.B. We can't simply skip the symbols that we fail
+		 * to read or malloc.  There may be more than one stub
+		 * per symbol name, and if we failed in one but
+		 * succeeded in another, the PLT enabling code would
+		 * have no way to tell that something is missing.  We
+		 * could work around that, of course, but it doesn't
+		 * seem worth the trouble.  We just fail right away in
+		 * face of errors.  */
+
+		size_t i;
+		for (i = 0; i < lte->symtab_count; ++i) {
+			GElf_Sym sym;
+			if (gelf_getsym(lte->symtab, i, &sym) == NULL)
+				break;
+
+			const char *name = lte->strtab + sym.st_name;
+
+#define STUBN ".plt_call."
+			if ((name = strstr(name, STUBN)) == NULL)
+				continue;
+			name += sizeof(STUBN) - 1;
+#undef STUBN
+
+			size_t len;
+			const char *ver = strchr(name, '@');
+			if (ver != NULL) {
+				len = ver - name;
+
+			} else {
+				/* If there is "+" at all, check that
+				 * the symbol name ends in "+0".  */
+				const char *add = strrchr(name, '+');
+				if (add != NULL) {
+					assert(strcmp(add, "+0") == 0);
+					len = add - name;
+				} else {
+					len = strlen(name);
+				}
+			}
+
+			char *sym_name = strndup(name, len);
+			if (sym_name == NULL) {
+			fail:
+				free(sym_name);
+				break;
+			}
+
+			struct library_symbol *libsym = malloc(sizeof(*libsym));
+			if (libsym == NULL)
+				goto fail;
+			target_address_t addr
+				= (target_address_t)sym.st_value + lte->bias;
+			library_symbol_init(libsym, addr, sym_name, 1,
+					    LS_TOPLT_EXEC);
+			libsym->next = lte->arch.stubs;
+			lte->arch.stubs = libsym;
+		}
+	}
+
 	return 0;
 }
+
+enum plt_status
+arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+		       const char *a_name, GElf_Rela *rela, size_t i,
+		       struct library_symbol **ret)
+{
+	if (lte->ehdr.e_machine == EM_PPC)
+		return plt_default;
+
+	/* PPC64.  If we have stubs, we return a chain of breakpoint
+	 * sites, one for each stub that corresponds to this PLT
+	 * entry.  */
+	struct library_symbol *chain = NULL;
+	struct library_symbol **symp;
+	for (symp = &lte->arch.stubs; *symp != NULL; ) {
+		struct library_symbol *sym = *symp;
+		if (strcmp(sym->name, a_name) != 0) {
+			symp = &(*symp)->next;
+			continue;
+		}
+
+		/* Re-chain the symbol from stubs to CHAIN.  */
+		*symp = sym->next;
+		sym->next = chain;
+		chain = sym;
+	}
+
+	if (chain != NULL) {
+		struct library_symbol *sym;
+		for (sym = chain; sym != NULL; sym = sym->next)
+			fprintf(stderr, "match %s --> %p\n",
+				sym->name, sym->enter_addr);
+		for (sym = lte->arch.stubs; sym != NULL; sym = sym->next)
+			fprintf(stderr, "remains %s --> %p\n",
+				sym->name, sym->enter_addr);
+
+		*ret = chain;
+		return plt_ok;
+	}
+
+	fprintf(stderr, "NO STUBS!\n");
+	abort();
+}
+
 void
 arch_elf_destroy(struct ltelf *lte)
 {
+	struct library_symbol *sym;
+	for (sym = lte->arch.stubs; sym != NULL; ) {
+		struct library_symbol *next = sym->next;
+		library_symbol_destroy(sym);
+		free(sym);
+		sym = next;
+	}
 }
