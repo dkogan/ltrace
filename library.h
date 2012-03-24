@@ -47,7 +47,6 @@ struct library_symbol {
 	const char *name;
 	target_address_t enter_addr;
 	enum toplt plt_type;
-	char is_weak;
 	char own_name;
 };
 
@@ -55,7 +54,7 @@ struct library_symbol {
  * OWN_NAME.  */
 void library_symbol_init(struct library_symbol *libsym, struct library *lib,
 			 target_address_t addr, const char *name, int own_name,
-			 enum toplt type_of_plt, int is_weak);
+			 enum toplt type_of_plt);
 
 /* Copy library symbol SYM into the area pointed-to by RETP.  Return 0
  * on success or a negative value on failure.  */

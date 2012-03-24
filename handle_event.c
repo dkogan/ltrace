@@ -427,7 +427,7 @@ temporary_syscall_symbol(const char *name)
 		return NULL;
 	}
 	library_init(syscalls, "SYS", 0);
-	library_symbol_init(syscall, syscalls, 0, name, 0, LS_TOPLT_NONE, 0);
+	library_symbol_init(syscall, syscalls, 0, name, 0, LS_TOPLT_NONE);
 	library_add_symbol(syscalls, syscall);
 	return syscall;
 }

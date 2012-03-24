@@ -475,8 +475,7 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 			goto fail2;
 		}
 
-		library_symbol_init(libsym, lib, taddr, name, 1, pltt,
-				    ELF64_ST_BIND(sym.st_info) == STB_WEAK);
+		library_symbol_init(libsym, lib, taddr, name, 1, pltt);
 		library_add_symbol(lib, libsym);
 	}
 

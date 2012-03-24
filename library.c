@@ -44,11 +44,10 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 void
 library_symbol_init(struct library_symbol *libsym, struct library *lib,
 		    target_address_t addr, const char *name, int own_name,
-		    enum toplt type_of_plt, int is_weak)
+		    enum toplt type_of_plt)
 {
 	libsym->next = NULL;
 	libsym->lib = lib;
-	libsym->is_weak = is_weak;
 	libsym->plt_type = type_of_plt;
 	libsym->name = name;
 	libsym->own_name = own_name;
@@ -70,8 +69,7 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 		return -1;
 
 	library_symbol_init(retp, libsym->lib, libsym->enter_addr,
-			    name, libsym->own_name, libsym->plt_type,
-			    libsym->is_weak);
+			    name, libsym->own_name, libsym->plt_type);
 	return 0;
 }
 
