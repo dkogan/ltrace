@@ -50,28 +50,9 @@ elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr)
 }
 
 static int
-inside(GElf_Addr addr, GElf_Shdr *shdr)
-{
-	return addr >= shdr->sh_addr
-		&& addr < shdr->sh_addr + shdr->sh_size;
-}
-
-static int
-section_covers(GElf_Addr addr,
-	       Elf_Scn *in_sec, GElf_Shdr *in_shdr,
-	       Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
-{
-	if (inside(addr, in_shdr)) {
-		*tgt_sec = in_sec;
-		*tgt_shdr = *in_shdr;
-		return 1;
-	}
-	return 0;
-}
-
-int
-elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
-			 Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
+elf_get_section_if(struct ltelf *lte, Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr,
+		   int (*predicate)(Elf_Scn *, GElf_Shdr *, void *data),
+		   void *data)
 {
 	int i;
 	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
@@ -83,12 +64,45 @@ elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
 			debug(1, "Couldn't read section or header.");
 			return -1;
 		}
-
-		if (section_covers(addr, scn, &shdr, tgt_sec, tgt_shdr))
+		if (predicate(scn, &shdr, data)) {
+			*tgt_sec = scn;
+			*tgt_shdr = shdr;
 			return 0;
+		}
 	}
-
 	return -1;
+
+}
+
+static int
+inside_p(Elf_Scn *scn, GElf_Shdr *shdr, void *data)
+{
+	GElf_Addr addr = *(GElf_Addr *)data;
+	return addr >= shdr->sh_addr
+		&& addr < shdr->sh_addr + shdr->sh_size;
+}
+
+int
+elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
+			 Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
+{
+	return elf_get_section_if(lte, tgt_sec, tgt_shdr,
+				  &inside_p, &addr);
+}
+
+static int
+type_p(Elf_Scn *scn, GElf_Shdr *shdr, void *data)
+{
+	GElf_Word type = *(GElf_Word *)data;
+	return shdr->sh_type == type;
+}
+
+int
+elf_get_section_type(struct ltelf *lte, GElf_Word type,
+		     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
+{
+	return elf_get_section_if(lte, tgt_sec, tgt_shdr,
+				  &type_p, &type);
 }
 
 static int

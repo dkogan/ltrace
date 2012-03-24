@@ -73,6 +73,8 @@ GElf_Addr arch_plt_sym_val(struct ltelf *, size_t, GElf_Rela *);
 Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
 int elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
 			     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
+int elf_get_section_type(struct ltelf *lte, GElf_Word type,
+			 Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
 
 /* Read, respectively, 2, 4, or 8 bytes from Elf data at given OFFSET,
  * and store it in *RETP.  Returns 0 on success or a negative value if
