@@ -1,6 +1,7 @@
 #include "debug.h"
 #include <gelf.h>
 #include <sys/ptrace.h>
+#include <error.h>
 #include "proc.h"
 #include "common.h"
 
@@ -87,23 +88,39 @@ sym2addr(Process *proc, struct library_symbol *sym) {
 
  */
 int
-arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn)
-{
-	if(dyn.d_tag == DT_PLTGOT) {
-		lte->arch.pltgot_addr = dyn.d_un.d_ptr;
-	}
-	if(dyn.d_tag == DT_MIPS_LOCAL_GOTNO){
-		lte->arch.mips_local_gotno = dyn.d_un.d_val;
-	}
-	if(dyn.d_tag == DT_MIPS_GOTSYM){
-		lte->arch.mips_gotsym = dyn.d_un.d_val;
-	}
-	return 0;
-}
-
-int
 arch_elf_init(struct ltelf *lte)
 {
+	Elf_Scn *scn;
+	GElf_Shdr shdr;
+	if (elf_get_section_type(lte, SHT_DYNAMIC, &scn, &shdr) < 0
+	    || scn == NULL) {
+	fail:
+		error(0, 0, "Couldn't get SHT_DYNAMIC: %s",
+		      elf_errmsg(-1));
+		return -1;
+	}
+
+	Elf_Data *data = elf_loaddata(scn, &shdr);
+	if (data == NULL)
+		goto fail;
+
+	size_t j;
+	for (j = 0; j < shdr.sh_size / shdr.sh_entsize; ++j) {
+		GElf_Dyn dyn;
+		if (gelf_getdyn(data, j, &dyn) == NULL)
+			goto fail;
+
+		if(dyn.d_tag == DT_PLTGOT) {
+			lte->arch.pltgot_addr = dyn.d_un.d_ptr;
+		}
+		if(dyn.d_tag == DT_MIPS_LOCAL_GOTNO){
+			lte->arch.mips_local_gotno = dyn.d_un.d_val;
+		}
+		if(dyn.d_tag == DT_MIPS_GOTSYM){
+			lte->arch.mips_gotsym = dyn.d_un.d_val;
+		}
+	}
+
 	return 0;
 }
 

@@ -27,12 +27,6 @@ extern char *PLTs_initialized_by_here;
 
 #ifndef ARCH_HAVE_LTELF_DATA
 int
-arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn)
-{
-	return 0;
-}
-
-int
 arch_elf_init(struct ltelf *lte)
 {
 	return 0;
@@ -316,8 +310,6 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 					lte->relplt_size = dyn.d_un.d_val;
 				else if (dyn.d_tag == DT_SONAME)
 					soname_offset = dyn.d_un.d_val;
-				else if (arch_elf_dynamic_tag(lte, dyn) < 0)
-					goto backend_fail;
 			}
 		} else if (shdr.sh_type == SHT_PROGBITS
 			   || shdr.sh_type == SHT_NOBITS) {
@@ -344,12 +336,6 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 	if (lte->dynsym == NULL || lte->dynstr == NULL)
 		error(EXIT_FAILURE, 0,
 		      "Couldn't find .dynsym or .dynstr in \"%s\"", filename);
-
-	if (arch_elf_init(lte) < 0) {
-	backend_fail:
-		fprintf(stderr, "Backend initialization failed.\n");
-		return -1;
-	}
 
 	if (!relplt_addr || !lte->plt_addr) {
 		debug(1, "%s has no PLT relocations", filename);
@@ -394,6 +380,11 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 
 	if (soname_offset != 0)
 		lte->soname = lte->dynstr + soname_offset;
+
+	if (arch_elf_init(lte) < 0) {
+		fprintf(stderr, "Backend initialization failed.\n");
+		return -1;
+	}
 
 	return 0;
 }

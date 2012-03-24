@@ -24,10 +24,9 @@
 #error "Length of the breakpoint value not equal to the length of a nop instruction"
 #endif
 
+#define ARCH_HAVE_LTELF_DATA
 #ifdef DEFINING_LTELF
-# define ARCH_HAVE_LTELF_DATA
 struct arch_ltelf_data {
-	GElf_Addr ppcgot;
 	GElf_Addr plt_stub_vma;
 	int secure_plt;
 };

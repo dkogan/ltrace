@@ -8,8 +8,8 @@
 #define PLTs_INIT_BY_HERE "_start"
 #define E_ENTRY_NAME    "_start"
 
+#define ARCH_HAVE_LTELF_DATA
 #ifdef DEFINING_LTELF
-# define ARCH_HAVE_LTELF_DATA
 struct arch_ltelf_data {
 	size_t pltgot_addr;
 	size_t mips_local_gotno;

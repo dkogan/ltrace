@@ -167,14 +167,36 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 	return 0;
 }
 
-int
-arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn)
+static int
+load_ppcgot(struct ltelf *lte, GElf_Addr *ppcgotp)
 {
-	if (dyn.d_tag == DT_PPC_GOT) {
-		lte->arch.ppcgot = dyn.d_un.d_val;
-		debug(1, "ppcgot %#" PRIx64, lte->arch.ppcgot);
+	Elf_Scn *scn;
+	GElf_Shdr shdr;
+	if (elf_get_section_type(lte, SHT_DYNAMIC, &scn, &shdr) < 0
+	    || scn == NULL) {
+	fail:
+		error(0, 0, "Couldn't get SHT_DYNAMIC: %s",
+		      elf_errmsg(-1));
+		return -1;
 	}
-	return 0;
+
+	Elf_Data *data = elf_loaddata(scn, &shdr);
+	if (data == NULL)
+		goto fail;
+
+	size_t j;
+	for (j = 0; j < shdr.sh_size / shdr.sh_entsize; ++j) {
+		GElf_Dyn dyn;
+		if (gelf_getdyn(data, j, &dyn) == NULL)
+			goto fail;
+
+		if(dyn.d_tag == DT_PPC_GOT) {
+			*ppcgotp = dyn.d_un.d_ptr;
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 int
@@ -182,8 +204,12 @@ arch_elf_init(struct ltelf *lte)
 {
 	lte->arch.secure_plt = !(lte->lte_flags & LTE_PLT_EXECUTABLE);
 	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
-		GElf_Addr glink_vma
-			= get_glink_vma(lte, lte->arch.ppcgot, lte->plt_data);
+		GElf_Addr ppcgot;
+		if (load_ppcgot(lte, &ppcgot) < 0) {
+			fprintf(stderr, "Couldn't find DT_PPC_GOT.\n");
+			return -1;
+		}
+		GElf_Addr glink_vma = get_glink_vma(lte, ppcgot, lte->plt_data);
 
 		assert (lte->relplt_size % 12 == 0);
 		size_t count = lte->relplt_size / 12; // size of RELA entry

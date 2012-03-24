@@ -220,7 +220,6 @@ void trace_fail_warning(pid_t pid);
 int os_ltrace_exiting_sighandler(void);
 void os_ltrace_exiting(void);
 
-int arch_elf_dynamic_tag(struct ltelf *lte, GElf_Dyn dyn);
 int arch_elf_init(struct ltelf *lte);
 
 extern struct ltelf main_lte;
