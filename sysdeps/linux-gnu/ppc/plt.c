@@ -302,14 +302,25 @@ arch_elf_init(struct ltelf *lte)
 		 * succeeded in another, the PLT enabling code would
 		 * have no way to tell that something is missing.  We
 		 * could work around that, of course, but it doesn't
-		 * seem worth the trouble.  We just fail right away in
-		 * face of errors.  */
+		 * seem worth the trouble.  So if anything fails, we
+		 * just pretend that we don't have stub symbols at
+		 * all, as if the binary is stripped.  */
 
 		size_t i;
 		for (i = 0; i < lte->symtab_count; ++i) {
 			GElf_Sym sym;
-			if (gelf_getsym(lte->symtab, i, &sym) == NULL)
+			if (gelf_getsym(lte->symtab, i, &sym) == NULL) {
+				struct library_symbol *sym, *next;
+			fail:
+				for (sym = lte->arch.stubs; sym != NULL; ) {
+					next = sym->next;
+					library_symbol_destroy(sym);
+					free(sym);
+					sym = next;
+				}
+				lte->arch.stubs = NULL;
 				break;
+			}
 
 			const char *name = lte->strtab + sym.st_name;
 
@@ -337,15 +348,13 @@ arch_elf_init(struct ltelf *lte)
 			}
 
 			char *sym_name = strndup(name, len);
-			if (sym_name == NULL) {
-			fail:
+			struct library_symbol *libsym = malloc(sizeof(*libsym));
+			if (sym_name == NULL || libsym == NULL) {
 				free(sym_name);
-				break;
+				free(libsym);
+				goto fail;
 			}
 
-			struct library_symbol *libsym = malloc(sizeof(*libsym));
-			if (libsym == NULL)
-				goto fail;
 			target_address_t addr
 				= (target_address_t)sym.st_value + lte->bias;
 			library_symbol_init(libsym, addr, sym_name, 1,
