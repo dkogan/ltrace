@@ -3,15 +3,7 @@
 
 #include <gelf.h>
 #include <stdlib.h>
-
-#define DEFINING_LTELF
-#include "arch.h"
-#undef DEFINING_LTELF
-
-#ifndef ARCH_HAVE_LTELF_DATA
-struct arch_ltelf_data {
-};
-#endif
+#include "sysdep.h"
 
 struct Process;
 struct library;

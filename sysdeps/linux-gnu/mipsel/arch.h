@@ -1,3 +1,8 @@
+#ifndef LTRACE_MIPS_ARCH_H
+#define LTRACE_MIPS_ARCH_H
+
+#include <stddef.h>
+
 #define BREAKPOINT_VALUE { 0x0d, 0x00, 0x00, 0x00 }
 #define BREAKPOINT_LENGTH 4
 #define DECR_PC_AFTER_BREAK 0
@@ -9,10 +14,10 @@
 #define E_ENTRY_NAME    "_start"
 
 #define ARCH_HAVE_LTELF_DATA
-#ifdef DEFINING_LTELF
 struct arch_ltelf_data {
 	size_t pltgot_addr;
 	size_t mips_local_gotno;
 	size_t mips_gotsym;
 };
-#endif
+
+#endif /* LTRACE_MIPS_ARCH_H */

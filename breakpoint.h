@@ -67,11 +67,6 @@ struct bp_callbacks {
 	void (*on_destroy) (struct breakpoint *bp);
 };
 
-#ifndef ARCH_HAVE_BREAKPOINT_DATA
-struct arch_breakpoint_data {
-};
-#endif
-
 struct breakpoint {
 	struct bp_callbacks *cbs;
 	struct library_symbol *libsym;
