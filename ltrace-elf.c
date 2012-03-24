@@ -435,6 +435,7 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 void
 do_close_elf(struct ltelf *lte) {
 	debug(DEBUG_FUNCTION, "do_close_elf()");
+	arch_elf_destroy(lte);
 	elf_end(lte->elf);
 	close(lte->fd);
 }

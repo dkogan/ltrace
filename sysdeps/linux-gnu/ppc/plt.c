@@ -224,3 +224,7 @@ arch_elf_init(struct ltelf *lte)
 	lte->lte_flags |= LTE_PLT_EXECUTABLE;
 	return 0;
 }
+void
+arch_elf_destroy(struct ltelf *lte)
+{
+}

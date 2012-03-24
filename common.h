@@ -221,6 +221,8 @@ int os_ltrace_exiting_sighandler(void);
 void os_ltrace_exiting(void);
 
 int arch_elf_init(struct ltelf *lte);
+void arch_elf_destroy(struct ltelf *lte);
+
 enum plt_status {
 	plt_fail,
 	plt_ok,
