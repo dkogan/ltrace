@@ -221,6 +221,15 @@ int os_ltrace_exiting_sighandler(void);
 void os_ltrace_exiting(void);
 
 int arch_elf_init(struct ltelf *lte);
+enum plt_status {
+	plt_fail,
+	plt_ok,
+	plt_default,
+};
+
+enum plt_status arch_elf_add_plt_entry(struct Process *p, struct ltelf *l,
+				       const char *n, GElf_Rela *r, size_t i,
+				       struct library_symbol **ret);
 
 extern struct ltelf main_lte;
 

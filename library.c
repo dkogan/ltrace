@@ -42,12 +42,12 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 }
 
 void
-library_symbol_init(struct library_symbol *libsym, struct library *lib,
+library_symbol_init(struct library_symbol *libsym,
 		    target_address_t addr, const char *name, int own_name,
 		    enum toplt type_of_plt)
 {
 	libsym->next = NULL;
-	libsym->lib = lib;
+	libsym->lib = NULL;
 	libsym->plt_type = type_of_plt;
 	libsym->name = name;
 	libsym->own_name = own_name;
@@ -68,7 +68,7 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 	if (strdup_if_owned(&name, libsym->name, libsym->own_name) < 0)
 		return -1;
 
-	library_symbol_init(retp, libsym->lib, libsym->enter_addr,
+	library_symbol_init(retp, libsym->enter_addr,
 			    name, libsym->own_name, libsym->plt_type);
 	return 0;
 }
@@ -184,6 +184,10 @@ library_each_symbol(struct library *lib, struct library_symbol *start_after,
 void
 library_add_symbol(struct library *lib, struct library_symbol *sym)
 {
+	struct library_symbol *it;
+	for (it = sym; it != NULL; it = it->next)
+		it->lib = lib;
+
 	sym->next = lib->symbols;
 	lib->symbols = sym;
 }

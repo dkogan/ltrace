@@ -52,7 +52,7 @@ struct library_symbol {
 
 /* Init LIBSYM.  NAME will be freed when LIBSYM is destroyed if
  * OWN_NAME.  */
-void library_symbol_init(struct library_symbol *libsym, struct library *lib,
+void library_symbol_init(struct library_symbol *libsym,
 			 target_address_t addr, const char *name, int own_name,
 			 enum toplt type_of_plt);
 

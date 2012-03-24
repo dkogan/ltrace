@@ -33,6 +33,48 @@ arch_elf_init(struct ltelf *lte)
 }
 #endif
 
+int
+default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+			  const char *a_name, GElf_Rela *rela, size_t i,
+			  struct library_symbol **ret)
+{
+	char *name = strdup(a_name);
+	if (name == NULL) {
+	fail:
+		free(name);
+		return -1;
+	}
+
+	enum toplt pltt = PLTS_ARE_EXECUTABLE(lte)
+		?  LS_TOPLT_EXEC : LS_TOPLT_POINT;
+	GElf_Addr addr = arch_plt_sym_val(lte, i, rela);
+
+	struct library_symbol *libsym = malloc(sizeof(*libsym));
+	if (libsym == NULL)
+		goto fail;
+
+	target_address_t taddr = (target_address_t)(addr + lte->bias);
+	if (libsym == NULL
+	    || arch_translate_address(proc, taddr, &taddr) < 0) {
+		free(libsym);
+		goto fail;
+	}
+
+	library_symbol_init(libsym, taddr, name, 1, pltt);
+	*ret = libsym;
+	return 0;
+}
+
+#ifndef ARCH_HAVE_ADD_PLT_ENTRY
+enum plt_status
+arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+		       const char *a_name, GElf_Rela *rela, size_t i,
+		       struct library_symbol **ret)
+{
+	return plt_default;
+}
+#endif
+
 Elf_Data *
 elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr)
 {
@@ -455,33 +497,19 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 			      "Couldn't get relocation from \"%s\"",
 			      filename);
 
-		/* We will destroy the ELF object at the end of the
-		 * scope.  We need to copy the name for our purposes.
-		 * XXX consider just keeping the ELF around.  */
-		char *name = strdup(lte.dynstr + sym.st_name);
-		if (name == NULL) {
-		fail2:
-			free(name);
-			goto fail;
+		char const *name = lte.dynstr + sym.st_name;
+		struct library_symbol *libsym;
+		switch (arch_elf_add_plt_entry(proc, &lte, name,
+					       &rela, i, &libsym)) {
+		case plt_default:
+			if (default_elf_add_plt_entry(proc, &lte, name,
+						      &rela, i, &libsym) < 0)
+		case plt_fail:
+				goto fail;
+		case plt_ok:
+			if (libsym != NULL)
+				library_add_symbol(lib, libsym);
 		}
-
-		enum toplt pltt = PLTS_ARE_EXECUTABLE(&lte)
-			?  LS_TOPLT_EXEC : LS_TOPLT_POINT;
-		GElf_Addr addr = arch_plt_sym_val(&lte, i, &rela);
-
-		struct library_symbol *libsym = malloc(sizeof(*libsym));
-		if (libsym == NULL)
-			goto fail2;
-
-		target_address_t taddr = (target_address_t)(addr + lte.bias);
-		if (libsym == NULL
-		    || arch_translate_address(proc, taddr, &taddr) < 0) {
-			free(libsym);
-			goto fail2;
-		}
-
-		library_symbol_init(libsym, lib, taddr, name, 1, pltt);
-		library_add_symbol(lib, libsym);
 	}
 
 done:
