@@ -93,3 +93,8 @@ arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp)
 	proc->thumb_mode = 0;
 	return 0;
 }
+
+void
+arch_breakpoint_destroy(struct breakpoint *sbp)
+{
+}

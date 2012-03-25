@@ -233,6 +233,10 @@ enum plt_status arch_elf_add_plt_entry(struct Process *p, struct ltelf *l,
 				       const char *n, GElf_Rela *r, size_t i,
 				       struct library_symbol **ret);
 
+int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
+void arch_breakpoint_destroy(struct breakpoint *sbp);
+
+
 extern struct ltelf main_lte;
 
 #endif

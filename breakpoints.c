@@ -23,14 +23,6 @@ breakpoint_on_hit(struct breakpoint *bp, struct Process *proc)
 		(bp->cbs->on_hit) (bp, proc);
 }
 
-void
-breakpoint_on_destroy(struct breakpoint *bp)
-{
-	assert(bp != NULL);
-	if (bp->cbs != NULL && bp->cbs->on_destroy != NULL)
-		(bp->cbs->on_destroy) (bp);
-}
-
 /*****************************************************************************/
 
 struct breakpoint *
@@ -43,13 +35,16 @@ address2bpstruct(Process *proc, void *addr)
 	return dict_find_entry(proc->breakpoints, addr);
 }
 
-#ifdef ARCH_HAVE_BREAKPOINT_DATA
-int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
-#else
+#ifndef ARCH_HAVE_BREAKPOINT_DATA
 int
 arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp)
 {
 	return 0;
+}
+
+void
+arch_breakpoint_destroy(struct breakpoint *sbp)
+{
 }
 #endif
 
@@ -64,6 +59,21 @@ breakpoint_init(struct breakpoint *bp, struct Process *proc,
 	bp->enabled = 0;
 	bp->libsym = libsym;
 	return arch_breakpoint_init(proc, bp);
+}
+
+void
+breakpoint_destroy(struct breakpoint *bp)
+{
+	if (bp == NULL)
+		return;
+
+	/* XXX I'm not convinced that we need on_destroy.  We already
+	 * have arch_breakpoint_destroy, which is necessary as a
+	 * counterpart of arch_breakpoint_init in any case.  */
+	if (bp->cbs != NULL && bp->cbs->on_destroy != NULL)
+		(bp->cbs->on_destroy) (bp);
+
+	arch_breakpoint_destroy(bp);
 }
 
 struct breakpoint *

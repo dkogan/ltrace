@@ -79,9 +79,6 @@ struct breakpoint {
 /* Call on-hit handler of BP, if any is set.  */
 void breakpoint_on_hit(struct breakpoint *bp, struct Process *proc);
 
-/* Call on-destroy handler of BP, if any is set.  */
-void breakpoint_on_destroy(struct breakpoint *bp);
-
 /* Initialize a breakpoint structure.  That doesn't actually realize
  * the breakpoint.  The breakpoint is initially assumed to be
  * disabled.  orig_value has to be set separately.  CBS may be
@@ -90,15 +87,22 @@ int breakpoint_init(struct breakpoint *bp, struct Process *proc,
 		    target_address_t addr, struct library_symbol *libsym,
 		    struct bp_callbacks *cbs);
 
+/* XXX this is currently not called anywhere.   */
+void breakpoint_destroy(struct breakpoint *bp);
+
 /* This is actually three functions rolled in one:
  *  - breakpoint_init
- *  - proc_insert_breakpoint
+ *  - proc_breakpoint_insert
  *  - breakpoint_enable
  * XXX I think it should be broken up somehow.  */
 struct breakpoint *insert_breakpoint(struct Process *proc, void *addr,
 				     struct library_symbol *libsym, int enable);
 
-/* */
+/* Again, this seems to be several interfaces rolled into one:
+ *  - breakpoint_disable
+ *  - proc_breakpoint_remove
+ *  - breakpoint_destroy
+ * XXX */
 void delete_breakpoint(struct Process *proc, void *addr);
 
 /* XXX some of the following belongs to proc.h/proc.c.  */

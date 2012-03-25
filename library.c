@@ -22,6 +22,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+
 #include "library.h"
 #include "proc.h" // for enum callback_status
 #include "debug.h"
@@ -182,14 +184,20 @@ library_each_symbol(struct library *lib, struct library_symbol *start_after,
 }
 
 void
-library_add_symbol(struct library *lib, struct library_symbol *sym)
+library_add_symbol(struct library *lib, struct library_symbol *first)
 {
-	struct library_symbol *it;
-	for (it = sym; it != NULL; it = it->next)
-		it->lib = lib;
+	struct library_symbol *last;
+	for (last = first; last != NULL; ) {
+		last->lib = lib;
+		if (last->next != NULL)
+			last = last->next;
+		else
+			break;
+	}
 
-	sym->next = lib->symbols;
-	lib->symbols = sym;
+	assert(last->next == NULL);
+	last->next = lib->symbols;
+	lib->symbols = first;
 }
 
 enum callback_status
