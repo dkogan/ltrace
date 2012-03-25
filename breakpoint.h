@@ -98,6 +98,9 @@ void breakpoint_destroy(struct breakpoint *bp);
 struct breakpoint *insert_breakpoint(struct Process *proc, void *addr,
 				     struct library_symbol *libsym, int enable);
 
+/* Name of a symbol associated with BP.  May be NULL.  */
+const char *breakpoint_name(const struct breakpoint *bp);
+
 /* Again, this seems to be several interfaces rolled into one:
  *  - breakpoint_disable
  *  - proc_breakpoint_remove

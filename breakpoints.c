@@ -140,6 +140,13 @@ delete_breakpoint(Process *proc, void *addr)
 	assert(sbp->enabled >= 0);
 }
 
+const char *
+breakpoint_name(const struct breakpoint *bp)
+{
+	assert(bp != NULL);
+	return bp->libsym != NULL ? bp->libsym->name : NULL;
+}
+
 static void
 enable_bp_cb(void *addr, void *sbp, void *proc)
 {
