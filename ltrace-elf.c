@@ -54,8 +54,15 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		goto fail;
 
 	target_address_t taddr = (target_address_t)(addr + lte->bias);
-	if (libsym == NULL
-	    || arch_translate_address(proc, taddr, &taddr) < 0) {
+
+	/* The logic behind this conditional translation is as
+	 * follows.  PLT entries do not typically need custom TOC
+	 * pointer, and therefore aren't redirected via OPD.  POINT
+	 * PLT, on the other hand, most likely contains addresses of
+	 * target functions, not PLT entries themselves, and would
+	 * need the OPD redirection.  */
+	if (pltt == LS_TOPLT_POINT
+	    && arch_translate_address(proc, taddr, &taddr) < 0) {
 		free(libsym);
 		goto fail;
 	}
