@@ -236,7 +236,7 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 }
 
 static int
-load_ppcgot(struct ltelf *lte, GElf_Addr *ppcgotp)
+load_dynamic_entry(struct ltelf *lte, int tag, GElf_Addr *valuep)
 {
 	Elf_Scn *scn;
 	GElf_Shdr shdr;
@@ -258,13 +258,19 @@ load_ppcgot(struct ltelf *lte, GElf_Addr *ppcgotp)
 		if (gelf_getdyn(data, j, &dyn) == NULL)
 			goto fail;
 
-		if(dyn.d_tag == DT_PPC_GOT) {
-			*ppcgotp = dyn.d_un.d_ptr;
+		if(dyn.d_tag == tag) {
+			*valuep = dyn.d_un.d_ptr;
 			return 0;
 		}
 	}
 
 	return -1;
+}
+
+static int
+load_ppcgot(struct ltelf *lte, GElf_Addr *ppcgotp)
+{
+	return load_dynamic_entry(lte, DT_PPC_GOT, ppcgotp);
 }
 
 int
@@ -369,7 +375,7 @@ arch_elf_init(struct ltelf *lte)
 
 enum plt_status
 arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
-		       const char *a_name, GElf_Rela *rela, size_t i,
+		       const char *a_name, GElf_Rela *rela, size_t ndx,
 		       struct library_symbol **ret)
 {
 	if (lte->ehdr.e_machine == EM_PPC)
