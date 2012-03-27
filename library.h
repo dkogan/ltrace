@@ -23,7 +23,7 @@
 #define _LIBRARY_H_
 
 #include <stdint.h>
-#include <gelf.h> // XXX 
+#include "sysdep.h"
 
 struct Process;
 struct library;
@@ -48,10 +48,11 @@ struct library_symbol {
 	target_address_t enter_addr;
 	enum toplt plt_type;
 	char own_name;
+	struct arch_library_symbol_data arch;
 };
 
 /* Init LIBSYM.  NAME will be freed when LIBSYM is destroyed if
- * OWN_NAME.  */
+ * OWN_NAME.  ARCH has to be initialized by a separate call.  */
 void library_symbol_init(struct library_symbol *libsym,
 			 target_address_t addr, const char *name, int own_name,
 			 enum toplt type_of_plt);

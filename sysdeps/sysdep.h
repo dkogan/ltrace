@@ -13,4 +13,9 @@ struct arch_breakpoint_data {
 };
 #endif
 
+#ifndef ARCH_HAVE_LIBRARY_SYMBOL_DATA
+struct arch_library_symbol_data {
+};
+#endif
+
 #endif /* LTRACE_SYSDEP_H */
