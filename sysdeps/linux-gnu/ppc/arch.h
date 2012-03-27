@@ -22,12 +22,36 @@
 #define ARCH_HAVE_ATOMIC_SINGLESTEP
 #define ARCH_HAVE_ADD_PLT_ENTRY
 #define ARCH_HAVE_LTELF_DATA
+#define ARCH_HAVE_BREAKPOINT_DATA
+#define ARCH_HAVE_LIBRARY_SYMBOL_DATA
 
 struct library_symbol;
 struct arch_ltelf_data {
 	GElf_Addr plt_stub_vma;
 	int secure_plt;
 	struct library_symbol *stubs;
+};
+
+enum ppc64_plt_type {
+	/* STUB, never resolved.  */
+	PPC64PLT_STUB,
+
+	/* Unresolved PLT symbol (.plt contains PLT address).  */
+	PPC64PLT_UNRESOLVED,
+
+	/* Resolved PLT symbol.  The corresponding .plt slot contained
+	 * target address, which was changed to the address of
+	 * corresponding PLT entry.  The original is now saved in
+	 * orig_addr.  */
+	PPC64PLT_RESOLVED,
+};
+
+struct arch_library_symbol_data {
+	enum ppc64_plt_type type;
+	GElf_Addr orig_addr;
+};
+
+struct arch_breakpoint_data {
 };
 
 #endif /* LTRACE_PPC_ARCH_H */

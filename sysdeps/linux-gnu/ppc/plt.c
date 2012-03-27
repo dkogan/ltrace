@@ -9,6 +9,7 @@
 #include "proc.h"
 #include "common.h"
 #include "library.h"
+#include "breakpoint.h"
 
 /* There are two PLT types on 32-bit PPC: old-style, BSS PLT, and
  * new-style "secure" PLT.  We can tell one from the other by the
@@ -78,6 +79,7 @@
  */
 
 #define PPC_PLT_STUB_SIZE 16
+#define PPC64_PLT_STUB_SIZE 8 //xxx
 
 static inline int
 host_powerpc64()
@@ -100,10 +102,11 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 		return rela->r_offset;
 
 	} else {
-		assert(lte->ehdr.e_machine == EM_PPC64);
-		fprintf(stderr, "PPC64\n");
-		abort();
-		return rela->r_offset;
+		/* If we get here, we don't have stub symbols.  In
+		 * that case we put brakpoints to PLT entries the same
+		 * as the PPC32 secure PLT case does.  */
+		assert(lte->arch.plt_stub_vma != 0);
+		return lte->arch.plt_stub_vma + PPC64_PLT_STUB_SIZE * ndx;
 	}
 }
 
@@ -111,7 +114,8 @@ int
 arch_translate_address(struct Process *proc,
 		       target_address_t addr, target_address_t *ret)
 {
-	if (host_powerpc64() && proc->e_machine == EM_PPC64) {
+	if (proc->e_machine == EM_PPC64) {
+		assert(host_powerpc64());
 		long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 		fprintf(stderr, "arch_translate_address %p->%#lx\n",
 			addr, l);
@@ -273,6 +277,12 @@ load_ppcgot(struct ltelf *lte, GElf_Addr *ppcgotp)
 	return load_dynamic_entry(lte, DT_PPC_GOT, ppcgotp);
 }
 
+static int
+load_ppc64_glink(struct ltelf *lte, GElf_Addr *glinkp)
+{
+	return load_dynamic_entry(lte, DT_PPC64_GLINK, glinkp);
+}
+
 int
 arch_elf_init(struct ltelf *lte)
 {
@@ -290,6 +300,16 @@ arch_elf_init(struct ltelf *lte)
 		lte->arch.plt_stub_vma = glink_vma
 			- (GElf_Addr)count * PPC_PLT_STUB_SIZE;
 		debug(1, "stub_vma is %#" PRIx64, lte->arch.plt_stub_vma);
+
+	} else if (lte->ehdr.e_machine == EM_PPC64) {
+		GElf_Addr glink_vma;
+		if (load_ppc64_glink(lte, &glink_vma) < 0) {
+			fprintf(stderr, "Couldn't find DT_PPC64_GLINK.\n");
+			return -1;
+		}
+
+		/* The first glink stub starts at offset 32.  */
+		lte->arch.plt_stub_vma = glink_vma + 32;
 	}
 
 	/* Override the value that we gleaned from flags on the .plt
@@ -365,6 +385,7 @@ arch_elf_init(struct ltelf *lte)
 				= (target_address_t)sym.st_value + lte->bias;
 			library_symbol_init(libsym, addr, sym_name, 1,
 					    LS_TOPLT_EXEC);
+			libsym->arch.type = PPC64PLT_STUB;
 			libsym->next = lte->arch.stubs;
 			lte->arch.stubs = libsym;
 		}
@@ -412,8 +433,67 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		return plt_ok;
 	}
 
-	fprintf(stderr, "NO STUBS!\n");
-	abort();
+	/* We don't have stub symbols.  Find corresponding .plt slot,
+	 * and check whether it contains the corresponding PLT address
+	 * (or 0 if the dynamic linker hasn't run yet).  N.B. we don't
+	 * want read this from ELF file, but from process image.  That
+	 * makes a difference if we are attaching to a running
+	 * process.  */
+
+	GElf_Addr plt_entry_addr = arch_plt_sym_val(lte, ndx, rela);
+	GElf_Addr plt_slot_addr = rela->r_offset;
+	assert(plt_slot_addr >= lte->plt_addr
+	       || plt_slot_addr < lte->plt_addr + lte->plt_size);
+
+	long plt_slot_value = ptrace(PTRACE_PEEKTEXT, proc->pid,
+				     plt_slot_addr, 0);
+	if (plt_slot_value == -1 && errno != 0) {
+		error(0, errno, "ptrace .plt slot value @%#" PRIx64,
+		      plt_slot_addr);
+		return plt_fail;
+	}
+
+	char *name = strdup(a_name);
+	struct library_symbol *libsym = malloc(sizeof(*libsym));
+	if (name == NULL || libsym == NULL) {
+		error(0, errno, "allocation for .plt slot");
+	fail:
+		free(name);
+		free(libsym);
+		return plt_fail;
+	}
+
+	library_symbol_init(libsym, (target_address_t)plt_entry_addr,
+			    name, 1, LS_TOPLT_EXEC);
+	if ((GElf_Addr)plt_slot_value == plt_entry_addr
+	    || plt_slot_value == 0) {
+		libsym->arch.type = PPC64PLT_UNRESOLVED;
+		libsym->arch.orig_addr = 0;
+	} else {
+		/* Unresolve the .plt slot.  If the binary was
+		 * prelinked, this makes the code invalid, because in
+		 * case of prelinked binary, the dynamic linker
+		 * doesn't update .plt[0] and .plt[1] with addresses
+		 * of the resover.  But we don't care, we will never
+		 * need to enter the resolver.  That just means that
+		 * we have to un-un-resolve this back before we
+		 * detach, which is nothing new: we already need to
+		 * retract breakpoints.  */
+		/* We only modify plt_entry[0], which holds the
+		 * resolved address of the routine.  We keep the TOC
+		 * and environment pointers intact.  Hence the only
+		 * adjustment that we need to do is to IP.  */
+		if (ptrace(PTRACE_POKETEXT, proc->pid,
+			   plt_slot_addr, plt_entry_addr) < 0) {
+			error(0, errno, "unresolve .plt slot");
+			goto fail;
+		}
+		libsym->arch.type = PPC64PLT_RESOLVED;
+		libsym->arch.orig_addr = plt_slot_value;
+	}
+
+	*ret = libsym;
+	return plt_ok;
 }
 
 void
@@ -426,4 +506,42 @@ arch_elf_destroy(struct ltelf *lte)
 		free(sym);
 		sym = next;
 	}
+}
+
+static void
+ppc64_resolved_bp_continue(struct breakpoint *bp, struct Process *proc)
+{
+	fprintf(stderr, "ppc64_resolved_bp_continue\n");
+	set_instruction_pointer(proc,
+				(target_address_t)bp->libsym->arch.orig_addr);
+	continue_process(proc->pid);
+}
+
+int
+arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
+{
+	if (proc->e_machine == EM_PPC
+	    || bp->libsym == NULL
+	    || bp->libsym->arch.type == PPC64PLT_STUB)
+		return 0;
+
+	if (bp->libsym->arch.type == PPC64PLT_RESOLVED) {
+		fprintf(stderr, "arch_breakpoint_init RESOLVED\n");
+		static struct bp_callbacks resolved_cbs = {
+			.on_continue = ppc64_resolved_bp_continue,
+		};
+		breakpoint_set_callbacks(bp, &resolved_cbs);
+
+	} else {
+		fprintf(stderr, "arch_breakpoint_init UNRESOLVED\n");
+		fprintf(stderr, "a.k.a the insane case\n");
+		abort();
+	}
+
+	return 0;
+}
+
+void
+arch_breakpoint_destroy(struct breakpoint *bp)
+{
 }
