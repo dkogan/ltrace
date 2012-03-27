@@ -167,6 +167,11 @@ need_data(Elf_Data *data, size_t offset, size_t size)
 		if (!need_data(data, offset, SIZE / 8) < 0)		\
 			return -1;					\
 									\
+		if (data->d_buf == NULL) /* NODATA section */ {		\
+			*retp = 0;					\
+			return 0;					\
+		}							\
+									\
 		union {							\
 			uint##SIZE##_t dst;				\
 			char buf[0];					\
