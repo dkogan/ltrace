@@ -233,13 +233,16 @@ struct process_stopping_handler
 	struct event_handler super;
 
 	/* The task that is doing the re-enablement.  */
-	Process * task_enabling_breakpoint;
+	Process *task_enabling_breakpoint;
 
 	/* The pointer being re-enabled.  */
 	struct breakpoint *breakpoint_being_enabled;
 
 	/* Artificial atomic skip breakpoint, if any needed.  */
 	void *atomic_skip_bp_addr;
+
+	/* When all tasks are stopped, this callback gets called.  */
+	void (*on_all_stopped)(struct process_stopping_handler *);
 
 	enum {
 		/* We are waiting for everyone to land in t/T.  */
@@ -684,6 +687,21 @@ singlestep_error(struct process_stopping_handler *self, Event **eventp)
 	post_singlestep(self, eventp);
 }
 
+static void
+disable_and_singlestep(struct process_stopping_handler *self)
+{
+	struct Process *teb = self->task_enabling_breakpoint;
+	debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d", teb->pid);
+	if (self->breakpoint_being_enabled->enabled)
+		disable_breakpoint(teb, self->breakpoint_being_enabled);
+	if (singlestep(self) < 0) {
+		singlestep_error(self, &event);
+		//goto psh_sinking;  /* XXX FIME */
+		abort();
+	}
+	self->state = psh_singlestep;
+}
+
 /* This event handler is installed when we are in the process of
  * stopping the whole thread group to do the pointer re-enablement for
  * one of the threads.  We pump all events to the queue for later
@@ -696,7 +714,6 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 	struct process_stopping_handler * self = (void *)super;
 	Process * task = event->proc;
 	Process * leader = task->leader;
-	struct breakpoint *sbp = self->breakpoint_being_enabled;
 	Process * teb = self->task_enabling_breakpoint;
 
 	debug(DEBUG_PROCESS,
@@ -731,16 +748,8 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 		/* If everyone is stopped, singlestep.  */
 		if (each_task(leader, NULL, &task_blocked,
 			      &self->pids) == NULL) {
-			debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d",
-			      teb->pid);
-			if (sbp->enabled)
-				disable_breakpoint(teb, sbp);
-			if (singlestep(self) < 0) {
-				singlestep_error(self, &event);
-				goto psh_sinking;
-			}
-
-			self->state = state = psh_singlestep;
+			(self->on_all_stopped)(self);
+			state = self->state;
 		}
 		break;
 
@@ -749,7 +758,8 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 		 * have now stepped, and can re-enable the breakpoint.  */
 		if (event != NULL && task == teb) {
 
-			/* This is not the singlestep that we are waiting for.  */
+			/* This is not the singlestep that we are
+			 * waiting for.  */
 			if (event->type == EVENT_SIGNAL) {
 				if (singlestep(self) < 0) {
 					singlestep_error(self, &event);
@@ -761,6 +771,7 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 			/* Essentially we don't care what event caused
 			 * the thread to stop.  We can do the
 			 * re-enablement now.  */
+			struct breakpoint *sbp = self->breakpoint_being_enabled;
 			if (sbp->enabled)
 				enable_breakpoint(teb, sbp);
 
@@ -807,10 +818,44 @@ process_stopping_destroy(struct event_handler *super)
 	free(self->pids.tasks);
 }
 
+int
+process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
+				 void (*cb)(struct process_stopping_handler *))
+{
+	struct process_stopping_handler *handler = calloc(sizeof(*handler), 1);
+	if (handler == NULL)
+		return -1;
+
+	handler->super.on_event = process_stopping_on_event;
+	handler->super.destroy = process_stopping_destroy;
+	handler->task_enabling_breakpoint = proc;
+	handler->breakpoint_being_enabled = sbp;
+	handler->on_all_stopped = cb;
+
+	install_event_handler(proc->leader, &handler->super);
+
+	if (each_task(proc->leader, NULL, &send_sigstop,
+		      &handler->pids) != NULL) {
+		destroy_event_handler(proc);
+		return -1;
+	}
+
+	/* And deliver the first fake event, in case all the
+	 * conditions are already fulfilled.  */
+	Event ev = {
+		.type = EVENT_NONE,
+		.proc = proc,
+	};
+	process_stopping_on_event(&handler->super, &ev);
+
+	return 0;
+}
+
 void
 continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
 {
 	set_instruction_pointer(proc, sbp->addr);
+
 	if (sbp->enabled == 0) {
 		continue_process(proc->pid);
 	} else {
@@ -821,32 +866,12 @@ continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
 		/* we don't want to singlestep here */
 		continue_process(proc->pid);
 #else
-		struct process_stopping_handler * handler
-			= calloc(sizeof(*handler), 1);
-		if (handler == NULL) {
-			perror("malloc breakpoint disable handler");
-		fatal:
+		if (process_install_stopping_handler
+		    (proc, sbp, &disable_and_singlestep) < 0) {
+			perror("process_stopping_handler_create");
 			/* Carry on not bothering to re-enable.  */
 			continue_process(proc->pid);
-			return;
 		}
-
-		handler->super.on_event = process_stopping_on_event;
-		handler->super.destroy = process_stopping_destroy;
-		handler->task_enabling_breakpoint = proc;
-		handler->breakpoint_being_enabled = sbp;
-		install_event_handler(proc->leader, &handler->super);
-
-		if (each_task(proc->leader, NULL, &send_sigstop,
-			      &handler->pids) != NULL)
-			goto fatal;
-
-		/* And deliver the first fake event, in case all the
-		 * conditions are already fulfilled.  */
-		Event ev;
-		ev.type = EVENT_NONE;
-		ev.proc = proc;
-		process_stopping_on_event(&handler->super, &ev);
 #endif
 	}
 }
