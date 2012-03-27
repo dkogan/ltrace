@@ -19,6 +19,7 @@
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
+#include "linux-gnu/trace.h"
 
 /* If the system headers did not provide the constants, hard-code the normal
    values.  */
@@ -199,70 +200,6 @@ continue_process(pid_t pid)
 		debug(DEBUG_PROCESS,
 		      "putting off the continue, events in que.");
 }
-
-/**
- * This is used for bookkeeping related to PIDs that the event
- * handlers work with.
- */
-struct pid_task {
-	pid_t pid;	/* This may be 0 for tasks that exited
-			 * mid-handling.  */
-	int sigstopped : 1;
-	int got_event : 1;
-	int delivered : 1;
-	int vforked : 1;
-	int sysret : 1;
-} * pids;
-
-struct pid_set {
-	struct pid_task * tasks;
-	size_t count;
-	size_t alloc;
-};
-
-/**
- * Breakpoint re-enablement.  When we hit a breakpoint, we must
- * disable it, single-step, and re-enable it.  That single-step can be
- * done only by one task in a task group, while others are stopped,
- * otherwise the processes would race for who sees the breakpoint
- * disabled and who doesn't.  The following is to keep track of it
- * all.
- */
-struct process_stopping_handler
-{
-	struct event_handler super;
-
-	/* The task that is doing the re-enablement.  */
-	Process *task_enabling_breakpoint;
-
-	/* The pointer being re-enabled.  */
-	struct breakpoint *breakpoint_being_enabled;
-
-	/* Artificial atomic skip breakpoint, if any needed.  */
-	void *atomic_skip_bp_addr;
-
-	/* When all tasks are stopped, this callback gets called.  */
-	void (*on_all_stopped)(struct process_stopping_handler *);
-
-	enum {
-		/* We are waiting for everyone to land in t/T.  */
-		psh_stopping = 0,
-
-		/* We are doing the PTRACE_SINGLESTEP.  */
-		psh_singlestep,
-
-		/* We are waiting for all the SIGSTOPs to arrive so
-		 * that we can sink them.  */
-		psh_sinking,
-
-		/* This is for tracking the ugly workaround.  */
-		psh_ugly_workaround,
-	} state;
-
-	int exiting;
-
-	struct pid_set pids;
-};
 
 static struct pid_task *
 get_task_info(struct pid_set * pids, pid_t pid)
