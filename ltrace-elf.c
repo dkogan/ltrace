@@ -35,7 +35,7 @@ arch_elf_init(struct ltelf *lte)
 
 int
 default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
-			  const char *a_name, GElf_Rela *rela, size_t i,
+			  const char *a_name, GElf_Rela *rela, size_t ndx,
 			  struct library_symbol **ret)
 {
 	char *name = strdup(a_name);
@@ -47,7 +47,7 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 
 	enum toplt pltt = PLTS_ARE_EXECUTABLE(lte)
 		?  LS_TOPLT_EXEC : LS_TOPLT_POINT;
-	GElf_Addr addr = arch_plt_sym_val(lte, i, rela);
+	GElf_Addr addr = arch_plt_sym_val(lte, ndx, rela);
 
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
 	if (libsym == NULL)
@@ -75,7 +75,7 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 #ifndef ARCH_HAVE_ADD_PLT_ENTRY
 enum plt_status
 arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
-		       const char *a_name, GElf_Rela *rela, size_t i,
+		       const char *a_name, GElf_Rela *rela, size_t ndx,
 		       struct library_symbol **ret)
 {
 	return plt_default;
