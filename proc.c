@@ -143,11 +143,11 @@ clone_single_bp(void *key, void *value, void *u)
 	 * clone itself.  */
 	struct breakpoint *clone = malloc(sizeof(*clone));
 	if (clone == NULL
-	    || breakpoint_init(clone, data->new_proc, addr,
-			       libsym, bp->cbs) < 0) {
+	    || breakpoint_init(clone, data->new_proc, addr, libsym) < 0) {
 		data->error = -1;
 		return;
 	}
+	breakpoint_set_callbacks(clone, bp->cbs);
 }
 
 int

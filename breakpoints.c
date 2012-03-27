@@ -20,7 +20,17 @@ breakpoint_on_hit(struct breakpoint *bp, struct Process *proc)
 {
 	assert(bp != NULL);
 	if (bp->cbs != NULL && bp->cbs->on_hit != NULL)
-		(bp->cbs->on_hit) (bp, proc);
+		(bp->cbs->on_hit)(bp, proc);
+}
+
+void
+breakpoint_on_continue(struct breakpoint *bp, struct Process *proc)
+{
+	assert(bp != NULL);
+	if (bp->cbs != NULL && bp->cbs->on_continue != NULL)
+		(bp->cbs->on_continue)(bp, proc);
+	else
+		continue_after_breakpoint(proc, bp);
 }
 
 /*****************************************************************************/
@@ -50,15 +60,22 @@ arch_breakpoint_destroy(struct breakpoint *sbp)
 
 int
 breakpoint_init(struct breakpoint *bp, struct Process *proc,
-		target_address_t addr, struct library_symbol *libsym,
-		struct bp_callbacks *cbs)
+		target_address_t addr, struct library_symbol *libsym)
 {
-	bp->cbs = cbs;
+	bp->cbs = NULL;
 	bp->addr = addr;
 	memset(bp->orig_value, 0, sizeof(bp->orig_value));
 	bp->enabled = 0;
 	bp->libsym = libsym;
 	return arch_breakpoint_init(proc, bp);
+}
+
+void
+breakpoint_set_callbacks(struct breakpoint *bp, struct bp_callbacks *cbs)
+{
+	if (bp->cbs != NULL)
+		assert(bp->cbs == NULL);
+	bp->cbs = cbs;
 }
 
 void
@@ -102,7 +119,7 @@ insert_breakpoint(Process *proc, void *addr,
 	if (sbp == NULL) {
 		sbp = malloc(sizeof(*sbp));
 		if (sbp == NULL
-		    || breakpoint_init(sbp, proc, addr, libsym, NULL) < 0
+		    || breakpoint_init(sbp, proc, addr, libsym) < 0
 		    || dict_enter(leader->breakpoints, addr, sbp) < 0) {
 			free(sbp);
 			return NULL;

@@ -84,8 +84,10 @@ void breakpoint_on_hit(struct breakpoint *bp, struct Process *proc);
  * disabled.  orig_value has to be set separately.  CBS may be
  * NULL.  */
 int breakpoint_init(struct breakpoint *bp, struct Process *proc,
-		    target_address_t addr, struct library_symbol *libsym,
-		    struct bp_callbacks *cbs);
+		    target_address_t addr, struct library_symbol *libsym);
+
+/* Set callbacks.  If CBS is non-NULL, then BP->cbs shall be NULL.  */
+void breakpoint_set_callbacks(struct breakpoint *bp, struct bp_callbacks *cbs);
 
 /* XXX this is currently not called anywhere.   */
 void breakpoint_destroy(struct breakpoint *bp);
