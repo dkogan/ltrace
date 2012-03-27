@@ -695,7 +695,7 @@ handle_breakpoint(Event *event)
 			output_left(LT_TOF_FUNCTION, event->proc, sbp->libsym);
 		}
 
-		continue_after_breakpoint(event->proc, sbp);
+		breakpoint_on_continue(sbp, event->proc);
 		return;
 	}
 

@@ -64,6 +64,7 @@ struct breakpoint;
 
 struct bp_callbacks {
 	void (*on_hit) (struct breakpoint *bp, struct Process *proc);
+	void (*on_continue) (struct breakpoint *bp, struct Process *proc);
 	void (*on_destroy) (struct breakpoint *bp);
 };
 
@@ -78,6 +79,10 @@ struct breakpoint {
 
 /* Call on-hit handler of BP, if any is set.  */
 void breakpoint_on_hit(struct breakpoint *bp, struct Process *proc);
+
+/* Call on-reenable handler of BP.  If none is set, call
+ * continue_after_breakpoint.  */
+void breakpoint_on_continue(struct breakpoint *bp, struct Process *proc);
 
 /* Initialize a breakpoint structure.  That doesn't actually realize
  * the breakpoint.  The breakpoint is initially assumed to be
