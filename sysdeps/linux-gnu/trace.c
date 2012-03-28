@@ -372,9 +372,21 @@ process_stopping_done(struct process_stopping_handler * self, Process * leader)
 				continue_process(self->pids.tasks[i].pid);
 		continue_process(self->task_enabling_breakpoint->pid);
 		destroy_event_handler(leader);
-	} else {
+	}
+
+	if (self->exiting) {
+	ugly_workaround:
 		self->state = psh_ugly_workaround;
 		ugly_workaround(self->task_enabling_breakpoint);
+	} else {
+		switch ((self->ugly_workaround_p)(self)) {
+		case CBS_FAIL:
+			/* xxx handle me */
+		case CBS_STOP:
+			break;
+		case CBS_CONT:
+			goto ugly_workaround;
+		}
 	}
 }
 
@@ -697,13 +709,22 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 
 			/* If we got SIGNAL instead of BREAKPOINT,
 			 * then this is not singlestep at all.  */
-			if (event->type == EVENT_SIGNAL
-			    || (self->keep_stepping_p)(self)) {
+			if (event->type == EVENT_SIGNAL) {
+			do_singlestep:
 				if (singlestep(self) < 0) {
 					singlestep_error(self, &event);
 					goto psh_sinking;
 				}
 				break;
+			} else {
+				switch ((self->keep_stepping_p)(self)) {
+				case CBS_FAIL:
+					/* XXX handle me */
+				case CBS_STOP:
+					break;
+				case CBS_CONT:
+					goto do_singlestep;
+				}
 			}
 
 			/* Essentially we don't care what event caused
@@ -759,13 +780,15 @@ process_stopping_destroy(struct event_handler *super)
 static enum callback_status
 no(struct process_stopping_handler *self)
 {
-	return 0;
+	return CBS_STOP;
 }
 
 int
 process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
 				 void (*as)(struct process_stopping_handler *),
 				 enum callback_status (*ks)
+					 (struct process_stopping_handler *),
+				 enum callback_status (*uw)
 					(struct process_stopping_handler *))
 {
 	struct process_stopping_handler *handler = calloc(sizeof(*handler), 1);
@@ -776,6 +799,8 @@ process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
 		as = &disable_and_singlestep;
 	if (ks == NULL)
 		ks = &no;
+	if (uw == NULL)
+		uw = &no;
 
 	handler->super.on_event = process_stopping_on_event;
 	handler->super.destroy = process_stopping_destroy;
@@ -783,6 +808,7 @@ process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
 	handler->breakpoint_being_enabled = sbp;
 	handler->on_all_stopped = as;
 	handler->keep_stepping_p = ks;
+	handler->ugly_workaround_p = uw;
 
 	install_event_handler(proc->leader, &handler->super);
 
@@ -818,8 +844,8 @@ continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
 		/* we don't want to singlestep here */
 		continue_process(proc->pid);
 #else
-		if (process_install_stopping_handler(proc, sbp,
-						     NULL, NULL) < 0) {
+		if (process_install_stopping_handler
+		    (proc, sbp, NULL, NULL, NULL) < 0) {
 			perror("process_stopping_handler_create");
 			/* Carry on not bothering to re-enable.  */
 			continue_process(proc->pid);

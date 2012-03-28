@@ -245,7 +245,7 @@ entry_callback_hit(struct breakpoint *bp, struct Process *proc)
 	if (proc == NULL || proc->leader == NULL)
 		return;
 	delete_breakpoint(proc, bp->addr); // xxx
-	enable_all_breakpoints(proc);
+	//enable_all_breakpoints(proc);
 
 	linkmap_init(proc);
 }

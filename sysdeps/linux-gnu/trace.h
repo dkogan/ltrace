@@ -75,6 +75,11 @@ struct process_stopping_handler
 	enum callback_status (*keep_stepping_p)
 		(struct process_stopping_handler *);
 
+	/* Whether we need to use ugly workaround to get around
+	 * various problems with singlestepping.  */
+	enum callback_status (*ugly_workaround_p)
+		(struct process_stopping_handler *);
+
 	enum {
 		/* We are waiting for everyone to land in t/T.  */
 		psh_stopping = 0,
@@ -99,11 +104,13 @@ struct process_stopping_handler
  * Return 0 on success or a negative value on failure.  Pass NULL for
  * each callback to use a default instead.  The default for
  * ON_ALL_STOPPED is disable_and_singlestep, the default for
- * KEEP_STEPPING_P is "no".  */
+ * KEEP_STEPPING_P and UGLY_WORKAROUND_P is "no".  */
 int process_install_stopping_handler
 	(struct Process *proc, struct breakpoint *sbp,
 	 void (*on_all_stopped)(struct process_stopping_handler *),
 	 enum callback_status (*keep_stepping_p)
+		 (struct process_stopping_handler *),
+	 enum callback_status (*ugly_workaround_p)
 		(struct process_stopping_handler *));
 
 #endif /* _LTRACE_LINUX_TRACE_H_ */

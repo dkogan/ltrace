@@ -562,6 +562,12 @@ keep_stepping_p(struct process_stopping_handler *self)
 	return CBS_STOP;
 }
 
+static enum callback_status
+yes(struct process_stopping_handler *self)
+{
+	return CBS_CONT;
+}
+
 static void
 ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 {
@@ -576,7 +582,8 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 
 	case PPC64PLT_UNRESOLVED:
 		if (process_install_stopping_handler(proc, bp, NULL,
-						     &keep_stepping_p) < 0) {
+						     &keep_stepping_p,
+						     &yes) < 0) {
 			perror("ppc64_unresolved_bp_continue: couldn't install"
 			       " event handler");
 			continue_after_breakpoint(proc, bp);
