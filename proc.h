@@ -38,6 +38,8 @@ struct library;
 enum callback_status {
 	CBS_STOP, /* The iteration should stop.  */
 	CBS_CONT, /* The iteration should continue.  */
+	CBS_FAIL, /* There was an error.  The iteration should stop
+		   * and return error.  */
 };
 
 struct event_handler {

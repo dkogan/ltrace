@@ -171,6 +171,8 @@ library_each_symbol(struct library *lib, struct library_symbol *start_after,
 		struct library_symbol *next = it->next;
 
 		switch ((*cb)(it, data)) {
+		case CBS_FAIL:
+			/* XXX handle me  */
 		case CBS_STOP:
 			return it;
 		case CBS_CONT:

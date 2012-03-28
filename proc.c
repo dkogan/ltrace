@@ -341,6 +341,8 @@ each_process(struct Process *start_after,
 		/* Callback might call remove_process.  */
 		struct Process *next = it->next;
 		switch ((*cb)(it, data)) {
+		case CBS_FAIL:
+			/* XXX handle me */
 		case CBS_STOP:
 			return it;
 		case CBS_CONT:
@@ -366,6 +368,8 @@ each_task(struct Process *proc, struct Process *start_after,
 			/* Callback might call remove_process.  */
 			struct Process *next = it->next;
 			switch ((*cb)(it, data)) {
+			case CBS_FAIL:
+				/* XXX handle me */
 			case CBS_STOP:
 				return it;
 			case CBS_CONT:
@@ -530,6 +534,8 @@ proc_each_library(struct Process *proc, struct library *it,
 		struct library *next = it->next;
 
 		switch (cb(proc, it, data)) {
+		case CBS_FAIL:
+			/* XXX handle me */
 		case CBS_STOP:
 			return it;
 		case CBS_CONT:
