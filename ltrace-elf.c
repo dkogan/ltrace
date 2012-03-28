@@ -31,6 +31,11 @@ arch_elf_init(struct ltelf *lte)
 {
 	return 0;
 }
+
+void
+arch_elf_destroy(struct ltelf *lte)
+{
+}
 #endif
 
 int

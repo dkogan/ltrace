@@ -24,6 +24,7 @@
 #define ARCH_HAVE_LTELF_DATA
 #define ARCH_HAVE_BREAKPOINT_DATA
 #define ARCH_HAVE_LIBRARY_SYMBOL_DATA
+#define ARCH_HAVE_TRANSLATE_ADDRESS
 
 struct library_symbol;
 struct arch_ltelf_data {

@@ -15,6 +15,16 @@
 #include "proc.h"
 #include "library.h"
 
+#ifndef ARCH_HAVE_TRANSLATE_ADDRESS
+int
+arch_translate_address(struct Process *proc,
+		       target_address_t addr, target_address_t *ret)
+{
+	*ret = addr;
+	return 0;
+}
+#endif
+
 void
 breakpoint_on_hit(struct breakpoint *bp, struct Process *proc)
 {
