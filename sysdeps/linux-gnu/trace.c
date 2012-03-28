@@ -695,9 +695,10 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 		 * have now stepped, and can re-enable the breakpoint.  */
 		if (event != NULL && task == teb) {
 
-			/* This is not the singlestep that we are
-			 * waiting for.  */
-			if (event->type == EVENT_SIGNAL) {
+			/* If we got SIGNAL instead of BREAKPOINT,
+			 * then this is not singlestep at all.  */
+			if (event->type == EVENT_SIGNAL
+			    || (self->keep_stepping_p)(self)) {
 				if (singlestep(self) < 0) {
 					singlestep_error(self, &event);
 					goto psh_sinking;
@@ -755,19 +756,33 @@ process_stopping_destroy(struct event_handler *super)
 	free(self->pids.tasks);
 }
 
+static enum callback_status
+no(struct process_stopping_handler *self)
+{
+	return 0;
+}
+
 int
 process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
-				 void (*cb)(struct process_stopping_handler *))
+				 void (*as)(struct process_stopping_handler *),
+				 enum callback_status (*ks)
+					(struct process_stopping_handler *))
 {
 	struct process_stopping_handler *handler = calloc(sizeof(*handler), 1);
 	if (handler == NULL)
 		return -1;
 
+	if (as == NULL)
+		as = &disable_and_singlestep;
+	if (ks == NULL)
+		ks = &no;
+
 	handler->super.on_event = process_stopping_on_event;
 	handler->super.destroy = process_stopping_destroy;
 	handler->task_enabling_breakpoint = proc;
 	handler->breakpoint_being_enabled = sbp;
-	handler->on_all_stopped = cb;
+	handler->on_all_stopped = as;
+	handler->keep_stepping_p = ks;
 
 	install_event_handler(proc->leader, &handler->super);
 
@@ -803,8 +818,8 @@ continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
 		/* we don't want to singlestep here */
 		continue_process(proc->pid);
 #else
-		if (process_install_stopping_handler
-		    (proc, sbp, &disable_and_singlestep) < 0) {
+		if (process_install_stopping_handler(proc, sbp,
+						     NULL, NULL) < 0) {
 			perror("process_stopping_handler_create");
 			/* Carry on not bothering to re-enable.  */
 			continue_process(proc->pid);
