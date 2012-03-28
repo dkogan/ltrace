@@ -48,7 +48,10 @@ enum ppc64_plt_type {
 
 struct arch_library_symbol_data {
 	enum ppc64_plt_type type;
-	GElf_Addr orig_addr;
+	GElf_Addr resolved_value;
+
+	/* Address of corresponding slot in .plt.  */
+	GElf_Addr plt_slot_addr;
 };
 
 struct arch_breakpoint_data {

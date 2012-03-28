@@ -10,6 +10,7 @@
 #include "common.h"
 #include "library.h"
 #include "breakpoint.h"
+#include "linux-gnu/trace.h"
 
 /* There are two PLT types on 32-bit PPC: old-style, BSS PLT, and
  * new-style "secure" PLT.  We can tell one from the other by the
@@ -76,6 +77,11 @@
  * .plt slot, and emulate it, updating the PLT breakpoint immediately,
  * and then just skip it.  But that's even messier than the thread
  * stopping business and single stepping that needs to be done.
+ *
+ * Short of doing this we really have to stop everyone.  There is no
+ * way around that.  Unless we know where the stubs are, we don't have
+ * a way to catch a thread that would use the window of opportunity
+ * between updating .plt and notifying ltrace about the singlestep.
  */
 
 #define PPC_PLT_STUB_SIZE 16
@@ -394,6 +400,37 @@ arch_elf_init(struct ltelf *lte)
 	return 0;
 }
 
+static int
+read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
+{
+	/* on PPC32 we need to do things differently, but PPC64/PPC32
+	 * is currently not supported anyway.  */
+	assert(host_powerpc64());
+
+	long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
+	if (l == -1 && errno != 0) {
+		error(0, errno, "ptrace .plt slot value @%#" PRIx64, addr);
+		return -1;
+	}
+
+	*valp = (GElf_Addr)l;
+	return 0;
+}
+
+static int
+unresolve_plt_slot(struct Process *proc, GElf_Addr addr, GElf_Addr value)
+{
+	/* We only modify plt_entry[0], which holds the resolved
+	 * address of the routine.  We keep the TOC and environment
+	 * pointers intact.  Hence the only adjustment that we need to
+	 * do is to IP.  */
+	if (ptrace(PTRACE_POKETEXT, proc->pid, addr, value) < 0) {
+		error(0, errno, "unresolve .plt slot");
+		return -1;
+	}
+	return 0;
+}
+
 enum plt_status
 arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
@@ -445,13 +482,9 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 	assert(plt_slot_addr >= lte->plt_addr
 	       || plt_slot_addr < lte->plt_addr + lte->plt_size);
 
-	long plt_slot_value = ptrace(PTRACE_PEEKTEXT, proc->pid,
-				     plt_slot_addr, 0);
-	if (plt_slot_value == -1 && errno != 0) {
-		error(0, errno, "ptrace .plt slot value @%#" PRIx64,
-		      plt_slot_addr);
+	GElf_Addr plt_slot_value;
+	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0)
 		return plt_fail;
-	}
 
 	char *name = strdup(a_name);
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
@@ -465,10 +498,12 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 
 	library_symbol_init(libsym, (target_address_t)plt_entry_addr,
 			    name, 1, LS_TOPLT_EXEC);
-	if ((GElf_Addr)plt_slot_value == plt_entry_addr
-	    || plt_slot_value == 0) {
+	libsym->arch.plt_slot_addr = plt_slot_addr;
+
+	if (plt_slot_value == plt_entry_addr || plt_slot_value == 0) {
 		libsym->arch.type = PPC64PLT_UNRESOLVED;
-		libsym->arch.orig_addr = 0;
+		libsym->arch.resolved_value = plt_entry_addr;
+
 	} else {
 		/* Unresolve the .plt slot.  If the binary was
 		 * prelinked, this makes the code invalid, because in
@@ -479,17 +514,11 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		 * we have to un-un-resolve this back before we
 		 * detach, which is nothing new: we already need to
 		 * retract breakpoints.  */
-		/* We only modify plt_entry[0], which holds the
-		 * resolved address of the routine.  We keep the TOC
-		 * and environment pointers intact.  Hence the only
-		 * adjustment that we need to do is to IP.  */
-		if (ptrace(PTRACE_POKETEXT, proc->pid,
-			   plt_slot_addr, plt_entry_addr) < 0) {
-			error(0, errno, "unresolve .plt slot");
+
+		if (unresolve_plt_slot(proc, plt_slot_addr, plt_entry_addr) < 0)
 			goto fail;
-		}
 		libsym->arch.type = PPC64PLT_RESOLVED;
-		libsym->arch.orig_addr = plt_slot_value;
+		libsym->arch.resolved_value = plt_slot_value;
 	}
 
 	*ret = libsym;
@@ -508,15 +537,61 @@ arch_elf_destroy(struct ltelf *lte)
 	}
 }
 
-static void
-ppc64_resolved_bp_continue(struct breakpoint *bp, struct Process *proc)
+static enum callback_status
+keep_stepping_p(struct process_stopping_handler *self)
 {
-	fprintf(stderr, "ppc64_resolved_bp_continue\n");
-	set_instruction_pointer(proc,
-				(target_address_t)bp->libsym->arch.orig_addr);
-	continue_process(proc->pid);
+	struct Process *proc = self->task_enabling_breakpoint;
+	struct library_symbol *libsym = self->breakpoint_being_enabled->libsym;
+	GElf_Addr value;
+	if (read_plt_slot_value(proc, libsym->arch.plt_slot_addr, &value) < 0)
+		return CBS_FAIL;
+
+	/* In UNRESOLVED state, the RESOLVED_VALUE in fact contains
+	 * the PLT entry value.  */
+	if (value == libsym->arch.resolved_value)
+		return CBS_CONT;
+
+	/* The .plt slot got resolved!  We can migrate the breakpoint
+	 * to RESOLVED and stop single-stepping.  */
+	if (unresolve_plt_slot(proc, libsym->arch.plt_slot_addr,
+			       libsym->arch.resolved_value) < 0)
+		return CBS_FAIL;
+	libsym->arch.type = PPC64PLT_RESOLVED;
+	libsym->arch.resolved_value = value;
+
+	return CBS_STOP;
 }
 
+static void
+ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
+{
+	fprintf(stderr, "ppc64_plt_bp_continue\n");
+
+	switch (bp->libsym->arch.type) {
+		target_address_t rv;
+
+	case PPC64PLT_STUB:
+		/* We should never get here.  */
+		abort();
+
+	case PPC64PLT_UNRESOLVED:
+		if (process_install_stopping_handler(proc, bp, NULL,
+						     &keep_stepping_p) < 0) {
+			perror("ppc64_unresolved_bp_continue: couldn't install"
+			       " event handler");
+			continue_after_breakpoint(proc, bp);
+		}
+		return;
+
+	case PPC64PLT_RESOLVED:
+		fprintf(stderr, "ppc64_resolved_bp_continue\n");
+		rv = (target_address_t)bp->libsym->arch.resolved_value;
+		set_instruction_pointer(proc, rv);
+		continue_process(proc->pid);
+	}
+}
+
+/* For some symbol types, we need to set up custom callbacks.  */
 int
 arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 {
@@ -525,19 +600,10 @@ arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 	    || bp->libsym->arch.type == PPC64PLT_STUB)
 		return 0;
 
-	if (bp->libsym->arch.type == PPC64PLT_RESOLVED) {
-		fprintf(stderr, "arch_breakpoint_init RESOLVED\n");
-		static struct bp_callbacks resolved_cbs = {
-			.on_continue = ppc64_resolved_bp_continue,
-		};
-		breakpoint_set_callbacks(bp, &resolved_cbs);
-
-	} else {
-		fprintf(stderr, "arch_breakpoint_init UNRESOLVED\n");
-		fprintf(stderr, "a.k.a the insane case\n");
-		abort();
-	}
-
+	static struct bp_callbacks cbs = {
+		.on_continue = ppc64_plt_bp_continue,
+	};
+	breakpoint_set_callbacks(bp, &cbs);
 	return 0;
 }
 
