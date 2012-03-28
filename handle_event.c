@@ -612,7 +612,7 @@ handle_breakpoint(Event *event)
 				if (memcmp(&a, break_insn, BREAKPOINT_LENGTH)) {
 					sbp->enabled--;
 					insert_breakpoint(event->proc, addr,
-							  libsym, 1);
+							  libsym);
 				}
 			} else {
 				sbp = dict_find_entry(leader->breakpoints, addr);
@@ -623,7 +623,7 @@ handle_breakpoint(Event *event)
 				   sbp is NULL.  */
 				if (sbp == NULL || addr != sbp->addr) {
 					insert_breakpoint(event->proc, addr,
-							  libsym, 1);
+							  libsym);
 				}
 			}
 #elif defined(__mips__)
@@ -635,14 +635,14 @@ handle_breakpoint(Event *event)
 			sbp = dict_find_entry(leader->breakpoints, addr);
 			if (sbp) {
 				if (addr != sbp->addr) {
-					insert_breakpoint(event->proc, addr, sym, 1);
+					insert_breakpoint(event->proc, addr, sym);
 				}
 			} else {
 				new_sym=malloc(sizeof(*new_sym) + strlen(sym->name) + 1);
 				memcpy(new_sym,sym,sizeof(*new_sym) + strlen(sym->name) + 1);
 				new_sym->next = leader->list_of_symbols;
 				leader->list_of_symbols = new_sym;
-				insert_breakpoint(event->proc, addr, new_sym, 1);
+				insert_breakpoint(event->proc, addr, new_sym);
 			}
 #endif
 			for (j = event->proc->callstack_depth - 1; j > i; j--) {
