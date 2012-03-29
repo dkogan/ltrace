@@ -245,32 +245,175 @@ process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
 	return 0;
 }
 
+/* On native 64-bit system, we need to be careful when handling cross
+ * tracing.  This select appropriate pointer depending on host and
+ * target architectures.  XXX Really we should abstract this into the
+ * ABI object, as theorized about somewhere on pmachata/revamp
+ * branch.  */
+static void *
+select_32_64(struct Process *proc, void *p32, void *p64)
+{
+	if (sizeof(long) == 4 || proc->mask_32bit)
+		return p32;
+	else
+		return p64;
+}
+
 static int
-find_dynamic_entry_addr(Process *proc, void *pvAddr, int d_tag, void **addr) {
+fetch_dyn64(struct Process *proc, target_address_t *addr, Elf64_Dyn *ret)
+{
+	if (umovebytes(proc, *addr, ret, sizeof(*ret)) != sizeof(*ret))
+		return -1;
+	*addr += sizeof(*ret);
+	return 0;
+}
+
+static int
+fetch_dyn32(struct Process *proc, target_address_t *addr, Elf64_Dyn *ret)
+{
+	Elf32_Dyn dyn;
+	if (umovebytes(proc, *addr, &dyn, sizeof(dyn)) != sizeof(dyn))
+		return -1;
+
+	*addr += sizeof(dyn);
+	ret->d_tag = dyn.d_tag;
+	ret->d_un.d_val = dyn.d_un.d_val;
+
+	return 0;
+}
+
+static int (*
+dyn_fetcher(struct Process *proc))(struct Process *,
+				   target_address_t *, Elf64_Dyn *)
+{
+	return select_32_64(proc, fetch_dyn32, fetch_dyn64);
+}
+
+static int
+find_dynamic_entry_addr(struct Process *proc, target_address_t src_addr,
+			int d_tag, target_address_t *ret)
+{
 	fprintf(stderr, "find_dynamic_entry_addr %d %p %d\n",
-		proc->pid, pvAddr, d_tag);
-	ElfW(Dyn) entry;
+		proc->pid, src_addr, d_tag);
 
 	debug(DEBUG_FUNCTION, "find_dynamic_entry()");
 
-	if (addr == NULL || pvAddr == NULL || d_tag < 0 || d_tag > DT_NUM) {
+	if (ret == NULL || src_addr == 0 || d_tag < 0 || d_tag > DT_NUM)
 		return -1;
-	}
 
-	while ((sizeof(entry) == umovebytes(proc, pvAddr, &entry, sizeof(entry))) &&
-	       (entry.d_tag != DT_NULL)) {
-		fprintf(stderr, " entry %ld %#lx\n", entry.d_tag, entry.d_un.d_val);
+	int i = 0;
+	while (1) {
+		Elf64_Dyn entry;
+		if (dyn_fetcher(proc)(proc, &src_addr, &entry) < 0
+		    || entry.d_tag == DT_NULL
+		    || i++ > 100) { /* Arbitrary cut-off so that we
+				     * don't loop forever if the
+				     * binary is corrupted.  */
+			debug(2, "Couldn't find address for dtag!");
+			return -1;
+		}
+
 		if (entry.d_tag == d_tag) {
 			fprintf(stderr, "   hit\n");
-			*addr = (void *)entry.d_un.d_val;
-			debug(2, "found address: 0x%p in dtag %d\n", *addr, d_tag);
+			*ret = (target_address_t)entry.d_un.d_val;
+			debug(2, "found address: %p in dtag %d\n", *ret, d_tag);
 			return 0;
 		}
-		pvAddr += sizeof(entry);
+	}
+}
+
+/* Our own type for representing 32-bit linkmap.  We can't rely on the
+ * definition in link.h, because that's only accurate for our host
+ * architecture, not for target architecture (where the traced process
+ * runs). */
+#define LT_LINK_MAP(BITS)			\
+	{					\
+		Elf##BITS##_Addr l_addr;	\
+		Elf##BITS##_Addr l_name;	\
+		Elf##BITS##_Addr l_ld;		\
+		Elf##BITS##_Addr l_next;	\
+		Elf##BITS##_Addr l_prev;	\
+	}
+struct lt_link_map_32 LT_LINK_MAP(32);
+struct lt_link_map_64 LT_LINK_MAP(64);
+
+static int
+fetch_lm64(struct Process *proc, target_address_t addr,
+	   struct lt_link_map_64 *ret)
+{
+	if (umovebytes(proc, addr, ret, sizeof(*ret)) != sizeof(*ret))
+		return -1;
+	return 0;
+}
+
+static int
+fetch_lm32(struct Process *proc, target_address_t addr,
+	   struct lt_link_map_64 *ret)
+{
+	struct lt_link_map_32 lm;
+	if (umovebytes(proc, addr, &lm, sizeof(lm)) != sizeof(lm))
+		return -1;
+
+	ret->l_addr = lm.l_addr;
+	ret->l_name = lm.l_name;
+	ret->l_ld = lm.l_ld;
+	ret->l_next = lm.l_next;
+	ret->l_prev = lm.l_prev;
+
+	return 0;
+}
+
+static int (*
+lm_fetcher(struct Process *proc))(struct Process *,
+				  target_address_t, struct lt_link_map_64 *)
+{
+	return select_32_64(proc, fetch_lm32, fetch_lm64);
+}
+
+/* The same as above holds for struct r_debug.  */
+#define LT_R_DEBUG(BITS)			\
+	{					\
+		int r_version;			\
+		Elf##BITS##_Addr r_map;		\
+		Elf##BITS##_Addr r_brk;		\
+		int r_state;			\
+		Elf##BITS##_Addr r_ldbase;	\
 	}
 
-	debug(2, "Couldn't address for dtag!\n");
-	return -1;
+struct lt_r_debug_32 LT_R_DEBUG(32);
+struct lt_r_debug_64 LT_R_DEBUG(64);
+
+static int
+fetch_rd64(struct Process *proc, target_address_t addr,
+	   struct lt_r_debug_64 *ret)
+{
+	if (umovebytes(proc, addr, ret, sizeof(*ret)) != sizeof(*ret))
+		return -1;
+	return 0;
+}
+
+static int
+fetch_rd32(struct Process *proc, target_address_t addr,
+	   struct lt_r_debug_64 *ret)
+{
+	struct lt_r_debug_32 rd;
+	if (umovebytes(proc, addr, &rd, sizeof(rd)) != sizeof(rd))
+		return -1;
+
+	ret->r_version = rd.r_version;
+	ret->r_map = rd.r_map;
+	ret->r_brk = rd.r_brk;
+	ret->r_state = rd.r_state;
+	ret->r_ldbase = rd.r_ldbase;
+
+	return 0;
+}
+
+static int (*
+rdebug_fetcher(struct Process *proc))(struct Process *,
+				      target_address_t, struct lt_r_debug_64 *)
+{
+	return select_32_64(proc, fetch_rd32, fetch_rd64);
 }
 
 enum callback_status
@@ -281,12 +424,8 @@ find_library_addr(struct Process *proc, struct library *lib, void *data)
 }
 
 static void
-crawl_linkmap(Process *proc, struct r_debug *dbg)
+crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 {
-	struct link_map rlm;
-	char lib_name[BUFSIZ];
-	struct link_map *lm = NULL;
-
 	debug (DEBUG_FUNCTION, "crawl_linkmap()");
 
 	if (!dbg || !dbg->r_map) {
@@ -294,21 +433,24 @@ crawl_linkmap(Process *proc, struct r_debug *dbg)
 		return;
 	}
 
-	lm = dbg->r_map;
+	target_address_t addr = (target_address_t)dbg->r_map;
 
-	while (lm) {
-		if (umovebytes(proc, lm, &rlm, sizeof(rlm)) != sizeof(rlm)) {
+	while (addr != 0) {
+		struct lt_link_map_64 rlm;
+		if (lm_fetcher(proc)(proc, addr, &rlm) < 0) {
 			debug(2, "Unable to read link map\n");
 			return;
 		}
 
-		lm = rlm.l_next;
-		if (rlm.l_name == NULL) {
+		addr = (target_address_t)rlm.l_next;
+		if (rlm.l_name == 0) {
 			debug(2, "Invalid library name referenced in dynamic linker map\n");
 			return;
 		}
 
-		umovebytes(proc, rlm.l_name, lib_name, sizeof(lib_name));
+		char lib_name[BUFSIZ];
+		umovebytes(proc, (target_address_t)rlm.l_name,
+			   lib_name, sizeof(lib_name));
 
 		debug(2, "Dispatching callback for: %s, "
 		      "Loaded at 0x%" PRI_ELF_ADDR "\n",
@@ -341,46 +483,38 @@ crawl_linkmap(Process *proc, struct r_debug *dbg)
 	return;
 }
 
-static struct r_debug *
-load_debug_struct(Process *proc) {
-	struct r_debug *rdbg = NULL;
-
+static int
+load_debug_struct(struct Process *proc, struct lt_r_debug_64 *ret)
+{
 	debug(DEBUG_FUNCTION, "load_debug_struct");
 
-	rdbg = malloc(sizeof(*rdbg));
-	if (!rdbg) {
-		return NULL;
-	}
-
-	if (umovebytes(proc, proc->debug, rdbg, sizeof(*rdbg)) != sizeof(*rdbg)) {
+	if (rdebug_fetcher(proc)(proc, proc->debug, ret) < 0) {
 		debug(2, "This process does not have a debug structure!\n");
-		free(rdbg);
-		return NULL;
+		return -1;
 	}
 
-	return rdbg;
+	return 0;
 }
 
 static void
 rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 {
 	fprintf(stderr, "======= HIT\n");
-	struct r_debug *dbg = NULL;
-	//struct cb_data data;
 
 	debug(DEBUG_FUNCTION, "arch_check_dbg");
 
-	if (!(dbg = load_debug_struct(proc))) {
+	struct lt_r_debug_64 rdbg;
+	if (load_debug_struct(proc, &rdbg) < 0) {
 		debug(2, "Unable to load debug structure!");
 		return;
 	}
 
-	if (dbg->r_state == RT_CONSISTENT) {
+	if (rdbg.r_state == RT_CONSISTENT) {
 		debug(2, "Linkmap is now consistent");
 		if (proc->debug_state == RT_ADD) {
 			debug(2, "Adding DSO to linkmap");
 			//data.proc = proc;
-			crawl_linkmap(proc, dbg);
+			crawl_linkmap(proc, &rdbg);
 			//&data);
 		} else if (proc->debug_state == RT_DELETE) {
 			debug(2, "Removing DSO from linkmap");
@@ -389,15 +523,13 @@ rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 		}
 	}
 
-	proc->debug_state = dbg->r_state;
-	return;
+	proc->debug_state = rdbg.r_state;
 }
 
 int
 linkmap_init(struct Process *proc, target_address_t dyn_addr)
 {
-	void *dbg_addr = NULL;
-	struct r_debug *rdbg = NULL;
+	target_address_t dbg_addr = NULL;
 	//struct cb_data data;
 
 	debug(DEBUG_FUNCTION, "linkmap_init()");
@@ -410,9 +542,11 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 
 	proc->debug = dbg_addr;
 
-	if (!(rdbg = load_debug_struct(proc))) {
+	int status;
+	struct lt_r_debug_64 rdbg;
+	if ((status = load_debug_struct(proc, &rdbg)) < 0) {
 		debug(2, "No debug structure or no memory to allocate one!");
-		return -1;
+		return status;
 	}
 
 	//data.lte = lte;
@@ -420,7 +554,7 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 	void *addr;
 	{
 		struct library_symbol libsym;
-		library_symbol_init(&libsym, (target_address_t)rdbg->r_brk,
+		library_symbol_init(&libsym, (target_address_t)rdbg.r_brk,
 				    NULL, 0, LS_TOPLT_NONE);
 		addr = sym2addr(proc, &libsym);
 		library_symbol_destroy(&libsym);
@@ -431,9 +565,8 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 	};
 	rdebug_bp->cbs = &rdebug_callbacks;
 
-	crawl_linkmap(proc, rdbg);
+	crawl_linkmap(proc, &rdbg);
 
-	free(rdbg);
 	return 0;
 }
 
