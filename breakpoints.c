@@ -306,7 +306,8 @@ entry_callback_hit(struct breakpoint *a, struct Process *proc)
 
 int
 entry_breakpoint_init(struct Process *proc,
-		      struct entry_breakpoint *bp, target_address_t addr)
+		      struct entry_breakpoint *bp, target_address_t addr,
+		      struct library *lib)
 {
 	int err;
 	if ((err = breakpoint_init(&bp->super, proc, addr, NULL)) < 0)
@@ -316,6 +317,7 @@ entry_breakpoint_init(struct Process *proc,
 		.on_hit = entry_callback_hit,
 	};
 	bp->super.cbs = &entry_callbacks;
+	bp->dyn_addr = lib->dyn_addr;
 	return 0;
 }
 
@@ -360,7 +362,7 @@ breakpoints_init(Process *proc, int enable)
 		entry_bp = malloc(sizeof(*entry_bp));
 		if (entry_bp == NULL
 		    || (result = entry_breakpoint_init(proc, entry_bp,
-						       lib->entry)) < 0)
+						       lib->entry, lib)) < 0)
 			goto fail;
 
 		++bp_state;
