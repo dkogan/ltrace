@@ -362,7 +362,7 @@ load_debug_struct(Process *proc) {
 }
 
 static void
-rdebug_callback_hit(struct breakpoint *bp, struct Process *proc)
+rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 {
 	fprintf(stderr, "======= HIT\n");
 	struct r_debug *dbg = NULL;
@@ -427,7 +427,7 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 	}
 	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);
 	static struct bp_callbacks rdebug_callbacks = {
-		.on_hit = rdebug_callback_hit,
+		.on_hit = rdebug_bp_on_hit,
 	};
 	rdebug_bp->cbs = &rdebug_callbacks;
 

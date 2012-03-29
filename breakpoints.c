@@ -292,7 +292,7 @@ struct entry_breakpoint {
 };
 
 static void
-entry_callback_hit(struct breakpoint *a, struct Process *proc)
+entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 {
 	struct entry_breakpoint *bp = (void *)a;
 	fprintf(stderr, "entry_callback_hit\n");
@@ -302,6 +302,11 @@ entry_callback_hit(struct breakpoint *a, struct Process *proc)
 	//enable_all_breakpoints(proc);
 
 	linkmap_init(proc, bp->dyn_addr);
+}
+
+static void
+entry_breakpoint_on_destroy(struct breakpoint *a)
+{
 }
 
 int
@@ -314,7 +319,8 @@ entry_breakpoint_init(struct Process *proc,
 		return err;
 
 	static struct bp_callbacks entry_callbacks = {
-		.on_hit = entry_callback_hit,
+		.on_hit = entry_breakpoint_on_hit,
+		.on_destroy = entry_breakpoint_on_destroy,
 	};
 	bp->super.cbs = &entry_callbacks;
 	bp->dyn_addr = lib->dyn_addr;
