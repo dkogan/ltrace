@@ -195,7 +195,7 @@ extern int umovelong (Process * proc, void * addr, long * result, arg_type_info 
 extern size_t umovebytes (Process *proc, void * addr, void * laddr, size_t count);
 extern int ffcheck(void * maddr);
 extern void * sym2addr(Process *, struct library_symbol *);
-extern int linkmap_init(struct Process *);
+extern int linkmap_init(struct Process *proc, void *dyn_addr);
 extern void arch_check_dbg(Process *proc);
 extern int task_kill (pid_t pid, int sig);
 

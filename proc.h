@@ -31,6 +31,7 @@
 #include "dict.h"
 
 struct library;
+struct breakpoint;
 
 /* XXX Move this somewhere where it makes sense.  When the mess in
  * common.h is disentangled, that would actually be a good place for
@@ -190,5 +191,10 @@ struct library *proc_each_library(struct Process *proc, struct library *start,
 							     void *data),
 				  void *data);
 
+/* Insert BP into PROC.  */
+int proc_add_breakpoint(struct Process *proc, struct breakpoint *bp);
+
+/* Remove BP from PROC.  */
+int proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp);
 
 #endif /* _PROC_H_ */

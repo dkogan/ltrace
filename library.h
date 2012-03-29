@@ -92,10 +92,13 @@ struct library {
 	target_address_t base;
 
 	/* Absolute address of the entry point.  Useful for main
-	 * binary, though I the value might be useful for the dynamic
-	 * linker, too (in case we ever want to do early process
-	 * tracing).  */
+	 * binary, though I suppose the value might be useful for the
+	 * dynamic linker, too (in case we ever want to do early
+	 * process tracing).  */
 	target_address_t entry;
+
+	/* Address of PT_DYNAMIC segment.  */
+	target_address_t dyn_addr;
 
 	/* Symbols associated with the library.  */
 	struct library_symbol *symbols;

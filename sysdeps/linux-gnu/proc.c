@@ -393,11 +393,9 @@ rdebug_callback_hit(struct breakpoint *bp, struct Process *proc)
 	return;
 }
 
-void *dyn_addr;
 int
-linkmap_init(struct Process *proc)
+linkmap_init(struct Process *proc, target_address_t dyn_addr)
 {
-  return 0;
 	void *dbg_addr = NULL;
 	struct r_debug *rdbg = NULL;
 	//struct cb_data data;

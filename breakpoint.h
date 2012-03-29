@@ -71,6 +71,7 @@ struct bp_callbacks {
 struct breakpoint {
 	struct bp_callbacks *cbs;
 	struct library_symbol *libsym;
+	struct Process *proc;
 	void *addr;
 	unsigned char orig_value[BREAKPOINT_LENGTH];
 	int enabled;
@@ -97,9 +98,19 @@ void breakpoint_set_callbacks(struct breakpoint *bp, struct bp_callbacks *cbs);
 /* XXX this is currently not called anywhere.   */
 void breakpoint_destroy(struct breakpoint *bp);
 
-/* This is actually three functions rolled in one:
+/* Call enable_breakpoint the first time it's called.  Returns 0 on
+ * success and a negative value on failure.  */
+int breakpoint_turn_on(struct breakpoint *bp);
+
+/* Call disable_breakpoint when turned off the same number of times
+ * that it was turned on.  Returns 0 on success and a negative value
+ * on failure.  */
+int breakpoint_turn_off(struct breakpoint *bp);
+
+/* This is actually several functions rolled in one:
+ *  - malloc
  *  - breakpoint_init
- *  - proc_breakpoint_insert
+ *  - proc_add_breakpoint
  *  - breakpoint_enable
  * XXX I think it should be broken up somehow.  */
 struct breakpoint *insert_breakpoint(struct Process *proc, void *addr,
@@ -108,9 +119,12 @@ struct breakpoint *insert_breakpoint(struct Process *proc, void *addr,
 /* Name of a symbol associated with BP.  May be NULL.  */
 const char *breakpoint_name(const struct breakpoint *bp);
 
+/* A library that this breakpoint comes from.  May be NULL.  */
+struct library *breakpoint_library(const struct breakpoint *bp);
+
 /* Again, this seems to be several interfaces rolled into one:
  *  - breakpoint_disable
- *  - proc_breakpoint_remove
+ *  - proc_remove_breakpoint
  *  - breakpoint_destroy
  * XXX */
 void delete_breakpoint(struct Process *proc, void *addr);

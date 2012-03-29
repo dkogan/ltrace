@@ -546,3 +546,38 @@ proc_each_library(struct Process *proc, struct library *it,
 
 	return NULL;
 }
+
+int
+proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
+{
+	struct Process *leader = proc->leader;
+
+	/* Only the group leader should be getting the breakpoints and
+	 * thus have ->breakpoint initialized.  */
+	assert(leader != NULL);
+	assert(leader->breakpoints != NULL);
+
+	/* Make sure it wasn't inserted yet.  */
+	assert(bp->proc == NULL);
+
+	debug(DEBUG_FUNCTION, "proc_insert_breakpoint(pid=%d, %s@%p)",
+	      proc->pid, breakpoint_name(bp), bp->addr);
+
+	assert(dict_find_entry(leader->breakpoints, bp->addr) == NULL);
+	if (dict_enter(leader->breakpoints, bp->addr, bp) < 0) {
+		error(0, errno, "couldn't enter breakpoint %s@%p to dictionary",
+		      breakpoint_name(bp), bp->addr);
+		return -1;
+	}
+
+	bp->proc = proc;
+	return 0;
+}
+
+int
+proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp)
+{
+	/* XXX We can't, really.  We are missing dict_remove.  */
+	assert(!"Not yet implemented!");
+	abort();
+}

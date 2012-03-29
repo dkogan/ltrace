@@ -598,7 +598,9 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 	}
 }
 
-/* For some symbol types, we need to set up custom callbacks.  */
+/* For some symbol types, we need to set up custom callbacks.  XXX we
+ * don't need PROC here, we can store the data in BP if it is of
+ * interest to us.  */
 int
 arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 {

@@ -346,8 +346,6 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 
 			lte->dyn_addr = shdr.sh_addr;
 			fprintf(stderr, "dyn_addr = %#lx\n", lte->dyn_addr);
-			extern void *dyn_addr;
-			dyn_addr = (void *)lte->dyn_addr;
 			lte->dyn_sz = shdr.sh_size;
 
 			data = elf_getdata(scn, NULL);
@@ -491,6 +489,7 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 	library_init(lib, libname, 1);
 	lib->base = (target_address_t)lte.base_addr;
 	lib->entry = entry;
+	lib->dyn_addr = (target_address_t)lte.dyn_addr;
 
 	size_t i;
 	for (i = 0; i < lte.relplt_count; ++i) {

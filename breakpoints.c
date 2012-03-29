@@ -68,11 +68,16 @@ arch_breakpoint_destroy(struct breakpoint *sbp)
 }
 #endif
 
+/* On second thought, I don't think we need PROC.  All the translation
+ * (arch_translate_address in particular) should be doable using
+ * static lookups of various sections in the ELF file.  We shouldn't
+ * need process for anything.  */
 int
 breakpoint_init(struct breakpoint *bp, struct Process *proc,
 		target_address_t addr, struct library_symbol *libsym)
 {
 	bp->cbs = NULL;
+	bp->proc = NULL;
 	bp->addr = addr;
 	memset(bp->orig_value, 0, sizeof(bp->orig_value));
 	bp->enabled = 0;
@@ -103,6 +108,32 @@ breakpoint_destroy(struct breakpoint *bp)
 	arch_breakpoint_destroy(bp);
 }
 
+int
+breakpoint_turn_on(struct breakpoint *bp)
+{
+	/* Make sure it was inserted.  XXX In a clean world, we would
+	 * have breakpoint_site representing a place and breakpoint
+	 * representing inserted breakpoint.  */
+	assert(bp->proc != NULL);
+	bp->enabled++;
+	if (bp->enabled == 1) {
+		assert(bp->proc->pid != 0);
+		enable_breakpoint(bp->proc, bp);
+	}
+	return 0;
+}
+
+int
+breakpoint_turn_off(struct breakpoint *bp)
+{
+	assert(bp->proc != NULL);
+	bp->enabled--;
+	if (bp->enabled == 0)
+		disable_breakpoint(bp->proc, bp);
+	assert(bp->enabled >= 0);
+	return 0;
+}
+
 struct breakpoint *
 insert_breakpoint(struct Process *proc, void *addr,
 		  struct library_symbol *libsym)
@@ -125,22 +156,31 @@ insert_breakpoint(struct Process *proc, void *addr,
 		return NULL;
 	}
 
+	/* XXX what we need to do instead is have a list of
+	 * breakpoints that are enabled at this address.  The
+	 * following works if every breakpoint is the same and there's
+	 * no extra data, but that doesn't hold anymore.  For now it
+	 * will suffice, about the only realistic case where we need
+	 * to have more than one breakpoint per address is return from
+	 * a recursive library call.  */
 	struct breakpoint *sbp = dict_find_entry(leader->breakpoints, addr);
 	if (sbp == NULL) {
 		sbp = malloc(sizeof(*sbp));
 		if (sbp == NULL
-		    || breakpoint_init(sbp, proc, addr, libsym) < 0
-		    || dict_enter(leader->breakpoints, addr, sbp) < 0) {
+		    || breakpoint_init(sbp, proc, addr, libsym) < 0) {
+			free(sbp);
+			return NULL;
+		}
+		if (proc_add_breakpoint(proc, sbp) < 0) {
+		fail:
+			breakpoint_destroy(sbp);
 			free(sbp);
 			return NULL;
 		}
 	}
 
-	sbp->enabled++;
-	if (sbp->enabled == 1) {
-		assert(proc->pid != 0);
-		enable_breakpoint(proc, sbp);
-	}
+	if (breakpoint_turn_on(sbp) < 0)
+		goto fail;
 
 	return sbp;
 }
@@ -161,10 +201,11 @@ delete_breakpoint(Process *proc, void *addr)
 	if (sbp == NULL)
 		return;
 
-	sbp->enabled--;
-	if (sbp->enabled == 0)
-		disable_breakpoint(proc, sbp);
-	assert(sbp->enabled >= 0);
+	if (breakpoint_turn_off(sbp) < 0) {
+		fprintf(stderr, "Couldn't turn off the breakpoint %s@%p\n",
+			breakpoint_name(sbp), sbp->addr);
+		return;
+	}
 }
 
 const char *
@@ -172,6 +213,13 @@ breakpoint_name(const struct breakpoint *bp)
 {
 	assert(bp != NULL);
 	return bp->libsym != NULL ? bp->libsym->name : NULL;
+}
+
+struct library *
+breakpoint_library(const struct breakpoint *bp)
+{
+	assert(bp != NULL);
+	return bp->libsym != NULL ? bp->libsym->lib : NULL;
 }
 
 static void
@@ -238,16 +286,37 @@ disable_all_breakpoints(Process *proc) {
 	dict_apply_to_all(proc->breakpoints, disable_bp_cb, proc);
 }
 
+struct entry_breakpoint {
+	struct breakpoint super;
+	target_address_t dyn_addr;
+};
+
 static void
-entry_callback_hit(struct breakpoint *bp, struct Process *proc)
+entry_callback_hit(struct breakpoint *a, struct Process *proc)
 {
+	struct entry_breakpoint *bp = (void *)a;
 	fprintf(stderr, "entry_callback_hit\n");
 	if (proc == NULL || proc->leader == NULL)
 		return;
-	delete_breakpoint(proc, bp->addr); // xxx
+	delete_breakpoint(proc, bp->super.addr); // xxx
 	//enable_all_breakpoints(proc);
 
-	linkmap_init(proc);
+	linkmap_init(proc, bp->dyn_addr);
+}
+
+int
+entry_breakpoint_init(struct Process *proc,
+		      struct entry_breakpoint *bp, target_address_t addr)
+{
+	int err;
+	if ((err = breakpoint_init(&bp->super, proc, addr, NULL)) < 0)
+		return err;
+
+	static struct bp_callbacks entry_callbacks = {
+		.on_hit = entry_callback_hit,
+	};
+	bp->super.cbs = &entry_callbacks;
+	return 0;
 }
 
 int
@@ -264,30 +333,43 @@ breakpoints_init(Process *proc, int enable)
 	assert(proc->leader == proc);
 
 	if (options.libcalls && proc->filename) {
-		struct library *lib = ltelf_read_main_binary(proc, proc->filename);
+		struct library *lib = ltelf_read_main_binary(proc,
+							     proc->filename);
+		struct entry_breakpoint *entry_bp = NULL;
+		int bp_state = 0;
+		int result = -1;
 		switch (lib != NULL) {
 		fail:
 			proc_remove_library(proc, lib);
 			library_destroy(lib);
+			switch (bp_state) {
+			case 2:
+				proc_remove_breakpoint(proc, &entry_bp->super);
+			case 1:
+				breakpoint_destroy(&entry_bp->super);
+			}
+			free(entry_bp);
 		case 0:
-			return -1;
+			return result;
 		}
+
 		proc_add_library(proc, lib);
 		fprintf(stderr, "note: symbols in %s were not filtered.\n",
 			lib->name);
 
-		struct breakpoint *entry_bp
-			= insert_breakpoint(proc, lib->entry, NULL);
-		if (entry_bp == NULL) {
-			error(0, errno, "couldn't insert entry breakpoint");
+		entry_bp = malloc(sizeof(*entry_bp));
+		if (entry_bp == NULL
+		    || (result = entry_breakpoint_init(proc, entry_bp,
+						       lib->entry)) < 0)
 			goto fail;
-		}
 
-		fprintf(stderr, "setting entry_callbacks by hand, fix it\n");
-		static struct bp_callbacks entry_callbacks = {
-			.on_hit = entry_callback_hit,
-		};
-		entry_bp->cbs = &entry_callbacks;
+		++bp_state;
+		if ((result = proc_add_breakpoint(proc, &entry_bp->super)) < 0)
+			goto fail;
+
+		++bp_state;
+		if ((result = breakpoint_turn_on(&entry_bp->super)) < 0)
+			goto fail;
 	}
 
 	proc->callstack_depth = 0;
