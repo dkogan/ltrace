@@ -105,13 +105,6 @@ ltrace_init(int argc, char **argv) {
 		}
 		opt_F = opt_F->next;
 	}
-	if (opt_e) {
-		struct opt_e_t *tmp = opt_e;
-		while (tmp) {
-			debug(1, "Option -e: %s\n", tmp->name);
-			tmp = tmp->next;
-		}
-	}
 	if (command) {
 		/* Check that the binary ABI is supported before
 		 * calling execute_program.  */

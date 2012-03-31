@@ -1,17 +1,19 @@
 #include "config.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <limits.h>
 #include <sys/ioctl.h>
-
-#include <getopt.h>
 #include <assert.h>
+#include <errno.h>
+#include <error.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "common.h"
+#include "filter.h"
+#include "glob.h"
 
 #ifndef SYSCONFDIR
 #define SYSCONFDIR "/etc"
@@ -45,10 +47,6 @@ int opt_T = 0;			/* show the time spent inside each call */
 
 /* List of pids given to option -p: */
 struct opt_p_t *opt_p = NULL;	/* attach to process with a given pid */
-
-/* List of function names given to option -e: */
-struct opt_e_t *opt_e = NULL;
-int opt_e_enable = 1;
 
 /* List of global function names given to -x: */
 struct opt_x_t *opt_x = NULL;
@@ -180,6 +178,220 @@ guess_cols(void) {
 	}
 }
 
+static void
+add_filter_rule(struct filter *filt, const char *expr,
+		enum filter_rule_type type,
+		const char *sym, int sym_re_p,
+		const char *lib, int lib_re_p)
+{
+	fprintf(stderr, "add_filter_rule, type = %d\n", type);
+	fprintf(stderr, "+ symname = %s (re=%d)\n", sym, sym_re_p);
+	fprintf(stderr, "+ libname = %s (re=%d)\n", lib, lib_re_p);
+	struct filter_rule *rule = malloc(sizeof(*rule));
+	struct filter_lib_matcher *matcher = malloc(sizeof(*matcher));
+
+	if (rule == NULL || matcher == NULL) {
+		error(0, errno, "rule near '%s' will be ignored", expr);
+	fail:
+		free(rule);
+		free(matcher);
+		return;
+	}
+
+	regex_t symbol_re;
+	int status = (sym_re_p ? regcomp : globcomp)(&symbol_re, sym, 0);
+	if (status != 0) {
+		char buf[100];
+		regerror(status, &symbol_re, buf, sizeof buf);
+		error(0, 0, "rule near '%s' will be ignored: %s", expr, buf);
+		goto fail;
+	}
+
+	regex_t lib_re;
+	status = (lib_re_p ? regcomp : globcomp)(&lib_re, sym, 0);
+	if (status != 0) {
+		char buf[100];
+		regerror(status, &lib_re, buf, sizeof buf);
+		error(0, 0, "rule near '%s' will be ignored: %s", expr, buf);
+
+		regfree(&symbol_re);
+		goto fail;
+	}
+
+	filter_lib_matcher_name_init(matcher, lib_re);
+	filter_rule_init(rule, type, matcher, symbol_re);
+}
+
+static int
+parse_filter(struct filter *filt, char *expr)
+{
+	fprintf(stderr, "filter '%s'\n", expr);
+
+	/* Filter is a chain of sym@lib rules separated by '-'.  If
+	 * the filter expression starts with '-', the missing initial
+	 * rule is implicitly *@*.  */
+
+	enum filter_rule_type type = FR_ADD;
+
+	while (*expr != 0) {
+		size_t s = strcspn(expr, "@-");
+		char *symname = expr;
+		char *libname;
+		char *next = expr + s + 1;
+		enum filter_rule_type this_type = type;
+
+		if (expr[s] == 0) {
+			libname = "*";
+			expr = next - 1;
+
+		} else if (expr[s] == '-') {
+			libname = "*";
+			expr = next;
+			type = FR_SUBTRACT;
+
+		} else {
+			assert(expr[s] == '@');
+			expr[s] = 0;
+			s = strcspn(next, "-");
+			if (s == 0) {
+				libname = "*";
+				expr = next;
+			} else if (next[s] == 0) {
+				expr = next + s;
+				libname = next;
+
+			} else {
+				assert(next[s] == '-');
+				type = FR_SUBTRACT;
+				next[s] = 0;
+				expr = next + s + 1;
+				libname = next;
+			}
+		}
+
+		assert(*libname != 0);
+		char *symend = symname + strlen(symname) - 1;
+		char *libend = libname + strlen(libname) - 1;
+		int sym_is_re = 0;
+		int lib_is_re = 0;
+
+		/*
+		 * /xxx/@... and ...@/xxx/ means that xxx are regular
+		 * expressions.  They are globs otherwise.
+		 *
+		 * /xxx@yyy/ is the same as /xxx/@/yyy/
+		 *
+		 * @/xxx matches library path name
+		 * @.xxx matches library relative path name
+		 */
+		if (symname[0] == '/') {
+			if (symname != symend && symend[0] == '/') {
+				++symname;
+				*symend-- = 0;
+				sym_is_re = 1;
+
+			} else {
+				sym_is_re = 1;
+				lib_is_re = 1;
+				++symname;
+
+				/* /XXX@YYY/ is the same as
+				 * /XXX/@/YYY/.  */
+				if (libend[0] != '/')
+					error(0, 0, "unmatched '/'"
+					      " in symbol name");
+				else
+					*libend-- = 0;
+			}
+		}
+
+		/* If libname ends in '/', then we expect '/' in the
+		 * beginning too.  Otherwise the initial '/' is part
+		 * of absolute file name.  */
+		if (!lib_is_re && libend[0] == '/') {
+			lib_is_re = 1;
+			*libend-- = 0;
+			if (libname != libend && libname[0] == '/')
+				++libname;
+			else
+				error(0, 0, "unmatched '/' in library name");
+		}
+
+		if (*symname == 0) /* /@AA/ */
+			symname = "*";
+		if (*libname == 0) /* /aa@/ */
+			libname = "*";
+
+		add_filter_rule(filt, expr, this_type,
+				symname, sym_is_re,
+				libname, lib_is_re);
+	}
+
+	return 0;
+}
+
+static struct filter *
+recursive_parse_chain(char *expr)
+{
+	/* Event expression grammar:
+	 *
+	 *  Chain ::= Filter FilterList
+	 *  FilterList ::= eps | ',' Filter FilterList
+	 *  Filter ::= Rule RuleList
+	 *  RuleList ::= eps | '-' Rule RuleList
+	 *  Rule ::= eps | Glob Soname
+	 *  Soname ::= eps | '@' Glob | '@' '/' Filename
+	 *  Glob ::= '/' Regex '/'
+	 */
+
+	struct filter *filt = malloc(sizeof(*filt));
+	if (filt == NULL) {
+		error(0, errno, "(part of) filter will be ignored: '%s'", expr);
+		return NULL;
+	}
+
+	struct filter *next = NULL;
+	char *it;
+	int escape = 0;
+	for (it = expr; ; ++it) {
+		if (*it == 0)
+			goto done;
+
+		if (escape) {
+			escape = 0;
+			continue;
+		}
+
+		if (*it == '\\') {
+			escape = 1;
+
+		} else if (*it == ',') {
+			*it = 0;
+			next = recursive_parse_chain(it + 1);
+		done:
+			filt->next = next;
+			if (parse_filter(filt, expr) < 0) {
+				fprintf(stderr,
+					"Filter '%s' will be ignored.\n", expr);
+				free(filt);
+				filt = next;
+			}
+			return filt;
+		}
+	}
+}
+
+static void
+parse_chain(struct options_t *options, const char *expr)
+{
+	char *str = strdup(expr);
+	if (str == NULL) {
+		error(0, errno, "filter '%s' will be ignored", expr);
+		return;
+	}
+	options->filter = recursive_parse_chain(str);
+}
+
 char **
 process_options(int argc, char **argv) {
 	progname = argv[0];
@@ -257,39 +469,11 @@ process_options(int argc, char **argv) {
 				err_usage();
 			}
 			break;
+
 		case 'e':
-			{
-				char *str_e = strdup(optarg);
-				if (!str_e) {
-					perror("ltrace: strdup");
-					exit(1);
-				}
-				if (str_e[0] == '!') {
-					opt_e_enable = 0;
-					str_e++;
-				}
-				while (*str_e) {
-					struct opt_e_t *tmp;
-					char *str2 = strchr(str_e, ',');
-					if (str2) {
-						*str2 = '\0';
-					}
-					tmp = malloc(sizeof(struct opt_e_t));
-					if (!tmp) {
-						perror("ltrace: malloc");
-						exit(1);
-					}
-					tmp->name = str_e;
-					tmp->next = opt_e;
-					opt_e = tmp;
-					if (str2) {
-						str_e = str2 + 1;
-					} else {
-						break;
-					}
-				}
-				break;
-			}
+			parse_chain(&options, optarg);
+			break;
+
 		case 'f':
 			options.follow = 1;
 			break;

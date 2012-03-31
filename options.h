@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+struct filter;
+
 struct options_t {
 	int align;      /* -a: default alignment column for results */
 	char * user;    /* -u: username to run command as */
@@ -19,6 +21,7 @@ struct options_t {
 #if defined(HAVE_LIBUNWIND)
 	int bt_depth;	 /* how may levels of stack frames to show */
 #endif /* defined(HAVE_LIBUNWIND) */
+	struct filter *filter;
 };
 extern struct options_t options;
 
@@ -30,11 +33,6 @@ extern int opt_T;		/* show the time spent inside each call */
 struct opt_p_t {
 	pid_t pid;
 	struct opt_p_t *next;
-};
-
-struct opt_e_t {
-	char *name;
-	struct opt_e_t *next;
 };
 
 struct opt_F_t {
@@ -50,9 +48,6 @@ struct opt_x_t {
 };
 
 extern struct opt_p_t *opt_p;	/* attach to process with a given pid */
-
-extern struct opt_e_t *opt_e;	/* list of function names to display */
-extern int opt_e_enable;	/* 0 if '!' is used, 1 otherwise */
 
 extern struct opt_F_t *opt_F;	/* alternate configuration file(s) */
 
