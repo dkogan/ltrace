@@ -176,7 +176,7 @@ output_left(enum tof type, struct Process *proc,
 	begin_of_line(type, proc);
 #ifdef USE_DEMANGLE
 	current_column +=
-		fprintf(options.output, "%s->%s(", libsym->lib->name,
+		fprintf(options.output, "%s->%s(", libsym->lib->soname,
 			(options.demangle
 			 ? my_demangle(function_name) : function_name));
 #else

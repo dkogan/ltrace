@@ -31,8 +31,10 @@ struct library;
 struct library_symbol;
 
 enum filter_lib_matcher_type {
-	/* Match by name.  */
-	FLM_NAME,
+	/* Match by soname.  */
+	FLM_SONAME,
+	/* Match by path name.  */
+	FLM_PATHNAME,
 	/* Match main binary.  */
 	FLM_MAIN,
 };
@@ -72,10 +74,12 @@ void filter_rule_destroy(struct filter_rule *rule);
 /* RULE is added to FILT and owned and destroyed by it.  */
 void filter_add_rule(struct filter *filt, struct filter_rule *rule);
 
-/* Create a matcher that matches based on LIBNAME_RE is owned and
- * destroyed by MATCHER.  */
+/* Create a matcher that matches library name.  RE is owned and
+ * destroyed by MATCHER.  TYPE shall be FLM_SONAME or
+ * FLM_PATHNAME.  */
 void filter_lib_matcher_name_init(struct filter_lib_matcher *matcher,
-				  regex_t libname_re);
+				  enum filter_lib_matcher_type type,
+				  regex_t re);
 
 /* Create a matcher that matches main binary.  */
 void filter_lib_matcher_main_init(struct filter_lib_matcher *matcher);

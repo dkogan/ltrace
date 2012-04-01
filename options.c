@@ -207,18 +207,26 @@ add_filter_rule(struct filter *filt, const char *expr,
 		goto fail;
 	}
 
-	regex_t lib_re;
-	status = (lib_re_p ? regcomp : globcomp)(&lib_re, lib, 0);
-	if (status != 0) {
-		char buf[100];
-		regerror(status, &lib_re, buf, sizeof buf);
-		error(0, 0, "rule near '%s' will be ignored: %s", expr, buf);
+	if (strcmp(lib, "MAIN") == 0) {
+		filter_lib_matcher_main_init(matcher);
+	} else {
+		enum filter_lib_matcher_type type
+			= lib[0] == '/' ? FLM_PATHNAME : FLM_SONAME;
 
-		regfree(&symbol_re);
-		goto fail;
+		regex_t lib_re;
+		status = (lib_re_p ? regcomp : globcomp)(&lib_re, lib, 0);
+		if (status != 0) {
+			char buf[100];
+			regerror(status, &lib_re, buf, sizeof buf);
+			error(0, 0, "rule near '%s' will be ignored: %s",
+			      expr, buf);
+
+			regfree(&symbol_re);
+			goto fail;
+		}
+		filter_lib_matcher_name_init(matcher, type, lib_re);
 	}
 
-	filter_lib_matcher_name_init(matcher, lib_re);
 	filter_rule_init(rule, type, matcher, symbol_re);
 	filter_add_rule(filt, rule);
 }
@@ -628,8 +636,11 @@ process_options(int argc, char **argv) {
 		opt_F = egg;
 	}
 
+	/* Set default filter.  Use @MAIN for now, as that's what
+	 * ltrace used to have in the past.  XXX Maybe we should make
+	 * this "*" instead.  */
 	if (options.filter == NULL)
-		parse_filter_chain(&options, "*");
+		parse_filter_chain(&options, "@MAIN");
 
 	if (!opt_p && argc < 1) {
 		fprintf(stderr, "%s: too few arguments\n", progname);

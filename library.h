@@ -102,13 +102,16 @@ struct library {
 
 	/* Symbols associated with the library.  */
 	struct library_symbol *symbols;
-	const char *name;
-	char own_name;
+
+	const char *soname;
+	const char *pathname;
+
+	char own_soname : 1;
+	char own_pathname : 1;
 };
 
-/* Init LIB.  NAME will be freed when LIB is destroyed if
- * OWN_NAME.  */
-void library_init(struct library *lib, const char *name, int own_name);
+/* Init LIB.  */
+void library_init(struct library *lib);
 
 /* Initialize RETP to a library identical to LIB.  Symbols are not
  * shared, but copied over.  Returns 0 on success and a negative value
@@ -118,8 +121,13 @@ int library_clone(struct library *retp, struct library *lib);
 /* Destroy library.  Doesn't free LIB itself.  */
 void library_destroy(struct library *lib);
 
-/* Set library name.  Frees the old name if necessary.  */
-void library_set_name(struct library *lib, const char *new_name, int own_name);
+/* Set library soname.  Frees the old name if necessary.  */
+void library_set_soname(struct library *lib,
+			const char *new_name, int own_name);
+
+/* Set library pathname.  Frees the old name if necessary.  */
+void library_set_pathname(struct library *lib,
+			  const char *new_name, int own_name);
 
 /* Iterate through list of symbols of library LIB.  Restarts are
  * supported via START_AFTER (see each_process for details of

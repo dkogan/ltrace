@@ -100,22 +100,32 @@ library_symbol_equal_cb(struct library_symbol *libsym, void *u)
 }
 
 void
-library_init(struct library *lib, const char *name, int own_name)
+library_init(struct library *lib)
 {
 	lib->next = NULL;
-	lib->name = name;
-	lib->own_name = own_name;
+	lib->soname = NULL;
+	lib->own_soname = 0;
+	lib->pathname = NULL;
+	lib->own_pathname = 0;
 	lib->symbols = NULL;
 }
 
 int
 library_clone(struct library *retp, struct library *lib)
 {
-	const char *name;
-	if (strdup_if_owned(&name, lib->name, lib->own_name) < 0)
+	const char *soname = NULL;
+	const char *pathname;
+	if (strdup_if_owned(&soname, lib->soname, lib->own_soname) < 0
+	     || strdup_if_owned(&pathname,
+				lib->pathname, lib->own_pathname) < 0) {
+		if (lib->own_soname)
+			free((char *)soname);
 		return -1;
+	}
 
-	library_init(retp, lib->name, lib->own_name);
+	library_init(retp);
+	library_set_soname(lib, soname, lib->own_soname);
+	library_set_soname(lib, pathname, lib->own_pathname);
 
 	struct library_symbol *it;
 	struct library_symbol **nsymp = &retp->symbols;
@@ -139,7 +149,8 @@ library_destroy(struct library *lib)
 {
 	if (lib == NULL)
 		return;
-	library_set_name(lib, NULL, 0);
+	library_set_soname(lib, NULL, 0);
+	library_set_pathname(lib, NULL, 0);
 
 	struct library_symbol *sym;
 	for (sym = lib->symbols; sym != NULL; ) {
@@ -151,12 +162,21 @@ library_destroy(struct library *lib)
 }
 
 void
-library_set_name(struct library *lib, const char *new_name, int own_name)
+library_set_soname(struct library *lib, const char *new_name, int own_name)
 {
-	if (lib->own_name)
-		free((char *)lib->name);
-	lib->name = new_name;
-	lib->own_name = own_name;
+	if (lib->own_soname)
+		free((char *)lib->soname);
+	lib->soname = new_name;
+	lib->own_soname = own_name;
+}
+
+void
+library_set_pathname(struct library *lib, const char *new_name, int own_name)
+{
+	if (lib->own_pathname)
+		free((char *)lib->pathname);
+	lib->pathname = new_name;
+	lib->own_pathname = own_name;
 }
 
 struct library_symbol *
@@ -205,8 +225,8 @@ library_add_symbol(struct library *lib, struct library_symbol *first)
 enum callback_status
 library_named_cb(struct Process *proc, struct library *lib, void *name)
 {
-	if (name == lib->name
-	    || strcmp(lib->name, (char *)name) == 0)
+	if (name == lib->soname
+	    || strcmp(lib->soname, (char *)name) == 0)
 		return CBS_STOP;
 	else
 		return CBS_CONT;

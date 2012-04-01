@@ -18,14 +18,12 @@
  * 02110-1301 USA
  */
 
-#include <stddef.h>
+#include <stdlib.h>
 #include <error.h>
 #include <assert.h>
 
 #include "filter.h"
 #include "library.h"
-
-void abort(void); //xxx
 
 void
 filter_init(struct filter *filt)
@@ -71,10 +69,19 @@ filter_add_rule(struct filter *filt, struct filter_rule *rule)
 
 void
 filter_lib_matcher_name_init(struct filter_lib_matcher *matcher,
+			     enum filter_lib_matcher_type type,
 			     regex_t libname_re)
 {
-	matcher->type = FLM_NAME;
-	matcher->libname_re = libname_re;
+	switch (type) {
+	case FLM_MAIN:
+		assert(type != type);
+		abort();
+
+	case FLM_SONAME:
+	case FLM_PATHNAME:
+		matcher->type = type;
+		matcher->libname_re = libname_re;
+	}
 }
 
 void
@@ -87,7 +94,8 @@ void
 filter_lib_matcher_destroy(struct filter_lib_matcher *matcher)
 {
 	switch (matcher->type) {
-	case FLM_NAME:
+	case FLM_SONAME:
+	case FLM_PATHNAME:
 		regfree(&matcher->libname_re);
 		break;
 	case FLM_MAIN:
@@ -115,12 +123,14 @@ static int
 matcher_matches_library(struct filter_lib_matcher *matcher, struct library *lib)
 {
 	switch (matcher->type) {
-	case FLM_NAME:
-		return re_match_or_error(&matcher->libname_re, lib->name,
-					 "library name");
+	case FLM_SONAME:
+		return re_match_or_error(&matcher->libname_re, lib->soname,
+					 "library soname");
+	case FLM_PATHNAME:
+		return re_match_or_error(&matcher->libname_re, lib->pathname,
+					 "library pathname");
 	case FLM_MAIN:
-		assert(!"FLM_MAIN not implemented yet!");
-		abort();
+		return lib->next == NULL;
 	}
 	assert(matcher->type != matcher->type);
 	abort();

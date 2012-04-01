@@ -465,28 +465,34 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 	proc->e_machine = lte.ehdr.e_machine;
 
 	struct library *lib = malloc(sizeof(*lib));
-	char *libname = NULL;
+	char *soname = NULL;
 	if (lib == NULL) {
 	fail:
-		free(libname);
+		free(soname);
 		library_destroy(lib);
 		free(lib);
 		lib = NULL;
 		goto done;
 	}
 
-	if (lte.soname != NULL)
-		libname = strdup(lte.soname);
-	else
-		libname = strdup(filename);
-	if (libname == NULL)
+	int own_soname;
+	if (lte.soname != NULL) {
+		soname = strdup(lte.soname);
+		own_soname = 1;
+	} else {
+		soname = rindex(filename, '/') + 1;
+		own_soname = 0;
+	}
+	if (soname == NULL)
 		goto fail;
 
 	target_address_t entry = (target_address_t)lte.entry_addr;
 	if (arch_translate_address(proc, entry + lte.bias, &entry) < 0)
 		goto fail;
 
-	library_init(lib, libname, 1);
+	library_init(lib);
+	library_set_soname(lib, soname, own_soname);
+	library_set_pathname(lib, filename, 1);
 	lib->base = (target_address_t)lte.base_addr;
 	lib->entry = entry;
 	lib->dyn_addr = (target_address_t)lte.dyn_addr;
@@ -541,7 +547,9 @@ ltelf_read_main_binary(struct Process *proc, const char *path)
 	fprintf(stderr, "ltelf_read_main_binary %d %s\n", proc->pid, path);
 	char *fname = pid2name(proc->pid);
 	struct library *lib = ltelf_read_library(proc, fname, 0);
-	if (lib != NULL)
-		library_set_name(lib, path, 0);
+	if (lib != NULL) {
+		library_set_pathname(lib, path, 0);
+		library_set_soname(lib, rindex(path, '/') + 1, 0);
+	}
 	return lib;
 }

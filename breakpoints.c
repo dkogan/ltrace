@@ -362,8 +362,6 @@ breakpoints_init(Process *proc, int enable)
 		}
 
 		proc_add_library(proc, lib);
-		fprintf(stderr, "note: symbols in %s were not filtered.\n",
-			lib->name);
 
 		entry_bp = malloc(sizeof(*entry_bp));
 		if (entry_bp == NULL

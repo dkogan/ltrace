@@ -500,8 +500,8 @@ proc_add_library(struct Process *proc, struct library *lib)
 	assert(lib->next == NULL);
 	lib->next = proc->libraries;
 	proc->libraries = lib;
-	fprintf(stderr, "=== Added library %s@%p to %d:\n",
-		lib->name, lib->base, proc->pid);
+	fprintf(stderr, "=== Added library %s@%p (%s) to %d:\n",
+		lib->soname, lib->base, lib->pathname, proc->pid);
 
 	if (!filter_matches_library(options.filter, lib))
 		return;
