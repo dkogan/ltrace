@@ -16,6 +16,7 @@
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
+#include "filter.h"
 
 static int
 process_bare_init(struct Process *proc, const char *filename, pid_t pid)
@@ -485,9 +486,9 @@ static enum callback_status
 breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 {
 	struct Process *proc = data;
-	fprintf(stderr, "  %s@%p\n", libsym->name, libsym->enter_addr);
 
-	if (insert_breakpoint(proc, libsym->enter_addr, libsym) == NULL)
+	if (filter_matches_symbol(options.filter, libsym)
+	    && insert_breakpoint(proc, libsym->enter_addr, libsym) == NULL)
 		return CBS_STOP;
 
 	return CBS_CONT;
@@ -501,6 +502,9 @@ proc_add_library(struct Process *proc, struct library *lib)
 	proc->libraries = lib;
 	fprintf(stderr, "=== Added library %s@%p to %d:\n",
 		lib->name, lib->base, proc->pid);
+
+	if (!filter_matches_library(options.filter, lib))
+		return;
 
 	struct library_symbol *libsym = NULL;
 	while ((libsym = library_each_symbol(lib, libsym, breakpoint_for_symbol,

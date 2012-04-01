@@ -208,7 +208,7 @@ add_filter_rule(struct filter *filt, const char *expr,
 	}
 
 	regex_t lib_re;
-	status = (lib_re_p ? regcomp : globcomp)(&lib_re, sym, 0);
+	status = (lib_re_p ? regcomp : globcomp)(&lib_re, lib, 0);
 	if (status != 0) {
 		char buf[100];
 		regerror(status, &lib_re, buf, sizeof buf);
@@ -220,6 +220,7 @@ add_filter_rule(struct filter *filt, const char *expr,
 
 	filter_lib_matcher_name_init(matcher, lib_re);
 	filter_rule_init(rule, type, matcher, symbol_re);
+	filter_add_rule(filt, rule);
 }
 
 static int
@@ -382,7 +383,7 @@ recursive_parse_chain(char *expr)
 }
 
 static void
-parse_chain(struct options_t *options, const char *expr)
+parse_filter_chain(struct options_t *options, const char *expr)
 {
 	char *str = strdup(expr);
 	if (str == NULL) {
@@ -471,7 +472,7 @@ process_options(int argc, char **argv) {
 			break;
 
 		case 'e':
-			parse_chain(&options, optarg);
+			parse_filter_chain(&options, optarg);
 			break;
 
 		case 'f':
@@ -626,6 +627,9 @@ process_options(int argc, char **argv) {
 		}
 		opt_F = egg;
 	}
+
+	if (options.filter == NULL)
+		parse_filter_chain(&options, "*");
 
 	if (!opt_p && argc < 1) {
 		fprintf(stderr, "%s: too few arguments\n", progname);
