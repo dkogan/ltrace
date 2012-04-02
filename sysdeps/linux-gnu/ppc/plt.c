@@ -458,14 +458,6 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 	}
 
 	if (chain != NULL) {
-		struct library_symbol *sym;
-		for (sym = chain; sym != NULL; sym = sym->next)
-			fprintf(stderr, "match %s --> %p\n",
-				sym->name, sym->enter_addr);
-		for (sym = lte->arch.stubs; sym != NULL; sym = sym->next)
-			fprintf(stderr, "remains %s --> %p\n",
-				sym->name, sym->enter_addr);
-
 		*ret = chain;
 		return plt_ok;
 	}
