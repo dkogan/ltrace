@@ -20,11 +20,8 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 	static unsigned char break_insn[] = BREAKPOINT_VALUE;
 	unsigned int i, j;
 
-	if (sbp->libsym) {
-		debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p, symbol=%s", pid, sbp->addr, sbp->libsym->name);
-	} else {
-		debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p", pid, sbp->addr);
-	}
+	debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p, symbol=%s",
+	      pid, sbp->addr, breakpoint_name(sbp));
 
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
 		long a = ptrace(PTRACE_PEEKTEXT, pid,
@@ -56,11 +53,8 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 void
 enable_breakpoint(Process *proc, struct breakpoint *sbp)
 {
-	if (sbp->libsym) {
-		debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p, symbol=%s", proc->pid, sbp->addr, sbp->libsym->name);
-	} else {
-		debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p", proc->pid, sbp->addr);
-	}
+	debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p, symbol=%s",
+	      proc->pid, sbp->addr, breakpoint_name(sbp));
 	arch_enable_breakpoint(proc->pid, sbp);
 }
 
@@ -72,11 +66,8 @@ arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
 {
 	unsigned int i, j;
 
-	if (sbp->libsym) {
-		debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p, symbol=%s", pid, sbp->addr, sbp->libsym->name);
-	} else {
-		debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p", pid, sbp->addr);
-	}
+	debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p, symbol=%s",
+	      pid, sbp->addr, breakpoint_name(sbp));
 
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
 		long a = ptrace(PTRACE_PEEKTEXT, pid,
@@ -107,10 +98,7 @@ arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
 void
 disable_breakpoint(Process *proc, struct breakpoint *sbp)
 {
-	if (sbp->libsym) {
-		debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p, symbol=%s", proc->pid, sbp->addr, sbp->libsym->name);
-	} else {
-		debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p", proc->pid, sbp->addr);
-	}
+	debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p, symbol=%s",
+	      proc->pid, sbp->addr, breakpoint_name(sbp));
 	arch_disable_breakpoint(proc->pid, sbp);
 }

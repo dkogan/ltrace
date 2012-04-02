@@ -145,8 +145,8 @@ insert_breakpoint(struct Process *proc, void *addr,
 	assert(leader != NULL);
 	assert(leader->breakpoints != NULL);
 
-	debug(DEBUG_FUNCTION, "insert_breakpoint(pid=%d, addr=%p, symbol=%s)", proc->pid, addr, libsym ? libsym->name : "NULL");
-	debug(1, "symbol=%s, addr=%p", libsym?libsym->name:"(nil)", addr);
+	debug(DEBUG_FUNCTION, "insert_breakpoint(pid=%d, addr=%p, symbol=%s)",
+	      proc->pid, addr, libsym ? libsym->name : "NULL");
 
 	if (addr == 0) {
 		/* XXX we need a better way to deal with this.  For
