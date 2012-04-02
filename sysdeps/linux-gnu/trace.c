@@ -723,6 +723,9 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 				case CBS_STOP:
 					break;
 				case CBS_CONT:
+					/* Sink singlestep event.  */
+					if (event->type == EVENT_BREAKPOINT)
+						event = NULL;
 					goto do_singlestep;
 				}
 			}

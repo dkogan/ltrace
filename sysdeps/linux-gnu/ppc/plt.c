@@ -562,17 +562,9 @@ keep_stepping_p(struct process_stopping_handler *self)
 	return CBS_STOP;
 }
 
-static enum callback_status
-yes(struct process_stopping_handler *self)
-{
-	return CBS_CONT;
-}
-
 static void
 ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 {
-	fprintf(stderr, "ppc64_plt_bp_continue\n");
-
 	switch (bp->libsym->arch.type) {
 		target_address_t rv;
 
@@ -583,7 +575,7 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 	case PPC64PLT_UNRESOLVED:
 		if (process_install_stopping_handler(proc, bp, NULL,
 						     &keep_stepping_p,
-						     &yes) < 0) {
+						     NULL) < 0) {
 			perror("ppc64_unresolved_bp_continue: couldn't install"
 			       " event handler");
 			continue_after_breakpoint(proc, bp);
@@ -591,7 +583,6 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		return;
 
 	case PPC64PLT_RESOLVED:
-		fprintf(stderr, "ppc64_resolved_bp_continue\n");
 		rv = (target_address_t)bp->libsym->arch.resolved_value;
 		set_instruction_pointer(proc, rv);
 		continue_process(proc->pid);
