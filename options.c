@@ -359,6 +359,7 @@ recursive_parse_chain(char *expr)
 		return NULL;
 	}
 
+	filter_init(filt);
 	struct filter *next = NULL;
 	char *it;
 	int escape = 0;

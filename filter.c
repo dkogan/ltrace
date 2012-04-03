@@ -29,6 +29,7 @@ void
 filter_init(struct filter *filt)
 {
 	filt->rules = NULL;
+	filt->next = NULL;
 }
 
 void
@@ -139,6 +140,9 @@ matcher_matches_library(struct filter_lib_matcher *matcher, struct library *lib)
 int
 filter_matches_library(struct filter *filt, struct library *lib)
 {
+	if (filt == NULL)
+		return 0;
+
 	struct filter_rule *it;
 	for (it = filt->rules; it != NULL; it = it->next)
 		switch (it->type) {
@@ -154,6 +158,9 @@ filter_matches_library(struct filter *filt, struct library *lib)
 int
 filter_matches_symbol(struct filter *filt, struct library_symbol *sym)
 {
+	if (filt == NULL)
+		return 0;
+
 	int matches = 0;
 	struct filter_rule *it;
 	for (it = filt->rules; it != NULL; it = it->next) {
