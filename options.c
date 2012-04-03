@@ -639,8 +639,10 @@ process_options(int argc, char **argv) {
 	/* Set default filter.  Use @MAIN for now, as that's what
 	 * ltrace used to have in the past.  XXX Maybe we should make
 	 * this "*" instead.  */
-	if (options.filter == NULL)
+	if (options.filter == NULL) {
 		parse_filter_chain(&options, "@MAIN");
+		options.hide_caller = 1;
+	}
 
 	if (!opt_p && argc < 1) {
 		fprintf(stderr, "%s: too few arguments\n", progname);

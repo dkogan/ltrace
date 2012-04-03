@@ -174,14 +174,15 @@ output_left(enum tof type, struct Process *proc,
 	current_proc = proc;
 	current_depth = proc->callstack_depth;
 	begin_of_line(type, proc);
+	if (!options.hide_caller)
+		fprintf(options.output, "%s->", libsym->lib->soname);
 #ifdef USE_DEMANGLE
 	current_column +=
-		fprintf(options.output, "%s->%s(", libsym->lib->soname,
+		fprintf(options.output, "%s(",
 			(options.demangle
 			 ? my_demangle(function_name) : function_name));
 #else
-	current_column += fprintf(options.output, "%s->%s(",
-				  libsym->lib->name, function_name);
+	current_column += fprintf("%s(", function_name);
 #endif
 
 	func = name2func(function_name);

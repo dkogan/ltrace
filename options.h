@@ -22,6 +22,7 @@ struct options_t {
 	int bt_depth;	 /* how may levels of stack frames to show */
 #endif /* defined(HAVE_LIBUNWIND) */
 	struct filter *filter;
+	int hide_caller; /* Whether caller library should be hidden.  */
 };
 extern struct options_t options;
 
