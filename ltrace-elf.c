@@ -466,22 +466,24 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 
 	struct library *lib = malloc(sizeof(*lib));
 	char *soname = NULL;
+	int own_soname = 0;
 	if (lib == NULL) {
 	fail:
-		free(soname);
-		library_destroy(lib);
+		if (own_soname)
+			free(soname);
+		if (lib != NULL)
+			library_destroy(lib);
 		free(lib);
 		lib = NULL;
 		goto done;
 	}
+	library_init(lib);
 
-	int own_soname;
 	if (lte.soname != NULL) {
 		soname = strdup(lte.soname);
 		own_soname = 1;
 	} else {
 		soname = rindex(filename, '/') + 1;
-		own_soname = 0;
 	}
 	if (soname == NULL)
 		goto fail;
@@ -490,7 +492,6 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 	if (arch_translate_address(proc, entry + lte.bias, &entry) < 0)
 		goto fail;
 
-	library_init(lib);
 	library_set_soname(lib, soname, own_soname);
 	library_set_pathname(lib, filename, 1);
 	lib->base = (target_address_t)lte.base_addr;
