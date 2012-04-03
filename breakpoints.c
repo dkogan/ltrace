@@ -310,6 +310,7 @@ entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 		return;
 	delete_breakpoint(proc, bp->super.addr);
 	dict_apply_to_all(proc->breakpoints, turn_on_breakpoint, proc);
+	proc->fixed_libs = proc->libraries;
 	linkmap_init(proc, bp->dyn_addr);
 }
 

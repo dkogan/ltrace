@@ -95,7 +95,18 @@ struct Process {
 
 	int callstack_depth;
 	struct callstack_element callstack[MAX_CALLDEPTH];
+
+	/* Linked list of libraries in backwards order of mapping.
+	 * The last element is the executed binary itself.  */
 	struct library *libraries;
+
+	/* Points into the chain of LIBRARIES, and marks the first
+	 * library that was linked in during the initial dynamic
+	 * linking process.  All libraries that are mapped in the
+	 * range [LIBRARIES, FIXED_LIBS) are opened by dlopen or some
+	 * other mechanism.  If FIXED_LIBS is NULL, then LIBRARIES is
+	 * wholly composed of fixed libraries only.  */
+	struct library *fixed_libs;
 
 	/* Arch-dependent: */
 	void * debug;	/* arch-dep process debug struct */

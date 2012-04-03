@@ -502,6 +502,15 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 		goto fail;
 	}
 
+	/* If this is dlopened library, turn on the breakpoint right
+	 * away.  */
+	if (proc->fixed_libs != NULL
+	    && breakpoint_turn_on(bp) < 0) {
+		proc_remove_breakpoint(proc, bp);
+		breakpoint_destroy(bp);
+		goto fail;
+	}
+
 	return CBS_CONT;
 }
 
