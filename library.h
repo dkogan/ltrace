@@ -87,6 +87,10 @@ enum callback_status library_symbol_equal_cb(struct library_symbol *libsym,
 struct library {
 	struct library *next;
 
+	/* Unique key. Two library objects are considered equal, if
+	 * they have the same key.  */
+	target_address_t key;
+
 	/* Address where the library is mapped.  Two library objects
 	 * are considered equal, if they have the same base.  */
 	target_address_t base;
@@ -149,10 +153,10 @@ enum callback_status library_named_cb(struct Process *proc,
 /* A function that can be used as proc_each_library callback.  Looks
  * for a library with given base.
  *
- * NOTE: The base is passed as a POINTER to target_address_t (that
- * because in general, target_address_t doesn't fit in void*). */
-enum callback_status library_with_base_cb(struct Process *proc,
-					  struct library *lib, void *basep);
+ * NOTE: The key is passed as a POINTER to target_address_t (that
+ * because in general, target_address_t doesn't fit in void*).  */
+enum callback_status library_with_key_cb(struct Process *proc,
+					 struct library *lib, void *keyp);
 
 /* XXX this should really be in backend.h (as on pmachata/revamp
  * branch), or, on this branch, in common.h.  But we need

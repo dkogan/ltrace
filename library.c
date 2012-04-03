@@ -233,7 +233,7 @@ library_named_cb(struct Process *proc, struct library *lib, void *name)
 }
 
 enum callback_status
-library_with_base_cb(struct Process *proc, struct library *lib, void *basep)
+library_with_key_cb(struct Process *proc, struct library *lib, void *keyp)
 {
-	return lib->base == *(target_address_t *)basep ? CBS_STOP : CBS_CONT;
+	return lib->key == *(target_address_t *)keyp ? CBS_STOP : CBS_CONT;
 }

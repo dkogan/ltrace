@@ -416,13 +416,6 @@ rdebug_fetcher(struct Process *proc))(struct Process *,
 	return select_32_64(proc, fetch_rd32, fetch_rd64);
 }
 
-enum callback_status
-find_library_addr(struct Process *proc, struct library *lib, void *data)
-{
-	target_address_t addr = (target_address_t)*(GElf_Addr *)data;
-	return lib->base == addr ? CBS_STOP : CBS_CONT;
-}
-
 static void
 crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 {
@@ -442,6 +435,7 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 			return;
 		}
 
+		target_address_t key = addr;
 		addr = (target_address_t)rlm.l_next;
 		if (rlm.l_name == 0) {
 			debug(2, "Invalid library name referenced in dynamic linker map\n");
@@ -452,18 +446,6 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 		umovebytes(proc, (target_address_t)rlm.l_name,
 			   lib_name, sizeof(lib_name));
 
-		debug(2, "Dispatching callback for: %s, "
-		      "Loaded at 0x%" PRI_ELF_ADDR "\n",
-		      lib_name, rlm.l_addr);
-		fprintf(stderr, "DSO addr=%#lx, name='%s'\n", rlm.l_addr, lib_name);
-
-		/* Do we have that library already?  */
-		struct library *lib
-			= proc_each_library(proc, NULL, find_library_addr,
-					    &rlm.l_addr);
-		if (lib != NULL)
-			continue;
-
 		if (*lib_name == '\0') {
 			/* VDSO.  No associated file, XXX but we might
 			 * load it from the address space of the
@@ -471,13 +453,19 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 			continue;
 		}
 
-		lib = ltelf_read_library(proc, lib_name, rlm.l_addr);
+		/* Do we have that library already?  */
+		if (proc_each_library(proc, NULL, library_with_key_cb, &key))
+			continue;
+
+		fprintf(stderr, "DSO addr=%#lx, name='%s'\n",
+			rlm.l_addr, lib_name);
+		struct library *lib = ltelf_read_library(proc, lib_name, rlm.l_addr);
 		if (lib == NULL) {
 			error(0, errno, "Couldn't load ELF object %s\n",
 			      lib_name);
 			continue;
 		}
-
+		lib->key = key;
 		proc_add_library(proc, lib);
 	}
 	return;
@@ -536,6 +524,7 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 	fprintf(stderr, "linkmap_init dyn_addr=%p\n", dyn_addr);
 
 	if (find_dynamic_entry_addr(proc, dyn_addr, DT_DEBUG, &dbg_addr) == -1) {
+	fail:
 		debug(2, "Couldn't find debug structure!");
 		return -1;
 	}
@@ -551,14 +540,11 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 
 	//data.lte = lte;
 
-	void *addr;
-	{
-		struct library_symbol libsym;
-		library_symbol_init(&libsym, (target_address_t)rdbg.r_brk,
-				    NULL, 0, LS_TOPLT_NONE);
-		addr = sym2addr(proc, &libsym);
-		library_symbol_destroy(&libsym);
-	}
+	target_address_t addr = (target_address_t)rdbg.r_brk;
+	if (arch_translate_address(proc, addr, &addr) < 0)
+		goto fail;
+	fprintf(stderr, "  r_brk=%p\n", addr);
+
 	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);
 	static struct bp_callbacks rdebug_callbacks = {
 		.on_hit = rdebug_bp_on_hit,
