@@ -431,14 +431,14 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 	while (addr != 0) {
 		struct lt_link_map_64 rlm;
 		if (lm_fetcher(proc)(proc, addr, &rlm) < 0) {
-			debug(2, "Unable to read link map\n");
+			debug(2, "Unable to read link map");
 			return;
 		}
 
 		target_address_t key = addr;
 		addr = (target_address_t)rlm.l_next;
 		if (rlm.l_name == 0) {
-			debug(2, "Invalid library name referenced in dynamic linker map\n");
+			debug(2, "Name of mapped library is NULL");
 			return;
 		}
 
@@ -459,7 +459,8 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 
 		fprintf(stderr, "DSO addr=%#lx, name='%s'\n",
 			rlm.l_addr, lib_name);
-		struct library *lib = ltelf_read_library(proc, lib_name, rlm.l_addr);
+		struct library *lib
+			= ltelf_read_library(proc, lib_name, rlm.l_addr);
 		if (lib == NULL) {
 			error(0, errno, "Couldn't load ELF object %s\n",
 			      lib_name);
