@@ -175,7 +175,8 @@ output_left(enum tof type, struct Process *proc,
 	current_depth = proc->callstack_depth;
 	begin_of_line(type, proc);
 	if (!options.hide_caller)
-		fprintf(options.output, "%s->", libsym->lib->soname);
+		current_column += fprintf(options.output, "%s->",
+					  libsym->lib->soname);
 #ifdef USE_DEMANGLE
 	current_column +=
 		fprintf(options.output, "%s(",
