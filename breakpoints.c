@@ -292,15 +292,24 @@ struct entry_breakpoint {
 };
 
 static void
+turn_on_breakpoint(void *addr, void *sbp, void *proc)
+{
+	struct breakpoint *bp = sbp;
+	if (breakpoint_turn_on(bp) < 0) {
+		error(0, errno, "couldn't turn on breakpoint @%p", bp->addr);
+		/* XXX handle me.  */
+	}
+}
+
+static void
 entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 {
 	struct entry_breakpoint *bp = (void *)a;
 	fprintf(stderr, "entry_callback_hit\n");
 	if (proc == NULL || proc->leader == NULL)
 		return;
-	delete_breakpoint(proc, bp->super.addr); // xxx
-	//enable_all_breakpoints(proc);
-
+	delete_breakpoint(proc, bp->super.addr);
+	dict_apply_to_all(proc->breakpoints, turn_on_breakpoint, proc);
 	linkmap_init(proc, bp->dyn_addr);
 }
 

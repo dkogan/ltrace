@@ -487,9 +487,20 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 {
 	struct Process *proc = data;
 
-	if (filter_matches_symbol(options.filter, libsym)
-	    && insert_breakpoint(proc, libsym->enter_addr, libsym) == NULL)
-		return CBS_STOP;
+	if (!filter_matches_symbol(options.filter, libsym))
+		return CBS_CONT;
+
+	struct breakpoint *bp = malloc(sizeof(*bp));
+	if (bp == NULL
+	    || breakpoint_init(bp, proc, libsym->enter_addr, libsym) < 0) {
+	fail:
+		free(bp);
+		return CBS_FAIL;
+	}
+	if (proc_add_breakpoint(proc, bp) < 0) {
+		breakpoint_destroy(bp);
+		goto fail;
+	}
 
 	return CBS_CONT;
 }
