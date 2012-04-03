@@ -254,7 +254,7 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 		GElf_Phdr phdr;
 		for (i = 0; gelf_getphdr (lte->elf, i, &phdr) != NULL; ++i) {
 			if (phdr.p_type == PT_LOAD) {
-				lte->base_addr = phdr.p_vaddr - bias;
+				lte->base_addr = phdr.p_vaddr + bias;
 				fprintf(stderr,
 					" + vaddr=%#lx, bias=%#lx, base=%#lx\n",
 					phdr.p_vaddr, bias, lte->base_addr);
@@ -489,7 +489,7 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 		goto fail;
 
 	target_address_t entry = (target_address_t)lte.entry_addr;
-	if (arch_translate_address(proc, entry + lte.bias, &entry) < 0)
+	if (arch_translate_address(proc, entry, &entry) < 0)
 		goto fail;
 
 	library_set_soname(lib, soname, own_soname);
