@@ -465,19 +465,22 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 	proc->e_machine = lte.ehdr.e_machine;
 
 	struct library *lib = malloc(sizeof(*lib));
+	if (lib != NULL)
+		library_init(lib);
+	filename = strdup(filename);
 	char *soname = NULL;
 	int own_soname = 0;
-	if (lib == NULL) {
+	if (lib == NULL || filename == NULL) {
 	fail:
 		if (own_soname)
 			free(soname);
 		if (lib != NULL)
 			library_destroy(lib);
+		free((char *)filename);
 		free(lib);
 		lib = NULL;
 		goto done;
 	}
-	library_init(lib);
 
 	if (lte.soname != NULL) {
 		soname = strdup(lte.soname);
