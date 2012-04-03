@@ -21,7 +21,7 @@ struct options_t {
 #if defined(HAVE_LIBUNWIND)
 	int bt_depth;	 /* how may levels of stack frames to show */
 #endif /* defined(HAVE_LIBUNWIND) */
-	struct filter *filter;
+	struct filter *plt_filter;
 	int hide_caller; /* Whether caller library should be hidden.  */
 };
 extern struct options_t options;

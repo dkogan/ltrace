@@ -16,7 +16,6 @@
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
-#include "filter.h"
 
 static int
 process_bare_init(struct Process *proc, const char *filename, pid_t pid)
@@ -487,9 +486,6 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 {
 	struct Process *proc = data;
 
-	if (!filter_matches_symbol(options.filter, libsym))
-		return CBS_CONT;
-
 	struct breakpoint *bp = malloc(sizeof(*bp));
 	if (bp == NULL
 	    || breakpoint_init(bp, proc, libsym->enter_addr, libsym) < 0) {
@@ -522,9 +518,6 @@ proc_add_library(struct Process *proc, struct library *lib)
 	proc->libraries = lib;
 	fprintf(stderr, "=== Added library %s@%p (%s) to %d:\n",
 		lib->soname, lib->base, lib->pathname, proc->pid);
-
-	if (!filter_matches_library(options.filter, lib))
-		return;
 
 	struct library_symbol *libsym = NULL;
 	while ((libsym = library_each_symbol(lib, libsym, breakpoint_for_symbol,

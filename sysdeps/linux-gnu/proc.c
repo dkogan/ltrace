@@ -459,13 +459,21 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 
 		fprintf(stderr, "DSO addr=%#lx, name='%s'\n",
 			rlm.l_addr, lib_name);
-		struct library *lib
-			= ltelf_read_library(proc, lib_name, rlm.l_addr);
+
+		struct library *lib = malloc(sizeof(*lib));
 		if (lib == NULL) {
+		fail:
+			if (lib != NULL)
+				library_destroy(lib);
 			error(0, errno, "Couldn't load ELF object %s\n",
 			      lib_name);
 			continue;
 		}
+		library_init(lib, LT_LIBTYPE_DSO);
+
+		if (ltelf_read_library(lib, proc, lib_name, rlm.l_addr) < 0)
+			goto fail;
+
 		lib->key = key;
 		proc_add_library(proc, lib);
 	}

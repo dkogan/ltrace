@@ -392,14 +392,14 @@ recursive_parse_chain(char *expr)
 }
 
 static void
-parse_filter_chain(struct options_t *options, const char *expr)
+parse_filter_chain(const char *expr, struct filter **retp)
 {
 	char *str = strdup(expr);
 	if (str == NULL) {
 		error(0, errno, "filter '%s' will be ignored", expr);
 		return;
 	}
-	options->filter = recursive_parse_chain(str);
+	*retp = recursive_parse_chain(str);
 }
 
 char **
@@ -481,7 +481,7 @@ process_options(int argc, char **argv) {
 			break;
 
 		case 'e':
-			parse_filter_chain(&options, optarg);
+			parse_filter_chain(optarg, &options.plt_filter);
 			break;
 
 		case 'f':
@@ -640,8 +640,8 @@ process_options(int argc, char **argv) {
 	/* Set default filter.  Use @MAIN for now, as that's what
 	 * ltrace used to have in the past.  XXX Maybe we should make
 	 * this "*" instead.  */
-	if (options.filter == NULL) {
-		parse_filter_chain(&options, "@MAIN");
+	if (options.plt_filter == NULL) {
+		parse_filter_chain("@MAIN", &options.plt_filter);
 		options.hide_caller = 1;
 	}
 

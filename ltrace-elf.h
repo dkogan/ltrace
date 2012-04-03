@@ -52,8 +52,8 @@ int open_elf(struct ltelf *lte, const char *filename);
 /* XXX is it possible to put breakpoints in VDSO and VSYSCALL
  * pseudo-libraries?  For now we assume that all libraries can be
  * opened via a filesystem.  BASE is ignored for ET_EXEC files.  */
-struct library *ltelf_read_library(struct Process *proc,
-				   const char *filename, GElf_Addr bias);
+int ltelf_read_library(struct library *lib, struct Process *proc,
+		       const char *filename, GElf_Addr bias);
 
 /* Create a library object representing the main binary.  The entry
  * point address is stored to *ENTRYP.  */

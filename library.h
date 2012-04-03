@@ -80,6 +80,12 @@ int library_symbol_cmp(struct library_symbol *a, struct library_symbol *b);
 enum callback_status library_symbol_equal_cb(struct library_symbol *libsym,
 					     void *standard);
 
+enum library_type {
+	LT_LIBTYPE_MAIN,
+	LT_LIBTYPE_DSO,
+	LT_LIBTYPE_DLOPEN,
+};
+
 /* XXX we might consider sharing libraries across processes.  Things
  * like libc will be opened by every single process, no point cloning
  * these everywhere.  But for now, keep the ownership structure
@@ -110,12 +116,14 @@ struct library {
 	const char *soname;
 	const char *pathname;
 
+	enum library_type type;
+
 	char own_soname : 1;
 	char own_pathname : 1;
 };
 
 /* Init LIB.  */
-void library_init(struct library *lib);
+void library_init(struct library *lib, enum library_type type);
 
 /* Initialize RETP to a library identical to LIB.  Symbols are not
  * shared, but copied over.  Returns 0 on success and a negative value

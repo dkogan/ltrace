@@ -93,6 +93,7 @@ int filter_matches_library(struct filter *filt, struct library *lib);
 
 /* Ask whether FILTER matches this symbol.  Returns 0 if it doesn't,
  * or non-0 value if it does.  */
-int filter_matches_symbol(struct filter *filt, struct library_symbol *sym);
+int filter_matches_symbol(struct filter *filt, const char *sym_name,
+			  struct library *lib);
 
 #endif /* FILTER_H */

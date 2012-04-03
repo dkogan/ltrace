@@ -131,7 +131,7 @@ matcher_matches_library(struct filter_lib_matcher *matcher, struct library *lib)
 		return re_match_or_error(&matcher->libname_re, lib->pathname,
 					 "library pathname");
 	case FLM_MAIN:
-		return lib->next == NULL;
+		return lib->type == LT_LIBTYPE_MAIN;
 	}
 	assert(matcher->type != matcher->type);
 	abort();
@@ -156,7 +156,8 @@ filter_matches_library(struct filter *filt, struct library *lib)
 }
 
 int
-filter_matches_symbol(struct filter *filt, struct library_symbol *sym)
+filter_matches_symbol(struct filter *filt,
+		      const char *sym_name, struct library *lib)
 {
 	if (filt == NULL)
 		return 0;
@@ -174,8 +175,8 @@ filter_matches_symbol(struct filter *filt, struct library_symbol *sym)
 				continue;
 		}
 
-		if (matcher_matches_library(it->lib_matcher, sym->lib)
-		    && re_match_or_error(&it->symbol_re, sym->name,
+		if (matcher_matches_library(it->lib_matcher, lib)
+		    && re_match_or_error(&it->symbol_re, sym_name,
 					 "symbol name"))
 			matches = !matches;
 	}

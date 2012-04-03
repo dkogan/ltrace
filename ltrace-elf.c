@@ -15,6 +15,7 @@
 #include "common.h"
 #include "proc.h"
 #include "library.h"
+#include "filter.h"
 
 #ifdef PLT_REINITALISATION_BP
 extern char *PLTs_initialized_by_here;
@@ -455,30 +456,77 @@ do_close_elf(struct ltelf *lte) {
 	close(lte->fd);
 }
 
-struct library *
-ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
+static int
+populate_plt(struct Process *proc, const char *filename,
+	     struct ltelf *lte, struct library *lib)
+{
+	size_t i;
+	for (i = 0; i < lte->relplt_count; ++i) {
+		GElf_Rel rel;
+		GElf_Rela rela;
+		GElf_Sym sym;
+		void *ret;
+
+		if (lte->relplt->d_type == ELF_T_REL) {
+			ret = gelf_getrel(lte->relplt, i, &rel);
+			rela.r_offset = rel.r_offset;
+			rela.r_info = rel.r_info;
+			rela.r_addend = 0;
+		} else {
+			ret = gelf_getrela(lte->relplt, i, &rela);
+		}
+
+		if (ret == NULL
+		    || ELF64_R_SYM(rela.r_info) >= lte->dynsym_count
+		    || gelf_getsym(lte->dynsym, ELF64_R_SYM(rela.r_info),
+				   &sym) == NULL)
+			error(EXIT_FAILURE, 0,
+			      "Couldn't get relocation from \"%s\"",
+			      filename);
+
+		char const *name = lte->dynstr + sym.st_name;
+
+		if (!filter_matches_symbol(options.plt_filter, name, lib))
+			continue;
+
+		fprintf(stderr, "%s@%s matches\n", name, lib->soname);
+
+		struct library_symbol *libsym;
+		switch (arch_elf_add_plt_entry(proc, lte, name,
+					       &rela, i, &libsym)) {
+		case plt_default:
+			if (default_elf_add_plt_entry(proc, lte, name,
+						      &rela, i, &libsym) < 0)
+		case plt_fail:
+				return -1;
+		case plt_ok:
+			if (libsym != NULL)
+				library_add_symbol(lib, libsym);
+		}
+	}
+	return 0;
+}
+
+int
+ltelf_read_library(struct library *lib, struct Process *proc,
+		   const char *filename, GElf_Addr bias)
 {
 	 // XXX we leak LTE contents
 	struct ltelf lte = {};
 	if (do_init_elf(&lte, filename, bias) < 0)
-		return NULL;
+		return -1;
 	proc->e_machine = lte.ehdr.e_machine;
 
-	struct library *lib = malloc(sizeof(*lib));
-	if (lib != NULL)
-		library_init(lib);
 	filename = strdup(filename);
 	char *soname = NULL;
 	int own_soname = 0;
+	int status = 0;
 	if (lib == NULL || filename == NULL) {
 	fail:
 		if (own_soname)
 			free(soname);
-		if (lib != NULL)
-			library_destroy(lib);
 		free((char *)filename);
-		free(lib);
-		lib = NULL;
+		status = -1;
 		goto done;
 	}
 
@@ -501,59 +549,33 @@ ltelf_read_library(struct Process *proc, const char *filename, GElf_Addr bias)
 	lib->entry = entry;
 	lib->dyn_addr = (target_address_t)lte.dyn_addr;
 
-	size_t i;
-	for (i = 0; i < lte.relplt_count; ++i) {
-		GElf_Rel rel;
-		GElf_Rela rela;
-		GElf_Sym sym;
-		void *ret;
-
-		if (lte.relplt->d_type == ELF_T_REL) {
-			ret = gelf_getrel(lte.relplt, i, &rel);
-			rela.r_offset = rel.r_offset;
-			rela.r_info = rel.r_info;
-			rela.r_addend = 0;
-		} else {
-			ret = gelf_getrela(lte.relplt, i, &rela);
-		}
-
-		if (ret == NULL
-		    || ELF64_R_SYM(rela.r_info) >= lte.dynsym_count
-		    || gelf_getsym(lte.dynsym, ELF64_R_SYM(rela.r_info),
-				   &sym) == NULL)
-			error(EXIT_FAILURE, 0,
-			      "Couldn't get relocation from \"%s\"",
-			      filename);
-
-		char const *name = lte.dynstr + sym.st_name;
-		struct library_symbol *libsym;
-		switch (arch_elf_add_plt_entry(proc, &lte, name,
-					       &rela, i, &libsym)) {
-		case plt_default:
-			if (default_elf_add_plt_entry(proc, &lte, name,
-						      &rela, i, &libsym) < 0)
-		case plt_fail:
-				goto fail;
-		case plt_ok:
-			if (libsym != NULL)
-				library_add_symbol(lib, libsym);
-		}
-	}
+	if (filter_matches_library(options.plt_filter, lib)
+	    && populate_plt(proc, filename, &lte, lib) < 0)
+		goto fail;
 
 done:
 	do_close_elf(&lte);
-	return lib;
+	return status;
 }
 
 struct library *
 ltelf_read_main_binary(struct Process *proc, const char *path)
 {
+	struct library *lib = malloc(sizeof(*lib));
+	if (lib == NULL)
+		return NULL;
+	library_init(lib, LT_LIBTYPE_MAIN);
+
 	fprintf(stderr, "ltelf_read_main_binary %d %s\n", proc->pid, path);
 	char *fname = pid2name(proc->pid);
-	struct library *lib = ltelf_read_library(proc, fname, 0);
-	if (lib != NULL) {
-		library_set_pathname(lib, path, 0);
-		library_set_soname(lib, rindex(path, '/') + 1, 0);
+	if (ltelf_read_library(lib, proc, fname, 0) < 0) {
+		library_destroy(lib);
+		free(lib);
+		return NULL;
 	}
+
+	library_set_pathname(lib, path, 0);
+	library_set_soname(lib, rindex(path, '/') + 1, 0);
+
 	return lib;
 }

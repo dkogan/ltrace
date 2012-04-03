@@ -100,7 +100,7 @@ library_symbol_equal_cb(struct library_symbol *libsym, void *u)
 }
 
 void
-library_init(struct library *lib)
+library_init(struct library *lib, enum library_type type)
 {
 	lib->next = NULL;
 	lib->soname = NULL;
@@ -108,6 +108,7 @@ library_init(struct library *lib)
 	lib->pathname = NULL;
 	lib->own_pathname = 0;
 	lib->symbols = NULL;
+	lib->type = type;
 }
 
 int
@@ -123,9 +124,9 @@ library_clone(struct library *retp, struct library *lib)
 		return -1;
 	}
 
-	library_init(retp);
-	library_set_soname(lib, soname, lib->own_soname);
-	library_set_soname(lib, pathname, lib->own_pathname);
+	library_init(retp, lib->type);
+	library_set_soname(retp, soname, lib->own_soname);
+	library_set_soname(retp, pathname, lib->own_pathname);
 
 	struct library_symbol *it;
 	struct library_symbol **nsymp = &retp->symbols;

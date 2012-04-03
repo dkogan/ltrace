@@ -426,7 +426,7 @@ temporary_syscall_symbol(const char *name)
 		free(syscall);
 		return NULL;
 	}
-	library_init(syscalls);
+	library_init(syscalls, (enum library_type)-1);
 	library_set_soname(syscalls, "SYS", 0);
 	library_symbol_init(syscall, 0, name, 0, LS_TOPLT_NONE);
 	library_add_symbol(syscalls, syscall);
