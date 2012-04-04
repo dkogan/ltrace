@@ -580,34 +580,38 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 		return -1;
 	proc->e_machine = lte.ehdr.e_machine;
 
-	filename = strdup(filename);
-	char *soname = NULL;
-	int own_soname = 0;
 	int status = 0;
-	if (lib == NULL || filename == NULL) {
-	fail:
-		if (own_soname)
-			free(soname);
-		free((char *)filename);
-		status = -1;
-		goto done;
+	if (lib == NULL)
+		goto fail;
+
+	/* Note that we set soname and pathname as soon as they are
+	 * allocated, so in case of further errors, this get released
+	 * when LIB is release, which should happen in the caller when
+	 * we return error.  */
+
+	if (lib->pathname == NULL) {
+		char *pathname = strdup(filename);
+		if (pathname == NULL)
+			goto fail;
+		library_set_pathname(lib, filename, 1);
 	}
 
 	if (lte.soname != NULL) {
-		soname = strdup(lte.soname);
-		own_soname = 1;
+		char *soname = strdup(lte.soname);
+		if (soname == NULL)
+			goto fail;
+		library_set_soname(lib, soname, 1);
 	} else {
-		soname = rindex(filename, '/') + 1;
+		const char *soname = rindex(lib->pathname, '/') + 1;
+		if (soname == NULL)
+			soname = lib->pathname;
+		library_set_soname(lib, soname, 0);
 	}
-	if (soname == NULL)
-		goto fail;
 
 	target_address_t entry = (target_address_t)lte.entry_addr;
 	if (arch_translate_address(proc, entry, &entry) < 0)
 		goto fail;
 
-	library_set_soname(lib, soname, own_soname);
-	library_set_pathname(lib, filename, 1);
 	lib->base = (target_address_t)lte.base_addr;
 	lib->entry = entry;
 	lib->dyn_addr = (target_address_t)lte.dyn_addr;
@@ -623,6 +627,10 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 done:
 	do_close_elf(&lte);
 	return status;
+
+fail:
+	status = -1;
+	goto done;
 }
 
 struct library *
@@ -632,17 +640,22 @@ ltelf_read_main_binary(struct Process *proc, const char *path)
 	if (lib == NULL)
 		return NULL;
 	library_init(lib, LT_LIBTYPE_MAIN);
+	library_set_pathname(lib, path, 0);
 
 	fprintf(stderr, "ltelf_read_main_binary %d %s\n", proc->pid, path);
+
+	/* There is a race between running the process and reading its
+	 * binary for internal consumption.  So open the binary from
+	 * the /proc filesystem.  XXX Note that there is similar race
+	 * for libraries, but there we don't have a nice answer like
+	 * that.  Presumably we could read the DSOs from the process
+	 * memory image, but that's not currently done.  */
 	char *fname = pid2name(proc->pid);
 	if (ltelf_read_library(lib, proc, fname, 0) < 0) {
 		library_destroy(lib);
 		free(lib);
 		return NULL;
 	}
-
-	library_set_pathname(lib, path, 0);
-	library_set_soname(lib, rindex(path, '/') + 1, 0);
 
 	return lib;
 }
