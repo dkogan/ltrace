@@ -1,16 +1,17 @@
 #include "config.h"
 
+#include <assert.h>
 #include <endian.h>
 #include <errno.h>
 #include <error.h>
 #include <fcntl.h>
 #include <gelf.h>
 #include <inttypes.h>
+#include <search.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
 
 #include "common.h"
 #include "proc.h"
@@ -507,11 +508,41 @@ populate_plt(struct Process *proc, const char *filename,
 	return 0;
 }
 
+/* When -x rules result in request to trace several aliases, we only
+ * want to add such symbol once.  The only way that those symbols
+ * differ in is their name, e.g. in glibc you have __GI___libc_free,
+ * __cfree, __free, __libc_free, cfree and free all defined on the
+ * same address.  So instead we keep this unique symbol struct for
+ * each address, and replace name in libsym with a shorter variant if
+ * we find it.  */
+struct unique_symbol {
+	target_address_t addr;
+	struct library_symbol *libsym;
+};
+
+static int
+unique_symbol_cmp(const void *key, const void *val)
+{
+	const struct unique_symbol *sym_key = key;
+	const struct unique_symbol *sym_val = val;
+	return sym_key->addr != sym_val->addr;
+}
+
 static int
 populate_this_symtab(struct Process *proc, const char *filename,
 		     struct ltelf *lte, struct library *lib,
 		     Elf_Data *symtab, const char *strtab, size_t size)
 {
+	/* Using sorted array would be arguably better, but this
+	 * should be well enough for the number of symbols that we
+	 * typically deal with.  */
+	size_t num_symbols = 0;
+	struct unique_symbol *symbols = malloc(sizeof(*symbols) * size);
+	if (symbols == NULL) {
+		error(0, errno, "couldn't insert symbols for -x");
+		return -1;
+	}
+
 	size_t lib_len = strlen(lib->soname);
 	size_t i;
 	for (i = 0; i < size; ++i) {
@@ -555,13 +586,39 @@ populate_this_symtab(struct Process *proc, const char *filename,
 			goto fail;
 		sprintf(full_name, "%s@%s", name, lib->soname);
 
-		struct library_symbol *libsym = malloc(sizeof(*libsym));
-		if (libsym == NULL)
-			goto fail;
+		/* Look whether we already have a symbol for this
+		 * address.  If not, add this one.  */
+		struct unique_symbol key = { naddr, NULL };
+		struct unique_symbol *unique
+			= lsearch(&key, symbols, &num_symbols,
+				  sizeof(*symbols), &unique_symbol_cmp);
 
-		library_symbol_init(libsym, naddr, full_name, 1, LS_TOPLT_NONE);
-		library_add_symbol(lib, libsym);
+		if (unique->libsym == NULL) {
+			struct library_symbol *libsym = malloc(sizeof(*libsym));
+			if (libsym == NULL) {
+				--num_symbols;
+				goto fail;
+			}
+			library_symbol_init(libsym, naddr, full_name,
+					    1, LS_TOPLT_NONE);
+			unique->libsym = libsym;
+			unique->addr = naddr;
+
+		} else if (strlen(full_name) < strlen(unique->libsym->name)) {
+			library_symbol_set_name(unique->libsym, full_name, 1);
+
+		} else {
+			free(full_name);
+		}
 	}
+
+	for (i = 0; i < num_symbols; ++i) {
+		assert(symbols[i].libsym != NULL);
+		library_add_symbol(lib, symbols[i].libsym);
+	}
+
+	free(symbols);
+
 	return 0;
 }
 

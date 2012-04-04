@@ -59,8 +59,8 @@ library_symbol_init(struct library_symbol *libsym,
 void
 library_symbol_destroy(struct library_symbol *libsym)
 {
-	if (libsym != NULL && libsym->own_name)
-		free((char *)libsym->name);
+	if (libsym != NULL)
+		library_symbol_set_name(libsym, NULL, 0);
 }
 
 int
@@ -90,6 +90,16 @@ library_symbol_cmp(struct library_symbol *a, struct library_symbol *b)
 		return -1;
 	}
 	return 1;
+}
+
+void
+library_symbol_set_name(struct library_symbol *libsym,
+			const char *name, int own_name)
+{
+	if (libsym->own_name)
+		free((char *)libsym->name);
+	libsym->name = name;
+	libsym->own_name = own_name;
 }
 
 enum callback_status
