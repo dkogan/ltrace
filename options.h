@@ -16,7 +16,6 @@ struct options_t {
 	size_t arraylen;   /* default maximum # of array elements printed */
 	size_t strlen;     /* default maximum # of bytes printed in strings */
 	int follow;     /* trace child processes */
-	int no_plt;     /* set bps on PLT entries */
 	int no_signals; /* don't print signals */
 #if defined(HAVE_LIBUNWIND)
 	int bt_depth;	 /* how may levels of stack frames to show */

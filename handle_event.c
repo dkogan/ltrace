@@ -700,10 +700,10 @@ handle_breakpoint(Event *event)
 		return;
 	}
 
-	if (event->proc->state != STATE_IGNORED && !options.no_plt) {
+	if (event->proc->state != STATE_IGNORED)
 		output_line(event->proc, "unexpected breakpoint at %p",
 			    brk_addr);
-	}
+
 	continue_process(event->proc->pid);
 }
 

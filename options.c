@@ -402,7 +402,6 @@ char **
 process_options(int argc, char **argv) {
 	progname = argv[0];
 	options.output = stderr;
-	options.no_plt = 0;
 	options.no_signals = 0;
 #if defined(HAVE_LIBUNWIND)
 	options.bt_depth = -1;
@@ -426,14 +425,13 @@ process_options(int argc, char **argv) {
 			{"library", 1, 0, 'l'},
 			{"output", 1, 0, 'o'},
 			{"version", 0, 0, 'V'},
-			{"no-plt", 0, 0, 'g'},
 			{"no-signals", 0, 0, 'b'},
 #if defined(HAVE_LIBUNWIND)
 			{"where", 1, 0, 'w'},
 #endif /* defined(HAVE_LIBUNWIND) */
 			{0, 0, 0, 0}
 		};
-		c = getopt_long(argc, argv, "+cfhiLrStTVgb"
+		c = getopt_long(argc, argv, "+cfhiLrStTVb"
 # ifdef USE_DEMANGLE
 				"C"
 # endif
@@ -495,9 +493,6 @@ process_options(int argc, char **argv) {
 				opt_F = tmp;
 				break;
 			}
-		case 'g':
-			options.no_plt = 1;
-			break;
 		case 'h':
 			usage();
 			exit(0);
