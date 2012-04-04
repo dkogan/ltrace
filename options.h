@@ -22,6 +22,7 @@ struct options_t {
 	int bt_depth;	 /* how may levels of stack frames to show */
 #endif /* defined(HAVE_LIBUNWIND) */
 	struct filter *plt_filter;
+	struct filter *static_filter;
 	int hide_caller; /* Whether caller library should be hidden.  */
 };
 extern struct options_t options;
@@ -41,18 +42,8 @@ struct opt_F_t {
 	struct opt_F_t *next;
 };
 
-struct opt_x_t {
-	char *name;
-	int found;
-	unsigned long hash;
-	struct opt_x_t *next;
-};
-
 extern struct opt_p_t *opt_p;	/* attach to process with a given pid */
 
 extern struct opt_F_t *opt_F;	/* alternate configuration file(s) */
-
-extern struct opt_x_t *opt_x;	/* list of functions to break at */
-extern unsigned int opt_x_cnt;
 
 extern char **process_options(int argc, char **argv);

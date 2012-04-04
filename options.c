@@ -48,10 +48,6 @@ int opt_T = 0;			/* show the time spent inside each call */
 /* List of pids given to option -p: */
 struct opt_p_t *opt_p = NULL;	/* attach to process with a given pid */
 
-/* List of global function names given to -x: */
-struct opt_x_t *opt_x = NULL;
-unsigned int opt_x_cnt = 0;
-
 /* List of filenames give to option -F: */
 struct opt_F_t *opt_F = NULL;	/* alternate configuration file(s) */
 
@@ -581,31 +577,8 @@ process_options(int argc, char **argv) {
 			/* Fall Thru */
 
 		case 'x':
-			{
-				struct opt_x_t *p = opt_x;
-
-				/* First, check for duplicate. */
-				while (p && strcmp(p->name, optarg)) {
-					p = p->next;
-				}
-				if (p) {
-					break;
-				}
-
-				/* If not duplicate, add to list. */
-				p = malloc(sizeof(struct opt_x_t));
-				if (!p) {
-					perror("ltrace: malloc");
-					exit(1);
-				}
-				opt_x_cnt++;
-				p->name = optarg;
-				p->found = 0;
-				p->next = opt_x;
-				p->hash = ~(0UL);
-				opt_x = p;
-				break;
-			}
+			parse_filter_chain(optarg, &options.static_filter);
+			break;
 
 		default:
 			err_usage();

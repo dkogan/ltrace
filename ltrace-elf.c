@@ -297,7 +297,7 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 			lte->symtab_count = shdr.sh_size / shdr.sh_entsize;
 			if ((lte->symtab == NULL
 			     || elf_getdata(scn, lte->symtab) != NULL)
-			    && opt_x != NULL)
+			    && options.static_filter != NULL)
 				error(EXIT_FAILURE, 0,
 				      "Couldn't get .symtab data from \"%s\"",
 				      filename);
@@ -507,11 +507,74 @@ populate_plt(struct Process *proc, const char *filename,
 	return 0;
 }
 
+static int
+populate_this_symtab(struct Process *proc, const char *filename,
+		     struct ltelf *lte, struct library *lib,
+		     Elf_Data *symtab, const char *strtab, size_t size)
+{
+	size_t lib_len = strlen(lib->soname);
+	size_t i;
+	for (i = 0; i < size; ++i) {
+		GElf_Sym sym;
+		if (gelf_getsym(lte->symtab, i, &sym) == NULL) {
+		fail:
+			error(0, errno, "couldn't get symbol #%zd from %s: %s",
+			      i, filename, elf_errmsg(-1));
+			continue;
+		}
+
+		if (sym.st_value == 0)
+			continue;
+
+		const char *name = strtab + sym.st_name;
+		if (!filter_matches_symbol(options.static_filter, name, lib))
+			continue;
+		fprintf(stderr, "%s@%s matches\n", name, lib->soname);
+
+		char *full_name = malloc(strlen(name) + 1 + lib_len + 1);
+		if (full_name == NULL)
+			goto fail;
+		sprintf(full_name, "%s@%s", name, lib->soname);
+
+		target_address_t addr
+			= (target_address_t)(sym.st_value + lte->bias);
+		target_address_t naddr;
+		if (arch_translate_address(proc, addr, &naddr) < 0) {
+			error(0, errno, "couldn't translate address of %s@%s",
+			      name, lib->soname);
+			continue;
+		}
+		if (addr != naddr)
+			naddr += lte->bias;
+
+		struct library_symbol *libsym = malloc(sizeof(*libsym));
+		if (libsym == NULL)
+			goto fail;
+
+		library_symbol_init(libsym, naddr, full_name, 1, LS_TOPLT_NONE);
+		library_add_symbol(lib, libsym);
+	}
+	return 0;
+}
+
+static int
+populate_symtab(struct Process *proc, const char *filename,
+		struct ltelf *lte, struct library *lib)
+{
+	if (lte->symtab != NULL && lte->strtab != NULL)
+		return populate_this_symtab(proc, filename, lte, lib,
+					    lte->symtab, lte->strtab,
+					    lte->symtab_count);
+	else
+		return populate_this_symtab(proc, filename, lte, lib,
+					    lte->dynsym, lte->dynstr,
+					    lte->dynsym_count);
+}
+
 int
 ltelf_read_library(struct library *lib, struct Process *proc,
 		   const char *filename, GElf_Addr bias)
 {
-	 // XXX we leak LTE contents
 	struct ltelf lte = {};
 	if (do_init_elf(&lte, filename, bias) < 0)
 		return -1;
@@ -551,6 +614,10 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 
 	if (filter_matches_library(options.plt_filter, lib)
 	    && populate_plt(proc, filename, &lte, lib) < 0)
+		goto fail;
+
+	if (filter_matches_library(options.static_filter, lib)
+	    && populate_symtab(proc, filename, &lte, lib) < 0)
 		goto fail;
 
 done:
