@@ -523,18 +523,21 @@ populate_this_symtab(struct Process *proc, const char *filename,
 			continue;
 		}
 
-		if (sym.st_value == 0)
+		/* XXX support IFUNC as well.  */
+		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC
+		    || sym.st_value == 0)
+			continue;
+
+		/* Currently we need to trace entry point in any case,
+		 * and we don't support more than one breakpoint per
+		 * address.  So skip _start if it was in symbol
+		 * table.  */
+		if (sym.st_value == lte->entry_addr)
 			continue;
 
 		const char *name = strtab + sym.st_name;
 		if (!filter_matches_symbol(options.static_filter, name, lib))
 			continue;
-		fprintf(stderr, "%s@%s matches\n", name, lib->soname);
-
-		char *full_name = malloc(strlen(name) + 1 + lib_len + 1);
-		if (full_name == NULL)
-			goto fail;
-		sprintf(full_name, "%s@%s", name, lib->soname);
 
 		target_address_t addr
 			= (target_address_t)(sym.st_value + lte->bias);
@@ -546,6 +549,11 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		}
 		if (addr != naddr)
 			naddr += lte->bias;
+
+		char *full_name = malloc(strlen(name) + 1 + lib_len + 1);
+		if (full_name == NULL)
+			goto fail;
+		sprintf(full_name, "%s@%s", name, lib->soname);
 
 		struct library_symbol *libsym = malloc(sizeof(*libsym));
 		if (libsym == NULL)
