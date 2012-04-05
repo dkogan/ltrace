@@ -559,13 +559,6 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		    || sym.st_value == 0)
 			continue;
 
-		/* Currently we need to trace entry point in any case,
-		 * and we don't support more than one breakpoint per
-		 * address.  So skip _start if it was in symbol
-		 * table.  */
-		if (sym.st_value == lte->entry_addr)
-			continue;
-
 		const char *name = strtab + sym.st_name;
 		if (!filter_matches_symbol(options.static_filter, name, lib))
 			continue;

@@ -485,8 +485,23 @@ static enum callback_status
 breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 {
 	struct Process *proc = data;
+	assert(proc->leader == proc);
 
-	struct breakpoint *bp = malloc(sizeof(*bp));
+	/* If there is an artificial breakpoint on the same address,
+	 * its libsym will be NULL, and we can smuggle our libsym
+	 * there.  That artificial breakpoint is there presumably for
+	 * the callbacks, which we don't touch.  If there is a real
+	 * breakpoint, then this is a bug.  ltrace-elf.c should filter
+	 * symbols and ignore extra symbol aliases.  */
+	struct breakpoint *bp = dict_find_entry(proc->breakpoints,
+						libsym->enter_addr);
+	if (bp != NULL) {
+		assert(bp->libsym == NULL);
+		bp->libsym = libsym;
+		return CBS_CONT;
+	}
+
+	bp = malloc(sizeof(*bp));
 	if (bp == NULL
 	    || breakpoint_init(bp, proc, libsym->enter_addr, libsym) < 0) {
 	fail:
