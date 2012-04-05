@@ -7,7 +7,6 @@ struct options_t {
 	int align;      /* -a: default alignment column for results */
 	char * user;    /* -u: username to run command as */
 	int syscalls;   /* -S: display system calls */
-	int libcalls;   /* -L: display library calls */
 	int demangle;   /* -C: demangle low-level names into user-level names */
 	int indent;     /* -n: indent trace output according to program flow */
 	FILE *output;   /* output to a specific file */

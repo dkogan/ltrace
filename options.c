@@ -26,7 +26,6 @@ struct options_t options = {
 	.align    = DEFAULT_ALIGN,    /* alignment column for results */
 	.user     = NULL,             /* username to run command as */
 	.syscalls = 0,                /* display syscalls */
-	.libcalls = 1,                /* display library calls */
 #ifdef USE_DEMANGLE
 	.demangle = 0,                /* Demangle low-level symbol names */
 #endif
@@ -399,7 +398,8 @@ parse_filter_chain(const char *expr, struct filter **retp)
 }
 
 char **
-process_options(int argc, char **argv) {
+process_options(int argc, char **argv)
+{
 	progname = argv[0];
 	options.output = stderr;
 	options.no_signals = 0;
@@ -408,6 +408,8 @@ process_options(int argc, char **argv) {
 #endif /* defined(HAVE_LIBUNWIND) */
 
 	guess_cols();
+
+	int libcalls = 1;
 
 	while (1) {
 		int c;
@@ -504,7 +506,7 @@ process_options(int argc, char **argv) {
 			abort();
 			break;
 		case 'L':
-			options.libcalls = 0;
+			libcalls = 0;
 			break;
 		case 'n':
 			options.indent = atoi(optarg);
@@ -608,7 +610,7 @@ process_options(int argc, char **argv) {
 	/* Set default filter.  Use @MAIN for now, as that's what
 	 * ltrace used to have in the past.  XXX Maybe we should make
 	 * this "*" instead.  */
-	if (options.plt_filter == NULL) {
+	if (options.plt_filter == NULL && libcalls) {
 		parse_filter_chain("@MAIN", &options.plt_filter);
 		options.hide_caller = 1;
 	}
