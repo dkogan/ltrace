@@ -350,43 +350,44 @@ breakpoints_init(Process *proc, int enable)
 	/* Only the thread group leader should hold the breakpoints.  */
 	assert(proc->leader == proc);
 
-	if (options.libcalls && proc->filename) {
-		struct library *lib = ltelf_read_main_binary(proc,
-							     proc->filename);
-		struct entry_breakpoint *entry_bp = NULL;
-		int bp_state = 0;
-		int result = -1;
-		switch (lib != NULL) {
-		fail:
-			proc_remove_library(proc, lib);
-			library_destroy(lib);
-			switch (bp_state) {
-			case 2:
-				proc_remove_breakpoint(proc, &entry_bp->super);
-			case 1:
-				breakpoint_destroy(&entry_bp->super);
-			}
-			free(entry_bp);
-		case 0:
-			return result;
+	/* N.B. the following used to be conditional on this, and
+	 * maybe it still needs to be.  */
+	assert(proc->filename != NULL);
+
+	struct library *lib = ltelf_read_main_binary(proc, proc->filename);
+	struct entry_breakpoint *entry_bp = NULL;
+	int bp_state = 0;
+	int result = -1;
+	switch (lib != NULL) {
+	fail:
+		proc_remove_library(proc, lib);
+		library_destroy(lib);
+		switch (bp_state) {
+		case 2:
+			proc_remove_breakpoint(proc, &entry_bp->super);
+		case 1:
+			breakpoint_destroy(&entry_bp->super);
 		}
-
-		proc_add_library(proc, lib);
-
-		entry_bp = malloc(sizeof(*entry_bp));
-		if (entry_bp == NULL
-		    || (result = entry_breakpoint_init(proc, entry_bp,
-						       lib->entry, lib)) < 0)
-			goto fail;
-
-		++bp_state;
-		if ((result = proc_add_breakpoint(proc, &entry_bp->super)) < 0)
-			goto fail;
-
-		++bp_state;
-		if ((result = breakpoint_turn_on(&entry_bp->super)) < 0)
-			goto fail;
+		free(entry_bp);
+	case 0:
+		return result;
 	}
+
+	proc_add_library(proc, lib);
+
+	entry_bp = malloc(sizeof(*entry_bp));
+	if (entry_bp == NULL
+	    || (result = entry_breakpoint_init(proc, entry_bp,
+					       lib->entry, lib)) < 0)
+		goto fail;
+
+	++bp_state;
+	if ((result = proc_add_breakpoint(proc, &entry_bp->super)) < 0)
+		goto fail;
+
+	++bp_state;
+	if ((result = breakpoint_turn_on(&entry_bp->super)) < 0)
+		goto fail;
 
 	proc->callstack_depth = 0;
 	return 0;
