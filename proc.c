@@ -39,8 +39,8 @@ process_bare_init(struct Process *proc, const char *filename, pid_t pid)
 		goto fail;
 
 	if (proc->leader == proc) {
-		proc->breakpoints = dict_init(dict_key2hash_int,
-					      dict_key_cmp_int);
+		proc->breakpoints = dict_init(target_address_hash,
+					      target_address_cmp);
 		if (proc->breakpoints == NULL)
 			goto fail;
 	} else {

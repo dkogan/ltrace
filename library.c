@@ -28,6 +28,33 @@
 #include "proc.h" // for enum callback_status
 #include "debug.h"
 
+unsigned int
+target_address_hash(const void *key)
+{
+	/* XXX this assumes that key is passed by value.  */
+	union {
+		target_address_t addr;
+		unsigned int ints[sizeof(target_address_t)
+				  / sizeof(unsigned int)];
+	} u = { .addr = (target_address_t)key };
+
+	size_t i;
+	unsigned int h = 0;
+	for (i = 0; i < sizeof(u.ints) / sizeof(*u.ints); ++i)
+		h ^= dict_key2hash_int(u.ints + i);
+	return h;
+}
+
+int
+target_address_cmp(const void *key1, const void *key2)
+{
+	/* XXX this assumes that key is passed by value.  */
+	target_address_t addr1 = (target_address_t)key1;
+	target_address_t addr2 = (target_address_t)key2;
+	return addr1 < addr2 ? 1
+	     : addr1 > addr2 ? -1 : 0;
+}
+
 /* If the other symbol owns the name, we need to make the copy, so
  * that the life-times of the two symbols are not dependent on each
  * other.  */

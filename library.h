@@ -41,6 +41,10 @@ enum toplt {
  * So keep with it, for now.  */
 typedef void *target_address_t;
 
+/* Dict interface.  */
+unsigned int target_address_hash(const void *key);
+int target_address_cmp(const void *key1, const void *key2);
+
 struct library_symbol {
 	struct library_symbol *next;
 	struct library *lib;

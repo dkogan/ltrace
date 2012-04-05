@@ -86,7 +86,9 @@ struct Process {
 
 	/* Dictionary of breakpoints (which is a mapping
 	 * address->breakpoint).  This is NULL for non-leader
-	 * processes.  */
+	 * processes.  XXX note that we store addresses (keys) by
+	 * value.  That assumes that target_address_t fits in host
+	 * pointer.  */
 	Dict * breakpoints;
 
 	int mask_32bit;           /* 1 if 64-bit ltrace is tracing 32-bit process */
