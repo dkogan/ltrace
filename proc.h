@@ -112,7 +112,6 @@ struct Process {
 
 	/* Arch-dependent: */
 	void * debug;	/* arch-dep process debug struct */
-	long debug_state; /* arch-dep debug state */
 	void * instruction_pointer;
 	void * stack_pointer;      /* To get return addr, args... */
 	void * return_addr;

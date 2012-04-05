@@ -480,12 +480,21 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 	return;
 }
 
+/* A struct stored at proc->debug.  */
+struct debug_struct
+{
+	target_address_t debug_addr;
+	int state;
+};
+
 static int
 load_debug_struct(struct Process *proc, struct lt_r_debug_64 *ret)
 {
 	debug(DEBUG_FUNCTION, "load_debug_struct");
 
-	if (rdebug_fetcher(proc)(proc, proc->debug, ret) < 0) {
+	struct debug_struct *debug = proc->debug;
+
+	if (rdebug_fetcher(proc)(proc, debug->debug_addr, ret) < 0) {
 		debug(2, "This process does not have a debug structure!\n");
 		return -1;
 	}
@@ -506,39 +515,47 @@ rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 		return;
 	}
 
+	struct debug_struct *debug = proc->debug;
 	if (rdbg.r_state == RT_CONSISTENT) {
 		debug(2, "Linkmap is now consistent");
-		if (proc->debug_state == RT_ADD) {
+		if (debug->state == RT_ADD) {
 			debug(2, "Adding DSO to linkmap");
 			//data.proc = proc;
 			crawl_linkmap(proc, &rdbg);
 			//&data);
-		} else if (proc->debug_state == RT_DELETE) {
+		} else if (debug->state == RT_DELETE) {
 			debug(2, "Removing DSO from linkmap");
 		} else {
 			debug(2, "Unexpected debug state!");
 		}
 	}
 
-	proc->debug_state = rdbg.r_state;
+	debug->state = rdbg.r_state;
 }
 
 int
 linkmap_init(struct Process *proc, target_address_t dyn_addr)
 {
-	target_address_t dbg_addr = NULL;
 	//struct cb_data data;
 
 	debug(DEBUG_FUNCTION, "linkmap_init()");
 	fprintf(stderr, "linkmap_init dyn_addr=%p\n", dyn_addr);
 
-	if (find_dynamic_entry_addr(proc, dyn_addr, DT_DEBUG, &dbg_addr) == -1) {
+	struct debug_struct *debug = malloc(sizeof(*debug));
+	if (debug == NULL) {
+		error(0, errno, "couldn't allocate debug struct");
 	fail:
-		debug(2, "Couldn't find debug structure!");
+		proc->debug = NULL;
+		free(debug);
 		return -1;
 	}
+	proc->debug = debug;
 
-	proc->debug = dbg_addr;
+	if (find_dynamic_entry_addr(proc, dyn_addr, DT_DEBUG,
+				    &debug->debug_addr) == -1) {
+		debug(2, "Couldn't find debug structure!");
+		goto fail;
+	}
 
 	int status;
 	struct lt_r_debug_64 rdbg;
