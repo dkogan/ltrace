@@ -169,7 +169,7 @@ extern pid_t process_leader(pid_t pid);
 extern int process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n);
 extern int process_stopped(pid_t pid);
 extern enum process_status process_status(pid_t pid);
-extern void trace_set_options(Process * proc, pid_t pid);
+extern void trace_set_options(struct Process *proc);
 extern int wait_for_proc(pid_t pid);
 extern void trace_me(void);
 extern int trace_pid(pid_t pid);

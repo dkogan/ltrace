@@ -141,10 +141,12 @@ trace_pid(pid_t pid)
 }
 
 void
-trace_set_options(Process *proc, pid_t pid) {
+trace_set_options(struct Process *proc)
+{
 	if (proc->tracesysgood & 0x80)
 		return;
 
+	pid_t pid = proc->pid;
 	debug(DEBUG_PROCESS, "trace_set_options: pid=%d", pid);
 
 	long options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK |

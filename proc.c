@@ -216,7 +216,7 @@ open_one_pid(pid_t pid)
 	proc = open_program(filename, pid, 0);
 	if (proc == NULL)
 		return -1;
-	trace_set_options(proc, pid);
+	trace_set_options(proc);
 
 	return 0;
 }

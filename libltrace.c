@@ -1,13 +1,14 @@
 #include "config.h"
 
+#include <sys/param.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <error.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <errno.h>
-#include <sys/param.h>
-#include <signal.h>
-#include <sys/wait.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "proc.h"
@@ -112,7 +113,10 @@ ltrace_init(int argc, char **argv) {
 		open_elf(&lte, command);
 
 		pid_t pid = execute_program(command, argv);
-		open_program(command, pid, 0);
+		struct Process *proc = open_program(command, pid, 0);
+		if (proc == NULL)
+			error(EXIT_FAILURE, errno,
+			      "couldn't open program '%s'", command);
 		continue_process(pid);
 	}
 	opt_p_tmp = opt_p;
