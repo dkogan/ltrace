@@ -293,9 +293,6 @@ static int
 find_dynamic_entry_addr(struct Process *proc, target_address_t src_addr,
 			int d_tag, target_address_t *ret)
 {
-	fprintf(stderr, "find_dynamic_entry_addr %d %p %d\n",
-		proc->pid, src_addr, d_tag);
-
 	debug(DEBUG_FUNCTION, "find_dynamic_entry()");
 
 	if (ret == NULL || src_addr == 0 || d_tag < 0 || d_tag > DT_NUM)
@@ -314,7 +311,6 @@ find_dynamic_entry_addr(struct Process *proc, target_address_t src_addr,
 		}
 
 		if (entry.d_tag == d_tag) {
-			fprintf(stderr, "   hit\n");
 			*ret = (target_address_t)entry.d_un.d_val;
 			debug(2, "found address: %p in dtag %d\n", *ret, d_tag);
 			return 0;
@@ -457,9 +453,6 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 		if (proc_each_library(proc, NULL, library_with_key_cb, &key))
 			continue;
 
-		fprintf(stderr, "DSO addr=%#lx, name='%s'\n",
-			rlm.l_addr, lib_name);
-
 		struct library *lib = malloc(sizeof(*lib));
 		if (lib == NULL) {
 		fail:
@@ -505,8 +498,6 @@ load_debug_struct(struct Process *proc, struct lt_r_debug_64 *ret)
 static void
 rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 {
-	fprintf(stderr, "======= HIT\n");
-
 	debug(DEBUG_FUNCTION, "arch_check_dbg");
 
 	struct lt_r_debug_64 rdbg;
@@ -536,10 +527,7 @@ rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 int
 linkmap_init(struct Process *proc, target_address_t dyn_addr)
 {
-	//struct cb_data data;
-
 	debug(DEBUG_FUNCTION, "linkmap_init()");
-	fprintf(stderr, "linkmap_init dyn_addr=%p\n", dyn_addr);
 
 	struct debug_struct *debug = malloc(sizeof(*debug));
 	if (debug == NULL) {
@@ -564,12 +552,9 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 		return status;
 	}
 
-	//data.lte = lte;
-
 	target_address_t addr = (target_address_t)rdbg.r_brk;
 	if (arch_translate_address(proc, addr, &addr) < 0)
 		goto fail;
-	fprintf(stderr, "  r_brk=%p\n", addr);
 
 	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);
 	static struct bp_callbacks rdebug_callbacks = {

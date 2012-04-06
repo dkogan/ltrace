@@ -305,7 +305,6 @@ static void
 entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 {
 	struct entry_breakpoint *bp = (void *)a;
-	fprintf(stderr, "entry_callback_hit\n");
 	if (proc == NULL || proc->leader == NULL)
 		return;
 	delete_breakpoint(proc, bp->super.addr);
@@ -340,7 +339,6 @@ entry_breakpoint_init(struct Process *proc,
 int
 breakpoints_init(Process *proc, int enable)
 {
-	fprintf(stderr, "breakpoints_init %d enable=%d\n", proc->pid, enable);
 	debug(DEBUG_FUNCTION, "breakpoints_init(pid=%d)", proc->pid);
 
 	/* XXX breakpoint dictionary should be initialized

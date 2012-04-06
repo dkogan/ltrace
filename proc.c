@@ -20,7 +20,6 @@
 static int
 process_bare_init(struct Process *proc, const char *filename, pid_t pid)
 {
-	fprintf(stderr, "process_bare_init %s %d\n", filename, pid);
 	memset(proc, 0, sizeof(*proc));
 
 	proc->filename = strdup(filename);
@@ -66,7 +65,6 @@ process_bare_destroy(struct Process *proc)
 int
 process_init(struct Process *proc, const char *filename, pid_t pid, int enable)
 {
-	fprintf(stderr, "process_init %s %d enable=%d\n", filename, pid, enable);
 	if (process_bare_init(proc, filename, pid) < 0) {
 		error(0, errno, "init process %d", pid);
 		return -1;
@@ -85,8 +83,6 @@ process_init(struct Process *proc, const char *filename, pid_t pid, int enable)
 struct Process *
 open_program(const char *filename, pid_t pid, int enable)
 {
-	fprintf(stderr, "open_program %s %d enable=%d\n",
-		filename, pid, enable);
 	assert(pid != 0);
 	struct Process *proc = malloc(sizeof(*proc));
 	if (proc == NULL
@@ -384,11 +380,9 @@ each_task(struct Process *proc, struct Process *start_after,
 void
 add_process(Process * proc)
 {
-	fprintf(stderr, "add_process %d\n", proc->pid);
 	Process ** leaderp = &list_of_processes;
 	if (proc->pid) {
 		pid_t tgid = process_leader(proc->pid);
-		fprintf(stderr, " + leader is %d\n", tgid);
 		if (tgid == 0)
 			/* Must have been terminated before we managed
 			 * to fully attach.  */
@@ -537,8 +531,8 @@ proc_add_library(struct Process *proc, struct library *lib)
 	assert(lib->next == NULL);
 	lib->next = proc->libraries;
 	proc->libraries = lib;
-	fprintf(stderr, "=== Added library %s@%p (%s) to %d:\n",
-		lib->soname, lib->base, lib->pathname, proc->pid);
+	debug(DEBUG_PROCESS, "added library %s@%p (%s) to %d",
+	      lib->soname, lib->base, lib->pathname, proc->pid);
 
 	struct library_symbol *libsym = NULL;
 	while ((libsym = library_each_symbol(lib, libsym, breakpoint_for_symbol,

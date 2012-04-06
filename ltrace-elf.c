@@ -257,9 +257,6 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 		for (i = 0; gelf_getphdr (lte->elf, i, &phdr) != NULL; ++i) {
 			if (phdr.p_type == PT_LOAD) {
 				lte->base_addr = phdr.p_vaddr + bias;
-				fprintf(stderr,
-					" + vaddr=%#lx, bias=%#lx, base=%#lx\n",
-					phdr.p_vaddr, bias, lte->base_addr);
 				break;
 			}
 		}
@@ -347,7 +344,6 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 			size_t j;
 
 			lte->dyn_addr = shdr.sh_addr;
-			fprintf(stderr, "dyn_addr = %#lx\n", lte->dyn_addr);
 			lte->dyn_sz = shdr.sh_size;
 
 			data = elf_getdata(scn, NULL);
@@ -489,8 +485,6 @@ populate_plt(struct Process *proc, const char *filename,
 
 		if (!filter_matches_symbol(options.plt_filter, name, lib))
 			continue;
-
-		fprintf(stderr, "%s@%s matches\n", name, lib->soname);
 
 		struct library_symbol *libsym;
 		switch (arch_elf_add_plt_entry(proc, lte, name,
@@ -699,8 +693,6 @@ ltelf_read_main_binary(struct Process *proc, const char *path)
 		return NULL;
 	library_init(lib, LT_LIBTYPE_MAIN);
 	library_set_pathname(lib, path, 0);
-
-	fprintf(stderr, "ltelf_read_main_binary %d %s\n", proc->pid, path);
 
 	/* There is a race between running the process and reading its
 	 * binary for internal consumption.  So open the binary from

@@ -179,9 +179,6 @@ add_filter_rule(struct filter *filt, const char *expr,
 		const char *sym, int sym_re_p,
 		const char *lib, int lib_re_p)
 {
-	fprintf(stderr, "add_filter_rule, type = %d\n", type);
-	fprintf(stderr, "+ symname = %s (re=%d)\n", sym, sym_re_p);
-	fprintf(stderr, "+ libname = %s (re=%d)\n", lib, lib_re_p);
 	struct filter_rule *rule = malloc(sizeof(*rule));
 	struct filter_lib_matcher *matcher = malloc(sizeof(*matcher));
 
@@ -229,8 +226,6 @@ add_filter_rule(struct filter *filt, const char *expr,
 static int
 parse_filter(struct filter *filt, char *expr)
 {
-	fprintf(stderr, "filter '%s'\n", expr);
-
 	/* Filter is a chain of sym@lib rules separated by '-'.  If
 	 * the filter expression starts with '-', the missing initial
 	 * rule is implicitly *@*.  */

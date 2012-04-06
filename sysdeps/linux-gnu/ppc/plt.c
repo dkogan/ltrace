@@ -123,8 +123,6 @@ arch_translate_address(struct Process *proc,
 	if (proc->e_machine == EM_PPC64) {
 		assert(host_powerpc64());
 		long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
-		fprintf(stderr, "arch_translate_address %p->%#lx\n",
-			addr, l);
 		if (l == -1 && errno) {
 			error(0, errno, ".opd translation of %p", addr);
 			return -1;
@@ -199,31 +197,26 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 	if (ppcgot != 0
 	    && elf_get_section_covering(lte, ppcgot,
 					&ppcgot_sec, &ppcgot_shdr) < 0)
-		// xxx should be the log out
-		fprintf(stderr,
-			"DT_PPC_GOT=%#" PRIx64 ", but no such section found.\n",
-			ppcgot);
+		error(0, 0, "DT_PPC_GOT=%#"PRIx64", but no such section found",
+		      ppcgot);
 
 	if (ppcgot_sec != NULL) {
 		Elf_Data *data = elf_loaddata(ppcgot_sec, &ppcgot_shdr);
 		if (data == NULL || data->d_size < 8 ) {
-			fprintf(stderr, "Couldn't read GOT data.\n");
+			error(0, 0, "couldn't read GOT data");
 		} else {
 			// where PPCGOT begins in .got
 			size_t offset = ppcgot - ppcgot_shdr.sh_addr;
 			assert(offset % 4 == 0);
 			uint32_t glink_vma;
 			if (elf_read_u32(data, offset + 4, &glink_vma) < 0) {
-				fprintf(stderr,
-					"Couldn't read glink VMA address"
-					" at %zd@GOT\n", offset);
+				error(0, 0, "couldn't read glink VMA address"
+				      " at %zd@GOT", offset);
 				return 0;
 			}
 			if (glink_vma != 0) {
 				debug(1, "PPC GOT glink_vma address: %#" PRIx32,
 				      glink_vma);
-				fprintf(stderr, "PPC GOT glink_vma "
-					"address: %#"PRIx32"\n", glink_vma);
 				return (GElf_Addr)glink_vma;
 			}
 		}
@@ -232,13 +225,10 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 	if (plt_data != NULL) {
 		uint32_t glink_vma;
 		if (elf_read_u32(plt_data, 0, &glink_vma) < 0) {
-			fprintf(stderr,
-				"Couldn't read glink VMA address at 0@.plt\n");
+			error(0, 0, "couldn't read glink VMA address");
 			return 0;
 		}
 		debug(1, ".plt glink_vma address: %#" PRIx32, glink_vma);
-		fprintf(stderr, ".plt glink_vma address: "
-			"%#"PRIx32"\n", glink_vma);
 		return (GElf_Addr)glink_vma;
 	}
 
@@ -296,7 +286,7 @@ arch_elf_init(struct ltelf *lte)
 	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
 		GElf_Addr ppcgot;
 		if (load_ppcgot(lte, &ppcgot) < 0) {
-			fprintf(stderr, "Couldn't find DT_PPC_GOT.\n");
+			error(0, 0, "couldn't find DT_PPC_GOT");
 			return -1;
 		}
 		GElf_Addr glink_vma = get_glink_vma(lte, ppcgot, lte->plt_data);
@@ -310,7 +300,7 @@ arch_elf_init(struct ltelf *lte)
 	} else if (lte->ehdr.e_machine == EM_PPC64) {
 		GElf_Addr glink_vma;
 		if (load_ppc64_glink(lte, &glink_vma) < 0) {
-			fprintf(stderr, "Couldn't find DT_PPC64_GLINK.\n");
+			error(0, 0, "couldn't find DT_PPC64_GLINK");
 			return -1;
 		}
 
