@@ -591,43 +591,7 @@ handle_breakpoint(Event *event)
 
 	for (i = event->proc->callstack_depth - 1; i >= 0; i--) {
 		if (brk_addr == event->proc->callstack[i].return_addr) {
-#ifdef __powerpc__
-			/*
-			 * PPC HACK! (XXX FIXME TODO)
-			 * The PLT gets modified during the first call,
-			 * so be sure to re-enable the breakpoint.
-			 */
-			unsigned long a;
-			struct library_symbol *libsym =
-			    event->proc->callstack[i].c_un.libfunc;
-			void *addr = sym2addr(event->proc, libsym);
-
-			if (libsym->plt_type != LS_TOPLT_POINT) {
-				unsigned char break_insn[] = BREAKPOINT_VALUE;
-
-				sbp = address2bpstruct(leader, addr);
-				assert(sbp);
-				a = ptrace(PTRACE_PEEKTEXT, event->proc->pid,
-					   addr);
-
-				if (memcmp(&a, break_insn, BREAKPOINT_LENGTH)) {
-					sbp->enabled--;
-					insert_breakpoint(event->proc, addr,
-							  libsym);
-				}
-			} else {
-				sbp = dict_find_entry(leader->breakpoints, addr);
-				/* On powerpc, the breakpoint address
-				   may end up being actual entry point
-				   of the library symbol, not the PLT
-				   address we computed.  In that case,
-				   sbp is NULL.  */
-				if (sbp == NULL || addr != sbp->addr) {
-					insert_breakpoint(event->proc, addr,
-							  libsym);
-				}
-			}
-#elif defined(__mips__)
+#if defined(__mips__)
 			void *addr = NULL;
 			struct library_symbol *sym= event->proc->callstack[i].c_un.libfunc;
 			struct library_symbol *new_sym;
