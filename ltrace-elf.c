@@ -522,8 +522,19 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		return -1;
 	}
 
-	size_t lib_len = strlen(lib->soname);
+	GElf_Word secflags[lte->ehdr.e_shnum];
 	size_t i;
+	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
+		Elf_Scn *scn = elf_getscn(lte->elf, i);
+		if (scn == NULL)
+			continue;
+		GElf_Shdr shdr;
+		if (gelf_getshdr(scn, &shdr) == NULL)
+			continue;
+		secflags[i] = shdr.sh_flags;
+	}
+
+	size_t lib_len = strlen(lib->soname);
 	for (i = 0; i < size; ++i) {
 		GElf_Sym sym;
 		if (gelf_getsym(symtab, i, &sym) == NULL) {
@@ -545,11 +556,26 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		target_address_t addr
 			= (target_address_t)(sym.st_value + lte->bias);
 		target_address_t naddr;
-		if (arch_translate_address(proc, addr, &naddr) < 0) {
+
+		/* On arches that support OPD, the value of typical
+		 * function symbol will be a pointer to .opd, but some
+		 * will point directly to .text.  We don't want to
+		 * translate those.  */
+		if (secflags[sym.st_shndx] & SHF_EXECINSTR) {
+			naddr = addr;
+		} else if (arch_translate_address(proc, addr, &naddr) < 0) {
 			error(0, errno, "couldn't translate address of %s@%s",
 			      name, lib->soname);
 			continue;
 		}
+
+		/* If the translation actually took place, and wasn't
+		 * a no-op, then bias again.  XXX We shouldn't apply
+		 * second bias for libraries that were open at the
+		 * time that we attached.  In fact what we should do
+		 * is look at each translated address, whether it
+		 * falls into a SHF_EXECINSTR section.  If it does,
+		 * it's most likely already translated.  */
 		if (addr != naddr)
 			naddr += lte->bias;
 
