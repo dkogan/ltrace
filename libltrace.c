@@ -117,6 +117,8 @@ ltrace_init(int argc, char **argv) {
 		if (proc == NULL)
 			error(EXIT_FAILURE, errno,
 			      "couldn't open program '%s'", command);
+
+		trace_set_options(proc);
 		continue_process(pid);
 	}
 	opt_p_tmp = opt_p;
