@@ -43,7 +43,7 @@ enum ppc64_plt_type {
 	/* Resolved PLT symbol.  The corresponding .plt slot contained
 	 * target address, which was changed to the address of
 	 * corresponding PLT entry.  The original is now saved in
-	 * orig_addr.  */
+	 * RESOLVED_VALUE.  */
 	PPC64PLT_RESOLVED,
 };
 
