@@ -568,10 +568,17 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		if (addr != naddr)
 			naddr += lte->bias;
 
-		char *full_name = malloc(strlen(name) + 1 + lib_len + 1);
-		if (full_name == NULL)
-			goto fail;
-		sprintf(full_name, "%s@%s", name, lib->soname);
+		char *full_name;
+		if (lib->type != LT_LIBTYPE_MAIN) {
+			full_name = malloc(strlen(name) + 1 + lib_len + 1);
+			if (full_name == NULL)
+				goto fail;
+			sprintf(full_name, "%s@%s", name, lib->soname);
+		} else {
+			full_name = strdup(name);
+			if (full_name == NULL)
+				goto fail;
+		}
 
 		/* Look whether we already have a symbol for this
 		 * address.  If not, add this one.  */
