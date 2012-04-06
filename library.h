@@ -31,7 +31,6 @@ struct library;
 enum toplt {
 	LS_TOPLT_NONE = 0,	/* PLT not used for this symbol. */
 	LS_TOPLT_EXEC,		/* PLT for this symbol is executable. */
-	LS_TOPLT_POINT		/* PLT for this symbol is a non-executable. */
 };
 
 /* We should in general be able to trace 64-bit processes with 32-bit

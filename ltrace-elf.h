@@ -22,6 +22,7 @@ struct ltelf {
 	size_t dynsym_count;
 	const char *dynstr;
 	GElf_Addr plt_addr;
+	GElf_Word plt_flags;
 	size_t plt_size;
 	Elf_Data *relplt;
 	Elf_Data *plt_data;
@@ -33,7 +34,6 @@ struct ltelf {
 	Elf_Data *opd;
 	GElf_Addr *opd_addr;
 	size_t opd_size;
-	int lte_flags;
 	GElf_Addr dyn_addr;
 	size_t dyn_sz;
 	size_t relplt_size;
@@ -42,10 +42,6 @@ struct ltelf {
 	GElf_Addr base_addr;
 	struct arch_ltelf_data arch;
 };
-
-#define LTE_PLT_EXECUTABLE 2
-
-#define PLTS_ARE_EXECUTABLE(lte) (((lte)->lte_flags & LTE_PLT_EXECUTABLE) != 0)
 
 int open_elf(struct ltelf *lte, const char *filename);
 

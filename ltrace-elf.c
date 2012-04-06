@@ -52,8 +52,6 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		return -1;
 	}
 
-	enum toplt pltt = PLTS_ARE_EXECUTABLE(lte)
-		?  LS_TOPLT_EXEC : LS_TOPLT_POINT;
 	GElf_Addr addr = arch_plt_sym_val(lte, ndx, rela);
 
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
@@ -62,19 +60,7 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 
 	target_address_t taddr = (target_address_t)(addr + lte->bias);
 
-	/* The logic behind this conditional translation is as
-	 * follows.  PLT entries do not typically need custom TOC
-	 * pointer, and therefore aren't redirected via OPD.  POINT
-	 * PLT, on the other hand, most likely contains addresses of
-	 * target functions, not PLT entries themselves, and would
-	 * need the OPD redirection.  */
-	if (pltt == LS_TOPLT_POINT
-	    && arch_translate_address(proc, taddr, &taddr) < 0) {
-		free(libsym);
-		goto fail;
-	}
-
-	library_symbol_init(libsym, taddr, name, 1, pltt);
+	library_symbol_init(libsym, taddr, name, 1, LS_TOPLT_EXEC);
 	*ret = libsym;
 	return 0;
 }
@@ -375,8 +361,7 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 				if (lte->plt_data == NULL)
 					fprintf(stderr,
 						"Can't load .plt data\n");
-				if (shdr.sh_flags & SHF_EXECINSTR)
-					lte->lte_flags |= LTE_PLT_EXECUTABLE;
+				lte->plt_flags = shdr.sh_flags;
 			}
 #ifdef ARCH_SUPPORTS_OPD
 			else if (strcmp(name, ".opd") == 0) {
