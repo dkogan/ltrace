@@ -541,7 +541,7 @@ populate_this_symtab(struct Process *proc, const char *filename,
 	size_t i;
 	for (i = 0; i < size; ++i) {
 		GElf_Sym sym;
-		if (gelf_getsym(lte->symtab, i, &sym) == NULL) {
+		if (gelf_getsym(symtab, i, &sym) == NULL) {
 		fail:
 			error(0, errno, "couldn't get symbol #%zd from %s: %s",
 			      i, filename, elf_errmsg(-1));
