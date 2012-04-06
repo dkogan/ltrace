@@ -588,7 +588,14 @@ int
 arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 {
 	if (proc->e_machine == EM_PPC
-	    || bp->libsym == NULL
+	    || bp->libsym == NULL)
+		return 0;
+
+	/* We could see LS_TOPLT_EXEC or LS_TOPLT_NONE (the latter
+	 * when we trace entry points), but not LS_TOPLT_POINT
+	 * anywhere on PPC.  */
+	assert(bp->libsym->plt_type != LS_TOPLT_POINT);
+	if (bp->libsym->plt_type != LS_TOPLT_EXEC
 	    || bp->libsym->arch.type == PPC64PLT_STUB)
 		return 0;
 
