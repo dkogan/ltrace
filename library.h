@@ -92,7 +92,6 @@ enum callback_status library_symbol_equal_cb(struct library_symbol *libsym,
 enum library_type {
 	LT_LIBTYPE_MAIN,
 	LT_LIBTYPE_DSO,
-	LT_LIBTYPE_DLOPEN,
 };
 
 /* XXX we might consider sharing libraries across processes.  Things

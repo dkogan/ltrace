@@ -292,24 +292,13 @@ struct entry_breakpoint {
 };
 
 static void
-turn_on_breakpoint(void *addr, void *sbp, void *proc)
-{
-	struct breakpoint *bp = sbp;
-	if (breakpoint_turn_on(bp) < 0) {
-		error(0, errno, "couldn't turn on breakpoint @%p", bp->addr);
-		/* XXX handle me.  */
-	}
-}
-
-static void
 entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 {
+	fprintf(stderr, "entry_breakpoint_on_hit\n");
 	struct entry_breakpoint *bp = (void *)a;
 	if (proc == NULL || proc->leader == NULL)
 		return;
 	delete_breakpoint(proc, bp->super.addr);
-	dict_apply_to_all(proc->breakpoints, turn_on_breakpoint, proc);
-	proc->fixed_libs = proc->libraries;
 	linkmap_init(proc, bp->dyn_addr);
 }
 
@@ -376,15 +365,14 @@ breakpoints_init(Process *proc, int enable)
 	    || (result = entry_breakpoint_init(proc, entry_bp,
 					       lib->entry, lib)) < 0)
 		goto fail;
-
 	++bp_state;
+
 	if ((result = proc_add_breakpoint(proc, &entry_bp->super)) < 0)
 		goto fail;
-
 	++bp_state;
+
 	if ((result = breakpoint_turn_on(&entry_bp->super)) < 0)
 		goto fail;
-
 	proc_add_library(proc, lib);
 
 	proc->callstack_depth = 0;

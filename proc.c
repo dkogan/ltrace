@@ -517,10 +517,7 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 		goto fail;
 	}
 
-	/* If this is dlopened library, turn on the breakpoint right
-	 * away.  */
-	if (proc->fixed_libs != NULL
-	    && breakpoint_turn_on(bp) < 0) {
+	if (breakpoint_turn_on(bp) < 0) {
 		proc_remove_breakpoint(proc, bp);
 		breakpoint_destroy(bp);
 		goto fail;
@@ -600,8 +597,8 @@ proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
 	      proc->pid, breakpoint_name(bp), bp->addr);
 
 	/* XXX We might merge bp->libsym instead of the following
-	 * assert, but that's not necessary right now.  Look into
-	 * breakpoint_for_symbol.  */
+	 * assert, but that's not necessary right now.  Read the
+	 * comment in breakpoint_for_symbol.  */
 	assert(dict_find_entry(leader->breakpoints, bp->addr) == NULL);
 
 	if (dict_enter(leader->breakpoints, bp->addr, bp) < 0) {
