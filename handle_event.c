@@ -283,7 +283,6 @@ handle_clone(Event *event)
 	} else {
 		proc->state = STATE_BEING_CREATED;
 	}
-	add_process(proc);
 
 	if (event->type == EVENT_VFORK)
 		continue_after_vfork(proc);

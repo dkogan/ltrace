@@ -17,6 +17,8 @@
 #include "breakpoint.h"
 #include "proc.h"
 
+static void add_process(struct Process *proc);
+
 static int
 process_bare_init(struct Process *proc, const char *filename, pid_t pid)
 {
@@ -379,7 +381,7 @@ each_task(struct Process *proc, struct Process *start_after,
 	return NULL;
 }
 
-void
+static void
 add_process(Process * proc)
 {
 	Process ** leaderp = &list_of_processes;

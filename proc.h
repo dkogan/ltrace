@@ -182,7 +182,6 @@ Process *each_task(struct Process *proc, struct Process *start_after,
 					      void *data),
 		   void *data);
 
-void add_process(Process *proc);
 void change_process_leader(Process *proc, Process *leader);
 void remove_process(Process *proc);
 void install_event_handler(Process *proc, struct event_handler *handler);
