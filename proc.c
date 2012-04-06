@@ -155,6 +155,8 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 		return -1;
 	}
 
+	retp->tracesysgood = proc->tracesysgood;
+
 	/* For non-leader processes, that's all we need to do.  */
 	if (proc->leader != proc)
 		return 0;
