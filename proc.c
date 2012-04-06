@@ -492,7 +492,13 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 	 * there.  That artificial breakpoint is there presumably for
 	 * the callbacks, which we don't touch.  If there is a real
 	 * breakpoint, then this is a bug.  ltrace-elf.c should filter
-	 * symbols and ignore extra symbol aliases.  */
+	 * symbols and ignore extra symbol aliases.
+	 *
+	 * The other direction is more complicated and currently not
+	 * supported.  If a breakpoint has custom callbacks, it might
+	 * be also custom-allocated, and we would really need to swap
+	 * the two: delete the one now in the dictionary, swap values
+	 * around, and put the new breakpoint back in.  */
 	struct breakpoint *bp = dict_find_entry(proc->breakpoints,
 						libsym->enter_addr);
 	if (bp != NULL) {
@@ -595,7 +601,11 @@ proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
 	debug(DEBUG_FUNCTION, "proc_insert_breakpoint(pid=%d, %s@%p)",
 	      proc->pid, breakpoint_name(bp), bp->addr);
 
+	/* XXX We might merge bp->libsym instead of the following
+	 * assert, but that's not necessary right now.  Look into
+	 * breakpoint_for_symbol.  */
 	assert(dict_find_entry(leader->breakpoints, bp->addr) == NULL);
+
 	if (dict_enter(leader->breakpoints, bp->addr, bp) < 0) {
 		error(0, errno, "couldn't enter breakpoint %s@%p to dictionary",
 		      breakpoint_name(bp), bp->addr);

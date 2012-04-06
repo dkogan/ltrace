@@ -360,20 +360,18 @@ breakpoints_init(Process *proc, int enable)
 	int result = -1;
 	switch (lib != NULL) {
 	fail:
-		proc_remove_library(proc, lib);
-		library_destroy(lib);
 		switch (bp_state) {
 		case 2:
+			proc_remove_library(proc, lib);
 			proc_remove_breakpoint(proc, &entry_bp->super);
 		case 1:
 			breakpoint_destroy(&entry_bp->super);
 		}
+		library_destroy(lib);
 		free(entry_bp);
 	case 0:
 		return result;
 	}
-
-	proc_add_library(proc, lib);
 
 	entry_bp = malloc(sizeof(*entry_bp));
 	if (entry_bp == NULL
@@ -388,6 +386,8 @@ breakpoints_init(Process *proc, int enable)
 	++bp_state;
 	if ((result = breakpoint_turn_on(&entry_bp->super)) < 0)
 		goto fail;
+
+	proc_add_library(proc, lib);
 
 	proc->callstack_depth = 0;
 	return 0;
