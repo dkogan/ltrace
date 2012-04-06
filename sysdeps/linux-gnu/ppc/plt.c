@@ -549,11 +549,6 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 {
 	switch (bp->libsym->arch.type) {
 		target_address_t rv;
-
-	case PPC64PLT_STUB:
-		/* We should never get here.  */
-		abort();
-
 	case PPC64PLT_UNRESOLVED:
 		if (process_install_stopping_handler(proc, bp, NULL,
 						     &keep_stepping_p,
@@ -568,7 +563,14 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		rv = (target_address_t)bp->libsym->arch.resolved_value;
 		set_instruction_pointer(proc, rv);
 		continue_process(proc->pid);
+		return;
+
+	case PPC64PLT_STUB:
+		break;
 	}
+
+	assert(bp->libsym->arch.type != bp->libsym->arch.type);
+	abort();
 }
 
 /* For some symbol types, we need to set up custom callbacks.  XXX we
