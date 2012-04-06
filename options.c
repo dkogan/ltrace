@@ -176,8 +176,8 @@ guess_cols(void) {
 static void
 add_filter_rule(struct filter *filt, const char *expr,
 		enum filter_rule_type type,
-		const char *sym, int sym_re_p,
-		const char *lib, int lib_re_p)
+		const char *a_sym, int sym_re_p,
+		const char *a_lib, int lib_re_p)
 {
 	struct filter_rule *rule = malloc(sizeof(*rule));
 	struct filter_lib_matcher *matcher = malloc(sizeof(*matcher));
@@ -191,17 +191,30 @@ add_filter_rule(struct filter *filt, const char *expr,
 	}
 
 	regex_t symbol_re;
-	int status = (sym_re_p ? regcomp : globcomp)(&symbol_re, sym, 0);
-	if (status != 0) {
-		char buf[100];
-		regerror(status, &symbol_re, buf, sizeof buf);
-		error(0, 0, "rule near '%s' will be ignored: %s", expr, buf);
-		goto fail;
+	int status;
+	{
+		/* Add ^ to the start of expression and $ to the end, so that
+		 * we match the whole symbol name.  Let the user write the "*"
+		 * explicitly if they wish.  */
+		char sym[strlen(a_sym) + 3];
+		sprintf(sym, "^%s$", a_sym);
+		status = (sym_re_p ? regcomp : globcomp)(&symbol_re, sym, 0);
+		if (status != 0) {
+			char buf[100];
+			regerror(status, &symbol_re, buf, sizeof buf);
+			error(0, 0, "rule near '%s' will be ignored: %s",
+			      expr, buf);
+			goto fail;
+		}
 	}
 
-	if (strcmp(lib, "MAIN") == 0) {
+	if (strcmp(a_lib, "MAIN") == 0) {
 		filter_lib_matcher_main_init(matcher);
 	} else {
+		/* Add ^ and $ to the library expression as well.  */
+		char lib[strlen(a_lib) + 3];
+		sprintf(lib, "^%s$", a_lib);
+
 		enum filter_lib_matcher_type type
 			= lib[0] == '/' ? FLM_PATHNAME : FLM_SONAME;
 
