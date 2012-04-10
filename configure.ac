@@ -82,6 +82,11 @@ AC_CHECK_LIB([supc++], [__cxa_demangle], [
 AC_SUBST(libsupcxx_LIBS)
 
 
+dnl Check security_get_boolean_active availability.
+AC_CHECK_HEADERS(selinux/selinux.h)
+AC_CHECK_LIB(selinux, security_get_boolean_active)
+
+
 # HAVE_LIBUNWIND
 AC_ARG_WITH(libunwind,
   AS_HELP_STRING([--with-libunwind], [Use libunwind frame unwinding support]),

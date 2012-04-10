@@ -359,6 +359,10 @@ extern int linkmap_init(Process *, struct ltelf *);
 extern void arch_check_dbg(Process *proc);
 extern int task_kill (pid_t pid, int sig);
 
+/* Called when trace_me or primary trace_pid fail.  This may plug in
+ * any platform-specific knowledge of why it could be so.  */
+void trace_fail_warning(pid_t pid);
+
 
 extern struct ltelf main_lte;
 

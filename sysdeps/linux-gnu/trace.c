@@ -1,14 +1,20 @@
+#include "config.h"
+
+#include <asm/unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include "ptrace.h"
-#include <asm/unistd.h>
-#include <assert.h>
 
+#ifdef HAVE_LIBSELINUX
+# include <selinux/selinux.h>
+#endif
+
+#include "ptrace.h"
 #include "common.h"
 
 /* If the system headers did not provide the constants, hard-code the normal
@@ -69,10 +75,32 @@ umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 #endif
 
 void
-trace_me(void) {
+trace_fail_warning(pid_t pid)
+{
+	/* This was adapted from GDB.  */
+#ifdef HAVE_LIBSELINUX
+	static int checked = 0;
+	if (checked)
+		return;
+	checked = 1;
+
+	/* -1 is returned for errors, 0 if it has no effect, 1 if
+	 * PTRACE_ATTACH is forbidden.  */
+	if (security_get_boolean_active("deny_ptrace") == 1)
+		fprintf(stderr,
+"The SELinux boolean 'deny_ptrace' is enabled, which may prevent ltrace from\n"
+"tracing other processes.  You can disable this process attach protection by\n"
+"issuing 'setsebool deny_ptrace=0' in the superuser context.\n");
+#endif /* HAVE_LIBSELINUX */
+}
+
+void
+trace_me(void)
+{
 	debug(DEBUG_PROCESS, "trace_me: pid=%d", getpid());
 	if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0) {
 		perror("PTRACE_TRACEME");
+		trace_fail_warning(getpid());
 		exit(1);
 	}
 }
@@ -101,11 +129,14 @@ I'll now try to proceed with tracing, but this shouldn't be happening.\n");
 }
 
 int
-trace_pid(pid_t pid) {
+trace_pid(pid_t pid)
+{
 	debug(DEBUG_PROCESS, "trace_pid: pid=%d", pid);
-	if (ptrace(PTRACE_ATTACH, pid, 1, 0) < 0) {
+	/* This shouldn't emit error messages, as there are legitimate
+	 * reasons that the PID can't be attached: like it may have
+	 * already ended.  */
+	if (ptrace(PTRACE_ATTACH, pid, 1, 0) < 0)
 		return -1;
-	}
 
 	/* man ptrace: PTRACE_ATTACH attaches to the process specified
 	   in pid.  The child is sent a SIGSTOP, but will not

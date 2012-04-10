@@ -94,6 +94,7 @@ open_pid(pid_t pid)
 	if (open_one_pid(pid)) {
 		fprintf(stderr, "Cannot attach to pid %u: %s\n",
 			pid, strerror(errno));
+		trace_fail_warning(pid);
 		return;
 	}
 

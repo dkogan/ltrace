@@ -1,3 +1,10 @@
+2012-04-10  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (trace_fail_warning): New backend hook.
+	* sysdeps/linux-gnu/trace.c: Implement it.
+	* proc.c: Call it.
+	* configure.ac: Add support for libselinux.
+
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
 	* common.h (wait_for_proc): New interface.
