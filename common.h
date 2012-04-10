@@ -237,6 +237,4 @@ int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
 void arch_breakpoint_destroy(struct breakpoint *sbp);
 
 
-extern struct ltelf main_lte;
-
 #endif
