@@ -236,5 +236,13 @@ enum plt_status arch_elf_add_plt_entry(struct Process *p, struct ltelf *l,
 int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
 void arch_breakpoint_destroy(struct breakpoint *sbp);
 
+typedef void *target_address_t;
+/* This should extract entry point address and interpreter (dynamic
+ * linker) bias if possible.  Returns 0 if there were no errors, -1
+ * otherwise.  Sets *ENTRYP and *INTERP_BIASP to non-zero values if
+ * the corresponding value is known.  Unknown values are set to 0.  */
+int process_get_entry(struct Process *proc,
+		      target_address_t *entryp,
+		      target_address_t *interp_biasp);
 
 #endif

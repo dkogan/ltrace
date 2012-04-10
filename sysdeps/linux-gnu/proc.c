@@ -567,6 +567,76 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 	return 0;
 }
 
+static int
+fetch_auxv64_entry(int fd, Elf64_auxv_t *ret)
+{
+	/* Reaching EOF is as much problem as not reading whole
+	 * entry.  */
+	return read(fd, ret, sizeof(*ret)) == sizeof(*ret) ? 0 : -1;
+}
+
+static int
+fetch_auxv32_entry(int fd, Elf64_auxv_t *ret)
+{
+	Elf32_auxv_t auxv;
+	if (read(fd, &auxv, sizeof(auxv)) != sizeof(auxv))
+		return -1;
+
+	ret->a_type = auxv.a_type;
+	ret->a_un.a_val = auxv.a_un.a_val;
+	return 0;
+}
+
+static int (*
+auxv_fetcher(struct Process *proc))(int, Elf64_auxv_t *)
+{
+	return select_32_64(proc, fetch_auxv32_entry, fetch_auxv64_entry);
+}
+
+int
+process_get_entry(struct Process *proc,
+		  target_address_t *entryp,
+		  target_address_t *interp_biasp)
+{
+	PROC_PID_FILE(fn, "/proc/%d/auxv", proc->pid);
+	int fd = open(fn, O_RDONLY);
+	if (fd == -1) {
+	fail:
+		error(0, errno, "couldn't read %s", fn);
+	done:
+		if (fd != -1)
+			close(fd);
+		return fd == -1 ? -1 : 0;
+	}
+
+	target_address_t at_entry = 0;
+	target_address_t at_bias = 0;
+	while (1) {
+		Elf64_auxv_t entry;
+		if (auxv_fetcher(proc)(fd, &entry) < 0)
+			goto fail;
+
+		switch (entry.a_type) {
+		case AT_BASE:
+			at_bias = (target_address_t)entry.a_un.a_val;
+			continue;
+
+		case AT_ENTRY:
+			at_entry = (target_address_t)entry.a_un.a_val;
+		default:
+			continue;
+
+		case AT_NULL:
+			break;
+		}
+		break;
+	}
+
+	*entryp = at_entry;
+	*interp_biasp = at_bias;
+	goto done;
+}
+
 int
 task_kill (pid_t pid, int sig)
 {

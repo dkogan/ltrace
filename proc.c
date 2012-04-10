@@ -72,11 +72,24 @@ process_init(struct Process *proc, const char *filename, pid_t pid, int enable)
 		return -1;
 	}
 
-	if (proc->leader == proc && breakpoints_init(proc, enable) < 0) {
-		fprintf(stderr, "failed to init breakpoints %d\n",
+	/* For secondary threads, this is all that we need to do.  */
+	if (proc->leader != proc)
+		return 0;
+
+	target_address_t entry;
+	target_address_t interp_bias;
+	if (process_get_entry(proc, &entry, &interp_bias) < 0) {
+		fprintf(stderr, "Couldn't get entry points of process %d\n",
 			proc->pid);
+	fail:
 		process_bare_destroy(proc);
 		return -1;
+	}
+
+	if (breakpoints_init(proc, enable) < 0) {
+		fprintf(stderr, "failed to init breakpoints %d\n",
+			proc->pid);
+		goto fail;
 	}
 
 	return 0;
