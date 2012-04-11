@@ -49,11 +49,12 @@ call_handler(Process * proc, Event * event)
 }
 
 void
-handle_event(Event *event) {
+handle_event(Event *event)
+{
 	if (exiting == 1) {
-		exiting = 2;
 		debug(1, "ltrace about to exit");
-		ltrace_exiting();
+		os_ltrace_exiting();
+		exiting = 2;
 	}
 	debug(DEBUG_FUNCTION, "handle_event(pid=%d, type=%d)",
 	      event->proc ? event->proc->pid : -1, event->type);

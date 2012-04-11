@@ -104,6 +104,8 @@ next_qd_event(void)
 	return each_qd_event(&event_process_not_reenabling, NULL);
 }
 
+int linux_in_waitpid = 0;
+
 Event *
 next_event(void)
 {
@@ -124,7 +126,11 @@ next_event(void)
 		debug(DEBUG_EVENT, "event: No more traced programs: exiting");
 		exit(0);
 	}
+
+	linux_in_waitpid = 1;
 	pid = waitpid(-1, &status, __WALL);
+	linux_in_waitpid = 0;
+
 	if (pid == -1) {
 		if (errno == ECHILD) {
 			debug(DEBUG_EVENT, "event: No more traced programs: exiting");

@@ -314,8 +314,8 @@ task_stopped(Process * task, void * data)
 	case ps_invalid:
 	case ps_tracing_stop:
 	case ps_zombie:
-	case ps_sleeping:
 		return pcb_cont;
+	case ps_sleeping:
 	case ps_stop:
 	case ps_other:
 		return pcb_stop;
@@ -1005,7 +1005,7 @@ continue_after_syscall(Process * proc, int sysnum, int ret_p)
  * detaches.
  */
 void
-ltrace_exiting(void)
+os_ltrace_exiting(void)
 {
 	struct opt_p_t * it;
 	for (it = opt_p; it != NULL; it = it->next) {
@@ -1017,6 +1017,17 @@ ltrace_exiting(void)
 				"Couldn't install exiting handler for %d.\n",
 				proc->pid);
 	}
+}
+
+int
+os_ltrace_exiting_sighandler(void)
+{
+	extern int linux_in_waitpid;
+	if (linux_in_waitpid) {
+		os_ltrace_exiting();
+		return 1;
+	}
+	return 0;
 }
 
 size_t

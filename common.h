@@ -347,7 +347,6 @@ extern void continue_after_signal(pid_t pid, int signum);
 extern void continue_after_syscall(Process *proc, int sysnum, int ret_p);
 extern void continue_after_breakpoint(Process * proc, Breakpoint * sbp);
 extern void continue_after_vfork(Process * proc);
-extern void ltrace_exiting(void);
 extern long gimme_arg(enum tof type, Process * proc, int arg_num, arg_type_info * info);
 extern void save_register_args(enum tof type, Process * proc);
 extern int umovestr(Process * proc, void * addr, int len, void * laddr);
@@ -363,6 +362,22 @@ extern int task_kill (pid_t pid, int sig);
  * any platform-specific knowledge of why it could be so.  */
 void trace_fail_warning(pid_t pid);
 
+/* A pair of functions called to initiate a detachment request when
+ * ltrace is about to exit.  Their job is to undo any effects that
+ * tracing had and eventually detach process, perhaps by way of
+ * installing a process handler.
+ *
+ * OS_LTRACE_EXITING_SIGHANDLER is called from a signal handler
+ * context right after the signal was captured.  It returns 1 if the
+ * request was handled or 0 if it wasn't.
+ *
+ * If the call to OS_LTRACE_EXITING_SIGHANDLER didn't handle the
+ * request, OS_LTRACE_EXITING is called when the next event is
+ * generated.  Therefore it's called in "safe" context, without
+ * re-entrancy concerns, but it's only called after an even is
+ * generated.  */
+int os_ltrace_exiting_sighandler(void);
+void os_ltrace_exiting(void);
 
 extern struct ltelf main_lte;
 

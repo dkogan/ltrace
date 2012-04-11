@@ -48,9 +48,14 @@ signal_alarm(int sig) {
 }
 
 static void
-signal_exit(int sig) {
-	exiting = 1;
+signal_exit(int sig)
+{
 	debug(1, "Received interrupt signal; exiting...");
+	if (exiting != 0)
+		return;
+
+	exiting = 1 + !!os_ltrace_exiting_sighandler();
+
 	signal(SIGINT, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
 	signal(SIGALRM, signal_alarm);
