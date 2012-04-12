@@ -249,6 +249,9 @@ struct process_stopping_handler
 	/* The pointer being re-enabled.  */
 	Breakpoint * breakpoint_being_enabled;
 
+	/* Artificial atomic skip breakpoint, if any needed.  */
+	void *atomic_skip_bp_addr;
+
 	enum {
 		/* We are waiting for everyone to land in t/T.  */
 		psh_stopping = 0,
@@ -612,12 +615,84 @@ all_stops_accountable(struct pid_set * pids)
 	return 1;
 }
 
-static void
-singlestep(Process * proc)
+/* The protocol is: 0 for success, negative for failure, positive if
+ * default singlestep is to be used.  */
+int arch_atomic_singlestep(struct Process *proc, Breakpoint *sbp,
+			   int (*add_cb)(void *addr, void *data),
+			   void *add_cb_data);
+
+#ifndef ARCH_HAVE_ATOMIC_SINGLESTEP
+int
+arch_atomic_singlestep(struct Process *proc, Breakpoint *sbp,
+		       int (*add_cb)(void *addr, void *data),
+		       void *add_cb_data)
 {
+	return 1;
+}
+#endif
+
+static int
+atomic_singlestep_add_bp(void *addr, void *data)
+{
+	struct process_stopping_handler *self = data;
+	struct Process *proc = self->task_enabling_breakpoint;
+
+	/* Only support single address as of now.  */
+	assert(self->atomic_skip_bp_addr == NULL);
+
+	self->atomic_skip_bp_addr = addr + 4;
+	insert_breakpoint(proc->leader, self->atomic_skip_bp_addr, NULL, 1);
+
+	return 0;
+}
+
+static int
+singlestep(struct process_stopping_handler *self)
+{
+	struct Process *proc = self->task_enabling_breakpoint;
+
+	int status = arch_atomic_singlestep(self->task_enabling_breakpoint,
+					    self->breakpoint_being_enabled,
+					    &atomic_singlestep_add_bp, self);
+
+	/* Propagate failure and success.  */
+	if (status <= 0)
+		return status;
+
+	/* Otherwise do the default action: singlestep.  */
 	debug(1, "PTRACE_SINGLESTEP");
-	if (ptrace(PTRACE_SINGLESTEP, proc->pid, 0, 0))
+	if (ptrace(PTRACE_SINGLESTEP, proc->pid, 0, 0)) {
 		perror("PTRACE_SINGLESTEP");
+		return -1;
+	}
+	return 0;
+}
+
+static void
+post_singlestep(struct process_stopping_handler *self, Event **eventp)
+{
+	continue_for_sigstop_delivery(&self->pids);
+
+	if ((*eventp)->type == EVENT_BREAKPOINT)
+		*eventp = NULL; // handled
+
+	if (self->atomic_skip_bp_addr != 0)
+		delete_breakpoint(self->task_enabling_breakpoint->leader,
+				  self->atomic_skip_bp_addr);
+
+	self->breakpoint_being_enabled = NULL;
+}
+
+static void
+singlestep_error(struct process_stopping_handler *self, Event **eventp)
+{
+	struct Process *teb = self->task_enabling_breakpoint;
+	Breakpoint *sbp = self->breakpoint_being_enabled;
+	fprintf(stderr, "%d couldn't singlestep over %s (%p)\n",
+		teb->pid, sbp->libsym != NULL ? sbp->libsym->name : NULL,
+		sbp->addr);
+	delete_breakpoint(teb->leader, sbp->addr);
+	post_singlestep(self, eventp);
 }
 
 /* This event handler is installed when we are in the process of
@@ -670,7 +745,11 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 			      teb->pid);
 			if (sbp->enabled)
 				disable_breakpoint(teb, sbp);
-			singlestep(teb);
+			if (singlestep(self) < 0) {
+				singlestep_error(self, &event);
+				goto psh_sinking;
+			}
+
 			self->state = state = psh_singlestep;
 		}
 		break;
@@ -682,7 +761,10 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 
 			/* This is not the singlestep that we are waiting for.  */
 			if (event->type == EVENT_SIGNAL) {
-				singlestep(task);
+				if (singlestep(self) < 0) {
+					singlestep_error(self, &event);
+					goto psh_sinking;
+				}
 				break;
 			}
 
@@ -692,18 +774,13 @@ process_stopping_on_event(Event_Handler * super, Event * event)
 			if (sbp->enabled)
 				enable_breakpoint(teb, sbp);
 
-			continue_for_sigstop_delivery(&self->pids);
+			post_singlestep(self, &event);
+			goto psh_sinking;
+		}
+		break;
 
-			self->breakpoint_being_enabled = NULL;
-			self->state = state = psh_sinking;
-
-			if (event->type == EVENT_BREAKPOINT)
-				event = NULL; // handled
-		} else
-			break;
-
-		/* fall-through */
-
+	psh_sinking:
+		state = self->state = psh_sinking;
 	case psh_sinking:
 		if (await_sigstop_delivery(&self->pids, task_info, event))
 			process_stopping_done(self, leader);

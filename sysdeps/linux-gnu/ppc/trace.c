@@ -197,3 +197,85 @@ arch_umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 	*result = pointed_to;
 	return 0;
 }
+
+/* The atomic skip code is mostly taken from GDB.  */
+
+/* Instruction masks used during single-stepping of atomic
+ * sequences.  This was lifted from GDB.  */
+#define LWARX_MASK 0xfc0007fe
+#define LWARX_INSTRUCTION 0x7c000028
+#define LDARX_INSTRUCTION 0x7c0000A8
+#define STWCX_MASK 0xfc0007ff
+#define STWCX_INSTRUCTION 0x7c00012d
+#define STDCX_INSTRUCTION 0x7c0001ad
+#define BC_MASK 0xfc000000
+#define BC_INSTRUCTION 0x40000000
+
+int
+arch_atomic_singlestep(struct Process *proc, Breakpoint *sbp,
+		       int (*add_cb)(void *addr, void *data),
+		       void *add_cb_data)
+{
+	void *addr = sbp->addr;
+	debug(1, "pid=%d addr=%p", proc->pid, addr);
+
+	/* If the original instruction was lwarx/ldarx, we can't
+	 * single-step over it, instead we have to execute the whole
+	 * atomic block at once.  */
+	union {
+		uint32_t insn;
+		char buf[4];
+	} u;
+	memcpy(u.buf, sbp->orig_value, BREAKPOINT_LENGTH);
+
+	if ((u.insn & LWARX_MASK) != LWARX_INSTRUCTION
+	    && (u.insn & LWARX_MASK) != LDARX_INSTRUCTION)
+		return 1;
+
+	int insn_count;
+	for (insn_count = 0; ; ++insn_count) {
+		addr += 4;
+		unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
+		if (l == (unsigned long)-1 && errno)
+			return -1;
+		uint32_t insn;
+#ifdef __powerpc64__
+		insn = l >> 32;
+#else
+		insn = l;
+#endif
+
+		/* If we hit a branch instruction, give up.  The
+		 * computation could escape that way and we'd have to
+		 * treat that case specially.  */
+		if ((insn & BC_MASK) == BC_INSTRUCTION) {
+			debug(1, "pid=%d, found branch at %p, giving up",
+			      proc->pid, addr);
+			return -1;
+		}
+
+		if ((insn & STWCX_MASK) == STWCX_INSTRUCTION
+		    || (insn & STWCX_MASK) == STDCX_INSTRUCTION) {
+			debug(1, "pid=%d, found end of atomic block at %p",
+			      proc->pid, addr);
+			break;
+		}
+
+		/* Arbitrary cut-off.  If we didn't find the
+		 * terminating instruction by now, just give up.  */
+		if (insn_count > 16) {
+			debug(1, "pid=%d, couldn't find end of atomic block",
+			      proc->pid);
+			return -1;
+		}
+	}
+
+	/* Put the breakpoint to the next instruction.  */
+	addr += 4;
+	if (add_cb(addr, add_cb_data) < 0)
+		return -1;
+
+	debug(1, "PTRACE_CONT");
+	ptrace(PTRACE_CONT, proc->pid, 0, 0);
+	return 0;
+}

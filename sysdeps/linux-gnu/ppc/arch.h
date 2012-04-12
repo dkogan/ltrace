@@ -15,6 +15,7 @@
 
 /* Start of arch-specific functions.  */
 #define ARCH_HAVE_UMOVELONG
+#define ARCH_HAVE_ATOMIC_SINGLESTEP
 
 #define PPC_NOP { 0x60, 0x00, 0x00, 0x00 }
 #define PPC_NOP_LENGTH 4
