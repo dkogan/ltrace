@@ -23,9 +23,15 @@
  * overflows.  */
 
 __attribute__((noinline, optimize(3))) int
+func3(int i)
+{
+	return i + 1;
+}
+
+__attribute__((noinline, optimize(3))) int
 func2(int i)
 {
-	return i * 3;
+	return func3(i * 3);
 }
 
 __attribute__((noinline, optimize(3))) int

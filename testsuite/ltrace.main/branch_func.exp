@@ -30,7 +30,7 @@ if { [ltrace_compile $srcdir/$subdir/$srcfile $objdir/$subdir/$binfile executabl
 }
 
 # set options for ltrace.
-ltrace_options "-x" "func1" "-x" "func2"
+ltrace_options "-x" "func1" "-x" "func2" "-x" "func3"
 
 # Run PUT for ltarce.
 set exec_output [ltrace_runtest $objdir/$subdir $objdir/$subdir/$binfile]
@@ -47,7 +47,11 @@ if [regexp {ELF from incompatible architecture} $exec_output] {
 
 set pattern "func1(.*unfinished"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 100
-set pattern "func2(.*)"
+set pattern "func2(.*unfinished"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 100
+set pattern "func3(.*)"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 100
+set pattern "func2.resumed"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 100
 set pattern "func1.resumed"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 100

@@ -565,6 +565,15 @@ void *get_count_register (Process *proc);
 #endif
 
 static void
+output_right_tos(struct Process *proc)
+{
+	size_t d = proc->callstack_depth;
+	struct callstack_element *elem = &proc->callstack[d - 1];
+	if (proc->state != STATE_IGNORED)
+		output_right(LT_TOF_FUNCTIONR, proc, elem->c_un.libfunc->name);
+}
+
+static void
 handle_breakpoint(Event *event)
 {
 	int i, j;
@@ -672,29 +681,26 @@ handle_breakpoint(Event *event)
 			}
 			event->proc->return_addr = brk_addr;
 
+			output_right_tos(event->proc);
+			callstack_pop(event->proc);
+
 			/* Pop also any other entries that seem like
 			 * they are linked to the current one: they
 			 * have the same return address, but were made
 			 * for different symbols.  This should only
 			 * happen for entry point tracing, i.e. for -x
 			 * everywhere, or -x and -e on PPC64.  */
-			int first = 1;
 			while (event->proc->callstack_depth > 0) {
 				struct callstack_element *prev;
 				size_t d = event->proc->callstack_depth;
 				prev = &event->proc->callstack[d - 1];
 
-				if (event->proc->state != STATE_IGNORED)
-					output_right(LT_TOF_FUNCTIONR,
-						     event->proc,
-						     prev->c_un.libfunc->name);
-
-				if (prev->c_un.libfunc != libsym
-				    && prev->return_addr == brk_addr)
-					callstack_pop(event->proc);
-				else if (!first)
+				if (prev->c_un.libfunc == libsym
+				    || prev->return_addr != brk_addr)
 					break;
-				first = 0;
+
+				output_right_tos(event->proc);
+				callstack_pop(event->proc);
 			}
 
 			sbp = address2bpstruct(leader, brk_addr);
@@ -765,7 +771,7 @@ callstack_push_syscall(Process *proc, int sysnum) {
 
 static void
 callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
-	struct callstack_element *elem, *prev;
+	struct callstack_element *elem;
 
 	debug(DEBUG_FUNCTION, "callstack_push_symfunc(pid=%d, symbol=%s)", proc->pid, sym->name);
 	/* FIXME: not good -- should use dynamic allocation. 19990703 mortene. */
@@ -775,8 +781,7 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 		return;
 	}
 
-	prev = &proc->callstack[proc->callstack_depth-1];
-	elem = &proc->callstack[proc->callstack_depth];
+	elem = &proc->callstack[proc->callstack_depth++];
 	elem->is_syscall = 0;
 	elem->c_un.libfunc = sym;
 
@@ -786,8 +791,6 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 	}
 
 	/* handle functions like atexit() on mips which have no return */
-	if (elem->return_addr != prev->return_addr)
-		proc->callstack_depth++;
 	if (opt_T || options.summary) {
 		struct timezone tz;
 		gettimeofday(&elem->time_spent, &tz);
