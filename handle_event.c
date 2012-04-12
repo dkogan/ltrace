@@ -570,6 +570,7 @@ handle_breakpoint(Event *event)
 	int i, j;
 	Breakpoint *sbp;
 	Process *leader = event->proc->leader;
+	void *brk_addr = event->e_un.brk_addr;
 
 	/* The leader has terminated.  */
 	if (leader == NULL) {
@@ -577,8 +578,9 @@ handle_breakpoint(Event *event)
 		return;
 	}
 
-	debug(DEBUG_FUNCTION, "handle_breakpoint(pid=%d, addr=%p)", event->proc->pid, event->e_un.brk_addr);
-	debug(2, "event: breakpoint (%p)", event->e_un.brk_addr);
+	debug(DEBUG_FUNCTION, "handle_breakpoint(pid=%d, addr=%p)",
+	      event->proc->pid, brk_addr);
+	debug(2, "event: breakpoint (%p)", brk_addr);
 
 #ifdef __powerpc__
 	/* Need to skip following NOP's to prevent a fake function from being stacked.  */
@@ -586,15 +588,16 @@ handle_breakpoint(Event *event)
 	Breakpoint *stub_bp = NULL;
 	char nop_instruction[] = PPC_NOP;
 
-	stub_bp = address2bpstruct(leader, event->e_un.brk_addr);
+	stub_bp = address2bpstruct(leader, brk_addr);
 
 	if (stub_bp) {
 		unsigned char *bp_instruction = stub_bp->orig_value;
 
 		if (memcmp(bp_instruction, nop_instruction,
 			    PPC_NOP_LENGTH) == 0) {
-			if (stub_addr != (long) event->e_un.brk_addr) {
-				set_instruction_pointer (event->proc, event->e_un.brk_addr + 4);
+			if (stub_addr != (long) brk_addr) {
+				set_instruction_pointer(event->proc,
+							brk_addr + 4);
 				continue_process(event->proc->pid);
 				return;
 			}
@@ -603,8 +606,7 @@ handle_breakpoint(Event *event)
 #endif
 
 	for (i = event->proc->callstack_depth - 1; i >= 0; i--) {
-		if (event->e_un.brk_addr ==
-		    event->proc->callstack[i].return_addr) {
+		if (brk_addr == event->proc->callstack[i].return_addr) {
 #ifdef __powerpc__
 			/*
 			 * PPC HACK! (XXX FIXME TODO)
@@ -668,19 +670,40 @@ handle_breakpoint(Event *event)
 					calc_time_spent(event->proc);
 				}
 			}
-			event->proc->return_addr = event->e_un.brk_addr;
-			if (event->proc->state != STATE_IGNORED) {
-				output_right(LT_TOF_FUNCTIONR, event->proc,
-						event->proc->callstack[i].c_un.libfunc->name);
+			event->proc->return_addr = brk_addr;
+
+			/* Pop also any other entries that seem like
+			 * they are linked to the current one: they
+			 * have the same return address, but were made
+			 * for different symbols.  This should only
+			 * happen for entry point tracing, i.e. for -x
+			 * everywhere, or -x and -e on PPC64.  */
+			int first = 1;
+			while (event->proc->callstack_depth > 0) {
+				struct callstack_element *prev;
+				size_t d = event->proc->callstack_depth;
+				prev = &event->proc->callstack[d - 1];
+
+				if (event->proc->state != STATE_IGNORED)
+					output_right(LT_TOF_FUNCTIONR,
+						     event->proc,
+						     prev->c_un.libfunc->name);
+
+				if (prev->c_un.libfunc != libsym
+				    && prev->return_addr == brk_addr)
+					callstack_pop(event->proc);
+				else if (!first)
+					break;
+				first = 0;
 			}
-			callstack_pop(event->proc);
-			sbp = address2bpstruct(leader, event->e_un.brk_addr);
+
+			sbp = address2bpstruct(leader, brk_addr);
 			continue_after_breakpoint(event->proc, sbp);
 			return;
 		}
 	}
 
-	if ((sbp = address2bpstruct(leader, event->e_un.brk_addr))) {
+	if ((sbp = address2bpstruct(leader, brk_addr))) {
 		if (sbp->libsym == NULL) {
 			continue_after_breakpoint(event->proc, sbp);
 			return;
@@ -711,7 +734,7 @@ handle_breakpoint(Event *event)
 
 	if (event->proc->state != STATE_IGNORED && !options.no_plt) {
 		output_line(event->proc, "unexpected breakpoint at %p",
-				(void *)event->e_un.brk_addr);
+			    brk_addr);
 	}
 	continue_process(event->proc->pid);
 }
