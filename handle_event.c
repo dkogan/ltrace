@@ -463,9 +463,13 @@ handle_exec(Event * event) {
 	continue_process(proc->pid);
 
 	/* After the exec, we expect to hit the first executable
-	 * instruction.  It would be nice to have this removed, but
-	 * then we need to do that also for initial call to
-	 * wait_for_proc in execute_program.  XXX todo.  */
+	 * instruction.
+	 *
+	 * XXX TODO It would be nice to have this removed, but then we
+	 * need to do that also for initial call to wait_for_proc in
+	 * execute_program.  In that case we could generate a
+	 * EVENT_FIRST event or something, or maybe this could somehow
+	 * be rolled into EVENT_NEW.  */
 	wait_for_proc(proc->pid);
 	continue_process(proc->pid);
 }
