@@ -183,6 +183,10 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 	};
 	dict_apply_to_all(proc->breakpoints, &clone_single_bp, &data);
 
+	/* And finally the call stack.  */
+	memcpy(retp->callstack, proc->callstack, sizeof(retp->callstack));
+	retp->callstack_depth = proc->callstack_depth;
+
 	if (data.error < 0)
 		goto fail2;
 
