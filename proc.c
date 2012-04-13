@@ -530,7 +530,7 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 		goto fail;
 	}
 
-	if (breakpoint_turn_on(bp) < 0) {
+	if (breakpoint_turn_on(bp, proc) < 0) {
 		proc_remove_breakpoint(proc, bp);
 		breakpoint_destroy(bp);
 		goto fail;
@@ -596,31 +596,26 @@ proc_each_library(struct Process *proc, struct library *it,
 int
 proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
 {
-	struct Process *leader = proc->leader;
-
 	/* Only the group leader should be getting the breakpoints and
 	 * thus have ->breakpoint initialized.  */
-	assert(leader != NULL);
-	assert(leader->breakpoints != NULL);
+	assert(proc->leader != NULL);
+	assert(proc->leader == proc);
+	assert(proc->breakpoints != NULL);
 
-	/* Make sure it wasn't inserted yet.  */
-	assert(bp->proc == NULL);
-
-	debug(DEBUG_FUNCTION, "proc_insert_breakpoint(pid=%d, %s@%p)",
+	debug(DEBUG_FUNCTION, "proc_add_breakpoint(pid=%d, %s@%p)",
 	      proc->pid, breakpoint_name(bp), bp->addr);
 
 	/* XXX We might merge bp->libsym instead of the following
 	 * assert, but that's not necessary right now.  Read the
 	 * comment in breakpoint_for_symbol.  */
-	assert(dict_find_entry(leader->breakpoints, bp->addr) == NULL);
+	assert(dict_find_entry(proc->breakpoints, bp->addr) == NULL);
 
-	if (dict_enter(leader->breakpoints, bp->addr, bp) < 0) {
+	if (dict_enter(proc->breakpoints, bp->addr, bp) < 0) {
 		error(0, errno, "couldn't enter breakpoint %s@%p to dictionary",
 		      breakpoint_name(bp), bp->addr);
 		return -1;
 	}
 
-	bp->proc = proc;
 	return 0;
 }
 

@@ -71,7 +71,6 @@ struct bp_callbacks {
 struct breakpoint {
 	struct bp_callbacks *cbs;
 	struct library_symbol *libsym;
-	struct Process *proc;
 	void *addr;
 	unsigned char orig_value[BREAKPOINT_LENGTH];
 	int enabled;
@@ -100,12 +99,12 @@ void breakpoint_destroy(struct breakpoint *bp);
 
 /* Call enable_breakpoint the first time it's called.  Returns 0 on
  * success and a negative value on failure.  */
-int breakpoint_turn_on(struct breakpoint *bp);
+int breakpoint_turn_on(struct breakpoint *bp, struct Process *proc);
 
 /* Call disable_breakpoint when turned off the same number of times
  * that it was turned on.  Returns 0 on success and a negative value
  * on failure.  */
-int breakpoint_turn_off(struct breakpoint *bp);
+int breakpoint_turn_off(struct breakpoint *bp, struct Process *proc);
 
 /* This is actually several functions rolled in one:
  *  - malloc

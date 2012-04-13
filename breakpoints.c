@@ -77,7 +77,6 @@ breakpoint_init(struct breakpoint *bp, struct Process *proc,
 		target_address_t addr, struct library_symbol *libsym)
 {
 	bp->cbs = NULL;
-	bp->proc = NULL;
 	bp->addr = addr;
 	memset(bp->orig_value, 0, sizeof(bp->orig_value));
 	bp->enabled = 0;
@@ -109,27 +108,25 @@ breakpoint_destroy(struct breakpoint *bp)
 }
 
 int
-breakpoint_turn_on(struct breakpoint *bp)
+breakpoint_turn_on(struct breakpoint *bp, struct Process *proc)
 {
 	/* Make sure it was inserted.  XXX In a clean world, we would
 	 * have breakpoint_site representing a place and breakpoint
 	 * representing inserted breakpoint.  */
-	assert(bp->proc != NULL);
 	bp->enabled++;
 	if (bp->enabled == 1) {
-		assert(bp->proc->pid != 0);
-		enable_breakpoint(bp->proc, bp);
+		assert(proc->pid != 0);
+		enable_breakpoint(proc, bp);
 	}
 	return 0;
 }
 
 int
-breakpoint_turn_off(struct breakpoint *bp)
+breakpoint_turn_off(struct breakpoint *bp, struct Process *proc)
 {
-	assert(bp->proc != NULL);
 	bp->enabled--;
 	if (bp->enabled == 0)
-		disable_breakpoint(bp->proc, bp);
+		disable_breakpoint(proc, bp);
 	assert(bp->enabled >= 0);
 	return 0;
 }
@@ -171,7 +168,7 @@ insert_breakpoint(struct Process *proc, void *addr,
 			free(sbp);
 			return NULL;
 		}
-		if (proc_add_breakpoint(proc, sbp) < 0) {
+		if (proc_add_breakpoint(leader, sbp) < 0) {
 		fail:
 			breakpoint_destroy(sbp);
 			free(sbp);
@@ -179,7 +176,7 @@ insert_breakpoint(struct Process *proc, void *addr,
 		}
 	}
 
-	if (breakpoint_turn_on(sbp) < 0)
+	if (breakpoint_turn_on(sbp, proc) < 0)
 		goto fail;
 
 	return sbp;
@@ -201,7 +198,7 @@ delete_breakpoint(Process *proc, void *addr)
 	if (sbp == NULL)
 		return;
 
-	if (breakpoint_turn_off(sbp) < 0) {
+	if (breakpoint_turn_off(sbp, proc) < 0) {
 		fprintf(stderr, "Couldn't turn off the breakpoint %s@%p\n",
 			breakpoint_name(sbp), sbp->addr);
 		return;
@@ -371,7 +368,7 @@ breakpoints_init(Process *proc, int enable)
 		goto fail;
 	++bp_state;
 
-	if ((result = breakpoint_turn_on(&entry_bp->super)) < 0)
+	if ((result = breakpoint_turn_on(&entry_bp->super, proc)) < 0)
 		goto fail;
 	proc_add_library(proc, lib);
 
