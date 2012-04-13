@@ -1,9 +1,9 @@
 #include "config.h"
 
 #include <sys/ptrace.h>
-#include <string.h>
 #include <errno.h>
 #include <error.h>
+#include <string.h>
 
 #include "common.h"
 #include "sysdep.h"
@@ -20,15 +20,17 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 	static unsigned char break_insn[] = BREAKPOINT_VALUE;
 	unsigned int i, j;
 
-	debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p, symbol=%s",
+	debug(DEBUG_PROCESS,
+	      "arch_enable_breakpoint: pid=%d, addr=%p, symbol=%s",
 	      pid, sbp->addr, breakpoint_name(sbp));
 
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
 		long a = ptrace(PTRACE_PEEKTEXT, pid,
 				sbp->addr + i * sizeof(long), 0);
 		if (a == -1 && errno) {
-			error(0, errno, "enable_breakpoint pid=%d, addr=%p",
-			      pid, sbp->addr);
+			error(0, errno,
+			      "enable_breakpoint pid=%d, addr=%p, symbol=%s",
+			      pid, sbp->addr, breakpoint_name(sbp));
 			return;
 		}
 		for (j = 0;
@@ -42,8 +44,9 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 		a = ptrace(PTRACE_POKETEXT, pid,
 			   sbp->addr + i * sizeof(long), a);
 		if (a == -1) {
-			error(0, errno, "enable_breakpoint pid=%d, addr=%p",
-			      pid, sbp->addr);
+			error(0, errno,
+			      "enable_breakpoint pid=%d, addr=%p, symbol=%s",
+			      pid, sbp->addr, breakpoint_name(sbp));
 			return;
 		}
 	}
@@ -66,7 +69,8 @@ arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
 {
 	unsigned int i, j;
 
-	debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p, symbol=%s",
+	debug(DEBUG_PROCESS,
+	      "arch_disable_breakpoint: pid=%d, addr=%p, symbol=%s",
 	      pid, sbp->addr, breakpoint_name(sbp));
 
 	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
