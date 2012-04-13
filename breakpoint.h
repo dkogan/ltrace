@@ -63,9 +63,8 @@ struct Process;
 struct breakpoint;
 
 struct bp_callbacks {
-	void (*on_hit) (struct breakpoint *bp, struct Process *proc);
-	void (*on_continue) (struct breakpoint *bp, struct Process *proc);
-	void (*on_destroy) (struct breakpoint *bp);
+	void (*on_hit)(struct breakpoint *bp, struct Process *proc);
+	void (*on_continue)(struct breakpoint *bp, struct Process *proc);
 };
 
 struct breakpoint {
@@ -80,7 +79,7 @@ struct breakpoint {
 /* Call on-hit handler of BP, if any is set.  */
 void breakpoint_on_hit(struct breakpoint *bp, struct Process *proc);
 
-/* Call on-reenable handler of BP.  If none is set, call
+/* Call on-continue handler of BP.  If none is set, call
  * continue_after_breakpoint.  */
 void breakpoint_on_continue(struct breakpoint *bp, struct Process *proc);
 

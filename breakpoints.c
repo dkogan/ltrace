@@ -98,11 +98,6 @@ breakpoint_destroy(struct breakpoint *bp)
 	if (bp == NULL)
 		return;
 
-	/* XXX I'm not convinced that we need on_destroy.  We already
-	 * have arch_breakpoint_destroy, which is necessary as a
-	 * counterpart of arch_breakpoint_init in any case.  */
-	if (bp->cbs != NULL && bp->cbs->on_destroy != NULL)
-		(bp->cbs->on_destroy) (bp);
 
 	arch_breakpoint_destroy(bp);
 }
@@ -283,6 +278,13 @@ disable_all_breakpoints(Process *proc) {
 	dict_apply_to_all(proc->breakpoints, disable_bp_cb, proc);
 }
 
+/* XXX This is not currently properly supported.  On clone, this is
+ * just sliced.  Hopefully at the point that clone is done, this
+ * breakpoint is not necessary anymore.  If this use case ends up
+ * being important, we need to add a clone and destroy callbacks to
+ * breakpoints, and we should also probably drop arch_breakpoint_data
+ * so that we don't end up with two different customization mechanisms
+ * for one structure.  */
 struct entry_breakpoint {
 	struct breakpoint super;
 	target_address_t dyn_addr;
@@ -299,11 +301,6 @@ entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 	linkmap_init(proc, bp->dyn_addr);
 }
 
-static void
-entry_breakpoint_on_destroy(struct breakpoint *a)
-{
-}
-
 int
 entry_breakpoint_init(struct Process *proc,
 		      struct entry_breakpoint *bp, target_address_t addr,
@@ -315,7 +312,6 @@ entry_breakpoint_init(struct Process *proc,
 
 	static struct bp_callbacks entry_callbacks = {
 		.on_hit = entry_breakpoint_on_hit,
-		.on_destroy = entry_breakpoint_on_destroy,
 	};
 	bp->super.cbs = &entry_callbacks;
 	bp->dyn_addr = lib->dyn_addr;
