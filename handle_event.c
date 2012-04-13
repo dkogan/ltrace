@@ -223,42 +223,6 @@ pending_new_remove(pid_t pid) {
 	}
 }
 
-#if 0
-static int
-clone_breakpoints(Process * proc, Process * orig_proc)
-{
-	/* When copying breakpoints, we also have to copy the
-	 * referenced symbols, and link them properly.  */
-	Dict * map = dict_init(&dict_key2hash_int, &dict_key_cmp_int);
-	struct library_symbol * it = proc->list_of_symbols;
-	proc->list_of_symbols = NULL;
-	for (; it != NULL; it = it->next) {
-		struct library_symbol * libsym = clone_library_symbol(it);
-		if (libsym == NULL) {
-			int save_errno;
-		err:
-			save_errno = errno;
-			destroy_library_symbol_chain(proc->list_of_symbols);
-			dict_clear(map);
-			errno = save_errno;
-			return -1;
-		}
-		libsym->next = proc->list_of_symbols;
-		proc->list_of_symbols = libsym;
-		if (dict_enter(map, it, libsym) != 0)
-			goto err;
-	}
-
-	proc->breakpoints = dict_clone2(orig_proc->breakpoints,
-					address_clone, breakpoint_clone, map);
-	if (proc->breakpoints == NULL)
-		goto err;
-
-	dict_clear(map);
-	return 0;
-}
-#endif
-
 static void
 handle_clone(Event *event)
 {
