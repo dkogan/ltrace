@@ -497,6 +497,13 @@ handle_exec(Event * event) {
 	breakpoints_init(proc, 0);
 	proc->callstack_depth = 0;
 	continue_process(proc->pid);
+
+	/* After the exec, we expect to hit the first executable
+	 * instruction.  It would be nice to have this removed, but
+	 * then we need to do that also for initial call to
+	 * wait_for_proc in execute_program.  XXX todo.  */
+	wait_for_proc(proc->pid);
+	continue_process(proc->pid);
 }
 
 static void
