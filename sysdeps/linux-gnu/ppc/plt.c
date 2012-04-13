@@ -548,3 +548,10 @@ void
 arch_breakpoint_destroy(struct breakpoint *bp)
 {
 }
+
+int
+arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp)
+{
+	retp->arch = sbp->arch;
+	return 0;
+}

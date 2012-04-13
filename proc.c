@@ -114,51 +114,25 @@ struct clone_single_bp_data {
 	int error;
 };
 
-struct find_symbol_data {
-	struct library_symbol *old_libsym;
-	struct library_symbol *found_libsym;
-};
-
-static enum callback_status
-find_sym_in_lib(struct Process *proc, struct library *lib, void *u)
-{
-	struct find_symbol_data *fs = u;
-	fs->found_libsym
-		= library_each_symbol(lib, NULL, library_symbol_equal_cb,
-				      fs->old_libsym);
-	return fs->found_libsym != NULL ? CBS_STOP : CBS_CONT;
-}
-
 static void
 clone_single_bp(void *key, void *value, void *u)
 {
-	target_address_t addr = (target_address_t)key;
 	struct breakpoint *bp = value;
 	struct clone_single_bp_data *data = u;
 
-	/* Find library and symbol that this symbol was linked to.  */
-	struct library_symbol *libsym = bp->libsym;
-	struct library *lib = NULL;
-	if (libsym != NULL) {
-		struct find_symbol_data f_data = {
-			.old_libsym = libsym,
-		};
-		lib = proc_each_library(data->old_proc, NULL,
-					find_sym_in_lib, &f_data);
-		assert(lib != NULL);
-		libsym = f_data.found_libsym;
-	}
-
-	/* LIB and LIBSYM now hold the new library and symbol that
-	 * correspond to the original breakpoint.  Now we can do the
-	 * clone itself.  */
+	data->error = 0;
 	struct breakpoint *clone = malloc(sizeof(*clone));
 	if (clone == NULL
-	    || breakpoint_init(clone, data->new_proc, addr, libsym) < 0) {
+	    || breakpoint_clone(clone, data->new_proc,
+				bp, data->old_proc) < 0) {
+	fail:
+		free(clone);
 		data->error = -1;
-		return;
 	}
-	breakpoint_set_callbacks(clone, bp->cbs);
+	if (proc_add_breakpoint(data->new_proc->leader, clone) < 0) {
+		breakpoint_destroy(clone);
+		goto fail;
+	}
 }
 
 int
@@ -173,7 +147,7 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 	retp->tracesysgood = proc->tracesysgood;
 
 	/* For non-leader processes, that's all we need to do.  */
-	if (proc->leader != proc)
+	if (retp->leader != retp)
 		return 0;
 
 	/* Clone symbols first so that we can clone and relink
@@ -625,4 +599,54 @@ proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp)
 	/* XXX We can't, really.  We are missing dict_remove.  */
 	assert(!"Not yet implemented!");
 	abort();
+}
+
+/* Dict doesn't support iteration restarts, so here's this contraption
+ * for now.  XXX add restarts to dict.  */
+struct each_breakpoint_data
+{
+	void *start;
+	void *end;
+	struct Process *proc;
+	enum callback_status (*cb)(struct Process *proc,
+				   struct breakpoint *bp,
+				   void *data);
+	void *cb_data;
+};
+
+static void
+each_breakpoint_cb(void *key, void *value, void *d)
+{
+	struct each_breakpoint_data *data = d;
+	if (data->end != NULL)
+		return;
+	if (data->start == key)
+		data->start = NULL;
+
+	if (data->start == NULL) {
+		switch (data->cb(data->proc, value, data->cb_data)) {
+		case CBS_FAIL:
+			/* XXX handle me */
+		case CBS_STOP:
+			data->end = key;
+		case CBS_CONT:
+			return;
+		}
+	}
+}
+
+void *
+proc_each_breakpoint(struct Process *proc, void *start,
+		     enum callback_status (*cb)(struct Process *proc,
+						struct breakpoint *bp,
+						void *data), void *data)
+{
+	struct each_breakpoint_data dd = {
+		.start = start,
+		.proc = proc,
+		.cb = cb,
+		.cb_data = data,
+	};
+	dict_apply_to_all(proc->breakpoints, &each_breakpoint_cb, &dd);
+	return dd.end;
 }

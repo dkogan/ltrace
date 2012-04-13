@@ -200,4 +200,12 @@ int proc_add_breakpoint(struct Process *proc, struct breakpoint *bp);
 /* Remove BP from PROC.  */
 int proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp);
 
+/* Iterate through the libraries of PROC.  See each_process for
+ * detailed description of the iteration interface.  */
+void *proc_each_breakpoint(struct Process *proc, void *start,
+			   enum callback_status (*cb)(struct Process *proc,
+						      struct breakpoint *bp,
+						      void *data),
+			   void *data);
+
 #endif /* _PROC_H_ */

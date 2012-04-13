@@ -66,7 +66,24 @@ void
 arch_breakpoint_destroy(struct breakpoint *sbp)
 {
 }
+
+int
+arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp)
+{
+	return 0;
+}
 #endif
+
+static void
+breakpoint_init_base(struct breakpoint *bp, struct Process *proc,
+		     target_address_t addr, struct library_symbol *libsym)
+{
+	bp->cbs = NULL;
+	bp->addr = addr;
+	memset(bp->orig_value, 0, sizeof(bp->orig_value));
+	bp->enabled = 0;
+	bp->libsym = libsym;
+}
 
 /* On second thought, I don't think we need PROC.  All the translation
  * (arch_translate_address in particular) should be doable using
@@ -76,11 +93,7 @@ int
 breakpoint_init(struct breakpoint *bp, struct Process *proc,
 		target_address_t addr, struct library_symbol *libsym)
 {
-	bp->cbs = NULL;
-	bp->addr = addr;
-	memset(bp->orig_value, 0, sizeof(bp->orig_value));
-	bp->enabled = 0;
-	bp->libsym = libsym;
+	breakpoint_init_base(bp, proc, addr, libsym);
 	return arch_breakpoint_init(proc, bp);
 }
 
@@ -97,9 +110,52 @@ breakpoint_destroy(struct breakpoint *bp)
 {
 	if (bp == NULL)
 		return;
-
-
 	arch_breakpoint_destroy(bp);
+}
+
+struct find_symbol_data {
+	struct library_symbol *old_libsym;
+	struct library_symbol *found_libsym;
+};
+
+static enum callback_status
+find_sym_in_lib(struct Process *proc, struct library *lib, void *u)
+{
+	struct find_symbol_data *fs = u;
+	fs->found_libsym
+		= library_each_symbol(lib, NULL, library_symbol_equal_cb,
+				      fs->old_libsym);
+	return fs->found_libsym != NULL ? CBS_STOP : CBS_CONT;
+}
+
+int
+breakpoint_clone(struct breakpoint *retp, struct Process *new_proc,
+		 struct breakpoint *bp, struct Process *old_proc)
+{
+	/* Find library and symbol that this breakpoint was linked to.  */
+	struct library_symbol *libsym = bp->libsym;
+	struct library *lib = NULL;
+	if (libsym != NULL) {
+		struct find_symbol_data f_data = {
+			.old_libsym = libsym,
+		};
+		lib = proc_each_library(old_proc, NULL,
+					find_sym_in_lib, &f_data);
+		assert(lib != NULL);
+		libsym = f_data.found_libsym;
+	}
+
+	/* LIB and LIBSYM now hold the new library and symbol that
+	 * correspond to the original breakpoint.  Now we can do the
+	 * clone itself.  */
+	breakpoint_init_base(retp, new_proc, bp->addr, libsym);
+	memcpy(retp->orig_value, bp->orig_value, sizeof(bp->orig_value));
+	retp->enabled = bp->enabled;
+	retp->debug_enabled = bp->debug_enabled;
+	if (arch_breakpoint_clone(retp, bp) < 0)
+		return -1;
+	breakpoint_set_callbacks(retp, bp->cbs);
+	return 0;
 }
 
 int

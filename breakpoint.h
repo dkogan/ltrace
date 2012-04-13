@@ -90,6 +90,13 @@ void breakpoint_on_continue(struct breakpoint *bp, struct Process *proc);
 int breakpoint_init(struct breakpoint *bp, struct Process *proc,
 		    target_address_t addr, struct library_symbol *libsym);
 
+/* Make a clone of breakpoint BP into the area of memory pointed to by
+ * RETP.  The original breakpoint was assigned to process OLD_PROC,
+ * the cloned breakpoint will be attached to process NEW_PROC.
+ * Returns 0 on success or a negative value on failure.  */
+int breakpoint_clone(struct breakpoint *retp, struct Process *new_proc,
+		     struct breakpoint *bp, struct Process *old_proc);
+
 /* Set callbacks.  If CBS is non-NULL, then BP->cbs shall be NULL.  */
 void breakpoint_set_callbacks(struct breakpoint *bp, struct bp_callbacks *cbs);
 

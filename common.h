@@ -235,6 +235,7 @@ enum plt_status arch_elf_add_plt_entry(struct Process *p, struct ltelf *l,
 
 int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
 void arch_breakpoint_destroy(struct breakpoint *sbp);
+int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
 
 typedef void *target_address_t;
 /* This should extract entry point address and interpreter (dynamic
