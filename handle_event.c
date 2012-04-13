@@ -88,60 +88,72 @@ handle_event(Event *event)
 		debug(1, "event: none");
 		return;
 	case EVENT_SIGNAL:
-		debug(1, "event: signal (%s [%d])",
+		debug(1, "[%d] event: signal (%s [%d])",
+		      event->proc->pid,
 		      shortsignal(event->proc, event->e_un.signum),
 		      event->e_un.signum);
 		handle_signal(event);
 		return;
 	case EVENT_EXIT:
-		debug(1, "event: exit (%d)", event->e_un.ret_val);
+		debug(1, "[%d] event: exit (%d)",
+		      event->proc->pid,
+		      event->e_un.ret_val);
 		handle_exit(event);
 		return;
 	case EVENT_EXIT_SIGNAL:
-		debug(1, "event: exit signal (%s [%d])",
+		debug(1, "[%d] event: exit signal (%s [%d])",
+		      event->proc->pid,
 		      shortsignal(event->proc, event->e_un.signum),
 		      event->e_un.signum);
 		handle_exit_signal(event);
 		return;
 	case EVENT_SYSCALL:
-		debug(1, "event: syscall (%s [%d])",
+		debug(1, "[%d] event: syscall (%s [%d])",
+		      event->proc->pid,
 		      sysname(event->proc, event->e_un.sysnum),
 		      event->e_un.sysnum);
 		handle_syscall(event);
 		return;
 	case EVENT_SYSRET:
-		debug(1, "event: sysret (%s [%d])",
+		debug(1, "[%d] event: sysret (%s [%d])",
+		      event->proc->pid,
 		      sysname(event->proc, event->e_un.sysnum),
 		      event->e_un.sysnum);
 		handle_sysret(event);
 		return;
 	case EVENT_ARCH_SYSCALL:
-		debug(1, "event: arch_syscall (%s [%d])",
-				arch_sysname(event->proc, event->e_un.sysnum),
-				event->e_un.sysnum);
+		debug(1, "[%d] event: arch_syscall (%s [%d])",
+		      event->proc->pid,
+		      arch_sysname(event->proc, event->e_un.sysnum),
+		      event->e_un.sysnum);
 		handle_arch_syscall(event);
 		return;
 	case EVENT_ARCH_SYSRET:
-		debug(1, "event: arch_sysret (%s [%d])",
-				arch_sysname(event->proc, event->e_un.sysnum),
-				event->e_un.sysnum);
+		debug(1, "[%d] event: arch_sysret (%s [%d])",
+		      event->proc->pid,
+		      arch_sysname(event->proc, event->e_un.sysnum),
+		      event->e_un.sysnum);
 		handle_arch_sysret(event);
 		return;
 	case EVENT_CLONE:
 	case EVENT_VFORK:
-		debug(1, "event: clone (%u)", event->e_un.newpid);
+		debug(1, "[%d] event: clone (%u)",
+		      event->proc->pid, event->e_un.newpid);
 		handle_clone(event);
 		return;
 	case EVENT_EXEC:
-		debug(1, "event: exec()");
+		debug(1, "[%d] event: exec()",
+		      event->proc->pid);
 		handle_exec(event);
 		return;
 	case EVENT_BREAKPOINT:
-		debug(1, "event: breakpoint");
+		debug(1, "[%d] event: breakpoint %p",
+		      event->proc->pid, event->e_un.brk_addr);
 		handle_breakpoint(event);
 		return;
 	case EVENT_NEW:
-		debug(1, "event: new process");
+		debug(1, "[%d] event: new process",
+		      event->e_un.newpid);
 		handle_new(event);
 		return;
 	default:
