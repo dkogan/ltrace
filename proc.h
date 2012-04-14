@@ -140,6 +140,19 @@ struct Process {
  * and add the process to an internal chain of traced processes.  */
 int process_init(struct Process *proc, const char *filename, pid_t pid);
 
+/* PROC underwent an exec.  This is a bit like process_destroy
+ * followed by process_init, except that some state is kept and the
+ * process doesn't lose it's place in the list of processes.  */
+int process_exec(struct Process *proc);
+
+/* Release any memory allocated for PROC (but not PROC itself).  Does
+ * NOT remove PROC from internal chain.
+ *
+ * XXX clearly this init/destroy pair is different than others and
+ * should be fixed.  process_init should presumably be separate from
+ * process_add.  */
+void process_destroy(struct Process *proc);
+
 struct Process *open_program(const char *filename, pid_t pid);
 void open_pid(pid_t pid);
 Process * pid2proc(pid_t pid);

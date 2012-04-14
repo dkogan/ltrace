@@ -1,18 +1,19 @@
 #define _GNU_SOURCE
 #include "config.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
 #include <assert.h>
-#include <sys/time.h>
 #include <errno.h>
+#include <error.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
 
-#include "common.h"
 #include "breakpoint.h"
-#include "proc.h"
+#include "common.h"
 #include "library.h"
+#include "proc.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);
@@ -441,21 +442,26 @@ static void
 handle_exec(Event * event) {
 	Process * proc = event->proc;
 
+	/* Save the PID so that we can use it after unsuccessful
+	 * process_exec.  */
+	pid_t pid = proc->pid;
+
 	debug(DEBUG_FUNCTION, "handle_exec(pid=%d)", proc->pid);
 	if (proc->state == STATE_IGNORED) {
-		untrace_pid(proc->pid);
+	untrace:
+		untrace_pid(pid);
 		remove_process(proc);
 		free(proc);
 		return;
 	}
 	output_line(proc, "--- Called exec() ---");
-	proc->mask_32bit = 0;
-	proc->personality = 0;
-	proc->arch_ptr = NULL;
-	free(proc->filename);
-	proc->filename = pid2name(proc->pid);
-	breakpoints_init(proc, 0);
-	proc->callstack_depth = 0;
+
+	if (process_exec(proc) < 0) {
+		error(0, errno,
+		      "couldn't reinitialize process %d after exec", pid);
+		goto untrace;
+	}
+
 	continue_process(proc->pid);
 
 	/* After the exec, we expect to hit the first executable

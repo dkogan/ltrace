@@ -17,25 +17,28 @@
 #include "breakpoint.h"
 #include "proc.h"
 
-static void add_process(struct Process *proc);
+static void add_process(struct Process *proc, int was_exec);
 
 static int
-process_bare_init(struct Process *proc, const char *filename, pid_t pid)
+process_bare_init(struct Process *proc, const char *filename,
+		  pid_t pid, int was_exec)
 {
-	memset(proc, 0, sizeof(*proc));
+	if (!was_exec) {
+		memset(proc, 0, sizeof(*proc));
 
-	proc->filename = strdup(filename);
-	if (proc->filename == NULL) {
-	fail:
-		free(proc->filename);
-		if (proc->breakpoints != NULL)
-			dict_clear(proc->breakpoints);
-		return -1;
+		proc->filename = strdup(filename);
+		if (proc->filename == NULL) {
+		fail:
+			free(proc->filename);
+			if (proc->breakpoints != NULL)
+				dict_clear(proc->breakpoints);
+			return -1;
+		}
 	}
 
 	/* Add process so that we know who the leader is.  */
 	proc->pid = pid;
-	add_process(proc);
+	add_process(proc, was_exec);
 	if (proc->leader == NULL)
 		goto fail;
 
@@ -57,41 +60,97 @@ process_bare_init(struct Process *proc, const char *filename, pid_t pid)
 }
 
 static void
-process_bare_destroy(struct Process *proc)
+process_bare_destroy(struct Process *proc, int was_exec)
 {
-	free(proc->filename);
 	dict_clear(proc->breakpoints);
-	remove_process(proc);
+	if (!was_exec) {
+		free(proc->filename);
+		remove_process(proc);
+	}
 }
 
-int
-process_init(struct Process *proc, const char *filename, pid_t pid, int enable)
+static int
+process_init_main(struct Process *proc)
 {
-	if (process_bare_init(proc, filename, pid) < 0) {
-		error(0, errno, "init process %d", pid);
-		return -1;
-	}
-
-	/* For secondary threads, this is all that we need to do.  */
-	if (proc->leader != proc)
-		return 0;
-
 	target_address_t entry;
 	target_address_t interp_bias;
 	if (process_get_entry(proc, &entry, &interp_bias) < 0) {
 		fprintf(stderr, "Couldn't get entry points of process %d\n",
 			proc->pid);
 	fail:
-		process_bare_destroy(proc);
+		process_bare_destroy(proc, 0);
 		return -1;
 	}
 
-	if (breakpoints_init(proc, enable) < 0) {
+	if (breakpoints_init(proc) < 0) {
 		fprintf(stderr, "failed to init breakpoints %d\n",
 			proc->pid);
 		goto fail;
 	}
 
+	return 0;
+}
+
+int
+process_init(struct Process *proc, const char *filename, pid_t pid)
+{
+	if (process_bare_init(proc, filename, pid, 0) < 0) {
+		error(0, errno, "init process %d", pid);
+		return -1;
+	}
+
+	if (proc->leader == proc)
+		return process_init_main(proc);
+	else
+		return 0;
+}
+
+static void
+destroy_breakpoint_cb(void *key, void *value, void *data)
+{
+	struct breakpoint *bp = value;
+	breakpoint_destroy(bp);
+	free(bp);
+}
+
+static void
+private_process_destroy(struct Process *proc, int keep_filename)
+{
+	if (!keep_filename)
+		free(proc->filename);
+
+	/* Libraries and symbols.  */
+	struct library *lib;
+	for (lib = proc->libraries; lib != NULL; ) {
+		struct library *next = lib->next;
+		library_destroy(lib);
+		free(lib);
+		lib = next;
+	}
+	proc->libraries = NULL;
+
+	/* Breakpoints.  */
+	dict_apply_to_all(proc->breakpoints, destroy_breakpoint_cb, NULL);
+	dict_clear(proc->breakpoints);
+	proc->breakpoints = NULL;
+}
+
+void
+process_destroy(struct Process *proc)
+{
+	private_process_destroy(proc, 0);
+}
+
+int
+process_exec(struct Process *proc)
+{
+	private_process_destroy(proc, 1);
+	if (process_bare_init(proc, NULL, proc->pid, 1) < 0)
+		return -1;
+	if (process_init_main(proc) < 0) {
+		process_bare_destroy(proc, 1);
+		return -1;
+	}
 	return 0;
 }
 
@@ -137,7 +196,7 @@ clone_single_bp(void *key, void *value, void *u)
 int
 process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 {
-	if (process_bare_init(retp, proc->filename, pid) < 0) {
+	if (process_bare_init(retp, proc->filename, pid, 0) < 0) {
 	fail:
 		error(0, errno, "clone process %d->%d", proc->pid, pid);
 		return -1;
@@ -158,7 +217,7 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 		if (*nlibp == NULL
 		    || library_clone(*nlibp, lib) < 0) {
 		fail2:
-			process_bare_destroy(retp);
+			process_bare_destroy(retp, 0);
 
 			/* Error when cloning.  Unroll what was done.  */
 			for (lib = retp->libraries; lib != NULL; ) {
@@ -372,7 +431,7 @@ each_task(struct Process *proc, struct Process *start_after,
 }
 
 static void
-add_process(Process * proc)
+add_process(struct Process *proc, int was_exec)
 {
 	Process ** leaderp = &list_of_processes;
 	if (proc->pid) {
@@ -390,8 +449,11 @@ add_process(Process * proc)
 				leaderp = &leader->next;
 		}
 	}
-	proc->next = *leaderp;
-	*leaderp = proc;
+
+	if (!was_exec) {
+		proc->next = *leaderp;
+		*leaderp = proc;
+	}
 }
 
 void
