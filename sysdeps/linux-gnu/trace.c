@@ -668,7 +668,7 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 	Process * teb = self->task_enabling_breakpoint;
 
 	debug(DEBUG_PROCESS,
-	      "pid %d; event type %d; state %d",
+	      "process_stopping_on_event: pid %d; event type %d; state %d",
 	      task->pid, event->type, self->state);
 
 	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
@@ -796,6 +796,9 @@ process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
 				 enum callback_status (*uw)
 					(struct process_stopping_handler *))
 {
+	debug(DEBUG_FUNCTION,
+	      "process_install_stopping_handler: pid=%d", proc->pid);
+
 	struct process_stopping_handler *handler = calloc(sizeof(*handler), 1);
 	if (handler == NULL)
 		return -1;
@@ -837,14 +840,15 @@ process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
 void
 continue_after_breakpoint(Process *proc, struct breakpoint *sbp)
 {
+	debug(DEBUG_PROCESS,
+	      "continue_after_breakpoint: pid=%d, addr=%p",
+	      proc->pid, sbp->addr);
+
 	set_instruction_pointer(proc, sbp->addr);
 
 	if (sbp->enabled == 0) {
 		continue_process(proc->pid);
 	} else {
-		debug(DEBUG_PROCESS,
-		      "continue_after_breakpoint: pid=%d, addr=%p",
-		      proc->pid, sbp->addr);
 #if defined __sparc__  || defined __ia64___ || defined __mips__
 		/* we don't want to singlestep here */
 		continue_process(proc->pid);
@@ -880,7 +884,9 @@ ltrace_exiting_on_event(struct event_handler *super, Event *event)
 	Process * task = event->proc;
 	Process * leader = task->leader;
 
-	debug(DEBUG_PROCESS, "pid %d; event type %d", task->pid, event->type);
+	debug(DEBUG_PROCESS,
+	      "ltrace_exiting_on_event: pid %d; event type %d",
+	      task->pid, event->type);
 
 	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
 	handle_stopping_event(task_info, &event);
@@ -979,6 +985,10 @@ struct process_vfork_handler
 static Event *
 process_vfork_on_event(struct event_handler *super, Event *event)
 {
+	debug(DEBUG_PROCESS,
+	      "process_vfork_on_event: pid %d; event type %d",
+	      event->proc->pid, event->type);
+
 	struct process_vfork_handler * self = (void *)super;
 	struct breakpoint *sbp;
 	assert(self != NULL);
