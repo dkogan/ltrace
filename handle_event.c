@@ -9,10 +9,6 @@
 #include <sys/time.h>
 #include <errno.h>
 
-#ifdef __powerpc__
-#include <sys/ptrace.h>
-#endif
-
 #include "common.h"
 #include "breakpoint.h"
 #include "proc.h"
