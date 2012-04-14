@@ -137,7 +137,8 @@ void library_init(struct library *lib, enum library_type type);
  * in case of failure.  */
 int library_clone(struct library *retp, struct library *lib);
 
-/* Destroy library.  Doesn't free LIB itself.  */
+/* Destroy library.  Doesn't free LIB itself.  Symbols are destroyed
+ * and freed.  */
 void library_destroy(struct library *lib);
 
 /* Set library soname.  Frees the old name if necessary.  */

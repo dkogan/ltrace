@@ -100,7 +100,7 @@ int breakpoint_clone(struct breakpoint *retp, struct Process *new_proc,
 /* Set callbacks.  If CBS is non-NULL, then BP->cbs shall be NULL.  */
 void breakpoint_set_callbacks(struct breakpoint *bp, struct bp_callbacks *cbs);
 
-/* XXX this is currently not called anywhere.   */
+/* Destroy a breakpoint structure.   */
 void breakpoint_destroy(struct breakpoint *bp);
 
 /* Call enable_breakpoint the first time it's called.  Returns 0 on
