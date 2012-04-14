@@ -96,12 +96,11 @@ process_init(struct Process *proc, const char *filename, pid_t pid, int enable)
 }
 
 struct Process *
-open_program(const char *filename, pid_t pid, int enable)
+open_program(const char *filename, pid_t pid)
 {
 	assert(pid != 0);
 	struct Process *proc = malloc(sizeof(*proc));
-	if (proc == NULL
-	    || process_init(proc, filename, pid, enable) < 0) {
+	if (proc == NULL || process_init(proc, filename, pid) < 0) {
 		free(proc);
 		return NULL;
 	}
@@ -208,7 +207,7 @@ open_one_pid(pid_t pid)
 		return -1;
 	}
 
-	proc = open_program(filename, pid, 0);
+	proc = open_program(filename, pid);
 	if (proc == NULL)
 		return -1;
 	trace_set_options(proc);

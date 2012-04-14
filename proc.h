@@ -136,10 +136,11 @@ struct Process {
 	Process * leader;
 };
 
-int process_init(struct Process *proc,
-		 const char *filename, pid_t pid, int enable_breakpoints);
+/* Initialize a process given a path to binary FILENAME, with a PID,
+ * and add the process to an internal chain of traced processes.  */
+int process_init(struct Process *proc, const char *filename, pid_t pid);
 
-Process * open_program(const char *filename, pid_t pid, int enable_breakpoints);
+struct Process *open_program(const char *filename, pid_t pid);
 void open_pid(pid_t pid);
 Process * pid2proc(pid_t pid);
 

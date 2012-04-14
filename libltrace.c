@@ -113,7 +113,7 @@ ltrace_init(int argc, char **argv) {
 		open_elf(&lte, command);
 
 		pid_t pid = execute_program(command, argv);
-		struct Process *proc = open_program(command, pid, 0);
+		struct Process *proc = open_program(command, pid);
 		if (proc == NULL)
 			error(EXIT_FAILURE, errno,
 			      "couldn't open program '%s'", command);

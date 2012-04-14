@@ -375,7 +375,7 @@ entry_breakpoint_init(struct Process *proc,
 }
 
 int
-breakpoints_init(Process *proc, int enable)
+breakpoints_init(Process *proc)
 {
 	debug(DEBUG_FUNCTION, "breakpoints_init(pid=%d)", proc->pid);
 

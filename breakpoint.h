@@ -138,6 +138,6 @@ void delete_breakpoint(struct Process *proc, void *addr);
 struct breakpoint *address2bpstruct(struct Process *proc, void *addr);
 void enable_all_breakpoints(struct Process *proc);
 void disable_all_breakpoints(struct Process *proc);
-int breakpoints_init(struct Process *proc, int enable);
+int breakpoints_init(struct Process *proc);
 
 #endif /* BREAKPOINT_H */
