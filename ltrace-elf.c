@@ -663,7 +663,7 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 		char *pathname = strdup(filename);
 		if (pathname == NULL)
 			goto fail;
-		library_set_pathname(lib, filename, 1);
+		library_set_pathname(lib, pathname, 1);
 	}
 
 	if (lte.soname != NULL) {
