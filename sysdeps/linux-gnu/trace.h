@@ -103,8 +103,8 @@ struct process_stopping_handler
 /* Allocate a process stopping handler, initialize it and install it.
  * Return 0 on success or a negative value on failure.  Pass NULL for
  * each callback to use a default instead.  The default for
- * ON_ALL_STOPPED is disable_and_singlestep, the default for
- * KEEP_STEPPING_P and UGLY_WORKAROUND_P is "no".  */
+ * ON_ALL_STOPPED is LINUX_PTRACE_DISABLE_AND_SINGLESTEP, the default
+ * for KEEP_STEPPING_P and UGLY_WORKAROUND_P is "no".  */
 int process_install_stopping_handler
 	(struct Process *proc, struct breakpoint *sbp,
 	 void (*on_all_stopped)(struct process_stopping_handler *),
@@ -112,5 +112,8 @@ int process_install_stopping_handler
 		 (struct process_stopping_handler *),
 	 enum callback_status (*ugly_workaround_p)
 		(struct process_stopping_handler *));
+
+void linux_ptrace_disable_and_singlestep(struct process_stopping_handler *self);
+void linux_ptrace_disable_and_continue(struct process_stopping_handler *self);
 
 #endif /* _LTRACE_LINUX_TRACE_H_ */

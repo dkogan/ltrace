@@ -631,26 +631,47 @@ singlestep_error(struct process_stopping_handler *self, Event **eventp)
 {
 	struct Process *teb = self->task_enabling_breakpoint;
 	Breakpoint *sbp = self->breakpoint_being_enabled;
-	fprintf(stderr, "%d couldn't singlestep over %s (%p)\n",
+	fprintf(stderr, "%d couldn't continue when handling %s (%p) at %p\n",
 		teb->pid, sbp->libsym != NULL ? sbp->libsym->name : NULL,
-		sbp->addr);
+		sbp->addr, get_instruction_pointer(teb));
 	delete_breakpoint(teb->leader, sbp->addr);
 	post_singlestep(self, eventp);
 }
 
-static void
-disable_and_singlestep(struct process_stopping_handler *self)
+static int
+pt_continue(struct process_stopping_handler *self)
 {
 	struct Process *teb = self->task_enabling_breakpoint;
-	debug(DEBUG_PROCESS, "all stopped, now SINGLESTEP %d", teb->pid);
+	debug(1, "PTRACE_CONT");
+	return ptrace(PTRACE_CONT, teb->pid, 0, 0) != 0 ? -1 : 0;
+}
+
+static void
+disable_and(struct process_stopping_handler *self,
+	    int (*do_this)(struct process_stopping_handler *self))
+{
+	struct Process *teb = self->task_enabling_breakpoint;
+	debug(DEBUG_PROCESS, "all stopped, now singlestep/cont %d", teb->pid);
 	if (self->breakpoint_being_enabled->enabled)
 		disable_breakpoint(teb, self->breakpoint_being_enabled);
-	if (singlestep(self) < 0) {
+	if ((do_this)(self) < 0) {
 		singlestep_error(self, &event);
 		//goto psh_sinking;  /* XXX FIME */
 		abort();
 	}
 	self->state = psh_singlestep;
+}
+
+void
+linux_ptrace_disable_and_singlestep(struct process_stopping_handler *self)
+{
+	disable_and(self, &singlestep);
+}
+
+void
+linux_ptrace_disable_and_continue(struct process_stopping_handler *self)
+{
+	disable_and(self, &pt_continue);
 }
 
 /* This event handler is installed when we are in the process of
@@ -732,9 +753,8 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 				}
 			}
 
-			/* Essentially we don't care what event caused
-			 * the thread to stop.  We can do the
-			 * re-enablement now.  */
+			/* Re-enable the breakpoint that we are
+			 * stepping over.  */
 			struct breakpoint *sbp = self->breakpoint_being_enabled;
 			if (sbp->enabled)
 				enable_breakpoint(teb, sbp);
@@ -804,7 +824,7 @@ process_install_stopping_handler(struct Process *proc, struct breakpoint *sbp,
 		return -1;
 
 	if (as == NULL)
-		as = &disable_and_singlestep;
+		as = &linux_ptrace_disable_and_singlestep;
 	if (ks == NULL)
 		ks = &no;
 	if (uw == NULL)
