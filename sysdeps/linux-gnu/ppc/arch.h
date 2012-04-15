@@ -60,4 +60,14 @@ struct arch_breakpoint_data {
 	/* We need this just for arch_breakpoint_init.  */
 };
 
+#define ARCH_HAVE_PROCESS_DATA
+struct arch_process_data {
+	/* Breakpoint that hits when the dynamic linker is about to
+	 * update a .plt slot.  NULL before that address is known.  */
+	struct breakpoint *dl_plt_update_bp;
+
+	/* PLT update breakpoint looks here for the handler.  */
+	struct process_stopping_handler *handler;
+};
+
 #endif /* LTRACE_PPC_ARCH_H */

@@ -469,8 +469,36 @@ arch_elf_destroy(struct ltelf *lte)
 	}
 }
 
+static void
+dl_plt_update_bp_on_hit(struct breakpoint *bp, struct Process *proc)
+{
+	struct process_stopping_handler *self = proc->arch.handler;
+	assert(self != NULL);
+
+	struct library_symbol *libsym = self->breakpoint_being_enabled->libsym;
+	GElf_Addr value;
+	if (read_plt_slot_value(proc, libsym->arch.plt_slot_addr, &value) < 0)
+		return;
+
+	/* cb_on_all_stopped looks if HANDLER is set to NULL as a way
+	 * to check that this was run.  It's an error if it
+	 * wasn't.  */
+	breakpoint_turn_off(bp, proc);
+	proc->arch.handler = NULL;
+}
+
+static void
+cb_on_all_stopped(struct process_stopping_handler *self)
+{
+	/* Put that in for dl_plt_update_bp_on_hit to see.  */
+	assert(self->task_enabling_breakpoint->arch.handler == NULL);
+	self->task_enabling_breakpoint->arch.handler = self;
+
+	linux_ptrace_disable_and_continue(self);
+}
+
 static enum callback_status
-keep_stepping_p(struct process_stopping_handler *self)
+cb_keep_stepping_p(struct process_stopping_handler *self)
 {
 	struct Process *proc = self->task_enabling_breakpoint;
 	struct library_symbol *libsym = self->breakpoint_being_enabled->libsym;
@@ -488,6 +516,32 @@ keep_stepping_p(struct process_stopping_handler *self)
 	if (unresolve_plt_slot(proc, libsym->arch.plt_slot_addr,
 			       libsym->arch.resolved_value) < 0)
 		return CBS_FAIL;
+
+	/* Install breakpoint to the address where the change takes
+	 * place.  If we fail, then that just means that we'll have to
+	 * singlestep the next time around as well.  */
+	struct Process *leader = proc->leader;
+	if (leader == NULL || leader->arch.dl_plt_update_bp != NULL)
+		goto resolve;
+
+	/* We need to install to the next instruction.  ADDR points to
+	 * a store instruction, so moving the breakpoint one
+	 * instruction forward is safe.  */
+	target_address_t addr = get_instruction_pointer(proc) + 4;
+	leader->arch.dl_plt_update_bp = insert_breakpoint(proc, addr, NULL);
+
+	/* Turn it off for now.  We will turn it on again when we hit
+	 * the PLT entry that needs this.  */
+	breakpoint_turn_off(leader->arch.dl_plt_update_bp, proc);
+
+	if (leader->arch.dl_plt_update_bp != NULL) {
+		static struct bp_callbacks dl_plt_update_cbs = {
+			.on_hit = dl_plt_update_bp_on_hit,
+		};
+		leader->arch.dl_plt_update_bp->cbs = &dl_plt_update_cbs;
+	}
+
+resolve:
 	libsym->arch.type = PPC64PLT_RESOLVED;
 	libsym->arch.resolved_value = value;
 
@@ -499,10 +553,28 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 {
 	switch (bp->libsym->arch.type) {
 		target_address_t rv;
+		struct Process *leader;
+		void (*on_all_stopped)(struct process_stopping_handler *);
+		enum callback_status (*keep_stepping_p)
+			(struct process_stopping_handler *);
+
 	case PPC64PLT_UNRESOLVED:
-		if (process_install_stopping_handler(proc, bp, NULL,
-						     &keep_stepping_p,
-						     NULL) < 0) {
+		on_all_stopped = NULL;
+		keep_stepping_p = NULL;
+		leader = proc->leader;
+
+		if (leader != NULL && leader->arch.dl_plt_update_bp != NULL) {
+			if (breakpoint_turn_on(leader->arch.dl_plt_update_bp,
+					       proc) < 0)
+				goto stepping;
+			on_all_stopped = cb_on_all_stopped;
+		} else {
+		stepping:
+			keep_stepping_p = cb_keep_stepping_p;
+		}
+
+		if (process_install_stopping_handler
+		    (proc, bp, on_all_stopped, keep_stepping_p, NULL) < 0) {
 			perror("ppc64_unresolved_bp_continue: couldn't install"
 			       " event handler");
 			continue_after_breakpoint(proc, bp);
@@ -580,4 +652,30 @@ arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp)
 {
 	retp->arch = sbp->arch;
 	return 0;
+}
+
+int
+arch_process_init(struct Process *proc)
+{
+	proc->arch.dl_plt_update_bp = NULL;
+	proc->arch.handler = NULL;
+	return 0;
+}
+
+void
+arch_process_destroy(struct Process *proc)
+{
+}
+
+int
+arch_process_clone(struct Process *retp, struct Process *proc)
+{
+	retp->arch = proc->arch;
+	return 0;
+}
+
+int
+arch_process_exec(struct Process *proc)
+{
+	return arch_process_init(proc);
 }
