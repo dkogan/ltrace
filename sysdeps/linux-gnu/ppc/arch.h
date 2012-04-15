@@ -23,7 +23,6 @@
 #define ARCH_HAVE_ADD_PLT_ENTRY
 #define ARCH_HAVE_LTELF_DATA
 #define ARCH_HAVE_BREAKPOINT_DATA
-#define ARCH_HAVE_LIBRARY_SYMBOL_DATA
 #define ARCH_HAVE_TRANSLATE_ADDRESS
 
 struct library_symbol;
@@ -47,6 +46,7 @@ enum ppc64_plt_type {
 	PPC64PLT_RESOLVED,
 };
 
+#define ARCH_HAVE_LIBRARY_SYMBOL_DATA
 struct arch_library_symbol_data {
 	enum ppc64_plt_type type;
 	GElf_Addr resolved_value;

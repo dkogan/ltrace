@@ -237,6 +237,11 @@ int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
 void arch_breakpoint_destroy(struct breakpoint *sbp);
 int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
 
+int arch_library_symbol_init(struct library_symbol *libsym);
+void arch_library_symbol_destroy(struct library_symbol *libsym);
+int arch_library_symbol_clone(struct library_symbol *retp,
+			      struct library_symbol *libsym);
+
 typedef void *target_address_t;
 /* This should extract entry point address and interpreter (dynamic
  * linker) bias if possible.  Returns 0 if there were no errors, -1

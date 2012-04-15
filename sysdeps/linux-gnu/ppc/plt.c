@@ -523,6 +523,29 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 	abort();
 }
 
+int
+arch_library_symbol_init(struct library_symbol *libsym)
+{
+	/* We set type explicitly in the code above, where we have the
+	 * necessary context.  This is for calls from ltrace-elf.c and
+	 * such.  */
+	libsym->arch.type = PPC_NOT_PLT;
+	return 0;
+}
+
+void
+arch_library_symbol_destroy(struct library_symbol *libsym)
+{
+}
+
+int
+arch_library_symbol_clone(struct library_symbol *retp,
+			  struct library_symbol *libsym)
+{
+	retp->arch = libsym->arch;
+	return 0;
+}
+
 /* For some symbol types, we need to set up custom callbacks.  XXX we
  * don't need PROC here, we can store the data in BP if it is of
  * interest to us.  */

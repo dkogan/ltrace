@@ -27,6 +27,7 @@
 #include "library.h"
 #include "proc.h" // for enum callback_status
 #include "debug.h"
+#include "common.h" // for arch_library_symbol_init, arch_library_init
 
 unsigned int
 target_address_hash(const void *key)
@@ -70,7 +71,27 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 	}
 }
 
+#ifndef ARCH_HAVE_LIBRARY_SYMBOL_DATA
+int
+arch_library_symbol_init(struct library_symbol *libsym)
+{
+	return 0;
+}
+
 void
+arch_library_symbol_destroy(struct library_symbol *libsym)
+{
+}
+
+int
+arch_library_symbol_clone(struct library_symbol *retp,
+			  struct library_symbol *libsym)
+{
+	return 0;
+}
+#endif
+
+static void
 private_library_symbol_init(struct library_symbol *libsym,
 			    target_address_t addr,
 			    const char *name, int own_name,
@@ -84,21 +105,32 @@ private_library_symbol_init(struct library_symbol *libsym,
 	libsym->enter_addr = (void *)(uintptr_t)addr;
 }
 
+static void
+private_library_symbol_destroy(struct library_symbol *libsym)
+{
+	library_symbol_set_name(libsym, NULL, 0);
+}
+
 int
 library_symbol_init(struct library_symbol *libsym,
 		    target_address_t addr, const char *name, int own_name,
 		    enum toplt type_of_plt)
 {
 	private_library_symbol_init(libsym, addr, name, own_name, type_of_plt);
-	return 0;
 
+	/* If arch init fails, we've already set libsym->name and
+	 * own_name.  But we return failure, and the client code isn't
+	 * supposed to call library_symbol_destroy in such a case.  */
+	return arch_library_symbol_init(libsym);
 }
 
 void
 library_symbol_destroy(struct library_symbol *libsym)
 {
-	if (libsym != NULL)
-		library_symbol_set_name(libsym, NULL, 0);
+	if (libsym != NULL) {
+		private_library_symbol_destroy(libsym);
+		arch_library_symbol_destroy(libsym);
+	}
 }
 
 int
@@ -110,6 +142,12 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 
 	private_library_symbol_init(retp, libsym->enter_addr,
 				    name, libsym->own_name, libsym->plt_type);
+
+	if (arch_library_symbol_clone(retp, libsym) < 0) {
+		private_library_symbol_destroy(retp);
+		return -1;
+	}
+
 	return 0;
 }
 
