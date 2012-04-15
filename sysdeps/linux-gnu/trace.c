@@ -759,6 +759,16 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 			if (sbp->enabled)
 				enable_breakpoint(teb, sbp);
 
+			/* If this was caused by a real breakpoint, as
+			 * opposed to a singlestep, assume that it's
+			 * an artificial breakpoint installed for some
+			 * reason for the re-enablement.  In that case
+			 * handle it.  */
+			target_address_t ip = get_instruction_pointer(task);
+			struct breakpoint *other = address2bpstruct(leader, ip);
+			if (other != NULL)
+				breakpoint_on_hit(other, task);
+
 			post_singlestep(self, &event);
 			goto psh_sinking;
 		}
