@@ -29,6 +29,7 @@
 
 #include "ltrace.h"
 #include "dict.h"
+#include "sysdep.h"
 
 struct library;
 struct breakpoint;
@@ -103,7 +104,8 @@ struct Process {
 	struct library *libraries;
 
 	/* Arch-dependent: */
-	void * debug;	/* arch-dep process debug struct */
+	void *debug;	/* arch-dep process debug struct XXX move to
+			 * os_process_data after it's invented.  */
 	void * instruction_pointer;
 	void * stack_pointer;      /* To get return addr, args... */
 	void * return_addr;
@@ -134,6 +136,8 @@ struct Process {
 	   LEADER may be NULL after the leader has already exited.  In
 	   that case this process is waiting to be collected.  */
 	Process * leader;
+
+	struct arch_process_data arch;
 };
 
 /* Initialize a process given a path to binary FILENAME, with a PID,

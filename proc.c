@@ -17,6 +17,31 @@
 #include "breakpoint.h"
 #include "proc.h"
 
+#ifndef ARCH_HAVE_PROCESS_DATA
+int
+arch_process_init(struct Process *proc)
+{
+	return 0;
+}
+
+void
+arch_process_destroy(struct Process *proc)
+{
+}
+
+int
+arch_process_clone(struct Process *retp, struct Process *proc)
+{
+	return 0;
+}
+
+int
+arch_process_exec(struct Process *proc)
+{
+	return 0;
+}
+#endif
+
 static void add_process(struct Process *proc, int was_exec);
 
 static int
@@ -98,6 +123,11 @@ process_init(struct Process *proc, const char *filename, pid_t pid)
 		return -1;
 	}
 
+	if (arch_process_init(proc) < 0) {
+		process_bare_destroy(proc, 0);
+		goto fail;
+	}
+
 	if (proc->leader != proc)
 		return 0;
 	if (process_init_main(proc) < 0) {
@@ -141,11 +171,16 @@ void
 process_destroy(struct Process *proc)
 {
 	private_process_destroy(proc, 0);
+	arch_process_destroy(proc);
 }
 
 int
 process_exec(struct Process *proc)
 {
+	/* Call exec first, before we destroy the main state.  */
+	if (arch_process_exec(proc) < 0)
+		return -1;
+
 	private_process_destroy(proc, 1);
 	if (process_bare_init(proc, NULL, proc->pid, 1) < 0)
 		return -1;
@@ -248,6 +283,9 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 	retp->callstack_depth = proc->callstack_depth;
 
 	if (data.error < 0)
+		goto fail2;
+
+	if (arch_process_clone(retp, proc) < 0)
 		goto fail2;
 
 	return 0;

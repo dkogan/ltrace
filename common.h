@@ -242,6 +242,11 @@ void arch_library_symbol_destroy(struct library_symbol *libsym);
 int arch_library_symbol_clone(struct library_symbol *retp,
 			      struct library_symbol *libsym);
 
+int arch_process_init(struct Process *proc);
+void arch_process_destroy(struct Process *proc);
+int arch_process_clone(struct Process *retp, struct Process *proc);
+int arch_process_exec(struct Process *proc);
+
 typedef void *target_address_t;
 /* This should extract entry point address and interpreter (dynamic
  * linker) bias if possible.  Returns 0 if there were no errors, -1

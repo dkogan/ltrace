@@ -18,4 +18,9 @@ struct arch_library_symbol_data {
 };
 #endif
 
+#ifndef ARCH_HAVE_PROCESS_DATA
+struct arch_process_data {
+};
+#endif
+
 #endif /* LTRACE_SYSDEP_H */
