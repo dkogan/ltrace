@@ -56,9 +56,9 @@ struct library_symbol {
 
 /* Init LIBSYM.  NAME will be freed when LIBSYM is destroyed if
  * OWN_NAME.  ARCH has to be initialized by a separate call.  */
-void library_symbol_init(struct library_symbol *libsym,
-			 target_address_t addr, const char *name, int own_name,
-			 enum toplt type_of_plt);
+int library_symbol_init(struct library_symbol *libsym,
+			target_address_t addr, const char *name, int own_name,
+			enum toplt type_of_plt);
 
 /* Copy library symbol SYM into the area pointed-to by RETP.  Return 0
  * on success or a negative value on failure.  */

@@ -319,6 +319,7 @@ arch_elf_init(struct ltelf *lte)
 			char *sym_name = strndup(name, len);
 			struct library_symbol *libsym = malloc(sizeof(*libsym));
 			if (sym_name == NULL || libsym == NULL) {
+			fail2:
 				free(sym_name);
 				free(libsym);
 				goto fail;
@@ -326,8 +327,9 @@ arch_elf_init(struct ltelf *lte)
 
 			target_address_t addr
 				= (target_address_t)sym.st_value + lte->bias;
-			library_symbol_init(libsym, addr, sym_name, 1,
-					    LS_TOPLT_EXEC);
+			if (library_symbol_init(libsym, addr, sym_name, 1,
+						LS_TOPLT_EXEC) < 0)
+				goto fail2;
 			libsym->arch.type = PPC64PLT_STUB;
 			libsym->next = lte->arch.stubs;
 			lte->arch.stubs = libsym;
@@ -425,8 +427,9 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		return plt_fail;
 	}
 
-	library_symbol_init(libsym, (target_address_t)plt_entry_addr,
-			    name, 1, LS_TOPLT_EXEC);
+	if (library_symbol_init(libsym, (target_address_t)plt_entry_addr,
+				name, 1, LS_TOPLT_EXEC) < 0)
+		goto fail;
 	libsym->arch.plt_slot_addr = plt_slot_addr;
 
 	if (plt_slot_value == plt_entry_addr || plt_slot_value == 0) {

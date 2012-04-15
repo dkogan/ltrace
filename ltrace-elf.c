@@ -60,7 +60,11 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 
 	target_address_t taddr = (target_address_t)(addr + lte->bias);
 
-	library_symbol_init(libsym, taddr, name, 1, LS_TOPLT_EXEC);
+	if (library_symbol_init(libsym, taddr, name, 1, LS_TOPLT_EXEC) < 0) {
+		free(libsym);
+		goto fail;
+	}
+
 	*ret = libsym;
 	return 0;
 }
@@ -600,12 +604,12 @@ populate_this_symtab(struct Process *proc, const char *filename,
 
 		if (unique->libsym == NULL) {
 			struct library_symbol *libsym = malloc(sizeof(*libsym));
-			if (libsym == NULL) {
+			if (libsym == NULL
+			    || library_symbol_init(libsym, naddr, full_name,
+						   1, LS_TOPLT_NONE) < 0) {
 				--num_symbols;
 				goto fail;
 			}
-			library_symbol_init(libsym, naddr, full_name,
-					    1, LS_TOPLT_NONE);
 			unique->libsym = libsym;
 			unique->addr = naddr;
 

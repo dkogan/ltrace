@@ -71,9 +71,10 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 }
 
 void
-library_symbol_init(struct library_symbol *libsym,
-		    target_address_t addr, const char *name, int own_name,
-		    enum toplt type_of_plt)
+private_library_symbol_init(struct library_symbol *libsym,
+			    target_address_t addr,
+			    const char *name, int own_name,
+			    enum toplt type_of_plt)
 {
 	libsym->next = NULL;
 	libsym->lib = NULL;
@@ -81,6 +82,16 @@ library_symbol_init(struct library_symbol *libsym,
 	libsym->name = name;
 	libsym->own_name = own_name;
 	libsym->enter_addr = (void *)(uintptr_t)addr;
+}
+
+int
+library_symbol_init(struct library_symbol *libsym,
+		    target_address_t addr, const char *name, int own_name,
+		    enum toplt type_of_plt)
+{
+	private_library_symbol_init(libsym, addr, name, own_name, type_of_plt);
+	return 0;
+
 }
 
 void
@@ -97,8 +108,8 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 	if (strdup_if_owned(&name, libsym->name, libsym->own_name) < 0)
 		return -1;
 
-	library_symbol_init(retp, libsym->enter_addr,
-			    name, libsym->own_name, libsym->plt_type);
+	private_library_symbol_init(retp, libsym->enter_addr,
+				    name, libsym->own_name, libsym->plt_type);
 	return 0;
 }
 
