@@ -21,11 +21,11 @@
 #define ARCH_HAVE_UMOVELONG
 #define ARCH_HAVE_ATOMIC_SINGLESTEP
 #define ARCH_HAVE_ADD_PLT_ENTRY
-#define ARCH_HAVE_LTELF_DATA
-#define ARCH_HAVE_BREAKPOINT_DATA
 #define ARCH_HAVE_TRANSLATE_ADDRESS
 
 struct library_symbol;
+
+#define ARCH_HAVE_LTELF_DATA
 struct arch_ltelf_data {
 	GElf_Addr plt_stub_vma;
 	int secure_plt;
@@ -55,7 +55,9 @@ struct arch_library_symbol_data {
 	GElf_Addr plt_slot_addr;
 };
 
+#define ARCH_HAVE_BREAKPOINT_DATA
 struct arch_breakpoint_data {
+	/* We need this just for arch_breakpoint_init.  */
 };
 
 #endif /* LTRACE_PPC_ARCH_H */
