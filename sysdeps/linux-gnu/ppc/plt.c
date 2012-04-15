@@ -447,8 +447,10 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		 * detach, which is nothing new: we already need to
 		 * retract breakpoints.  */
 
-		if (unresolve_plt_slot(proc, plt_slot_addr, plt_entry_addr) < 0)
+		if (unresolve_plt_slot(proc, plt_slot_addr, plt_entry_addr) < 0) {
+			library_symbol_destroy(libsym);
 			goto fail;
+		}
 		libsym->arch.type = PPC64PLT_RESOLVED;
 		libsym->arch.resolved_value = plt_slot_value;
 	}
