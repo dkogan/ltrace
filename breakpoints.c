@@ -161,9 +161,6 @@ breakpoint_clone(struct breakpoint *retp, struct Process *new_proc,
 int
 breakpoint_turn_on(struct breakpoint *bp, struct Process *proc)
 {
-	/* Make sure it was inserted.  XXX In a clean world, we would
-	 * have breakpoint_site representing a place and breakpoint
-	 * representing inserted breakpoint.  */
 	bp->enabled++;
 	if (bp->enabled == 1) {
 		assert(proc->pid != 0);
@@ -196,13 +193,7 @@ insert_breakpoint(struct Process *proc, void *addr,
 	debug(DEBUG_FUNCTION, "insert_breakpoint(pid=%d, addr=%p, symbol=%s)",
 	      proc->pid, addr, libsym ? libsym->name : "NULL");
 
-	if (addr == 0) {
-		/* XXX we need a better way to deal with this.  For
-		 * now, just abuse errno to carry the error
-		 * information.  */
-		errno = EINVAL;
-		return NULL;
-	}
+	assert(addr != 0);
 
 	/* XXX what we need to do instead is have a list of
 	 * breakpoints that are enabled at this address.  The

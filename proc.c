@@ -77,15 +77,13 @@ process_init_main(struct Process *proc)
 	if (process_get_entry(proc, &entry, &interp_bias) < 0) {
 		fprintf(stderr, "Couldn't get entry points of process %d\n",
 			proc->pid);
-	fail:
-		process_bare_destroy(proc, 0);
 		return -1;
 	}
 
 	if (breakpoints_init(proc) < 0) {
 		fprintf(stderr, "failed to init breakpoints %d\n",
 			proc->pid);
-		goto fail;
+		return -1;
 	}
 
 	return 0;
@@ -95,14 +93,18 @@ int
 process_init(struct Process *proc, const char *filename, pid_t pid)
 {
 	if (process_bare_init(proc, filename, pid, 0) < 0) {
+	fail:
 		error(0, errno, "init process %d", pid);
 		return -1;
 	}
 
-	if (proc->leader == proc)
-		return process_init_main(proc);
-	else
+	if (proc->leader != proc)
 		return 0;
+	if (process_init_main(proc) < 0) {
+		process_bare_destroy(proc, 0);
+		goto fail;
+	}
+	return 0;
 }
 
 static void

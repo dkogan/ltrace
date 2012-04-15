@@ -57,7 +57,7 @@ struct process_stopping_handler
 	struct event_handler super;
 
 	/* The task that is doing the re-enablement.  */
-	Process *task_enabling_breakpoint;
+	struct Process *task_enabling_breakpoint;
 
 	/* The pointer being re-enabled.  */
 	struct breakpoint *breakpoint_being_enabled;

@@ -471,7 +471,7 @@ populate_plt(struct Process *proc, const char *filename,
 		if (!filter_matches_symbol(options.plt_filter, name, lib))
 			continue;
 
-		struct library_symbol *libsym;
+		struct library_symbol *libsym = NULL;
 		switch (arch_elf_add_plt_entry(proc, lte, name,
 					       &rela, i, &libsym)) {
 		case plt_default:

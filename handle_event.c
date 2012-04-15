@@ -398,9 +398,11 @@ temporary_syscall_symbol(const char *name)
 		free(syscall);
 		return NULL;
 	}
+	/* XXX TODO: this needs to be fleshed out.  */
 	library_init(syscalls, (enum library_type)-1);
 	library_set_soname(syscalls, "SYS", 0);
-	library_symbol_init(syscall, 0, name, 0, LS_TOPLT_NONE);
+	if (library_symbol_init(syscall, 0, name, 0, LS_TOPLT_NONE) < 0)
+		abort();
 	library_add_symbol(syscalls, syscall);
 	return syscall;
 }
