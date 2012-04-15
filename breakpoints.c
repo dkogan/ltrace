@@ -218,8 +218,10 @@ insert_breakpoint(struct Process *proc, void *addr,
 		}
 	}
 
-	if (breakpoint_turn_on(sbp, proc) < 0)
+	if (breakpoint_turn_on(sbp, proc) < 0) {
+		proc_remove_breakpoint(leader, sbp);
 		goto fail;
+	}
 
 	return sbp;
 }
