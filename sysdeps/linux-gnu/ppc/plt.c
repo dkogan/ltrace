@@ -59,9 +59,9 @@
  * PLT address.
  *
  * When a PLT entry hits a resolved breakpoint (which happens because
- * we put back the unresolved addresses to .plt), we move the
- * instruction pointer to the corresponding address and continue the
- * process as if nothing happened.
+ * we rewrite .plt with the original unresolved addresses), we move
+ * the instruction pointer to the corresponding address and continue
+ * the process as if nothing happened.
  *
  * When unresolved PLT entry is called for the first time, we need to
  * catch the new value that the resolver will write to a .plt slot.
@@ -73,15 +73,27 @@
  * resolved, and rewrite the .plt value back to PLT address.  We then
  * start all threads again.
  *
- * In theory we might find the exact instruction that will update the
- * .plt slot, and emulate it, updating the PLT breakpoint immediately,
- * and then just skip it.  But that's even messier than the thread
- * stopping business and single stepping that needs to be done.
+ * As an optimization, we remember the address where the address was
+ * resolved, and put a breakpoint there.  The next time around (when
+ * the next PLT entry is to be resolved), instead of single-stepping
+ * through half the dynamic linker, we just let the thread run and hit
+ * this breakpoint.  When it hits, we know the PLT entry was resolved.
  *
- * Short of doing this we really have to stop everyone.  There is no
+ * XXX TODO As an additional optimization, after the above is done, we
+ * might emulate the instruction that updates .plt.  We would compute
+ * the resolved address, and instead of letting the dynamic linker put
+ * it in .plt, we would resolve the breakpoint to that address.  This
+ * way we wouldn't need to stop other threads.  Otherwise there's no
  * way around that.  Unless we know where the stubs are, we don't have
  * a way to catch a thread that would use the window of opportunity
- * between updating .plt and notifying ltrace about the singlestep.
+ * between updating .plt and notifying ltrace that it happened.
+ *
+ * XXX TODO If we have hardware watch point, we might put a read watch
+ * on .plt slot, and discover the offenders this way.  I don't know
+ * the details, but I assume at most a handful (like, one or two, if
+ * available at all) addresses may be watched at a time, and thus this
+ * would be used as an amendment of the above rather than full-on
+ * solution to PLT tracing on PPC.
  */
 
 #define PPC_PLT_STUB_SIZE 16
@@ -444,8 +456,7 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		 * of the resover.  But we don't care, we will never
 		 * need to enter the resolver.  That just means that
 		 * we have to un-un-resolve this back before we
-		 * detach, which is nothing new: we already need to
-		 * retract breakpoints.  */
+		 * detach.  */
 
 		if (unresolve_plt_slot(proc, plt_slot_addr, plt_entry_addr) < 0) {
 			library_symbol_destroy(libsym);
