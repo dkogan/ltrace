@@ -510,8 +510,8 @@ process_options(int argc, char **argv)
 			opt_i++;
 			break;
 		case 'l':
-			//assert(!"-l support not yet implemented");
-			//abort();
+			// XXX TODO
+			fprintf(stderr, "-l support not yet implemented\n");
 			break;
 		case 'L':
 			libcalls = 0;
