@@ -151,7 +151,6 @@ breakpoint_clone(struct breakpoint *retp, struct Process *new_proc,
 	breakpoint_init_base(retp, new_proc, bp->addr, libsym);
 	memcpy(retp->orig_value, bp->orig_value, sizeof(bp->orig_value));
 	retp->enabled = bp->enabled;
-	retp->debug_enabled = bp->debug_enabled;
 	if (arch_breakpoint_clone(retp, bp) < 0)
 		return -1;
 	breakpoint_set_callbacks(retp, bp->cbs);
