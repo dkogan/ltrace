@@ -510,8 +510,8 @@ process_options(int argc, char **argv)
 			opt_i++;
 			break;
 		case 'l':
-			assert(!"-l support not yet implemented");
-			abort();
+			//assert(!"-l support not yet implemented");
+			//abort();
 			break;
 		case 'L':
 			libcalls = 0;
@@ -522,9 +522,8 @@ process_options(int argc, char **argv)
 		case 'o':
 			options.output = fopen(optarg, "w");
 			if (!options.output) {
-				fprintf(stderr,
-					"Can't open %s for output: %s\n",
-					optarg, strerror(errno));
+				error(0, errno,
+				      "can't open %s for writing", optarg);
 				exit(1);
 			}
 			setvbuf(options.output, (char *)NULL, _IOLBF, 0);
