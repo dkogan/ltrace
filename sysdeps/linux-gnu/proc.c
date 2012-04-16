@@ -311,7 +311,9 @@ find_dynamic_entry_addr(struct Process *proc, target_address_t src_addr,
 		}
 
 		if (entry.d_tag == d_tag) {
-			*ret = (target_address_t)entry.d_un.d_val;
+			/* XXX The double cast should be removed when
+			 * target_address_t becomes integral type.  */
+			*ret = (target_address_t)(uintptr_t)entry.d_un.d_val;
 			debug(2, "found address: %p in dtag %d\n", *ret, d_tag);
 			return 0;
 		}
@@ -422,7 +424,9 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 		return;
 	}
 
-	target_address_t addr = (target_address_t)dbg->r_map;
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	target_address_t addr = (target_address_t)(uintptr_t)dbg->r_map;
 
 	while (addr != 0) {
 		struct lt_link_map_64 rlm;
@@ -432,14 +436,18 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 		}
 
 		target_address_t key = addr;
-		addr = (target_address_t)rlm.l_next;
+		/* XXX The double cast should be removed when
+		 * target_address_t becomes integral type.  */
+		addr = (target_address_t)(uintptr_t)rlm.l_next;
 		if (rlm.l_name == 0) {
 			debug(2, "Name of mapped library is NULL");
 			return;
 		}
 
 		char lib_name[BUFSIZ];
-		umovebytes(proc, (target_address_t)rlm.l_name,
+		/* XXX The double cast should be removed when
+		 * target_address_t becomes integral type.  */
+		umovebytes(proc, (target_address_t)(uintptr_t)rlm.l_name,
 			   lib_name, sizeof(lib_name));
 
 		if (*lib_name == '\0') {
@@ -552,7 +560,9 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 		return status;
 	}
 
-	target_address_t addr = (target_address_t)rdbg.r_brk;
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	target_address_t addr = (target_address_t)(uintptr_t)rdbg.r_brk;
 	if (arch_translate_address(proc, addr, &addr) < 0)
 		goto fail;
 
@@ -618,11 +628,17 @@ process_get_entry(struct Process *proc,
 
 		switch (entry.a_type) {
 		case AT_BASE:
-			at_bias = (target_address_t)entry.a_un.a_val;
+			/* XXX The double cast should be removed when
+			 * target_address_t becomes integral type.  */
+			at_bias = (target_address_t)
+				(uintptr_t)entry.a_un.a_val;
 			continue;
 
 		case AT_ENTRY:
-			at_entry = (target_address_t)entry.a_un.a_val;
+			/* XXX The double cast should be removed when
+			 * target_address_t becomes integral type.  */
+			at_entry = (target_address_t)
+				(uintptr_t)entry.a_un.a_val;
 		default:
 			continue;
 

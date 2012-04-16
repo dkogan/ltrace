@@ -337,8 +337,10 @@ arch_elf_init(struct ltelf *lte)
 				goto fail;
 			}
 
-			target_address_t addr
-				= (target_address_t)sym.st_value + lte->bias;
+			/* XXX The double cast should be removed when
+			 * target_address_t becomes integral type.  */
+			target_address_t addr = (target_address_t)
+				(uintptr_t)sym.st_value + lte->bias;
 			if (library_symbol_init(libsym, addr, sym_name, 1,
 						LS_TOPLT_EXEC) < 0)
 				goto fail2;
@@ -439,7 +441,10 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		return plt_fail;
 	}
 
-	if (library_symbol_init(libsym, (target_address_t)plt_entry_addr,
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	if (library_symbol_init(libsym,
+				(target_address_t)(uintptr_t)plt_entry_addr,
 				name, 1, LS_TOPLT_EXEC) < 0)
 		goto fail;
 	libsym->arch.plt_slot_addr = plt_slot_addr;
@@ -595,7 +600,10 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		return;
 
 	case PPC64PLT_RESOLVED:
-		rv = (target_address_t)bp->libsym->arch.resolved_value;
+		/* XXX The double cast should be removed when
+		 * target_address_t becomes integral type.  */
+		rv = (target_address_t)
+			(uintptr_t)bp->libsym->arch.resolved_value;
 		set_instruction_pointer(proc, rv);
 		continue_process(proc->pid);
 		return;

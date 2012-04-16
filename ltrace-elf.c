@@ -58,7 +58,10 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 	if (libsym == NULL)
 		goto fail;
 
-	target_address_t taddr = (target_address_t)(addr + lte->bias);
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	target_address_t taddr = (target_address_t)
+		(uintptr_t)(addr + lte->bias);
 
 	if (library_symbol_init(libsym, taddr, name, 1, LS_TOPLT_EXEC) < 0) {
 		free(libsym);
@@ -557,8 +560,8 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		if (!filter_matches_symbol(options.static_filter, name, lib))
 			continue;
 
-		target_address_t addr
-			= (target_address_t)(sym.st_value + lte->bias);
+		target_address_t addr = (target_address_t)
+			(uintptr_t)(sym.st_value + lte->bias);
 		target_address_t naddr;
 
 		/* On arches that support OPD, the value of typical
@@ -682,13 +685,19 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 		library_set_soname(lib, soname, 0);
 	}
 
-	target_address_t entry = (target_address_t)lte.entry_addr;
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	target_address_t entry = (target_address_t)(uintptr_t)lte.entry_addr;
 	if (arch_translate_address(proc, entry, &entry) < 0)
 		goto fail;
 
-	lib->base = (target_address_t)lte.base_addr;
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	lib->base = (target_address_t)(uintptr_t)lte.base_addr;
 	lib->entry = entry;
-	lib->dyn_addr = (target_address_t)lte.dyn_addr;
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	lib->dyn_addr = (target_address_t)(uintptr_t)lte.dyn_addr;
 
 	if (filter_matches_library(options.plt_filter, lib)
 	    && populate_plt(proc, filename, &lte, lib) < 0)
