@@ -581,15 +581,12 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		keep_stepping_p = NULL;
 		leader = proc->leader;
 
-		if (leader != NULL && leader->arch.dl_plt_update_bp != NULL) {
-			if (breakpoint_turn_on(leader->arch.dl_plt_update_bp,
-					       proc) < 0)
-				goto stepping;
+		if (leader != NULL && leader->arch.dl_plt_update_bp != NULL
+		    && breakpoint_turn_on(leader->arch.dl_plt_update_bp,
+					  proc) >= 0)
 			on_all_stopped = cb_on_all_stopped;
-		} else {
-		stepping:
+		else
 			keep_stepping_p = cb_keep_stepping_p;
-		}
 
 		if (process_install_stopping_handler
 		    (proc, bp, on_all_stopped, keep_stepping_p, NULL) < 0) {
