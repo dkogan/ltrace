@@ -33,25 +33,8 @@
  * enable.  Realized tracepoints enable breakpoints, which are a
  * low-level realization of high-level tracepoint.
  *
- * Tracepoints are provided by the main binary as well as by any
- * opened libraries: every time an ELF file is mapped into the address
- * space, a new set of tracepoints is extracted, and filtered
- * according to user settings.  Those tracepoints that are left are
- * then realized, and the tracing starts.
- *
- * A scheme like this would take care of gradually introducing
- * breakpoints when the library is mapped, and therefore ready, and
- * would avoid certain hacks.  For example on PPC64, we don't actually
- * add breakpoints to PLT.  Instead, we read the PLT (which contains
- * addresses, not code), to figure out where to put the breakpoints.
- * In prelinked code, that address is non-zero, and points to an
- * address that's not yet mapped.  ptrace then fails when we try to
- * add the breakpoint.
- *
- * Ideally, return breakpoints would be just a special kind of
- * tracepoint that has attached some magic.  Or a feature of a
- * tracepoint.  Service breakpoints like the handling of dlopen would
- * be a low-level breakpoint, likely without tracepoint attached.
+ * Service breakpoints like the handling of dlopen would be a
+ * low-level breakpoint, likely without tracepoint attached.
  *
  * So that's for sometimes.
  */
