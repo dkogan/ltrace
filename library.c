@@ -42,7 +42,7 @@ target_address_hash(const void *key)
 	size_t i;
 	unsigned int h = 0;
 	for (i = 0; i < sizeof(u.ints) / sizeof(*u.ints); ++i)
-		h ^= dict_key2hash_int(u.ints + i);
+		h ^= dict_key2hash_int((void *)(uintptr_t)u.ints[i]);
 	return h;
 }
 
