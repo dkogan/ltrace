@@ -373,12 +373,7 @@ open_pid(pid_t pid)
 		old_ntasks = ntasks;
 	}
 
-	/* Done.  Now initialize breakpoints and then continue
-	 * everyone.  */
-	Process * leader;
-	leader = pid2proc(pid)->leader;
-	enable_all_breakpoints(leader);
-
+	/* Done.  Continue everyone.  */
 	each_task(pid2proc(pid)->leader, NULL, start_one_pid, NULL);
 }
 
