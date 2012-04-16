@@ -28,25 +28,5 @@ if [regexp {ELF from incompatible architecture} $exec_output] {
 	return
 }
 
-# Verify the time for calling sleep.
-set fd [ open $objdir/$subdir/$binfile.ltrace r]
-set FOUND 0
-while { [gets $fd line] >= 0 } {
-	# match the line with sleep and extract the spent time in sleep and sleep argument.
-	if [ regexp {(test_libdl)\(} $line match tester ] then {
-		verbose "test_libdl = $tester"
-
-		if { $tester == "test_libdl" } then {
-			pass "Successfully traced libdl loaded function."
-		} else {
-			fail "Failed to trace libdl loaded function."
-		}
-	set FOUND 1
-	break
-        }
-}
-close $fd
-
-if {$FOUND != 1} then {
-	fail "Fail to trace libdl loaded function!"
-}
+set pattern "test_libdl@liblibdl-simple.so"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
