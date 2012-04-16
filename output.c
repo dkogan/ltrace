@@ -183,7 +183,7 @@ output_left(enum tof type, struct Process *proc,
 			(options.demangle
 			 ? my_demangle(function_name) : function_name));
 #else
-	current_column += fprintf("%s(", function_name);
+	current_column += fprintf(options.output, "%s(", function_name);
 #endif
 
 	func = name2func(function_name);
