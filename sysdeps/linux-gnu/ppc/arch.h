@@ -33,6 +33,9 @@ struct arch_ltelf_data {
 };
 
 enum ppc64_plt_type {
+	/* Either a non-PLT symbol, or PPC32 symbol.  */
+	PPC_DEFAULT = 0,
+
 	/* STUB, never resolved.  */
 	PPC64PLT_STUB,
 

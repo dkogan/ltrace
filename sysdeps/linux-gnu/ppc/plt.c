@@ -600,7 +600,9 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		continue_process(proc->pid);
 		return;
 
+	case PPC_DEFAULT:
 	case PPC64PLT_STUB:
+		/* These should never hit here.  */
 		break;
 	}
 
@@ -614,7 +616,7 @@ arch_library_symbol_init(struct library_symbol *libsym)
 	/* We set type explicitly in the code above, where we have the
 	 * necessary context.  This is for calls from ltrace-elf.c and
 	 * such.  */
-	libsym->arch.type = PPC_NOT_PLT;
+	libsym->arch.type = PPC_DEFAULT;
 	return 0;
 }
 
@@ -641,9 +643,8 @@ arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 	    || bp->libsym == NULL)
 		return 0;
 
-	/* We could see LS_TOPLT_EXEC or LS_TOPLT_NONE (the latter
-	 * when we trace entry points), but not LS_TOPLT_POINT
-	 * anywhere on PPC.  */
+	/* Entry point breakpoints (LS_TOPLT_NONE) and stub PLT
+	 * breakpoints need no special handling.  */
 	if (bp->libsym->plt_type != LS_TOPLT_EXEC
 	    || bp->libsym->arch.type == PPC64PLT_STUB)
 		return 0;
