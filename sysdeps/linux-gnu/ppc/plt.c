@@ -492,6 +492,13 @@ unresolve_plt_slot(struct Process *proc, GElf_Addr addr, GElf_Addr value)
 	return 0;
 }
 
+static void
+mark_as_resolved(struct library_symbol *libsym, GElf_Addr value)
+{
+	libsym->arch.type = PPC_PLT_RESOLVED;
+	libsym->arch.resolved_value = value;
+}
+
 enum plt_status
 arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
@@ -575,8 +582,7 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 			library_symbol_destroy(libsym);
 			goto fail;
 		}
-		libsym->arch.type = PPC64PLT_RESOLVED;
-		libsym->arch.resolved_value = plt_slot_value;
+		mark_as_resolved(libsym, plt_slot_value);
 	}
 
 	*ret = libsym;
@@ -651,13 +657,15 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 	 * singlestep the next time around as well.  */
 	struct Process *leader = proc->leader;
 	if (leader == NULL || leader->arch.dl_plt_update_bp != NULL)
-		goto resolve;
+		goto done;
 
 	/* We need to install to the next instruction.  ADDR points to
 	 * a store instruction, so moving the breakpoint one
 	 * instruction forward is safe.  */
 	target_address_t addr = get_instruction_pointer(proc) + 4;
 	leader->arch.dl_plt_update_bp = insert_breakpoint(proc, addr, NULL);
+	if (leader->arch.dl_plt_update_bp == NULL)
+		goto done;
 
 	/* Turn it off for now.  We will turn it on again when we hit
 	 * the PLT entry that needs this.  */
@@ -670,9 +678,8 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 		leader->arch.dl_plt_update_bp->cbs = &dl_plt_update_cbs;
 	}
 
-resolve:
-	libsym->arch.type = PPC64PLT_RESOLVED;
-	libsym->arch.resolved_value = value;
+done:
+	mark_as_resolved(libsym, value);
 
 	return CBS_STOP;
 }
