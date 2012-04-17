@@ -614,6 +614,7 @@ dl_plt_update_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 
 	unresolve_plt_slot(proc, libsym->arch.plt_slot_addr,
 			   libsym->arch.resolved_value);
+	mark_as_resolved(libsym, value);
 
 	/* cb_on_all_stopped looks if HANDLER is set to NULL as a way
 	 * to check that this was run.  It's an error if it
