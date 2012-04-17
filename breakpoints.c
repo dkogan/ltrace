@@ -347,6 +347,7 @@ entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 		return;
 	delete_breakpoint(proc, bp->super.addr);
 	linkmap_init(proc, bp->dyn_addr);
+	arch_dynlink_done(proc);
 }
 
 int

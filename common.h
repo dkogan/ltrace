@@ -260,4 +260,8 @@ int process_get_entry(struct Process *proc,
 		      target_address_t *entryp,
 		      target_address_t *interp_biasp);
 
+/* This is called after the dynamic linker is done with the
+ * process startup.  */
+void arch_dynlink_done(struct Process *proc);
+
 #endif

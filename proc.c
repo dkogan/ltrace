@@ -42,6 +42,13 @@ arch_process_exec(struct Process *proc)
 }
 #endif
 
+#ifndef ARCH_HAVE_DYNLINK_DONE
+void
+arch_dynlink_done(struct Process *proc)
+{
+}
+#endif
+
 static void add_process(struct Process *proc, int was_exec);
 
 static int
@@ -373,8 +380,14 @@ open_pid(pid_t pid)
 		old_ntasks = ntasks;
 	}
 
+	struct Process *leader = pid2proc(pid)->leader;
+
+	/* XXX Is there a way to figure out whether _start has
+	 * actually already been hit?  */
+	arch_dynlink_done(leader);
+
 	/* Done.  Continue everyone.  */
-	each_task(pid2proc(pid)->leader, NULL, start_one_pid, NULL);
+	each_task(leader, NULL, start_one_pid, NULL);
 }
 
 static enum callback_status
