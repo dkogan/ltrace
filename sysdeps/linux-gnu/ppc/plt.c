@@ -18,16 +18,18 @@
  * otherwise it's secure.
  *
  * BSS PLT works the same way as most architectures: the .plt section
- * contains trampolines and we put breakpoints to those.  With secure
- * PLT, the .plt section doesn't contain instructions but addresses.
- * The real PLT table is stored in .text.  Addresses of those PLT
- * entries can be computed, and it fact that's what the glink deal
- * below does.
+ * contains trampolines and we put breakpoints to those.  If not
+ * prelinked, .plt contains zeroes, and dynamic linker fills in the
+ * initial set of trampolines, which means that we need to delay
+ * enabling breakpoints until after binary entry point is hit.
+ * Additionally, after first call, dynamic linker updates .plt with
+ * branch to resolved address.  That means that on first hit, we must
+ * do something similar to the PPC64 gambit described below.
  *
- * If not prelinked, BSS PLT entries in the .plt section contain
- * zeroes that are overwritten by the dynamic linker during start-up.
- * For that reason, ltrace realizes those breakpoints only after
- * _start is hit.
+ * With secure PLT, the .plt section doesn't contain instructions but
+ * addresses.  The real PLT table is stored in .text.  Addresses of
+ * those PLT entries can be computed, and apart from the fact that
+ * they are in .text, they are ordinary PLT entries.
  *
  * 64-bit PPC is more involved.  Program linker creates for each
  * library call a _stub_ symbol named xxxxxxxx.plt_call.<callee>
@@ -79,14 +81,15 @@
  * through half the dynamic linker, we just let the thread run and hit
  * this breakpoint.  When it hits, we know the PLT entry was resolved.
  *
- * XXX TODO As an additional optimization, after the above is done, we
- * might emulate the instruction that updates .plt.  We would compute
- * the resolved address, and instead of letting the dynamic linker put
- * it in .plt, we would resolve the breakpoint to that address.  This
- * way we wouldn't need to stop other threads.  Otherwise there's no
- * way around that.  Unless we know where the stubs are, we don't have
- * a way to catch a thread that would use the window of opportunity
- * between updating .plt and notifying ltrace that it happened.
+ * N.B. It's tempting to try to emulate the instruction that updates
+ * .plt.  We would compute the resolved address, and instead of
+ * letting the dynamic linker put it in .plt, we would resolve the
+ * breakpoint to that address.  This way we wouldn't need to stop
+ * other threads.  However that instruction may turn out to be a sync,
+ * and in general, may be any instruction between the actual write and
+ * the following sync.  XXX TODO that means that we need to put the
+ * post-enable breakpoint at the following sync, not to the
+ * instruction itself (unless it's a sync already).
  *
  * XXX TODO If we have hardware watch point, we might put a read watch
  * on .plt slot, and discover the offenders this way.  I don't know
@@ -109,6 +112,43 @@ host_powerpc64()
 #endif
 }
 
+static int
+read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp)
+{
+	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
+	if (l == -1UL && errno)
+		return -1;
+	if (host_powerpc64())
+		l >>= 32;
+	*lp = l;
+	return 0;
+}
+
+static int
+read_target_8(struct Process *proc, target_address_t addr, uint64_t *lp)
+{
+	assert(host_powerpc64());
+	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
+	if (l == -1UL && errno)
+		return -1;
+	*lp = l;
+	return 0;
+}
+
+static int
+read_target_long(struct Process *proc, target_address_t addr, uint64_t *lp)
+{
+	if (proc->e_machine == EM_PPC) {
+		uint32_t w;
+		int ret = read_target_4(proc, addr, &w);
+		if (ret >= 0)
+			*lp = (uint64_t)w;
+		return ret;
+	} else {
+		return read_target_8(proc, addr, lp);
+	}
+}
+
 static enum callback_status
 reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
 {
@@ -121,6 +161,16 @@ reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
 
 	debug(DEBUG_PROCESS, "pid=%d reenable_breakpoint %s",
 	      proc->pid, breakpoint_name(bp));
+
+	assert(proc->e_machine == EM_PPC);
+	uint32_t l;
+	if (read_target_4(proc, bp->addr, &l) < 0) {
+		error(0, errno, "couldn't read PLT value for %s(%p)",
+		      breakpoint_name(bp), bp->addr);
+		return CBS_CONT;
+	}
+	bp->libsym->arch.plt_slot_addr = (GElf_Addr)bp->addr;
+	bp->libsym->arch.resolved_value = l;
 
 	/* Re-enable the breakpoint that was overwritten by the
 	 * dynamic linker.  XXX unfortunately it's overwritten
@@ -276,8 +326,7 @@ load_ppc64_glink(struct ltelf *lte, GElf_Addr *glinkp)
 static int
 nonzero_data(Elf_Data *data)
 {
-	/* We are not supposed to get here if there are no PLT data in
-	 * the binary.  */
+	/* We are not supposed to get here if there's no PLT.  */
 	assert(data != NULL);
 
 	unsigned char *buf = data->d_buf;
@@ -416,12 +465,11 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 static int
 read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
 {
-	/* on PPC32 we need to do things differently, but PPC64/PPC32
-	 * is currently not supported anyway.  */
-	assert(host_powerpc64());
-
-	long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
-	if (l == -1 && errno != 0) {
+	/* On PPC64, we read from .plt, which contains 8 byte
+	 * addresses.  On PPC32 we read from .plt, which contains 4
+	 * byte instructions.  So read_target_long is appropriate.  */
+	uint64_t l;
+	if (read_target_long(proc, (target_address_t)addr, &l) < 0) {
 		error(0, errno, "ptrace .plt slot value @%#" PRIx64, addr);
 		return -1;
 	}
@@ -630,7 +678,7 @@ resolve:
 }
 
 static void
-ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
+ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 {
 	switch (bp->libsym->arch.type) {
 		target_address_t rv;
@@ -638,6 +686,12 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		void (*on_all_stopped)(struct process_stopping_handler *);
 		enum callback_status (*keep_stepping_p)
 			(struct process_stopping_handler *);
+
+	case PPC_DEFAULT:
+		assert(proc->e_machine == EM_PPC);
+		assert(bp->libsym != NULL);
+		assert(bp->libsym->lib->arch.bss_plt_prelinked == 0);
+		/* fall-through */
 
 	case PPC64PLT_UNRESOLVED:
 		on_all_stopped = NULL;
@@ -653,8 +707,8 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 
 		if (process_install_stopping_handler
 		    (proc, bp, on_all_stopped, keep_stepping_p, NULL) < 0) {
-			perror("ppc64_unresolved_bp_continue: couldn't install"
-			       " event handler");
+			error(0, 0, "ppc_plt_bp_continue: couldn't install"
+			      " event handler");
 			continue_after_breakpoint(proc, bp);
 		}
 		return;
@@ -668,7 +722,6 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		continue_process(proc->pid);
 		return;
 
-	case PPC_DEFAULT:
 	case PPC64PLT_STUB:
 		/* These should never hit here.  */
 		break;
@@ -722,18 +775,22 @@ arch_library_symbol_clone(struct library_symbol *retp,
 int
 arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 {
-	if (proc->e_machine == EM_PPC
-	    || bp->libsym == NULL)
+	/* Artificial and entry-point breakpoints are plain.  */
+	if (bp->libsym == NULL || bp->libsym->plt_type != LS_TOPLT_EXEC)
 		return 0;
 
-	/* Entry point breakpoints (LS_TOPLT_NONE) and stub PLT
-	 * breakpoints need no special handling.  */
-	if (bp->libsym->plt_type != LS_TOPLT_EXEC
-	    || bp->libsym->arch.type == PPC64PLT_STUB)
+	/* On PPC, secure PLT and prelinked BSS PLT are plain.  */
+	if (proc->e_machine == EM_PPC
+	    && bp->libsym->lib->arch.bss_plt_prelinked != 0)
+		return 0;
+
+	/* On PPC64, stub PLT breakpoints are plain.  */
+	if (proc->e_machine == EM_PPC64
+	    && bp->libsym->arch.type == PPC64PLT_STUB)
 		return 0;
 
 	static struct bp_callbacks cbs = {
-		.on_continue = ppc64_plt_bp_continue,
+		.on_continue = ppc_plt_bp_continue,
 	};
 	breakpoint_set_callbacks(bp, &cbs);
 	return 0;
