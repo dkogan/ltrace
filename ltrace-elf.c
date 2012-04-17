@@ -474,8 +474,10 @@ populate_plt(struct Process *proc, const char *filename,
 		case plt_default:
 			if (default_elf_add_plt_entry(proc, lte, name,
 						      &rela, i, &libsym) < 0)
+			/* fall-through */
 		case plt_fail:
 				return -1;
+			/* fall-through */
 		case plt_ok:
 			if (libsym != NULL)
 				library_add_symbol(lib, libsym);
