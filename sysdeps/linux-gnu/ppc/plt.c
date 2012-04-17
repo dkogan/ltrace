@@ -173,8 +173,7 @@ reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
 	bp->libsym->arch.resolved_value = l;
 
 	/* Re-enable the breakpoint that was overwritten by the
-	 * dynamic linker.  XXX unfortunately it's overwritten
-	 * again after the first call :-/  */
+	 * dynamic linker.  */
 	enable_breakpoint(proc, bp);
 
 	return CBS_CONT;
@@ -614,8 +613,11 @@ dl_plt_update_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 	if (read_plt_slot_value(proc, libsym->arch.plt_slot_addr, &value) < 0)
 		return;
 
-	unresolve_plt_slot(proc, libsym->arch.plt_slot_addr,
-			   libsym->arch.resolved_value);
+	/* On PPC64, we rewrite the slot value.  */
+	if (proc->e_machine == EM_PPC64)
+		unresolve_plt_slot(proc, libsym->arch.plt_slot_addr,
+				   libsym->arch.resolved_value);
+	/* We mark the breakpoint as resolved on both arches.  */
 	mark_as_resolved(libsym, value);
 
 	/* cb_on_all_stopped looks if HANDLER is set to NULL as a way
@@ -727,6 +729,11 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		return;
 
 	case PPC_PLT_RESOLVED:
+		if (proc->e_machine == EM_PPC) {
+			continue_after_breakpoint(proc, bp);
+			return;
+		}
+
 		/* XXX The double cast should be removed when
 		 * target_address_t becomes integral type.  */
 		rv = (target_address_t)
