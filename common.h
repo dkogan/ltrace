@@ -237,6 +237,10 @@ int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
 void arch_breakpoint_destroy(struct breakpoint *sbp);
 int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
 
+void arch_library_init(struct library *lib);
+void arch_library_destroy(struct library *lib);
+void arch_library_clone(struct library *retp, struct library *lib);
+
 int arch_library_symbol_init(struct library_symbol *libsym);
 void arch_library_symbol_destroy(struct library_symbol *libsym);
 int arch_library_symbol_clone(struct library_symbol *retp,

@@ -127,6 +127,8 @@ struct library {
 
 	char own_soname : 1;
 	char own_pathname : 1;
+
+	struct arch_library_data arch;
 };
 
 /* Init LIB.  */

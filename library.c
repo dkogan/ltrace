@@ -29,6 +29,43 @@
 #include "debug.h"
 #include "common.h" // for arch_library_symbol_init, arch_library_init
 
+#ifndef ARCH_HAVE_LIBRARY_DATA
+void
+arch_library_init(struct library *lib)
+{
+}
+
+void
+arch_library_destroy(struct library *lib)
+{
+}
+
+void
+arch_library_clone(struct library *retp, struct library *lib)
+{
+}
+#endif
+
+#ifndef ARCH_HAVE_LIBRARY_SYMBOL_DATA
+int
+arch_library_symbol_init(struct library_symbol *libsym)
+{
+	return 0;
+}
+
+void
+arch_library_symbol_destroy(struct library_symbol *libsym)
+{
+}
+
+int
+arch_library_symbol_clone(struct library_symbol *retp,
+			  struct library_symbol *libsym)
+{
+	return 0;
+}
+#endif
+
 unsigned int
 target_address_hash(const void *key)
 {
@@ -70,26 +107,6 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 		return *retp != NULL ? 0 : -1;
 	}
 }
-
-#ifndef ARCH_HAVE_LIBRARY_SYMBOL_DATA
-int
-arch_library_symbol_init(struct library_symbol *libsym)
-{
-	return 0;
-}
-
-void
-arch_library_symbol_destroy(struct library_symbol *libsym)
-{
-}
-
-int
-arch_library_symbol_clone(struct library_symbol *retp,
-			  struct library_symbol *libsym)
-{
-	return 0;
-}
-#endif
 
 static void
 private_library_symbol_init(struct library_symbol *libsym,
@@ -185,8 +202,9 @@ library_symbol_equal_cb(struct library_symbol *libsym, void *u)
 	return library_symbol_cmp(libsym, standard) == 0 ? CBS_STOP : CBS_CONT;
 }
 
-void
-library_init(struct library *lib, enum library_type type)
+
+static void
+private_library_init(struct library *lib, enum library_type type)
 {
 	lib->next = NULL;
 	lib->soname = NULL;
@@ -195,6 +213,13 @@ library_init(struct library *lib, enum library_type type)
 	lib->own_pathname = 0;
 	lib->symbols = NULL;
 	lib->type = type;
+}
+
+void
+library_init(struct library *lib, enum library_type type)
+{
+	private_library_init(lib, type);
+	arch_library_init(lib);
 }
 
 int
@@ -210,9 +235,10 @@ library_clone(struct library *retp, struct library *lib)
 		return -1;
 	}
 
-	library_init(retp, lib->type);
+	private_library_init(retp, lib->type);
 	library_set_soname(retp, soname, lib->own_soname);
 	library_set_soname(retp, pathname, lib->own_pathname);
+	arch_library_clone(retp, lib);
 
 	struct library_symbol *it;
 	struct library_symbol **nsymp = &retp->symbols;
@@ -236,6 +262,8 @@ library_destroy(struct library *lib)
 {
 	if (lib == NULL)
 		return;
+
+	arch_library_destroy(lib);
 	library_set_soname(lib, NULL, 0);
 	library_set_pathname(lib, NULL, 0);
 
