@@ -453,7 +453,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 			if (library_symbol_init(libsym, addr, sym_name, 1,
 						LS_TOPLT_EXEC) < 0)
 				goto fail2;
-			libsym->arch.type = PPC64PLT_STUB;
+			libsym->arch.type = PPC64_PLT_STUB;
 			libsym->next = lte->arch.stubs;
 			lte->arch.stubs = libsym;
 		}
@@ -565,7 +565,7 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 	libsym->arch.plt_slot_addr = plt_slot_addr;
 
 	if (plt_slot_value == plt_entry_addr || plt_slot_value == 0) {
-		libsym->arch.type = PPC64PLT_UNRESOLVED;
+		libsym->arch.type = PPC_PLT_UNRESOLVED;
 		libsym->arch.resolved_value = plt_entry_addr;
 
 	} else {
@@ -701,7 +701,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		assert(bp->libsym->lib->arch.bss_plt_prelinked == 0);
 		/* fall-through */
 
-	case PPC64PLT_UNRESOLVED:
+	case PPC_PLT_UNRESOLVED:
 		on_all_stopped = NULL;
 		keep_stepping_p = NULL;
 		leader = proc->leader;
@@ -721,7 +721,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		}
 		return;
 
-	case PPC64PLT_RESOLVED:
+	case PPC_PLT_RESOLVED:
 		/* XXX The double cast should be removed when
 		 * target_address_t becomes integral type.  */
 		rv = (target_address_t)
@@ -730,7 +730,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		continue_process(proc->pid);
 		return;
 
-	case PPC64PLT_STUB:
+	case PPC64_PLT_STUB:
 		/* These should never hit here.  */
 		break;
 	}
@@ -794,7 +794,7 @@ arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 
 	/* On PPC64, stub PLT breakpoints are plain.  */
 	if (proc->e_machine == EM_PPC64
-	    && bp->libsym->arch.type == PPC64PLT_STUB)
+	    && bp->libsym->arch.type == PPC64_PLT_STUB)
 		return 0;
 
 	static struct bp_callbacks cbs = {

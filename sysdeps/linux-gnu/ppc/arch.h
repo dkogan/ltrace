@@ -42,17 +42,17 @@ enum ppc64_plt_type {
 	/* Either a non-PLT symbol, or PPC32 symbol.  */
 	PPC_DEFAULT = 0,
 
-	/* STUB, never resolved.  */
-	PPC64PLT_STUB,
+	/* PPC64 STUB, never resolved.  */
+	PPC64_PLT_STUB,
 
 	/* Unresolved PLT symbol (.plt contains PLT address).  */
-	PPC64PLT_UNRESOLVED,
+	PPC_PLT_UNRESOLVED,
 
 	/* Resolved PLT symbol.  The corresponding .plt slot contained
 	 * target address, which was changed to the address of
 	 * corresponding PLT entry.  The original is now saved in
 	 * RESOLVED_VALUE.  */
-	PPC64PLT_RESOLVED,
+	PPC_PLT_RESOLVED,
 };
 
 #define ARCH_HAVE_LIBRARY_SYMBOL_DATA
