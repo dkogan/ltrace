@@ -22,11 +22,6 @@
 extern char *PLTs_initialized_by_here;
 #endif
 
-#ifndef DT_PPC_GOT
-# define DT_PPC_GOT		(DT_LOPROC + 0)
-#endif
-
-
 #ifndef ARCH_HAVE_LTELF_DATA
 int
 arch_elf_init(struct ltelf *lte)
