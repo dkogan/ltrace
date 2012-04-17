@@ -27,7 +27,7 @@
  * If not prelinked, BSS PLT entries in the .plt section contain
  * zeroes that are overwritten by the dynamic linker during start-up.
  * For that reason, ltrace realizes those breakpoints only after
- * .start is hit.
+ * _start is hit.
  *
  * 64-bit PPC is more involved.  Program linker creates for each
  * library call a _stub_ symbol named xxxxxxxx.plt_call.<callee>
@@ -107,6 +107,36 @@ host_powerpc64()
 #else
 	return 0;
 #endif
+}
+
+static enum callback_status
+reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
+{
+	/* We don't need to re-enable non-PLT breakpoints and
+	 * breakpoints that are not PPC32 BSS unprelinked.  */
+	if (bp->libsym == NULL
+	    || bp->libsym->plt_type == LS_TOPLT_NONE
+	    || bp->libsym->lib->arch.bss_plt_prelinked != 0)
+		return CBS_CONT;
+
+	debug(DEBUG_PROCESS, "pid=%d reenable_breakpoint %s",
+	      proc->pid, breakpoint_name(bp));
+
+	/* Re-enable the breakpoint that was overwritten by the
+	 * dynamic linker.  XXX unfortunately it's overwritten
+	 * again after the first call :-/  */
+	enable_breakpoint(proc, bp);
+
+	return CBS_CONT;
+}
+
+void
+arch_dynlink_done(struct Process *proc)
+{
+	/* On PPC32, .plt of objects that use BSS PLT are overwritten
+	 * by the dynamic linker (unless that object was prelinked).
+	 * We need to re-enable breakpoints in those objects.  */
+	proc_each_breakpoint(proc, NULL, reenable_breakpoint, NULL);
 }
 
 GElf_Addr
@@ -243,10 +273,40 @@ load_ppc64_glink(struct ltelf *lte, GElf_Addr *glinkp)
 	return load_dynamic_entry(lte, DT_PPC64_GLINK, glinkp);
 }
 
+static int
+nonzero_data(Elf_Data *data)
+{
+	/* We are not supposed to get here if there are no PLT data in
+	 * the binary.  */
+	assert(data != NULL);
+
+	unsigned char *buf = data->d_buf;
+	if (buf == NULL)
+		return 0;
+
+	size_t i;
+	for (i = 0; i < data->d_size; ++i)
+		if (buf[i] != 0)
+			return 1;
+	return 0;
+}
+
 int
-arch_elf_init(struct ltelf *lte)
+arch_elf_init(struct ltelf *lte, struct library *lib)
 {
 	lte->arch.secure_plt = !(lte->plt_flags & SHF_EXECINSTR);
+
+	/* For PPC32 BSS, it is important whether the binary was
+	 * prelinked.  If .plt section is NODATA, or if it contains
+	 * zeroes, then this library is not prelinked, and we need to
+	 * delay breakpoints.  */
+	if (lte->ehdr.e_machine == EM_PPC && !lte->arch.secure_plt)
+		lib->arch.bss_plt_prelinked = nonzero_data(lte->plt_data);
+	else
+		/* For cases where it's irrelevant, initialize the
+		 * value to something conspicuous.  */
+		lib->arch.bss_plt_prelinked = -1;
+
 	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
 		GElf_Addr ppcgot;
 		if (load_ppcgot(lte, &ppcgot) < 0) {
@@ -613,6 +673,21 @@ ppc64_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 
 	assert(bp->libsym->arch.type != bp->libsym->arch.type);
 	abort();
+}
+
+void
+arch_library_init(struct library *lib)
+{
+}
+
+void
+arch_library_destroy(struct library *lib)
+{
+}
+
+void
+arch_library_clone(struct library *retp, struct library *lib)
+{
 }
 
 int

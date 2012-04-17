@@ -22,14 +22,20 @@
 #define ARCH_HAVE_ATOMIC_SINGLESTEP
 #define ARCH_HAVE_ADD_PLT_ENTRY
 #define ARCH_HAVE_TRANSLATE_ADDRESS
+#define ARCH_HAVE_DYNLINK_DONE
 
 struct library_symbol;
 
 #define ARCH_HAVE_LTELF_DATA
 struct arch_ltelf_data {
 	GElf_Addr plt_stub_vma;
-	int secure_plt;
 	struct library_symbol *stubs;
+	int secure_plt;
+};
+
+#define ARCH_HAVE_LIBRARY_DATA
+struct arch_library_data {
+	int bss_plt_prelinked;
 };
 
 enum ppc64_plt_type {
