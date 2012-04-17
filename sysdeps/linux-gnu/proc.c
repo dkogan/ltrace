@@ -314,7 +314,7 @@ find_dynamic_entry_addr(struct Process *proc, target_address_t src_addr,
 			/* XXX The double cast should be removed when
 			 * target_address_t becomes integral type.  */
 			*ret = (target_address_t)(uintptr_t)entry.d_un.d_val;
-			debug(2, "found address: %p in dtag %d\n", *ret, d_tag);
+			debug(2, "found address: %p in dtag %d", *ret, d_tag);
 			return 0;
 		}
 	}
