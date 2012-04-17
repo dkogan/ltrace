@@ -70,6 +70,9 @@ int elf_read_u16(Elf_Data *data, size_t offset, uint16_t *retp);
 int elf_read_u32(Elf_Data *data, size_t offset, uint32_t *retp);
 int elf_read_u64(Elf_Data *data, size_t offset, uint64_t *retp);
 
+int default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+			      const char *a_name, GElf_Rela *rela, size_t ndx,
+			      struct library_symbol **ret);
 
 #if __WORDSIZE == 32
 #define PRI_ELF_ADDR		PRIx32
