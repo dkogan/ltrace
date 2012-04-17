@@ -604,6 +604,8 @@ arch_elf_destroy(struct ltelf *lte)
 static void
 dl_plt_update_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 {
+	debug(DEBUG_PROCESS, "pid=%d dl_plt_update_bp_on_hit %s(%p)",
+	      proc->pid, breakpoint_name(bp), bp->addr);
 	struct process_stopping_handler *self = proc->arch.handler;
 	assert(self != NULL);
 
@@ -646,6 +648,9 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 	 * the PLT entry value.  */
 	if (value == libsym->arch.resolved_value)
 		return CBS_CONT;
+
+	debug(DEBUG_PROCESS, "pid=%d PLT got resolved to value %#"PRIx64,
+	      proc->pid, value);
 
 	/* The .plt slot got resolved!  We can migrate the breakpoint
 	 * to RESOLVED and stop single-stepping.  */
