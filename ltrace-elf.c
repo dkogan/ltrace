@@ -24,7 +24,7 @@ extern char *PLTs_initialized_by_here;
 
 #ifndef ARCH_HAVE_LTELF_DATA
 int
-arch_elf_init(struct ltelf *lte)
+arch_elf_init(struct ltelf *lte, struct library *lib)
 {
 	return 0;
 }
@@ -423,11 +423,6 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 	if (soname_offset != 0)
 		lte->soname = lte->dynstr + soname_offset;
 
-	if (arch_elf_init(lte) < 0) {
-		fprintf(stderr, "Backend initialization failed.\n");
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -650,6 +645,11 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 	struct ltelf lte = {};
 	if (do_init_elf(&lte, filename, bias) < 0)
 		return -1;
+	if (arch_elf_init(&lte, lib) < 0) {
+		fprintf(stderr, "Backend initialization failed.\n");
+		return -1;
+	}
+
 	proc->e_machine = lte.ehdr.e_machine;
 
 	int status = 0;
