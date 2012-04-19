@@ -12,6 +12,7 @@
 #include "proc.h"
 #include "common.h"
 #include "ptrace.h"
+#include "breakpoint.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -213,7 +214,7 @@ arch_umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 #define BC_INSTRUCTION 0x40000000
 
 int
-arch_atomic_singlestep(struct Process *proc, Breakpoint *sbp,
+arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 		       int (*add_cb)(void *addr, void *data),
 		       void *add_cb_data)
 {

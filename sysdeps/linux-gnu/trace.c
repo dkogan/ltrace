@@ -560,13 +560,13 @@ all_stops_accountable(struct pid_set * pids)
 
 /* The protocol is: 0 for success, negative for failure, positive if
  * default singlestep is to be used.  */
-int arch_atomic_singlestep(struct Process *proc, Breakpoint *sbp,
+int arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 			   int (*add_cb)(void *addr, void *data),
 			   void *add_cb_data);
 
 #ifndef ARCH_HAVE_ATOMIC_SINGLESTEP
 int
-arch_atomic_singlestep(struct Process *proc, Breakpoint *sbp,
+arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 		       int (*add_cb)(void *addr, void *data),
 		       void *add_cb_data)
 {
@@ -584,7 +584,7 @@ atomic_singlestep_add_bp(void *addr, void *data)
 	assert(self->atomic_skip_bp_addr == NULL);
 
 	self->atomic_skip_bp_addr = addr + 4;
-	insert_breakpoint(proc->leader, self->atomic_skip_bp_addr, NULL, 1);
+	insert_breakpoint(proc->leader, self->atomic_skip_bp_addr, NULL);
 
 	return 0;
 }
@@ -612,7 +612,8 @@ singlestep(struct process_stopping_handler *self)
 }
 
 static void
-post_singlestep(struct process_stopping_handler *self, Event **eventp)
+post_singlestep(struct process_stopping_handler *self,
+		struct Event **eventp)
 {
 	continue_for_sigstop_delivery(&self->pids);
 
@@ -627,45 +628,47 @@ post_singlestep(struct process_stopping_handler *self, Event **eventp)
 }
 
 static void
-singlestep_error(struct process_stopping_handler *self, Event **eventp)
+singlestep_error(struct process_stopping_handler *self)
 {
 	struct Process *teb = self->task_enabling_breakpoint;
-	Breakpoint *sbp = self->breakpoint_being_enabled;
+	struct breakpoint *sbp = self->breakpoint_being_enabled;
 	fprintf(stderr, "%d couldn't continue when handling %s (%p) at %p\n",
 		teb->pid, sbp->libsym != NULL ? sbp->libsym->name : NULL,
 		sbp->addr, get_instruction_pointer(teb));
 	delete_breakpoint(teb->leader, sbp->addr);
-	post_singlestep(self, eventp);
 }
 
-static int
+static void
 pt_continue(struct process_stopping_handler *self)
 {
 	struct Process *teb = self->task_enabling_breakpoint;
 	debug(1, "PTRACE_CONT");
-	return ptrace(PTRACE_CONT, teb->pid, 0, 0) != 0 ? -1 : 0;
+	ptrace(PTRACE_CONT, teb->pid, 0, 0);
+}
+
+static void
+pt_singlestep(struct process_stopping_handler *self)
+{
+	if (singlestep(self) < 0)
+		singlestep_error(self);
 }
 
 static void
 disable_and(struct process_stopping_handler *self,
-	    int (*do_this)(struct process_stopping_handler *self))
+	    void (*do_this)(struct process_stopping_handler *self))
 {
 	struct Process *teb = self->task_enabling_breakpoint;
 	debug(DEBUG_PROCESS, "all stopped, now singlestep/cont %d", teb->pid);
 	if (self->breakpoint_being_enabled->enabled)
 		disable_breakpoint(teb, self->breakpoint_being_enabled);
-	if ((do_this)(self) < 0) {
-		singlestep_error(self, &event);
-		//goto psh_sinking;  /* XXX FIME */
-		abort();
-	}
+	(do_this)(self);
 	self->state = psh_singlestep;
 }
 
 void
 linux_ptrace_disable_and_singlestep(struct process_stopping_handler *self)
 {
-	disable_and(self, &singlestep);
+	disable_and(self, &pt_singlestep);
 }
 
 void
@@ -735,7 +738,8 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 			if (event->type == EVENT_SIGNAL) {
 			do_singlestep:
 				if (singlestep(self) < 0) {
-					singlestep_error(self, &event);
+					singlestep_error(self);
+					post_singlestep(self, &event);
 					goto psh_sinking;
 				}
 				break;

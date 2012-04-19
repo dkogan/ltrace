@@ -558,7 +558,7 @@ output_right_tos(struct Process *proc)
 	size_t d = proc->callstack_depth;
 	struct callstack_element *elem = &proc->callstack[d - 1];
 	if (proc->state != STATE_IGNORED)
-		output_right(LT_TOF_FUNCTIONR, proc, elem->c_un.libfunc->name);
+		output_right(LT_TOF_FUNCTIONR, proc, elem->c_un.libfunc);
 }
 
 static void
@@ -609,6 +609,9 @@ handle_breakpoint(Event *event)
 				}
 			}
 			event->proc->return_addr = brk_addr;
+
+			struct library_symbol *libsym =
+			    event->proc->callstack[i].c_un.libfunc;
 
 			output_right_tos(event->proc);
 			callstack_pop(event->proc);
