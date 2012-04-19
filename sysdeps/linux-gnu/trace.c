@@ -580,7 +580,9 @@ static Event *process_stopping_on_event(struct event_handler *super,
 static void
 remove_atomic_breakpoints(struct Process *proc)
 {
-	struct process_stopping_handler *self = (void *)proc->event_handler;
+	struct process_stopping_handler *self
+		= (void *)proc->leader->event_handler;
+	assert(self != NULL);
 	assert(self->super.on_event == process_stopping_on_event);
 
 	int ct = sizeof(self->atomic_skip_bp_addrs)
