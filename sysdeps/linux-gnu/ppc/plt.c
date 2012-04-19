@@ -127,15 +127,22 @@ read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp)
 static int
 read_target_8(struct Process *proc, target_address_t addr, uint64_t *lp)
 {
-	assert(host_powerpc64());
 	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 	if (l == -1UL && errno)
 		return -1;
-	*lp = l;
+	if (host_powerpc64()) {
+		*lp = l;
+	} else {
+		unsigned long l2 = ptrace(PTRACE_PEEKTEXT, proc->pid,
+					  addr + 4, 0);
+		if (l2 == -1UL && errno)
+			return -1;
+		*lp = (l << 32) | l2;
+	}
 	return 0;
 }
 
-static int
+int
 read_target_long(struct Process *proc, target_address_t addr, uint64_t *lp)
 {
 	if (proc->e_machine == EM_PPC) {
@@ -163,8 +170,8 @@ reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
 	      proc->pid, breakpoint_name(bp));
 
 	assert(proc->e_machine == EM_PPC);
-	uint32_t l;
-	if (read_target_4(proc, bp->addr, &l) < 0) {
+	uint64_t l;
+	if (read_target_8(proc, bp->addr, &l) < 0) {
 		error(0, errno, "couldn't read PLT value for %s(%p)",
 		      breakpoint_name(bp), bp->addr);
 		return CBS_CONT;
@@ -466,9 +473,10 @@ read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
 {
 	/* On PPC64, we read from .plt, which contains 8 byte
 	 * addresses.  On PPC32 we read from .plt, which contains 4
-	 * byte instructions.  So read_target_long is appropriate.  */
+	 * byte instructions, but the PLT is two instructions, and
+	 * either can change.  */
 	uint64_t l;
-	if (read_target_long(proc, (target_address_t)addr, &l) < 0) {
+	if (read_target_8(proc, (target_address_t)addr, &l) < 0) {
 		error(0, errno, "ptrace .plt slot value @%#" PRIx64, addr);
 		return -1;
 	}
