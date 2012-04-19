@@ -211,30 +211,46 @@ arch_umovelong (Process *proc, void *addr, long *result, arg_type_info *info) {
 #define STWCX_INSTRUCTION 0x7c00012d
 #define STDCX_INSTRUCTION 0x7c0001ad
 #define BC_MASK 0xfc000000
-#define BC_INSTRUCTION 0x40000000
+#define BC_INSN 0x40000000
+#define BRANCH_MASK 0xfc000000
+
+/* In plt.h.  XXX make this official interface.  */
+int read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp);
 
 int
 arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 		       int (*add_cb)(void *addr, void *data),
 		       void *add_cb_data)
 {
-	void *addr = sbp->addr;
-	debug(1, "pid=%d addr=%p", proc->pid, addr);
+	target_address_t ip = get_instruction_pointer(proc);
+	struct breakpoint *other = address2bpstruct(proc->leader, ip);
+
+	debug(1, "arch_atomic_singlestep pid=%d addr=%p %s(%p)",
+	      proc->pid, ip, breakpoint_name(sbp), sbp->addr);
 
 	/* If the original instruction was lwarx/ldarx, we can't
 	 * single-step over it, instead we have to execute the whole
 	 * atomic block at once.  */
 	union {
 		uint32_t insn;
-		char buf[4];
+		char buf[BREAKPOINT_LENGTH];
 	} u;
-	memcpy(u.buf, sbp->orig_value, BREAKPOINT_LENGTH);
+	if (other != NULL) {
+		memcpy(u.buf, sbp->orig_value, BREAKPOINT_LENGTH);
+	} else if (read_target_4(proc, ip, &u.insn) < 0) {
+		fprintf(stderr, "couldn't read instruction at IP %p\n", ip);
+		/* Do the normal singlestep.  */
+		return 1;
+	}
 
 	if ((u.insn & LWARX_MASK) != LWARX_INSTRUCTION
 	    && (u.insn & LWARX_MASK) != LDARX_INSTRUCTION)
 		return 1;
 
+	debug(1, "singlestep over atomic block at %p", ip);
+
 	int insn_count;
+	target_address_t addr = ip;
 	for (insn_count = 0; ; ++insn_count) {
 		addr += 4;
 		unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
@@ -247,27 +263,39 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 		insn = l;
 #endif
 
-		/* If we hit a branch instruction, give up.  The
-		 * computation could escape that way and we'd have to
-		 * treat that case specially.  */
-		if ((insn & BC_MASK) == BC_INSTRUCTION) {
-			debug(1, "pid=%d, found branch at %p, giving up",
-			      proc->pid, addr);
-			return -1;
+		/* If a conditional branch is found, put a breakpoint
+		 * in its destination address.  */
+		if ((insn & BRANCH_MASK) == BC_INSN) {
+			int immediate = ((insn & 0xfffc) ^ 0x8000) - 0x8000;
+			int absolute = insn & 2;
+
+			/* XXX drop the following casts.  */
+			target_address_t branch_addr;
+			if (absolute)
+				branch_addr = (void *)(uintptr_t)immediate;
+			else
+				branch_addr = addr + (uintptr_t)immediate;
+
+			debug(1, "pid=%d, branch in atomic block from %p to %p",
+			      proc->pid, addr, branch_addr);
+			if (add_cb(branch_addr, add_cb_data) < 0)
+				return -1;
 		}
 
+		/* Assume that the atomic sequence ends with a
+		 * stwcx/stdcx instruction.  */
 		if ((insn & STWCX_MASK) == STWCX_INSTRUCTION
 		    || (insn & STWCX_MASK) == STDCX_INSTRUCTION) {
-			debug(1, "pid=%d, found end of atomic block at %p",
-			      proc->pid, addr);
+			debug(1, "pid=%d, found end of atomic block %p at %p",
+			      proc->pid, ip, addr);
 			break;
 		}
 
 		/* Arbitrary cut-off.  If we didn't find the
 		 * terminating instruction by now, just give up.  */
 		if (insn_count > 16) {
-			debug(1, "pid=%d, couldn't find end of atomic block",
-			      proc->pid);
+			fprintf(stderr, "[%d] couldn't find end of atomic block"
+				" at %p\n", proc->pid, ip);
 			return -1;
 		}
 	}

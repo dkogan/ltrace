@@ -63,7 +63,7 @@ struct process_stopping_handler
 	struct breakpoint *breakpoint_being_enabled;
 
 	/* Artificial atomic skip breakpoint, if any needed.  */
-	void *atomic_skip_bp_addr;
+	void *atomic_skip_bp_addrs[2];
 
 	/* When all tasks are stopped, this callback gets called.  */
 	void (*on_all_stopped)(struct process_stopping_handler *);

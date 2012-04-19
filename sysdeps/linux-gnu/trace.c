@@ -574,19 +574,55 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 }
 #endif
 
+static Event *process_stopping_on_event(struct event_handler *super,
+					Event *event);
+
+static void
+remove_atomic_breakpoints(struct Process *proc)
+{
+	struct process_stopping_handler *self = (void *)proc->event_handler;
+	assert(self->super.on_event == process_stopping_on_event);
+
+	int ct = sizeof(self->atomic_skip_bp_addrs)
+		/ sizeof(*self->atomic_skip_bp_addrs);
+	int i;
+	for (i = 0; i < ct; ++i)
+		if (self->atomic_skip_bp_addrs[i] != 0) {
+			delete_breakpoint(proc->leader,
+					  self->atomic_skip_bp_addrs[i]);
+			self->atomic_skip_bp_addrs[i] = 0;
+		}
+}
+
+static void
+atomic_singlestep_bp_on_hit(struct breakpoint *bp, struct Process *proc)
+{
+	remove_atomic_breakpoints(proc);
+}
+
 static int
 atomic_singlestep_add_bp(void *addr, void *data)
 {
 	struct process_stopping_handler *self = data;
 	struct Process *proc = self->task_enabling_breakpoint;
 
-	/* Only support single address as of now.  */
-	assert(self->atomic_skip_bp_addr == NULL);
+	int ct = sizeof(self->atomic_skip_bp_addrs)
+		/ sizeof(*self->atomic_skip_bp_addrs);
+	int i;
+	for (i = 0; i < ct; ++i)
+		if (self->atomic_skip_bp_addrs[i] == 0) {
+			self->atomic_skip_bp_addrs[i] = addr;
+			static struct bp_callbacks cbs = {
+				.on_hit = atomic_singlestep_bp_on_hit,
+			};
+			struct breakpoint *bp
+				= insert_breakpoint(proc->leader, addr, NULL);
+			breakpoint_set_callbacks(bp, &cbs);
+			return 0;
+		}
 
-	self->atomic_skip_bp_addr = addr + 4;
-	insert_breakpoint(proc->leader, self->atomic_skip_bp_addr, NULL);
-
-	return 0;
+	assert(!"Too many atomic singlestep breakpoints!");
+	abort();
 }
 
 static int
@@ -620,10 +656,9 @@ post_singlestep(struct process_stopping_handler *self,
 	if (*eventp != NULL && (*eventp)->type == EVENT_BREAKPOINT)
 		*eventp = NULL; // handled
 
-	if (self->atomic_skip_bp_addr != 0)
-		delete_breakpoint(self->task_enabling_breakpoint->leader,
-				  self->atomic_skip_bp_addr);
+	struct Process *proc = self->task_enabling_breakpoint;
 
+	remove_atomic_breakpoints(proc);
 	self->breakpoint_being_enabled = NULL;
 }
 
@@ -733,6 +768,20 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 		 * have now stepped, and can re-enable the breakpoint.  */
 		if (event != NULL && task == teb) {
 
+			/* If this was caused by a real breakpoint, as
+			 * opposed to a singlestep, assume that it's
+			 * an artificial breakpoint installed for some
+			 * reason for the re-enablement.  In that case
+			 * handle it.  */
+			if (event->type == EVENT_BREAKPOINT) {
+				target_address_t ip
+					= get_instruction_pointer(task);
+				struct breakpoint *other
+					= address2bpstruct(leader, ip);
+				if (other != NULL)
+					breakpoint_on_hit(other, task);
+			}
+
 			/* If we got SIGNAL instead of BREAKPOINT,
 			 * then this is not singlestep at all.  */
 			if (event->type == EVENT_SIGNAL) {
@@ -762,16 +811,6 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 			struct breakpoint *sbp = self->breakpoint_being_enabled;
 			if (sbp->enabled)
 				enable_breakpoint(teb, sbp);
-
-			/* If this was caused by a real breakpoint, as
-			 * opposed to a singlestep, assume that it's
-			 * an artificial breakpoint installed for some
-			 * reason for the re-enablement.  In that case
-			 * handle it.  */
-			target_address_t ip = get_instruction_pointer(task);
-			struct breakpoint *other = address2bpstruct(leader, ip);
-			if (other != NULL)
-				breakpoint_on_hit(other, task);
 
 			post_singlestep(self, &event);
 			goto psh_sinking;

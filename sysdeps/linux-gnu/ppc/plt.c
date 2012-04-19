@@ -112,7 +112,7 @@ host_powerpc64()
 #endif
 }
 
-static int
+int
 read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp)
 {
 	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
