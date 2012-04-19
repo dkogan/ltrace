@@ -635,15 +635,27 @@ handle_breakpoint(Event *event)
 				callstack_pop(event->proc);
 			}
 
-			sbp = address2bpstruct(leader, brk_addr);
-			continue_after_breakpoint(event->proc, sbp);
+			/* Maybe the previous callstack_pop's got rid
+			 * of the breakpoint, but if we are in a
+			 * recursive call, it's still enabled.  In
+			 * that case we need to skip it properly.  */
+			if ((sbp = address2bpstruct(leader, brk_addr)) != NULL)
+				continue_after_breakpoint(event->proc, sbp);
+			else
+				continue_process(event->proc->pid);
 			return;
 		}
 	}
 
-	if ((sbp = address2bpstruct(leader, brk_addr))) {
+	if ((sbp = address2bpstruct(leader, brk_addr)) != NULL)
 		breakpoint_on_hit(sbp, event->proc);
+	else if (event->proc->state != STATE_IGNORED)
+		output_line(event->proc,
+			    "unexpected breakpoint at %p", brk_addr);
 
+	/* breakpoint_on_hit may delete its own breakpoint, so we have
+	 * to look it up again.  */
+	if ((sbp = address2bpstruct(leader, brk_addr)) != NULL) {
 		if (event->proc->state != STATE_IGNORED
 		    && sbp->libsym != NULL) {
 			event->proc->stack_pointer = get_stack_pointer(event->proc);
@@ -656,10 +668,6 @@ handle_breakpoint(Event *event)
 		breakpoint_on_continue(sbp, event->proc);
 		return;
 	}
-
-	if (event->proc->state != STATE_IGNORED)
-		output_line(event->proc, "unexpected breakpoint at %p",
-			    brk_addr);
 
 	continue_process(event->proc->pid);
 }

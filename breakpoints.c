@@ -348,8 +348,9 @@ entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 	struct entry_breakpoint *bp = (void *)a;
 	if (proc == NULL || proc->leader == NULL)
 		return;
+	target_address_t dyn_addr = bp->dyn_addr;
 	delete_breakpoint(proc, bp->super.addr);
-	linkmap_init(proc, bp->dyn_addr);
+	linkmap_init(proc, dyn_addr);
 	arch_dynlink_done(proc);
 }
 
