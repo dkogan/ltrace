@@ -1071,7 +1071,7 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 	switch (event->type) {
 	case EVENT_BREAKPOINT:
 		/* Remember the vfork return breakpoint.  */
-		if (self->bp_addr == NULL)
+		if (self->bp_addr == 0)
 			self->bp_addr = event->e_un.brk_addr;
 		break;
 
@@ -1080,12 +1080,15 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 	case EVENT_EXEC:
 		/* Smuggle back in the vfork return breakpoint, so
 		 * that our parent can trip over it once again.  */
-		if (self->bp_addr != NULL) {
+		if (self->bp_addr != 0) {
 			sbp = dict_find_entry(event->proc->leader->breakpoints,
 					      self->bp_addr);
 			if (sbp != NULL)
-				insert_breakpoint(event->proc->parent,
-						  self->bp_addr, sbp->libsym);
+				assert(sbp->libsym == NULL);
+			/* We don't mind failing that, it's not a big
+			 * deal to not display one extra vfork return.  */
+			insert_breakpoint(event->proc->parent,
+					  self->bp_addr, NULL);
 		}
 
 		continue_process(event->proc->parent->pid);
