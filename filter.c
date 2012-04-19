@@ -159,26 +159,25 @@ int
 filter_matches_symbol(struct filter *filt,
 		      const char *sym_name, struct library *lib)
 {
-	if (filt == NULL)
-		return 0;
-
 	int matches = 0;
-	struct filter_rule *it;
-	for (it = filt->rules; it != NULL; it = it->next) {
-		switch (it->type) {
-		case FR_ADD:
-			if (matches)
-				continue;
-			break;
-		case FR_SUBTRACT:
-			if (!matches)
-				continue;
-		}
+	for (; filt != NULL; filt = filt->next) {
+		struct filter_rule *it;
+		for (it = filt->rules; it != NULL; it = it->next) {
+			switch (it->type) {
+			case FR_ADD:
+				if (matches)
+					continue;
+				break;
+			case FR_SUBTRACT:
+				if (!matches)
+					continue;
+			}
 
-		if (matcher_matches_library(it->lib_matcher, lib)
-		    && re_match_or_error(&it->symbol_re, sym_name,
-					 "symbol name"))
-			matches = !matches;
+			if (matcher_matches_library(it->lib_matcher, lib)
+			    && re_match_or_error(&it->symbol_re, sym_name,
+						 "symbol name"))
+				matches = !matches;
+		}
 	}
 	return matches;
 }

@@ -402,7 +402,10 @@ parse_filter_chain(const char *expr, struct filter **retp)
 		error(0, errno, "filter '%s' will be ignored", expr);
 		return;
 	}
-	*retp = recursive_parse_chain(str);
+	struct filter **tailp;
+	for (tailp = retp; *tailp != NULL; tailp = &(*tailp)->next)
+		;
+	*tailp = recursive_parse_chain(str);
 }
 
 char **
