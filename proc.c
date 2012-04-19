@@ -247,6 +247,7 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 	}
 
 	retp->tracesysgood = proc->tracesysgood;
+	retp->e_machine = proc->e_machine;
 
 	/* For non-leader processes, that's all we need to do.  */
 	if (retp->leader != retp)
