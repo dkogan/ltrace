@@ -617,7 +617,7 @@ post_singlestep(struct process_stopping_handler *self,
 {
 	continue_for_sigstop_delivery(&self->pids);
 
-	if ((*eventp)->type == EVENT_BREAKPOINT)
+	if (*eventp != NULL && (*eventp)->type == EVENT_BREAKPOINT)
 		*eventp = NULL; // handled
 
 	if (self->atomic_skip_bp_addr != 0)
