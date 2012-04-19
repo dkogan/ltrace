@@ -118,8 +118,9 @@ read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp)
 	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 	if (l == -1UL && errno)
 		return -1;
-	if (host_powerpc64())
-		l >>= 32;
+#ifdef __powerpc64__
+	l >>= 32;
+#endif
 	*lp = l;
 	return 0;
 }
@@ -137,7 +138,7 @@ read_target_8(struct Process *proc, target_address_t addr, uint64_t *lp)
 					  addr + 4, 0);
 		if (l2 == -1UL && errno)
 			return -1;
-		*lp = (l << 32) | l2;
+		*lp = ((uint64_t)l << 32) | l2;
 	}
 	return 0;
 }
@@ -176,7 +177,8 @@ reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
 		      breakpoint_name(bp), bp->addr);
 		return CBS_CONT;
 	}
-	bp->libsym->arch.plt_slot_addr = (GElf_Addr)bp->addr;
+	/* XXX double cast  */
+	bp->libsym->arch.plt_slot_addr = (GElf_Addr)(uintptr_t)bp->addr;
 	bp->libsym->arch.resolved_value = l;
 
 	/* Re-enable the breakpoint that was overwritten by the
@@ -476,7 +478,8 @@ read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
 	 * byte instructions, but the PLT is two instructions, and
 	 * either can change.  */
 	uint64_t l;
-	if (read_target_8(proc, (target_address_t)addr, &l) < 0) {
+	/* XXX double cast.  */
+	if (read_target_8(proc, (target_address_t)(uintptr_t)addr, &l) < 0) {
 		error(0, errno, "ptrace .plt slot value @%#" PRIx64, addr);
 		return -1;
 	}
