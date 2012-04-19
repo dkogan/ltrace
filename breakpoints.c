@@ -228,15 +228,13 @@ insert_breakpoint(struct Process *proc, void *addr,
 void
 delete_breakpoint(Process *proc, void *addr)
 {
-	struct breakpoint *sbp;
-
 	debug(DEBUG_FUNCTION, "delete_breakpoint(pid=%d, addr=%p)", proc->pid, addr);
 
 	Process * leader = proc->leader;
 	assert(leader != NULL);
 
-	sbp = dict_find_entry(leader->breakpoints, addr);
-	assert(sbp);		/* FIXME: remove after debugging has been done. */
+	struct breakpoint *sbp = dict_find_entry(leader->breakpoints, addr);
+	assert(sbp != NULL);
 	/* This should only happen on out-of-memory conditions. */
 	if (sbp == NULL)
 		return;
@@ -245,6 +243,11 @@ delete_breakpoint(Process *proc, void *addr)
 		fprintf(stderr, "Couldn't turn off the breakpoint %s@%p\n",
 			breakpoint_name(sbp), sbp->addr);
 		return;
+	}
+	if (sbp->enabled == 0) {
+		proc_remove_breakpoint(leader, sbp);
+		breakpoint_destroy(sbp);
+		free(sbp);
 	}
 }
 

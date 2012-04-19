@@ -680,17 +680,22 @@ proc_each_library(struct Process *proc, struct library *it,
 	return NULL;
 }
 
-int
-proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
+static void
+check_leader(struct Process *proc)
 {
 	/* Only the group leader should be getting the breakpoints and
 	 * thus have ->breakpoint initialized.  */
 	assert(proc->leader != NULL);
 	assert(proc->leader == proc);
 	assert(proc->breakpoints != NULL);
+}
 
+int
+proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
+{
 	debug(DEBUG_FUNCTION, "proc_add_breakpoint(pid=%d, %s@%p)",
 	      proc->pid, breakpoint_name(bp), bp->addr);
+	check_leader(proc);
 
 	/* XXX We might merge bp->libsym instead of the following
 	 * assert, but that's not necessary right now.  Read the
@@ -706,12 +711,14 @@ proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
 	return 0;
 }
 
-int
+void
 proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp)
 {
-	/* XXX We can't, really.  We are missing dict_remove.  */
-	assert(!"Not yet implemented!");
-	abort();
+	debug(DEBUG_FUNCTION, "proc_remove_breakpoint(pid=%d, %s@%p)",
+	      proc->pid, breakpoint_name(bp), bp->addr);
+	check_leader(proc);
+	struct breakpoint *removed = dict_remove(proc->breakpoints, bp->addr);
+	assert(removed == bp);
 }
 
 /* Dict doesn't support iteration restarts, so here's this contraption

@@ -215,8 +215,9 @@ struct library *proc_each_library(struct Process *proc, struct library *start,
 /* Insert BP into PROC.  */
 int proc_add_breakpoint(struct Process *proc, struct breakpoint *bp);
 
-/* Remove BP from PROC.  */
-int proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp);
+/* Remove BP from PROC.  This has no reason to fail in runtime.  If it
+ * does not find BP in PROC, it's hard error guarded by assertion.  */
+void proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp);
 
 /* Iterate through the libraries of PROC.  See each_process for
  * detailed description of the iteration interface.  */
