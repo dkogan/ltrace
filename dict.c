@@ -104,6 +104,29 @@ dict_enter(Dict *d, void *key, void *value) {
 }
 
 void *
+dict_remove(Dict *d, void *key)
+{
+	assert(d != NULL);
+	debug(DEBUG_FUNCTION, "dict_remove(%p)", key);
+
+	unsigned int hash = d->key2hash(key);
+	unsigned int bucketpos = hash % DICTTABLESIZE;
+
+	struct dict_entry **entryp;
+	for (entryp = &d->buckets[bucketpos]; (*entryp) != NULL;
+	     entryp = &(*entryp)->next) {
+		struct dict_entry *entry = *entryp;
+		if (hash != entry->hash)
+			continue;
+		if (d->key_cmp(key, entry->key) == 0) {
+			*entryp = entry->next;
+			return entry->value;
+		}
+	}
+	return NULL;
+}
+
+void *
 dict_find_entry(Dict *d, const void *key)
 {
 	unsigned int hash;

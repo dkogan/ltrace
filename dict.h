@@ -8,6 +8,7 @@ extern Dict *dict_init(unsigned int (*key2hash) (const void *),
 		       int (*key_cmp) (const void *, const void *));
 extern void dict_clear(Dict *d);
 extern int dict_enter(Dict *d, void *key, void *value);
+extern void *dict_remove(Dict *d, void *key);
 extern void *dict_find_entry(Dict *d, const void *key);
 extern void dict_apply_to_all(Dict *d,
 			      void (*func) (void *key, void *value, void *data),
