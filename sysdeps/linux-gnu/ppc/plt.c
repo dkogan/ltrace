@@ -631,8 +631,9 @@ dl_plt_update_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 	/* cb_on_all_stopped looks if HANDLER is set to NULL as a way
 	 * to check that this was run.  It's an error if it
 	 * wasn't.  */
-	breakpoint_turn_off(bp, proc);
 	proc->arch.handler = NULL;
+
+	breakpoint_turn_off(bp, proc);
 }
 
 static void
@@ -650,6 +651,7 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 {
 	struct Process *proc = self->task_enabling_breakpoint;
 	struct library_symbol *libsym = self->breakpoint_being_enabled->libsym;
+
 	GElf_Addr value;
 	if (read_plt_slot_value(proc, libsym->arch.plt_slot_addr, &value) < 0)
 		return CBS_FAIL;
@@ -664,9 +666,32 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 
 	/* The .plt slot got resolved!  We can migrate the breakpoint
 	 * to RESOLVED and stop single-stepping.  */
-	if (unresolve_plt_slot(proc, libsym->arch.plt_slot_addr,
-			       libsym->arch.resolved_value) < 0)
+	if (proc->e_machine == EM_PPC64
+	    && unresolve_plt_slot(proc, libsym->arch.plt_slot_addr,
+				  libsym->arch.resolved_value) < 0)
 		return CBS_FAIL;
+
+	/* Resolving on PPC64 consists of overwriting a doubleword in
+	 * .plt.  That doubleword is than read back by a stub, and
+	 * jumped on.  Hopefully we can assume that double word update
+	 * is done on a single place only, as it contains a final
+	 * address.  We still need to look around for any sync
+	 * instruction, but essentially it is safe to optimize away
+	 * the single stepping next time and install a post-update
+	 * breakpoint.
+	 *
+	 * The situation on PPC32 BSS is more complicated.  The
+	 * dynamic linker here updates potentially several
+	 * instructions (XXX currently we assume two) and the rules
+	 * are more complicated.  Sometimes it's enough to adjust just
+	 * one of the addresses--the logic for generating optimal
+	 * dispatch depends on relative addresses of the .plt entry
+	 * and the jump destination.  We can't assume that the some
+	 * instruction block does the update every time.  So on PPC32,
+	 * we turn the optimization off and just step through it each
+	 * time.  */
+	if (proc->e_machine == EM_PPC)
+		goto done;
 
 	/* Install breakpoint to the address where the change takes
 	 * place.  If we fail, then that just means that we'll have to
@@ -683,16 +708,14 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 	if (leader->arch.dl_plt_update_bp == NULL)
 		goto done;
 
+	static struct bp_callbacks dl_plt_update_cbs = {
+		.on_hit = dl_plt_update_bp_on_hit,
+	};
+	leader->arch.dl_plt_update_bp->cbs = &dl_plt_update_cbs;
+
 	/* Turn it off for now.  We will turn it on again when we hit
 	 * the PLT entry that needs this.  */
 	breakpoint_turn_off(leader->arch.dl_plt_update_bp, proc);
-
-	if (leader->arch.dl_plt_update_bp != NULL) {
-		static struct bp_callbacks dl_plt_update_cbs = {
-			.on_hit = dl_plt_update_bp_on_hit,
-		};
-		leader->arch.dl_plt_update_bp->cbs = &dl_plt_update_cbs;
-	}
 
 done:
 	mark_as_resolved(libsym, value);
