@@ -7,6 +7,7 @@
 
 struct Process;
 struct library;
+struct library_symbol;
 
 /* XXX Ok, the original idea was to separate the low-level ELF data
  * from the abstract "struct library" object, but we use some of the
