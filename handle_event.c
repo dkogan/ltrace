@@ -639,10 +639,12 @@ handle_breakpoint(Event *event)
 			 * of the breakpoint, but if we are in a
 			 * recursive call, it's still enabled.  In
 			 * that case we need to skip it properly.  */
-			if ((sbp = address2bpstruct(leader, brk_addr)) != NULL)
+			if ((sbp = address2bpstruct(leader, brk_addr)) != NULL) {
 				continue_after_breakpoint(event->proc, sbp);
-			else
+			} else {
+				set_instruction_pointer(event->proc, brk_addr);
 				continue_process(event->proc->pid);
+			}
 			return;
 		}
 	}
@@ -667,6 +669,8 @@ handle_breakpoint(Event *event)
 
 		breakpoint_on_continue(sbp, event->proc);
 		return;
+	} else {
+		set_instruction_pointer(event->proc, brk_addr);
 	}
 
 	continue_process(event->proc->pid);
