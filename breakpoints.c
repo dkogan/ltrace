@@ -344,7 +344,6 @@ struct entry_breakpoint {
 static void
 entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 {
-	fprintf(stderr, "entry_breakpoint_on_hit\n");
 	struct entry_breakpoint *bp = (void *)a;
 	if (proc == NULL || proc->leader == NULL)
 		return;

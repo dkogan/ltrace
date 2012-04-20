@@ -81,16 +81,6 @@
  * through half the dynamic linker, we just let the thread run and hit
  * this breakpoint.  When it hits, we know the PLT entry was resolved.
  *
- * N.B. It's tempting to try to emulate the instruction that updates
- * .plt.  We would compute the resolved address, and instead of
- * letting the dynamic linker put it in .plt, we would resolve the
- * breakpoint to that address.  This way we wouldn't need to stop
- * other threads.  However that instruction may turn out to be a sync,
- * and in general, may be any instruction between the actual write and
- * the following sync.  XXX TODO that means that we need to put the
- * post-enable breakpoint at the following sync, not to the
- * instruction itself (unless it's a sync already).
- *
  * XXX TODO If we have hardware watch point, we might put a read watch
  * on .plt slot, and discover the offenders this way.  I don't know
  * the details, but I assume at most a handful (like, one or two, if
@@ -177,13 +167,23 @@ reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
 		      breakpoint_name(bp), bp->addr);
 		return CBS_CONT;
 	}
+
 	/* XXX double cast  */
 	bp->libsym->arch.plt_slot_addr = (GElf_Addr)(uintptr_t)bp->addr;
-	bp->libsym->arch.resolved_value = l;
 
-	/* Re-enable the breakpoint that was overwritten by the
-	 * dynamic linker.  */
-	enable_breakpoint(proc, bp);
+	/* If necessary, re-enable the breakpoint if it was
+	 * overwritten by the dynamic linker.  */
+	union {
+		uint32_t insn;
+		char buf[4];
+	} u = { .buf = BREAKPOINT_VALUE };
+	if (l >> 32 == u.insn)
+		debug(DEBUG_PROCESS, "pid=%d, breakpoint still present"
+		      " at %p, avoiding reenable", proc->pid, bp->addr);
+	else
+		enable_breakpoint(proc, bp);
+
+	bp->libsym->arch.resolved_value = l;
 
 	return CBS_CONT;
 }
