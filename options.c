@@ -246,7 +246,7 @@ parse_filter(struct filter *filt, char *expr)
 	enum filter_rule_type type = FR_ADD;
 
 	while (*expr != 0) {
-		size_t s = strcspn(expr, "@-");
+		size_t s = strcspn(expr, "@-+");
 		char *symname = expr;
 		char *libname;
 		char *next = expr + s + 1;
@@ -256,25 +256,25 @@ parse_filter(struct filter *filt, char *expr)
 			libname = "*";
 			expr = next - 1;
 
-		} else if (expr[s] == '-') {
+		} else if (expr[s] == '-' || expr[s] == '+') {
+			type = expr[s] == '-' ? FR_SUBTRACT : FR_ADD;
+			expr[s] = 0;
 			libname = "*";
 			expr = next;
-			type = FR_SUBTRACT;
 
 		} else {
 			assert(expr[s] == '@');
 			expr[s] = 0;
-			s = strcspn(next, "-");
+			s = strcspn(next, "-+");
 			if (s == 0) {
 				libname = "*";
 				expr = next;
 			} else if (next[s] == 0) {
 				expr = next + s;
 				libname = next;
-
 			} else {
-				assert(next[s] == '-');
-				type = FR_SUBTRACT;
+				assert(next[s] == '-' || next[s] == '+');
+				type = next[s] == '-' ? FR_SUBTRACT : FR_ADD;
 				next[s] = 0;
 				expr = next + s + 1;
 				libname = next;
@@ -345,17 +345,6 @@ parse_filter(struct filter *filt, char *expr)
 static struct filter *
 recursive_parse_chain(char *expr)
 {
-	/* Event expression grammar:
-	 *
-	 *  Chain ::= Filter FilterList
-	 *  FilterList ::= eps | ',' Filter FilterList
-	 *  Filter ::= Rule RuleList
-	 *  RuleList ::= eps | '-' Rule RuleList
-	 *  Rule ::= eps | Glob Soname
-	 *  Soname ::= eps | '@' Glob | '@' '/' Filename
-	 *  Glob ::= '/' Regex '/'
-	 */
-
 	struct filter *filt = malloc(sizeof(*filt));
 	if (filt == NULL) {
 		error(0, errno, "(part of) filter will be ignored: '%s'", expr);
@@ -363,35 +352,13 @@ recursive_parse_chain(char *expr)
 	}
 
 	filter_init(filt);
-	struct filter *next = NULL;
-	char *it;
-	int escape = 0;
-	for (it = expr; ; ++it) {
-		if (*it == 0)
-			goto done;
-
-		if (escape) {
-			escape = 0;
-			continue;
-		}
-
-		if (*it == '\\') {
-			escape = 1;
-
-		} else if (*it == ',') {
-			*it = 0;
-			next = recursive_parse_chain(it + 1);
-		done:
-			filt->next = next;
-			if (parse_filter(filt, expr) < 0) {
-				fprintf(stderr,
-					"Filter '%s' will be ignored.\n", expr);
-				free(filt);
-				filt = next;
-			}
-			return filt;
-		}
+	if (parse_filter(filt, expr) < 0) {
+		fprintf(stderr, "Filter '%s' will be ignored.\n", expr);
+		free(filt);
+		filt = NULL;
 	}
+
+	return filt;
 }
 
 static void
