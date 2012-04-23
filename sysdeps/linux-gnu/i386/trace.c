@@ -1,11 +1,12 @@
 #include "config.h"
 
-#include <stdlib.h>
+#include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <signal.h>
-#include <sys/ptrace.h>
 #include <asm/ptrace.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
 
 #include "proc.h"
 #include "common.h"
@@ -25,20 +26,32 @@ get_arch_dep(Process *proc) {
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise.
  */
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct Process *proc, int status, int *sysnum)
+{
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
+		struct callstack_element *elem = NULL;
+		if (proc->callstack_depth > 0)
+			elem = proc->callstack + proc->callstack_depth - 1;
+
 		*sysnum = ptrace(PTRACE_PEEKUSER, proc->pid, 4 * ORIG_EAX, 0);
+		if (*sysnum == -1) {
+			if (errno)
+				return -1;
+			/* Otherwise, ORIG_EAX == -1 means that the
+			 * system call should not be restarted.  In
+			 * that case rely on what we have on
+			 * stack.  */
+			if (elem != NULL && elem->is_syscall)
+				*sysnum = elem->c_un.syscall;
+		}
 
-		if (proc->callstack_depth > 0 &&
-				proc->callstack[proc->callstack_depth - 1].is_syscall &&
-				proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+		if (elem != NULL && elem->is_syscall
+		    && elem->c_un.syscall == *sysnum)
 			return 2;
-		}
 
-		if (*sysnum >= 0) {
+		if (*sysnum >= 0)
 			return 1;
-		}
 	}
 	return 0;
 }

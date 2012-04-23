@@ -43,23 +43,35 @@ get_arch_dep(Process *proc) {
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise.
  */
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct Process *proc, int status, int *sysnum)
+{
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
+		struct callstack_element *elem = NULL;
+		if (proc->callstack_depth > 0)
+			elem = proc->callstack + proc->callstack_depth - 1;
+
 		long int ret = ptrace(PTRACE_PEEKUSER, proc->pid, 8 * ORIG_RAX, 0);
-		if (ret == -1 && errno)
-			return -1;
+		if (ret == -1) {
+			if (errno)
+				return -1;
+			/* Otherwise, ORIG_RAX == -1 means that the
+			 * system call should not be restarted.  In
+			 * that case rely on what we have on
+			 * stack.  */
+			if (elem != NULL && elem->is_syscall)
+				ret = elem->c_un.syscall;
+		}
 
 		*sysnum = ret;
-		if (proc->callstack_depth > 0 &&
-				proc->callstack[proc->callstack_depth - 1].is_syscall &&
-				proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+		debug(DEBUG_FUNCTION, "sysnum=%ld %p %d\n", ret,
+		      get_instruction_pointer(proc), errno);
+		if (elem != NULL && elem->is_syscall
+		    && elem->c_un.syscall == *sysnum)
 			return 2;
-		}
 
-		if (*sysnum >= 0) {
+		if (*sysnum >= 0)
 			return 1;
-		}
 	}
 	return 0;
 }
