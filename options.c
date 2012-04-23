@@ -369,6 +369,10 @@ parse_filter_chain(const char *expr, struct filter **retp)
 		error(0, errno, "filter '%s' will be ignored", expr);
 		return;
 	}
+	/* Support initial '!' for backward compatibility.  */
+	if (str[0] == '!')
+		str[0] = '-';
+
 	struct filter **tailp;
 	for (tailp = retp; *tailp != NULL; tailp = &(*tailp)->next)
 		;
