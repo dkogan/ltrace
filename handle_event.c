@@ -388,43 +388,28 @@ handle_exit_signal(Event *event) {
 	free(event->proc);
 }
 
-static struct library_symbol *
-temporary_syscall_symbol(const char *name)
+static void
+output_syscall(struct Process *proc, const char *name,
+	       void (*output)(enum tof, struct Process *,
+			      struct library_symbol *))
 {
-	struct library *syscalls = malloc(sizeof(*syscalls));
-	struct library_symbol *syscall = malloc(sizeof(*syscall));
-	if (syscalls == NULL || syscall == NULL) {
-		free(syscalls);
-		free(syscall);
-		return NULL;
+	struct library_symbol syscall;
+	if (library_symbol_init(&syscall, 0, name, 0, LS_TOPLT_NONE) >= 0) {
+		(*output)(LT_TOF_SYSCALL, proc, &syscall);
+		library_symbol_destroy(&syscall);
 	}
-	/* XXX TODO: this needs to be fleshed out.  */
-	library_init(syscalls, (enum library_type)-1);
-	library_set_soname(syscalls, "SYS", 0);
-	if (library_symbol_init(syscall, 0, name, 0, LS_TOPLT_NONE) < 0)
-		abort();
-	library_add_symbol(syscalls, syscall);
-	return syscall;
 }
 
 static void
 output_syscall_left(struct Process *proc, const char *name)
 {
-	struct library_symbol *syscall = temporary_syscall_symbol(name);
-	output_left(LT_TOF_SYSCALL, proc, syscall);
-	struct library *lib = syscall->lib;
-	library_destroy(lib);
-	free(lib);
+	output_syscall(proc, name, &output_left);
 }
 
 static void
 output_syscall_right(struct Process *proc, const char *name)
 {
-	struct library_symbol *syscall = temporary_syscall_symbol(name);
-	output_right(LT_TOF_SYSCALLR, proc, syscall);
-	struct library *lib = syscall->lib;
-	library_destroy(lib);
-	free(lib);
+	output_syscall(proc, name, &output_right);
 }
 
 static void
