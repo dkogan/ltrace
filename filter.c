@@ -161,8 +161,8 @@ int
 filter_matches_symbol(struct filter *filt,
 		      const char *sym_name, struct library *lib)
 {
-	int matches = 0;
 	for (; filt != NULL; filt = filt->next) {
+		int matches = 0;
 		struct filter_rule *it;
 		for (it = filt->rules; it != NULL; it = it->next) {
 			switch (it->type) {
@@ -180,6 +180,8 @@ filter_matches_symbol(struct filter *filt,
 						 "symbol name"))
 				matches = !matches;
 		}
+		if (matches)
+			return 1;
 	}
-	return matches;
+	return 0;
 }
