@@ -64,8 +64,10 @@ filter_rule_destroy(struct filter_rule *rule)
 void
 filter_add_rule(struct filter *filt, struct filter_rule *rule)
 {
-	rule->next = filt->rules;
-	filt->rules = rule;
+	struct filter_rule **rulep;
+	for (rulep = &filt->rules; *rulep != NULL; rulep = &(*rulep)->next)
+		;
+	*rulep = rule;
 }
 
 void
