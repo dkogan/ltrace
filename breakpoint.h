@@ -97,8 +97,8 @@ int breakpoint_turn_off(struct breakpoint *bp, struct Process *proc);
 
 /* Utility function that does what typically needs to be done when a
  * breakpoint is to be inserted.  It checks whether there is another
- * breakpoint in PROC for given ADDR.  If not, it allocates memory for
- * a new breakpoint on the heap, initializes it, and calls
+ * breakpoint in PROC->LEADER for given ADDR.  If not, it allocates
+ * memory for a new breakpoint on the heap, initializes it, and calls
  * PROC_ADD_BREAKPOINT to add the newly-created breakpoint.  For newly
  * added as well as preexisting breakpoints, it then calls
  * BREAKPOINT_TURN_ON.  If anything fails, it cleans up and returns

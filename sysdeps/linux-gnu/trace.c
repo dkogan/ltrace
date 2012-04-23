@@ -590,8 +590,7 @@ remove_atomic_breakpoints(struct Process *proc)
 	int i;
 	for (i = 0; i < ct; ++i)
 		if (self->atomic_skip_bp_addrs[i] != 0) {
-			delete_breakpoint(proc->leader,
-					  self->atomic_skip_bp_addrs[i]);
+			delete_breakpoint(proc, self->atomic_skip_bp_addrs[i]);
 			self->atomic_skip_bp_addrs[i] = 0;
 		}
 }
@@ -618,7 +617,7 @@ atomic_singlestep_add_bp(void *addr, void *data)
 				.on_hit = atomic_singlestep_bp_on_hit,
 			};
 			struct breakpoint *bp
-				= insert_breakpoint(proc->leader, addr, NULL);
+				= insert_breakpoint(proc, addr, NULL);
 			breakpoint_set_callbacks(bp, &cbs);
 			return 0;
 		}
