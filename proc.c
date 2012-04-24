@@ -144,12 +144,12 @@ process_init(struct Process *proc, const char *filename, pid_t pid)
 	return 0;
 }
 
-static void
-destroy_breakpoint_cb(void *key, void *value, void *data)
+static enum callback_status
+destroy_breakpoint_cb(struct Process *proc, struct breakpoint *bp, void *data)
 {
-	struct breakpoint *bp = value;
 	breakpoint_destroy(bp);
 	free(bp);
+	return CBS_CONT;
 }
 
 static void
@@ -158,7 +158,8 @@ private_process_destroy(struct Process *proc, int keep_filename)
 	if (!keep_filename)
 		free(proc->filename);
 
-	/* Libraries and symbols.  */
+	/* Libraries and symbols.  This is only relevant in
+	 * leader.  */
 	struct library *lib;
 	for (lib = proc->libraries; lib != NULL; ) {
 		struct library *next = lib->next;
@@ -169,9 +170,11 @@ private_process_destroy(struct Process *proc, int keep_filename)
 	proc->libraries = NULL;
 
 	/* Breakpoints.  */
-	dict_apply_to_all(proc->breakpoints, destroy_breakpoint_cb, NULL);
-	dict_clear(proc->breakpoints);
-	proc->breakpoints = NULL;
+	if (proc->breakpoints != NULL) {
+		proc_each_breakpoint(proc, NULL, destroy_breakpoint_cb, NULL);
+		dict_clear(proc->breakpoints);
+		proc->breakpoints = NULL;
+	}
 }
 
 void
