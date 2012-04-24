@@ -43,6 +43,14 @@ breakpoint_on_continue(struct breakpoint *bp, struct Process *proc)
 		continue_after_breakpoint(proc, bp);
 }
 
+void
+breakpoint_on_retract(struct breakpoint *bp, struct Process *proc)
+{
+	assert(bp != NULL);
+	if (bp->cbs != NULL && bp->cbs->on_retract != NULL)
+		(bp->cbs->on_retract)(bp, proc);
+}
+
 /*****************************************************************************/
 
 struct breakpoint *

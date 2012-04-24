@@ -48,6 +48,7 @@ struct breakpoint;
 struct bp_callbacks {
 	void (*on_hit)(struct breakpoint *bp, struct Process *proc);
 	void (*on_continue)(struct breakpoint *bp, struct Process *proc);
+	void (*on_retract)(struct breakpoint *bp, struct Process *proc);
 };
 
 struct breakpoint {
@@ -65,6 +66,15 @@ void breakpoint_on_hit(struct breakpoint *bp, struct Process *proc);
 /* Call on-continue handler of BP.  If none is set, call
  * continue_after_breakpoint.  */
 void breakpoint_on_continue(struct breakpoint *bp, struct Process *proc);
+
+/* Call on-retract handler of BP, if any is set.  This should be
+ * called before the breakpoints are destroyed.  The reason for a
+ * separate interface is that breakpoint_destroy has to be callable
+ * without PROC.  ON_DISABLE might be useful as well, but that would
+ * be called every time we disable the breakpoint, which is too often
+ * (a breakpoint has to be disabled every time that we need to execute
+ * the instruction underneath it).  */
+void breakpoint_on_retract(struct breakpoint *bp, struct Process *proc);
 
 /* Initialize a breakpoint structure.  That doesn't actually realize
  * the breakpoint.  The breakpoint is initially assumed to be

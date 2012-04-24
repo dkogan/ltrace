@@ -423,11 +423,19 @@ remove_task(struct Process *task, void *data)
 	return CBS_CONT;
 }
 
+static enum callback_status
+retract_breakpoint_cb(struct Process *proc, struct breakpoint *bp, void *data)
+{
+	breakpoint_on_retract(bp, proc);
+	return CBS_CONT;
+}
+
 static void
 detach_process(Process * leader)
 {
 	each_qd_event(&undo_breakpoint, leader);
 	disable_all_breakpoints(leader);
+	proc_each_breakpoint(leader, NULL, retract_breakpoint_cb, NULL);
 
 	/* Now untrace the process, if it was attached to by -p.  */
 	struct opt_p_t * it;
