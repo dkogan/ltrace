@@ -193,7 +193,11 @@ Process *each_task(struct Process *proc, struct Process *start_after,
 		   void *data);
 
 void change_process_leader(Process *proc, Process *leader);
-void remove_process(Process *proc);
+
+/* Remove process from the list of traced processes, drop any events
+ * in the event queue, destroy it and free memory.  */
+void remove_process(struct Process *proc);
+
 void install_event_handler(Process *proc, struct event_handler *handler);
 void destroy_event_handler(Process *proc);
 

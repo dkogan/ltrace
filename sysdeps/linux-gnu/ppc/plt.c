@@ -821,10 +821,6 @@ ppc_plt_bp_retract(struct breakpoint *bp, struct Process *proc)
 	if (proc->e_machine == EM_PPC64
 	    && bp->libsym != NULL
 	    && bp->libsym->arch.type == PPC_PLT_RESOLVED) {
-		fprintf(stderr,
-			"unresolve PLT:%p .plt:%#"PRIx64" orig:%#"PRIx64"\n",
-			bp->addr, bp->libsym->arch.plt_slot_addr,
-			bp->libsym->arch.resolved_value);
 		each_task(proc->leader, NULL, detach_task_cb, bp);
 		unresolve_plt_slot(proc, bp->libsym->arch.plt_slot_addr,
 				   bp->libsym->arch.resolved_value);
