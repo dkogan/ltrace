@@ -727,10 +727,19 @@ done:
 }
 
 static void
+jump_to_entry_point(struct Process *proc, struct breakpoint *bp)
+{
+	/* XXX The double cast should be removed when
+	 * target_address_t becomes integral type.  */
+	target_address_t rv = (target_address_t)
+		(uintptr_t)bp->libsym->arch.resolved_value;
+	set_instruction_pointer(proc, rv);
+}
+
+static void
 ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 {
 	switch (bp->libsym->arch.type) {
-		target_address_t rv;
 		struct Process *leader;
 		void (*on_all_stopped)(struct process_stopping_handler *);
 		enum callback_status (*keep_stepping_p)
@@ -768,11 +777,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 			return;
 		}
 
-		/* XXX The double cast should be removed when
-		 * target_address_t becomes integral type.  */
-		rv = (target_address_t)
-			(uintptr_t)bp->libsym->arch.resolved_value;
-		set_instruction_pointer(proc, rv);
+		jump_to_entry_point(proc, bp);
 		continue_process(proc->pid);
 		return;
 
@@ -783,6 +788,47 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 
 	assert(bp->libsym->arch.type != bp->libsym->arch.type);
 	abort();
+}
+
+/* When a process is in a PLT stub, it may have already read the data
+ * in .plt that we changed.  If we detach now, it will jump to PLT
+ * entry and continue to the dynamic linker, where it will SIGSEGV,
+ * because zeroth .plt slot is not filled in prelinked binaries, and
+ * the dynamic linker needs that data.  Moreover, the process may
+ * actually have hit the breakpoint already.  This functions tries to
+ * detect both cases and do any fix-ups necessary to mend this
+ * situation.  */
+static enum callback_status
+detach_task_cb(struct Process *task, void *data)
+{
+	struct breakpoint *bp = data;
+
+	if (get_instruction_pointer(task) == bp->addr) {
+		debug(DEBUG_PROCESS, "%d at %p, which is PLT slot",
+		      task->pid, bp->addr);
+		jump_to_entry_point(task, bp);
+		return CBS_CONT;
+	}
+	return CBS_CONT;
+}
+
+static void
+ppc_plt_bp_retract(struct breakpoint *bp, struct Process *proc)
+{
+	/* On PPC64, we rewrite .plt with PLT entry addresses.  This
+	 * needs to be undone.  Unfortunately, the program may have
+	 * made decisions based on that value */
+	if (proc->e_machine == EM_PPC64
+	    && bp->libsym != NULL
+	    && bp->libsym->arch.type == PPC_PLT_RESOLVED) {
+		fprintf(stderr,
+			"unresolve PLT:%p .plt:%#"PRIx64" orig:%#"PRIx64"\n",
+			bp->addr, bp->libsym->arch.plt_slot_addr,
+			bp->libsym->arch.resolved_value);
+		each_task(proc->leader, NULL, detach_task_cb, bp);
+		unresolve_plt_slot(proc, bp->libsym->arch.plt_slot_addr,
+				   bp->libsym->arch.resolved_value);
+	}
 }
 
 void
@@ -845,6 +891,7 @@ arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
 
 	static struct bp_callbacks cbs = {
 		.on_continue = ppc_plt_bp_continue,
+		.on_retract = ppc_plt_bp_retract,
 	};
 	breakpoint_set_callbacks(bp, &cbs);
 	return 0;
