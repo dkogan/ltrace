@@ -3,12 +3,12 @@
 #include <assert.h>
 #include <endian.h>
 #include <errno.h>
-#include <error.h>
 #include <fcntl.h>
 #include <gelf.h>
 #include <inttypes.h>
 #include <search.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -197,17 +197,22 @@ open_elf(struct ltelf *lte, const char *filename)
 	lte->elf = elf_begin(lte->fd, ELF_C_READ, NULL);
 #endif
 
-	if (lte->elf == NULL || elf_kind(lte->elf) != ELF_K_ELF)
-		error(EXIT_FAILURE, 0, "Can't open ELF file \"%s\"", filename);
+	if (lte->elf == NULL || elf_kind(lte->elf) != ELF_K_ELF) {
+		fprintf(stderr, "\"%s\" is not an ELF file\n", filename);
+		exit(EXIT_FAILURE);
+	}
 
-	if (gelf_getehdr(lte->elf, &lte->ehdr) == NULL)
-		error(EXIT_FAILURE, 0, "Can't read ELF header of \"%s\"",
-		      filename);
+	if (gelf_getehdr(lte->elf, &lte->ehdr) == NULL) {
+		fprintf(stderr, "can't read ELF header of \"%s\": %s\n",
+			filename, elf_errmsg(-1));
+		exit(EXIT_FAILURE);
+	}
 
-	if (lte->ehdr.e_type != ET_EXEC && lte->ehdr.e_type != ET_DYN)
-		error(EXIT_FAILURE, 0,
-		      "\"%s\" is not an ELF executable nor shared library",
-		      filename);
+	if (lte->ehdr.e_type != ET_EXEC && lte->ehdr.e_type != ET_DYN) {
+		fprintf(stderr, "\"%s\" is neither an ELF executable"
+			" nor a shared library\n", filename);
+		exit(EXIT_FAILURE);
+	}
 
 	if ((lte->ehdr.e_ident[EI_CLASS] != LT_ELFCLASS
 	     || lte->ehdr.e_machine != LT_ELF_MACHINE)
@@ -219,11 +224,50 @@ open_elf(struct ltelf *lte, const char *filename)
 	    && (lte->ehdr.e_ident[EI_CLASS] != LT_ELFCLASS3
 		|| lte->ehdr.e_machine != LT_ELF_MACHINE3)
 #endif
-	    )
-		error(EXIT_FAILURE, 0,
-		      "\"%s\" is ELF from incompatible architecture", filename);
+		) {
+		fprintf(stderr,
+			"\"%s\" is ELF from incompatible architecture\n",
+			filename);
+		exit(EXIT_FAILURE);
+	}
 
 	return 0;
+}
+
+static void
+read_symbol_table(struct ltelf *lte, const char *filename,
+		  Elf_Scn *scn, GElf_Shdr *shdr, const char *name,
+		  Elf_Data **datap, size_t *countp, const char **strsp)
+{
+	*datap = elf_getdata(scn, NULL);
+	*countp = shdr->sh_size / shdr->sh_entsize;
+	if ((*datap == NULL || elf_getdata(scn, *datap) != NULL)
+	    && options.static_filter != NULL) {
+		fprintf(stderr, "Couldn't get data of section"
+			" %s from \"%s\": %s\n",
+			name, filename, elf_errmsg(-1));
+		exit(EXIT_FAILURE);
+	}
+
+	scn = elf_getscn(lte->elf, shdr->sh_link);
+	GElf_Shdr shdr2;
+	if (scn == NULL || gelf_getshdr(scn, &shdr2) == NULL) {
+		fprintf(stderr, "Couldn't get header of section"
+			" #%d from \"%s\": %s\n",
+			shdr2.sh_link, filename, elf_errmsg(-1));
+		exit(EXIT_FAILURE);
+	}
+
+	Elf_Data *data = elf_getdata(scn, NULL);
+	if (data == NULL || elf_getdata(scn, data) != NULL
+	    || shdr2.sh_size != data->d_size || data->d_off) {
+		fprintf(stderr, "Couldn't get data of section"
+			" #%d from \"%s\": %s\n",
+			shdr2.sh_link, filename, elf_errmsg(-1));
+		exit(EXIT_FAILURE);
+	}
+
+	*strsp = data->d_buf;
 }
 
 static int
@@ -265,68 +309,29 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 		const char *name;
 
 		scn = elf_getscn(lte->elf, i);
-		if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL)
-			error(EXIT_FAILURE, 0,
-			      "Couldn't get section header from \"%s\"",
-			      filename);
+		if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL) {
+			fprintf(stderr,	"Couldn't get section #%d from"
+				" \"%s\": %s\n", i, filename, elf_errmsg(-1));
+			exit(EXIT_FAILURE);
+		}
 
 		name = elf_strptr(lte->elf, lte->ehdr.e_shstrndx, shdr.sh_name);
-		if (name == NULL)
-			error(EXIT_FAILURE, 0,
-			      "Couldn't get section header from \"%s\"",
-			      filename);
+		if (name == NULL) {
+			fprintf(stderr,	"Couldn't get name of section #%d from"
+				" \"%s\": %s\n", i, filename, elf_errmsg(-1));
+			exit(EXIT_FAILURE);
+		}
 
 		if (shdr.sh_type == SHT_SYMTAB) {
-			Elf_Data *data;
+			read_symbol_table(lte, filename,
+					  scn, &shdr, name, &lte->symtab,
+					  &lte->symtab_count, &lte->strtab);
 
-			lte->symtab = elf_getdata(scn, NULL);
-			lte->symtab_count = shdr.sh_size / shdr.sh_entsize;
-			if ((lte->symtab == NULL
-			     || elf_getdata(scn, lte->symtab) != NULL)
-			    && options.static_filter != NULL)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get .symtab data from \"%s\"",
-				      filename);
-
-			scn = elf_getscn(lte->elf, shdr.sh_link);
-			if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get section header from \"%s\"",
-				      filename);
-
-			data = elf_getdata(scn, NULL);
-			if (data == NULL || elf_getdata(scn, data) != NULL
-			    || shdr.sh_size != data->d_size || data->d_off)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get .strtab data from \"%s\"",
-				      filename);
-
-			lte->strtab = data->d_buf;
 		} else if (shdr.sh_type == SHT_DYNSYM) {
-			Elf_Data *data;
+			read_symbol_table(lte, filename,
+					  scn, &shdr, name, &lte->dynsym,
+					  &lte->dynsym_count, &lte->dynstr);
 
-			lte->dynsym = elf_getdata(scn, NULL);
-			lte->dynsym_count = shdr.sh_size / shdr.sh_entsize;
-			if (lte->dynsym == NULL
-			    || elf_getdata(scn, lte->dynsym) != NULL)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get .dynsym data from \"%s\"",
-				      filename);
-
-			scn = elf_getscn(lte->elf, shdr.sh_link);
-			if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get section header from \"%s\"",
-				      filename);
-
-			data = elf_getdata(scn, NULL);
-			if (data == NULL || elf_getdata(scn, data) != NULL
-			    || shdr.sh_size != data->d_size || data->d_off)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get .dynstr data from \"%s\"",
-				      filename);
-
-			lte->dynstr = data->d_buf;
 		} else if (shdr.sh_type == SHT_DYNAMIC) {
 			Elf_Data *data;
 			size_t j;
@@ -335,18 +340,22 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 			lte->dyn_sz = shdr.sh_size;
 
 			data = elf_getdata(scn, NULL);
-			if (data == NULL || elf_getdata(scn, data) != NULL)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get .dynamic data from \"%s\"",
-				      filename);
+			if (data == NULL || elf_getdata(scn, data) != NULL) {
+				fprintf(stderr, "Couldn't get .dynamic data"
+					" from \"%s\": %s\n",
+					filename, strerror(errno));
+				exit(EXIT_FAILURE);
+			}
 
 			for (j = 0; j < shdr.sh_size / shdr.sh_entsize; ++j) {
 				GElf_Dyn dyn;
 
-				if (gelf_getdyn(data, j, &dyn) == NULL)
-					error(EXIT_FAILURE, 0,
-					      "Couldn't get .dynamic data from \"%s\"",
-					      filename);
+				if (gelf_getdyn(data, j, &dyn) == NULL) {
+					fprintf(stderr, "Couldn't get .dynamic"
+						" data from \"%s\": %s\n",
+						filename, strerror(errno));
+					exit(EXIT_FAILURE);
+				}
 				if (dyn.d_tag == DT_JMPREL)
 					relplt_addr = dyn.d_un.d_ptr;
 				else if (dyn.d_tag == DT_PLTRELSZ)
@@ -375,9 +384,11 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 		}
 	}
 
-	if (lte->dynsym == NULL || lte->dynstr == NULL)
-		error(EXIT_FAILURE, 0,
-		      "Couldn't find .dynsym or .dynstr in \"%s\"", filename);
+	if (lte->dynsym == NULL || lte->dynstr == NULL) {
+		fprintf(stderr, "Couldn't find .dynsym or .dynstr in \"%s\"\n",
+			filename);
+		exit(EXIT_FAILURE);
+	}
 
 	if (!relplt_addr || !lte->plt_addr) {
 		debug(1, "%s has no PLT relocations", filename);
@@ -394,28 +405,34 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 			GElf_Shdr shdr;
 
 			scn = elf_getscn(lte->elf, i);
-			if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL)
-				error(EXIT_FAILURE, 0,
-				      "Couldn't get section header from \"%s\"",
-				      filename);
+			if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL) {
+				fprintf(stderr, "Couldn't get section header"
+					" from \"%s\": %s\n",
+					filename, elf_errmsg(-1));
+				exit(EXIT_FAILURE);
+			}
 			if (shdr.sh_addr == relplt_addr
 			    && shdr.sh_size == lte->relplt_size) {
 				lte->relplt = elf_getdata(scn, NULL);
 				lte->relplt_count =
 				    shdr.sh_size / shdr.sh_entsize;
 				if (lte->relplt == NULL
-				    || elf_getdata(scn, lte->relplt) != NULL)
-					error(EXIT_FAILURE, 0,
-					      "Couldn't get .rel*.plt data from \"%s\"",
-					      filename);
+				    || elf_getdata(scn, lte->relplt) != NULL) {
+					fprintf(stderr, "Couldn't get .rel*.plt"
+						" data from \"%s\": %s\n",
+						filename, elf_errmsg(-1));
+					exit(EXIT_FAILURE);
+				}
 				break;
 			}
 		}
 
-		if (i == lte->ehdr.e_shnum)
-			error(EXIT_FAILURE, 0,
-			      "Couldn't find .rel*.plt section in \"%s\"",
-			      filename);
+		if (i == lte->ehdr.e_shnum) {
+			fprintf(stderr,
+				"Couldn't find .rel*.plt section in \"%s\"\n",
+				filename);
+			exit(EXIT_FAILURE);
+		}
 
 		debug(1, "%s %zd PLT relocations", filename, lte->relplt_count);
 	}
@@ -458,10 +475,12 @@ populate_plt(struct Process *proc, const char *filename,
 		if (ret == NULL
 		    || ELF64_R_SYM(rela.r_info) >= lte->dynsym_count
 		    || gelf_getsym(lte->dynsym, ELF64_R_SYM(rela.r_info),
-				   &sym) == NULL)
-			error(EXIT_FAILURE, 0,
-			      "Couldn't get relocation from \"%s\"",
-			      filename);
+				   &sym) == NULL) {
+			fprintf(stderr,
+				"Couldn't get relocation from \"%s\": %s\n",
+				filename, elf_errmsg(-1));
+			exit(EXIT_FAILURE);
+		}
 
 		char const *name = lte->dynstr + sym.st_name;
 
@@ -517,7 +536,8 @@ populate_this_symtab(struct Process *proc, const char *filename,
 	size_t num_symbols = 0;
 	struct unique_symbol *symbols = malloc(sizeof(*symbols) * size);
 	if (symbols == NULL) {
-		error(0, errno, "couldn't insert symbols for -x");
+		fprintf(stderr, "couldn't insert symbols for -x: %s\n",
+			strerror(errno));
 		return -1;
 	}
 
@@ -538,8 +558,9 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		GElf_Sym sym;
 		if (gelf_getsym(symtab, i, &sym) == NULL) {
 		fail:
-			error(0, errno, "couldn't get symbol #%zd from %s: %s",
-			      i, filename, elf_errmsg(-1));
+			fprintf(stderr,
+				"couldn't get symbol #%zd from %s: %s\n",
+				i, filename, elf_errmsg(-1));
 			continue;
 		}
 
@@ -563,8 +584,9 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		if (secflags[sym.st_shndx] & SHF_EXECINSTR) {
 			naddr = addr;
 		} else if (arch_translate_address(proc, addr, &naddr) < 0) {
-			error(0, errno, "couldn't translate address of %s@%s",
-			      name, lib->soname);
+			fprintf(stderr,
+				"couldn't translate address of %s@%s: %s\n",
+				name, lib->soname, strerror(errno));
 			continue;
 		}
 

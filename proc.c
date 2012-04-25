@@ -11,7 +11,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <error.h>
 
 #include "common.h"
 #include "breakpoint.h"
@@ -126,7 +125,8 @@ process_init(struct Process *proc, const char *filename, pid_t pid)
 {
 	if (process_bare_init(proc, filename, pid, 0) < 0) {
 	fail:
-		error(0, errno, "init process %d", pid);
+		fprintf(stderr, "failed to initialize process %d: %s\n",
+			pid, strerror(errno));
 		return -1;
 	}
 
@@ -245,7 +245,8 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 {
 	if (process_bare_init(retp, proc->filename, pid, 0) < 0) {
 	fail:
-		error(0, errno, "clone process %d->%d", proc->pid, pid);
+		fprintf(stderr, "failed to clone process %d->%d : %s\n",
+			proc->pid, pid, strerror(errno));
 		return -1;
 	}
 
@@ -644,7 +645,8 @@ proc_add_library(struct Process *proc, struct library *lib)
 	struct library_symbol *libsym = NULL;
 	while ((libsym = library_each_symbol(lib, libsym, breakpoint_for_symbol,
 					     proc)) != NULL)
-		error(0, errno, "insert breakpoint for %s", libsym->name);
+		fprintf(stderr, "couldn't insert breakpoint for %s to %d: %s",
+			libsym->name, proc->pid, strerror(errno));
 }
 
 int
@@ -709,8 +711,9 @@ proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
 	assert(dict_find_entry(proc->breakpoints, bp->addr) == NULL);
 
 	if (dict_enter(proc->breakpoints, bp->addr, bp) < 0) {
-		error(0, errno, "couldn't enter breakpoint %s@%p to dictionary",
-		      breakpoint_name(bp), bp->addr);
+		fprintf(stderr,
+			"couldn't enter breakpoint %s@%p to dictionary: %s\n",
+			breakpoint_name(bp), bp->addr, strerror(errno));
 		return -1;
 	}
 

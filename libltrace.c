@@ -3,7 +3,6 @@
 #include <sys/param.h>
 #include <sys/wait.h>
 #include <errno.h>
-#include <error.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,9 +113,11 @@ ltrace_init(int argc, char **argv) {
 
 		pid_t pid = execute_program(command, argv);
 		struct Process *proc = open_program(command, pid);
-		if (proc == NULL)
-			error(EXIT_FAILURE, errno,
-			      "couldn't open program '%s'", command);
+		if (proc == NULL) {
+			fprintf(stderr, "couldn't open program '%s': %s\n",
+				command, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 
 		trace_set_options(proc);
 		continue_process(pid);

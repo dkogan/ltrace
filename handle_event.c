@@ -3,7 +3,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <error.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -441,8 +440,8 @@ handle_exec(Event * event) {
 	output_line(proc, "--- Called exec() ---");
 
 	if (process_exec(proc) < 0) {
-		error(0, errno,
-		      "couldn't reinitialize process %d after exec", pid);
+		fprintf(stderr,
+			"couldn't reinitialize process %d after exec\n", pid);
 		goto untrace;
 	}
 

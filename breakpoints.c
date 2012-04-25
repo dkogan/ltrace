@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <error.h>
 #include <errno.h>
 
 #ifdef __powerpc__

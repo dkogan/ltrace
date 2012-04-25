@@ -1,20 +1,19 @@
 #define _GNU_SOURCE /* For getline.  */
 #include "config.h"
 
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <link.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
 #include <unistd.h>
-#include <dirent.h>
-#include <ctype.h>
-#include <errno.h>
-#include <sys/syscall.h>
-#include <error.h>
 
 #include "common.h"
 #include "breakpoint.h"
@@ -182,7 +181,8 @@ process_status(pid_t pid)
 		each_line_starting(file, "State:\t", &process_status_cb, &ret);
 		fclose(file);
 		if (ret == ps_invalid)
-			error(0, errno, "process_status %d", pid);
+			fprintf(stderr, "process_status %d: %s", pid,
+				strerror(errno));
 	} else
 		/* If the file is not present, the process presumably
 		 * exited already.  */
@@ -466,8 +466,8 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 		fail:
 			if (lib != NULL)
 				library_destroy(lib);
-			error(0, errno, "Couldn't load ELF object %s\n",
-			      lib_name);
+			fprintf(stderr, "Couldn't load ELF object %s: %s\n",
+				lib_name, strerror(errno));
 			continue;
 		}
 		library_init(lib, LT_LIBTYPE_DSO);
@@ -539,7 +539,8 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 
 	struct debug_struct *debug = malloc(sizeof(*debug));
 	if (debug == NULL) {
-		error(0, errno, "couldn't allocate debug struct");
+		fprintf(stderr, "couldn't allocate debug struct: %s\n",
+			strerror(errno));
 	fail:
 		proc->debug = NULL;
 		free(debug);
@@ -612,7 +613,7 @@ process_get_entry(struct Process *proc,
 	int fd = open(fn, O_RDONLY);
 	if (fd == -1) {
 	fail:
-		error(0, errno, "couldn't read %s", fn);
+		fprintf(stderr, "couldn't read %s: %s", fn, strerror(errno));
 	done:
 		if (fd != -1)
 			close(fd);

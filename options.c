@@ -3,10 +3,10 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <errno.h>
-#include <error.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -183,7 +183,8 @@ add_filter_rule(struct filter *filt, const char *expr,
 	struct filter_lib_matcher *matcher = malloc(sizeof(*matcher));
 
 	if (rule == NULL || matcher == NULL) {
-		error(0, errno, "rule near '%s' will be ignored", expr);
+		fprintf(stderr, "rule near '%s' will be ignored: %s\n",
+			expr, strerror(errno));
 	fail:
 		free(rule);
 		free(matcher);
@@ -202,8 +203,8 @@ add_filter_rule(struct filter *filt, const char *expr,
 		if (status != 0) {
 			char buf[100];
 			regerror(status, &symbol_re, buf, sizeof buf);
-			error(0, 0, "rule near '%s' will be ignored: %s",
-			      expr, buf);
+			fprintf(stderr, "rule near '%s' will be ignored: %s\n",
+				expr, buf);
 			goto fail;
 		}
 	}
@@ -223,8 +224,8 @@ add_filter_rule(struct filter *filt, const char *expr,
 		if (status != 0) {
 			char buf[100];
 			regerror(status, &lib_re, buf, sizeof buf);
-			error(0, 0, "rule near '%s' will be ignored: %s",
-			      expr, buf);
+			fprintf(stderr, "rule near '%s' will be ignored: %s\n",
+				expr, buf);
 
 			regfree(&symbol_re);
 			goto fail;
@@ -310,8 +311,8 @@ parse_filter(struct filter *filt, char *expr)
 				/* /XXX@YYY/ is the same as
 				 * /XXX/@/YYY/.  */
 				if (libend[0] != '/')
-					error(0, 0, "unmatched '/'"
-					      " in symbol name");
+					fprintf(stderr, "unmatched '/'"
+						" in symbol name\n");
 				else
 					*libend-- = 0;
 			}
@@ -326,7 +327,8 @@ parse_filter(struct filter *filt, char *expr)
 			if (libname != libend && libname[0] == '/')
 				++libname;
 			else
-				error(0, 0, "unmatched '/' in library name");
+				fprintf(stderr, "unmatched '/'"
+					" in library name\n");
 		}
 
 		if (*symname == 0) /* /@AA/ */
@@ -347,7 +349,8 @@ recursive_parse_chain(char *expr)
 {
 	struct filter *filt = malloc(sizeof(*filt));
 	if (filt == NULL) {
-		error(0, errno, "(part of) filter will be ignored: '%s'", expr);
+		fprintf(stderr, "(part of) filter will be ignored: '%s': %s\n",
+			expr, strerror(errno));
 		return NULL;
 	}
 
@@ -366,7 +369,8 @@ parse_filter_chain(const char *expr, struct filter **retp)
 {
 	char *str = strdup(expr);
 	if (str == NULL) {
-		error(0, errno, "filter '%s' will be ignored", expr);
+		fprintf(stderr, "filter '%s' will be ignored: %s\n",
+			expr, strerror(errno));
 		return;
 	}
 	/* Support initial '!' for backward compatibility.  */
@@ -496,8 +500,9 @@ process_options(int argc, char **argv)
 		case 'o':
 			options.output = fopen(optarg, "w");
 			if (!options.output) {
-				error(0, errno,
-				      "can't open %s for writing", optarg);
+				fprintf(stderr,
+					"can't open %s for writing: %s\n",
+					optarg, strerror(errno));
 				exit(1);
 			}
 			setvbuf(options.output, (char *)NULL, _IOLBF, 0);

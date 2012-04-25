@@ -19,8 +19,9 @@
  */
 
 #include <stdlib.h>
-#include <error.h>
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "filter.h"
 #include "library.h"
@@ -117,7 +118,7 @@ re_match_or_error(regex_t *re, const char *name, const char *what)
 
 	char buf[200];
 	regerror(status, re, buf, sizeof buf);
-	error(0, 0, "Error when matching %s: %s", name, buf);
+	fprintf(stderr, "Error when matching %s: %s\n", name, buf);
 
 	return 0;
 }
