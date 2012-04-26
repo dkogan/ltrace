@@ -809,6 +809,12 @@ detach_task_cb(struct Process *task, void *data)
 		jump_to_entry_point(task, bp);
 		return CBS_CONT;
 	}
+
+	/* XXX There's still a window of several instructions where we
+	 * might catch the task inside a stub such that it has already
+	 * read destination address from .plt, but hasn't jumped yet,
+	 * thus avoiding the breakpoint.  */
+
 	return CBS_CONT;
 }
 
