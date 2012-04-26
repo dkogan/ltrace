@@ -1,3 +1,22 @@
+2012-04-26  Petr Machata  <pmachata@redhat.com>
+
+	* common.h (arch_breakpoint_init, arch_breakpoint_destroy)
+	(arch_breakpoint_clone): New interfaces.
+	(arch_process_init, arch_process_destroy, arch_process_clone)
+	(arch_process_exec): Likewise.
+	(arch_library_init, arch_library_destroy, arch_library_clone):
+	Likewise.
+	(arch_library_symbol_init, arch_library_symbol_destroy)
+	(arch_library_symbol_clone): Likewise.
+	(arch_elf_init, arch_elf_destroy): Likewise.
+	* proc.c: Implement arch_process_* defaults.
+	* breakpoints.c: Implement arch_breakpoint_* defaults.
+	* library.c: Implement arch_library{,_symbol}_* defaults.
+
+2012-04-25  Petr Machata  <pmachata@redhat.com>
+
+	* dict.h (dict_remove): New inteface.
+
 2012-04-10  Petr Machata  <pmachata@redhat.com>
 
 	* common.h (trace_fail_warning): New backend hook.
@@ -5,9 +24,18 @@
 	* proc.c: Call it.
 	* configure.ac: Add support for libselinux.
 
+2012-03-31  Petr Machata  <pmachata@redhat.com>
+
+	* glob.h: New file
+	* filter.h: New file
+	* sysdeps/linux-gnu/trace.h: New file
+	(struct process_stopping_handler): Move here...
+	* sysdeps/linux-gnu/trace.c: ... from here
+
 2012-02-10  Petr Machata  <pmachata@redhat.com>
 
 	* common.h (library_symbol_init): New interface
+	(library_symbol_destroy, library_symbol_clone): Likewise.
 	* ltrace-elf.c: Implemented and reused here
 
 2012-02-09  Petr Machata  <pmachata@redhat.com>
@@ -31,9 +59,33 @@
 
 2012-02-07  Petr Machata  <pmachata@redhat.com>
 
+	* proc.h: New file
+	(proc_add_library, proc_remove_library, proc_each_library): New
+	(proc_add_breakpoint, proc_remove_breakpoint)
+	(proc_each_breakpoint): New
+	(struct Process): Move here...
+	* common.h: ... from here
+
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
+	* library.h, library.c: New files
+	(struct library): New structure
+	(library_init, library_destroy, library_clone): New
+	(library_add_symbol, library_each_symbol): New
+	(library_set_soname, library_set_pathname): New
+	(struct library_symbol): Moved here...
+	* common.h: ... from here
+	* breakpoint.h (breakpoint_library): New
+
+2012-02-07  Petr Machata  <pmachata@redhat.com>
+
 	* breakpoint.h (struct bp_callbacks): New structure.
 	(struct breakpoint.cbs): New field of above type.
 	(breakpoint_on_hit, breakpoint_on_destroy): New interfaces.
+	(breakpoint_on_retract): New interface.
+	(breakpoint_init, breakpoint_clone, breakpoint_destroy): New.
+	(breakpoint_turn_on, breakpoint_turn_off): New.
+	(breakpoint_name): New.
 	* breakpoints.c: Implement the new interfaces.
 	* handle_event.c (handle_breakpoint): Call breakpoint_on_hit.
 
