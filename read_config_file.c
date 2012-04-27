@@ -983,7 +983,7 @@ process_line(char *buf) {
 	eat_spaces(&str);
 
 	/* A comment or empty line.  */
-	if (*str == ';' || *str == 0)
+	if (*str == ';' || *str == 0 || *str == '\n')
 		return NULL;
 
 	if (strncmp(str, "typedef", 7) == 0) {
