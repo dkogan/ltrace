@@ -251,9 +251,14 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 			self->percent = 0;
 			break;
 
-		case 'u':
 		case 'o':
+			lens = &octal_lens;
+			goto uint;
+
 		case 'x': case 'X':
+			lens = &hex_lens;
+		case 'u':
+		uint:
 			format_type = ARGTYPE_UINT;
 			self->percent = 0;
 			break;
