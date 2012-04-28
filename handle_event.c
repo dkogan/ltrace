@@ -416,13 +416,13 @@ handle_exit_signal(Event *event) {
 }
 
 static void
-output_syscall(struct Process *proc, const char *name,
+output_syscall(struct Process *proc, const char *name, enum tof tof,
 	       void (*output)(enum tof, struct Process *,
 			      struct library_symbol *))
 {
 	struct library_symbol syscall;
 	if (library_symbol_init(&syscall, 0, name, 0, LS_TOPLT_NONE) >= 0) {
-		(*output)(LT_TOF_SYSCALL, proc, &syscall);
+		(*output)(tof, proc, &syscall);
 		library_symbol_destroy(&syscall);
 	}
 }
@@ -430,13 +430,13 @@ output_syscall(struct Process *proc, const char *name,
 static void
 output_syscall_left(struct Process *proc, const char *name)
 {
-	output_syscall(proc, name, &output_left);
+	output_syscall(proc, name, LT_TOF_SYSCALL, &output_left);
 }
 
 static void
 output_syscall_right(struct Process *proc, const char *name)
 {
-	output_syscall(proc, name, &output_right);
+	output_syscall(proc, name, LT_TOF_SYSCALLR, &output_right);
 }
 
 static void
