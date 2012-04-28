@@ -50,7 +50,7 @@ extern struct timeval current_time_spent;
 Dict *dict_opt_c = NULL;
 
 static Process *current_proc = 0;
-static int current_depth = 0;
+static size_t current_depth = 0;
 static int current_column = 0;
 
 static void

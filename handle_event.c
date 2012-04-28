@@ -36,9 +36,10 @@
 
 #include "backend.h"
 #include "breakpoint.h"
+#include "common.h"
+#include "fetch.h"
 #include "library.h"
 #include "proc.h"
-#include "fetch.h"
 #include "value_dict.h"
 
 static void handle_signal(Event *event);

@@ -21,6 +21,8 @@
 #ifndef _LTRACE_LINUX_TRACE_H_
 #define _LTRACE_LINUX_TRACE_H_
 
+#include "proc.h"
+
 /* This publishes some Linux-specific data structures used for process
  * handling.  */
 

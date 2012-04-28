@@ -22,21 +22,24 @@
 
 #include "config.h"
 
+#include <sys/types.h>
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #if defined(HAVE_LIBUNWIND)
 #include <libunwind.h>
 #include <libunwind-ptrace.h>
 #endif /* defined(HAVE_LIBUNWIND) */
 
-#include <sys/types.h>
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <assert.h>
-
-#include "breakpoint.h"
-#include "proc.h"
 #include "backend.h"
+#include "breakpoint.h"
+#include "debug.h"
+#include "fetch.h"
+#include "proc.h"
+#include "value_dict.h"
 
 #ifndef ARCH_HAVE_PROCESS_DATA
 int
@@ -259,7 +262,7 @@ int
 process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 {
 	if (process_bare_init(retp, proc->filename, pid, 0) < 0) {
-	fail:
+	fail1:
 		fprintf(stderr, "failed to clone process %d->%d : %s\n",
 			proc->pid, pid, strerror(errno));
 		return -1;
@@ -290,7 +293,7 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 				free(lib);
 				lib = next;
 			}
-			goto fail;
+			goto fail1;
 		}
 
 		nlibp = &(*nlibp)->next;
@@ -315,10 +318,10 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 	for (i = 0; i < retp->callstack_depth; ++i) {
 		struct fetch_context *ctx = retp->callstack[i].fetch_context;
 		if (ctx != NULL) {
-			struct fetch_context *nctx = fetch_arg_clone(p, ctx);
+			struct fetch_context *nctx = fetch_arg_clone(retp, ctx);
 			if (nctx == NULL) {
-				int j;
-			release1:
+				size_t j;
+			fail3:
 				for (j = 0; j < i; ++j) {
 					nctx = retp->callstack[i].fetch_context;
 					fetch_arg_done(nctx);
@@ -331,31 +334,30 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 
 		struct value_dict *args = retp->callstack[i].arguments;
 		if (args != NULL) {
-		fail3:
 			struct value_dict *nargs = malloc(sizeof(*nargs));
 			if (nargs == NULL
 			    || val_dict_clone(nargs, args) < 0) {
-
-				int j;
+				size_t j;
+			fail4:
 				for (j = 0; j < i; ++j) {
-					nargs = p->callstack[i].arguments;
+					nargs = retp->callstack[i].arguments;
 					val_dict_destroy(nargs);
 					free(nargs);
-					p->callstack[i].arguments = NULL;
+					retp->callstack[i].arguments = NULL;
 				}
 
 				/* Pretend that this round went well,
-				 * so that release1 frees I-th
+				 * so that fail3 frees I-th
 				 * fetch_context.  */
 				++i;
-				goto release1;
+				goto fail3;
 			}
 			retp->callstack[i].arguments = nargs;
 		}
 	}
 
 	if (arch_process_clone(retp, proc) < 0)
-		goto fail3;
+		goto fail4;
 
 	return 0;
 }

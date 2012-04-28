@@ -107,7 +107,7 @@ struct Process {
 	unsigned int personality;
 	int tracesysgood;         /* signal indicating a PTRACE_SYSCALL trap */
 
-	int callstack_depth;
+	size_t callstack_depth;
 	struct callstack_element callstack[MAX_CALLDEPTH];
 
 	/* Linked list of libraries in backwards order of mapping.

@@ -1,18 +1,21 @@
 #include "config.h"
 
-#include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef __powerpc__
 #include <sys/ptrace.h>
 #endif
 
-#include "breakpoint.h"
-#include "proc.h"
-#include "library.h"
 #include "backend.h"
+#include "breakpoint.h"
+#include "debug.h"
+#include "library.h"
+#include "ltrace-elf.h"
+#include "proc.h"
 
 #ifndef ARCH_HAVE_TRANSLATE_ADDRESS
 int

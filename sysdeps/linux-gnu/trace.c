@@ -37,13 +37,15 @@
 # include <selinux/selinux.h>
 #endif
 
-#include "ptrace.h"
-#include "breakpoint.h"
-#include "proc.h"
 #include "linux-gnu/trace.h"
 #include "backend.h"
-#include "type.h"
+#include "breakpoint.h"
+#include "debug.h"
 #include "events.h"
+#include "options.h"
+#include "proc.h"
+#include "ptrace.h"
+#include "type.h"
 
 /* If the system headers did not provide the constants, hard-code the normal
    values.  */
@@ -673,8 +675,8 @@ singlestep_error(struct process_stopping_handler *self)
 	struct Process *teb = self->task_enabling_breakpoint;
 	struct breakpoint *sbp = self->breakpoint_being_enabled;
 	fprintf(stderr, "%d couldn't continue when handling %s (%p) at %p\n",
-		teb->pid, sbp->libsym != NULL ? sbp->libsym->name : NULL,
-		sbp->addr, get_instruction_pointer(teb));
+		teb->pid, breakpoint_name(sbp),	sbp->addr,
+		get_instruction_pointer(teb));
 	delete_breakpoint(teb->leader, sbp->addr);
 }
 

@@ -42,10 +42,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "proc.h"
-#include "library.h"
-#include "filter.h"
 #include "backend.h"
+#include "filter.h"
+#include "library.h"
+#include "ltrace-elf.h"
+#include "proc.h"
+#include "debug.h"
+#include "options.h"
 
 #ifdef PLT_REINITALISATION_BP
 extern char *PLTs_initialized_by_here;

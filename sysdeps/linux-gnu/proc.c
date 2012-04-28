@@ -35,15 +35,18 @@
 #include <link.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "config.h"
-#include "breakpoint.h"
-#include "proc.h"
-#include "library.h"
 #include "backend.h"
+#include "breakpoint.h"
+#include "config.h"
+#include "debug.h"
 #include "events.h"
+#include "library.h"
+#include "ltrace-elf.h"
+#include "proc.h"
 
 /* /proc/pid doesn't exist just after the fork, and sometimes `ltrace'
  * couldn't open it to find the executable.  So it may be necessary to
@@ -113,7 +116,7 @@ each_line_starting(FILE *file, const char *prefix,
 	char * line;
 	while ((line = find_line_starting(file, prefix, len)) != NULL) {
 		enum callback_status st = (*cb)(line, prefix, data);
-		free (line);
+		free(line);
 		if (st == CBS_STOP)
 			return;
 	}

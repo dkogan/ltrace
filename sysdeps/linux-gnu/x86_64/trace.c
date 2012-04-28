@@ -29,12 +29,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
-#include "ptrace.h"
-#include "proc.h"
-#include "value.h"
+#include "backend.h"
+#include "debug.h"
 #include "expr.h"
+#include "fetch.h"
+#include "proc.h"
+#include "ptrace.h"
 #include "type.h"
+#include "value.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR

@@ -22,6 +22,18 @@
 #define BACKEND_H
 
 #include "forward.h"
+#include <gelf.h>
+
+enum process_status {
+	ps_invalid,	/* Failure.  */
+	ps_stop,	/* Job-control stop.  */
+	ps_tracing_stop,
+	ps_sleeping,
+	ps_zombie,
+	ps_other,	/* Necessary other states can be added as needed.  */
+};
+
+typedef void *target_address_t;
 
 /*
  * This file contains documentation of back end interface.  Some of
@@ -52,13 +64,13 @@ int process_stopped(pid_t pid);
 enum process_status process_status(pid_t pid);
 
 /* Wait for PID to be ready for tracing.  */
-void wait_for_proc(pid_t pid);
+int wait_for_proc(pid_t pid);
 
 /* Send a signal SIG to the task PID.  */
 int task_kill(pid_t pid, int sig);
 
 /* Called after PID is attached, but before it is continued.  */
-void trace_set_options(struct Process *proc, pid_t pid);
+void trace_set_options(struct Process *proc);
 
 /* Called after ltrace forks.  Should attach the newly created child,
  * in whose context this function is called.  */
@@ -80,7 +92,7 @@ void get_arch_dep(struct Process *proc);
  *
  * XXX note that the IP must fit into an arch pointer.  This prevents
  * us to use 32-bit ltrace to trace 64-bit process, even on arches
- * that would otherwise support this.  Below we have a definition of
+ * that would otherwise support this.  Above we have a definition of
  * target_address_t.  This should be converted to an integral type and
  * used for target addresses throughout.  */
 void *get_instruction_pointer(struct Process *proc);
@@ -169,10 +181,9 @@ size_t umovebytes (struct Process *proc, void *addr, void *buf, size_t count);
 void *sym2addr(struct Process *proc, struct library_symbol *sym);
 
 /* Called at some point after we have attached to PROC.  This callback
- * should insert an introspection breakpoint for artificial symbol
- * named "" (empty string).  When this breakpoint is hit,
- * arch_check_dbg is called.  */
-int linkmap_init(struct Process *proc, struct ltelf *elf);
+ * should insert an introspection breakpoint for handling dynamic
+ * linker library loads.  */
+int linkmap_init(struct Process *proc, target_address_t dyn_addr);
 
 /* Called for breakpoints defined over an artificial symbol "".  This
  * can be used (like it is on Linux/GNU) to add more breakpoints
@@ -223,8 +234,6 @@ int arch_process_init(struct Process *proc);
 void arch_process_destroy(struct Process *proc);
 int arch_process_clone(struct Process *retp, struct Process *proc);
 int arch_process_exec(struct Process *proc);
-
-typedef void *target_address_t;
 
 /* This should extract entry point address and interpreter (dynamic
  * linker) bias if possible.  Returns 0 if there were no errors, -1

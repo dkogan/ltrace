@@ -76,15 +76,6 @@ struct opt_c_struct {
 
 extern Dict * dict_opt_c;
 
-enum process_status {
-	ps_invalid,	/* Failure.  */
-	ps_stop,	/* Job-control stop.  */
-	ps_tracing_stop,
-	ps_sleeping,
-	ps_zombie,
-	ps_other,	/* Necessary other states can be added as needed.  */
-};
-
 /* Events  */
 extern Event * next_event(void);
 extern void handle_event(Event * event);

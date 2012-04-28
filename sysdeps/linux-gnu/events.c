@@ -22,20 +22,22 @@
 #include "config.h"
 
 #define	_GNU_SOURCE	1
-#include <stdlib.h>
+#include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/ptrace.h>
-#include <assert.h>
 #include <unistd.h>
 
-#include "breakpoint.h"
-#include "proc.h"
 #include "backend.h"
+#include "breakpoint.h"
+#include "debug.h"
 #include "events.h"
+#include "proc.h"
 
 static Event event;
 
@@ -57,7 +59,7 @@ enque_event(Event * event)
 	      event->proc->pid, event->type);
 	Event * ne = malloc(sizeof(*ne));
 	if (ne == NULL) {
-		perror("event will be missed: malloc");
+		fprintf(stderr, "event will be missed: %s\n", strerror(errno));
 		return;
 	}
 
