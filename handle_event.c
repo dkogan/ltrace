@@ -700,6 +700,7 @@ callstack_push_syscall(Process *proc, int sysnum) {
 	}
 
 	elem = &proc->callstack[proc->callstack_depth];
+	*elem = (struct callstack_element){};
 	elem->is_syscall = 1;
 	elem->c_un.syscall = sysnum;
 	elem->return_addr = NULL;
@@ -724,6 +725,7 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 	}
 
 	elem = &proc->callstack[proc->callstack_depth++];
+	*elem = (struct callstack_element){};
 	elem->is_syscall = 0;
 	elem->c_un.libfunc = sym;
 

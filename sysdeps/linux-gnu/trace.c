@@ -363,15 +363,15 @@ process_stopping_done(struct process_stopping_handler * self, Process * leader)
 {
 	debug(DEBUG_PROCESS, "process stopping done %d",
 	      self->task_enabling_breakpoint->pid);
-	size_t i;
+
 	if (!self->exiting) {
+		size_t i;
 		for (i = 0; i < self->pids.count; ++i)
 			if (self->pids.tasks[i].pid != 0
 			    && (self->pids.tasks[i].delivered
 				|| self->pids.tasks[i].sysret))
 				continue_process(self->pids.tasks[i].pid);
 		continue_process(self->task_enabling_breakpoint->pid);
-		destroy_event_handler(leader);
 	}
 
 	if (self->exiting) {
@@ -387,6 +387,7 @@ process_stopping_done(struct process_stopping_handler * self, Process * leader)
 		case CBS_CONT:
 			goto ugly_workaround;
 		}
+		destroy_event_handler(leader);
 	}
 }
 
