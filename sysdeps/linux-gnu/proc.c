@@ -564,7 +564,7 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 	/* XXX The double cast should be removed when
 	 * target_address_t becomes integral type.  */
 	target_address_t addr = (target_address_t)(uintptr_t)rdbg.r_brk;
-	if (arch_translate_address(proc, addr, &addr) < 0)
+	if (arch_translate_address_dyn(proc, addr, &addr) < 0)
 		goto fail;
 
 	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);

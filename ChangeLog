@@ -1,5 +1,14 @@
 2012-04-30  Petr Machata  <pmachata@redhat.com>
 
+	* library.h (arch_translate_address): First argument is ltelf.
+	(arch_translate_address_dyn): New function.
+	* sysdeps/linux-gnu/ppc/plt.c: Implement above, use .opd to
+	translate addresses.
+	* breakpoints.c: Update to the above, add default implementation.
+	* ltrace-elf.c, sysdeps/linux-gnu/proc.c: Update callers.
+
+2012-04-30  Petr Machata  <pmachata@redhat.com>
+
 	* ltrace-elf.h (elf_get_section_named): New function.
 	(elf_get_section_covering, elf_get_section_type): Likewise.
 

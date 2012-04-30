@@ -618,22 +618,12 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		 * translate those.  */
 		if (secflags[sym.st_shndx] & SHF_EXECINSTR) {
 			naddr = addr;
-		} else if (arch_translate_address(proc, addr, &naddr) < 0) {
+		} else if (arch_translate_address(lte, addr, &naddr) < 0) {
 			fprintf(stderr,
 				"couldn't translate address of %s@%s: %s\n",
 				name, lib->soname, strerror(errno));
 			continue;
 		}
-
-		/* If the translation actually took place, and wasn't
-		 * a no-op, then bias again.  XXX We shouldn't apply
-		 * second bias for libraries that were open at the
-		 * time that we attached.  In fact what we should do
-		 * is look at each translated address, whether it
-		 * falls into a SHF_EXECINSTR section.  If it does,
-		 * it's most likely already translated.  */
-		if (addr != naddr)
-			naddr += lte->bias;
 
 		char *full_name;
 		if (lib->type != LT_LIBTYPE_MAIN) {
@@ -742,7 +732,7 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 	/* XXX The double cast should be removed when
 	 * target_address_t becomes integral type.  */
 	target_address_t entry = (target_address_t)(uintptr_t)lte.entry_addr;
-	if (arch_translate_address(proc, entry, &entry) < 0)
+	if (arch_translate_address(&lte, entry, &entry) < 0)
 		goto fail;
 
 	/* XXX The double cast should be removed when

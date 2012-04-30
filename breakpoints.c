@@ -16,7 +16,16 @@
 
 #ifndef ARCH_HAVE_TRANSLATE_ADDRESS
 int
-arch_translate_address(struct Process *proc,
+arch_translate_address_dyn(struct Process *proc,
+		       target_address_t addr, target_address_t *ret)
+{
+	*ret = addr;
+	return 0;
+}
+
+struct ltelf;
+int
+arch_translate_address(struct ltelf *lte,
 		       target_address_t addr, target_address_t *ret)
 {
 	*ret = addr;

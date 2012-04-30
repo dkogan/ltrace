@@ -181,11 +181,16 @@ enum callback_status library_with_key_cb(struct Process *proc,
  * target_address_t (which should also be in backend.h, I reckon), so
  * stuff it here for the time being.  */
 /* This function is implemented in the back end.  It is called for all
- * raw addresses as gleaned from symbol tables etc.  If necessary on
+ * raw addresses as read from symbol tables etc.  If necessary on
  * given architecture, this function should translate the address
  * according to .opd or other indirection mechanism.  Returns 0 on
  * success and a negative value on failure.  */
-int arch_translate_address(struct Process *proc,
+struct ltelf;
+int arch_translate_address(struct ltelf *lte,
 			   target_address_t addr, target_address_t *ret);
+/* This is the same function as arch_translate_address, except it's
+ * used at the point that we don't have ELF available anymore.  */
+int arch_translate_address_dyn(struct Process *proc,
+			       target_address_t addr, target_address_t *ret);
 
 #endif /* _LIBRARY_H_ */

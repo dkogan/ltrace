@@ -30,6 +30,9 @@ struct library_symbol;
 struct arch_ltelf_data {
 	GElf_Addr plt_stub_vma;
 	struct library_symbol *stubs;
+	Elf_Data *opd_data;
+	GElf_Addr opd_base;
+	GElf_Xword opd_size;
 	int secure_plt;
 };
 

@@ -216,9 +216,13 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 	}
 }
 
+/* This entry point is called when ltelf is not available
+ * anymore--during runtime.  At that point we don't have to concern
+ * ourselves with bias, as the values in OPD have been resolved
+ * already.  */
 int
-arch_translate_address(struct Process *proc,
-		       target_address_t addr, target_address_t *ret)
+arch_translate_address_dyn(struct Process *proc,
+			   target_address_t addr, target_address_t *ret)
 {
 	if (proc->e_machine == EM_PPC64) {
 		assert(host_powerpc64());
@@ -228,10 +232,48 @@ arch_translate_address(struct Process *proc,
 			return -1;
 		}
 		*ret = (target_address_t)l;
+		fprintf(stderr, "arch_translate_address_dyn: %p->%p\n",
+			addr, *ret);
 		return 0;
 	}
 
 	*ret = addr;
+	return 0;
+}
+
+int
+arch_translate_address(struct ltelf *lte,
+		       target_address_t addr, target_address_t *ret)
+{
+	GElf_Xword offset = (GElf_Addr)addr - lte->arch.opd_base;
+	uint64_t value;
+	if (elf_read_u64(lte->arch.opd_data, offset, &value) < 0) {
+		error(0, 0, "static .opd translation of %p: %s", addr,
+		      elf_errmsg(-1));
+		return -1;
+	}
+	*ret = (target_address_t)(value + lte->bias);
+	return 0;
+}
+
+static int
+load_opd_data(struct ltelf *lte, struct library *lib)
+{
+	Elf_Scn *sec;
+	GElf_Shdr shdr;
+	if (elf_get_section_named(lte, ".opd", &sec, &shdr) < 0) {
+	fail:
+		fprintf(stderr, "couldn't find .opd data\n");
+		return -1;
+	}
+
+	lte->arch.opd_data = elf_rawdata(sec, NULL);
+	if (lte->arch.opd_data == NULL)
+		goto fail;
+
+	lte->arch.opd_base = shdr.sh_addr + lte->bias;
+	lte->arch.opd_size = shdr.sh_size;
+
 	return 0;
 }
 
@@ -351,6 +393,10 @@ nonzero_data(Elf_Data *data)
 int
 arch_elf_init(struct ltelf *lte, struct library *lib)
 {
+	if (lte->ehdr.e_machine == EM_PPC64
+	    && load_opd_data(lte, lib) < 0)
+		return -1;
+
 	lte->arch.secure_plt = !(lte->plt_flags & SHF_EXECINSTR);
 
 	/* For PPC32 BSS, it is important whether the binary was
