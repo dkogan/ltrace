@@ -569,7 +569,15 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		    || sym.st_value == 0)
 			continue;
 
-		const char *name = strtab + sym.st_name;
+		const char *orig_name = strtab + sym.st_name;
+		const char *version = strchr(orig_name, '@');
+		size_t len = version != NULL ? (assert(version > orig_name),
+						(size_t)(version - orig_name))
+			: strlen(orig_name);
+		char name[len + 1];
+		memcpy(name, orig_name, len);
+		name[len] = 0;
+
 		if (!filter_matches_symbol(options.static_filter, name, lib))
 			continue;
 
