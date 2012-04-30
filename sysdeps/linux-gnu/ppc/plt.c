@@ -245,14 +245,19 @@ int
 arch_translate_address(struct ltelf *lte,
 		       target_address_t addr, target_address_t *ret)
 {
-	GElf_Xword offset = (GElf_Addr)addr - lte->arch.opd_base;
-	uint64_t value;
-	if (elf_read_u64(lte->arch.opd_data, offset, &value) < 0) {
-		error(0, 0, "static .opd translation of %p: %s", addr,
-		      elf_errmsg(-1));
-		return -1;
+	if (lte->ehdr.e_machine == EM_PPC64) {
+		GElf_Xword offset = (GElf_Addr)addr - lte->arch.opd_base;
+		uint64_t value;
+		if (elf_read_u64(lte->arch.opd_data, offset, &value) < 0) {
+			error(0, 0, "static .opd translation of %p: %s", addr,
+			      elf_errmsg(-1));
+			return -1;
+		}
+		*ret = (target_address_t)(value + lte->bias);
+		return 0;
 	}
-	*ret = (target_address_t)(value + lte->bias);
+
+	*ret = addr;
 	return 0;
 }
 
