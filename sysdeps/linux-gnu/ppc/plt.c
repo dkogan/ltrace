@@ -225,15 +225,12 @@ arch_translate_address_dyn(struct Process *proc,
 			   target_address_t addr, target_address_t *ret)
 {
 	if (proc->e_machine == EM_PPC64) {
-		assert(host_powerpc64());
-		long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
-		if (l == -1 && errno) {
-			error(0, errno, ".opd translation of %p", addr);
+		uint64_t value;
+		if (read_target_8(proc, addr, &value) < 0) {
+			error(0, errno, "dynamic .opd translation of %p", addr);
 			return -1;
 		}
-		*ret = (target_address_t)l;
-		fprintf(stderr, "arch_translate_address_dyn: %p->%p\n",
-			addr, *ret);
+		*ret = (target_address_t)value;
 		return 0;
 	}
 
