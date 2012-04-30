@@ -143,6 +143,33 @@ elf_get_section_type(struct ltelf *lte, GElf_Word type,
 				  &type_p, &type);
 }
 
+struct section_named_data {
+	struct ltelf *lte;
+	const char *name;
+};
+
+static int
+name_p(Elf_Scn *scn, GElf_Shdr *shdr, void *d)
+{
+	struct section_named_data *data = d;
+	const char *name = elf_strptr(data->lte->elf,
+				      data->lte->ehdr.e_shstrndx,
+				      shdr->sh_name);
+	return strcmp(name, data->name) == 0;
+}
+
+int
+elf_get_section_named(struct ltelf *lte, const char *name,
+		     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr)
+{
+	struct section_named_data data = {
+		.lte = lte,
+		.name = name,
+	};
+	return elf_get_section_if(lte, tgt_sec, tgt_shdr,
+				  &name_p, &data);
+}
+
 static int
 need_data(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
 {

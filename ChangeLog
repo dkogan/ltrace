@@ -1,3 +1,8 @@
+2012-04-30  Petr Machata  <pmachata@redhat.com>
+
+	* ltrace-elf.h (elf_get_section_named): New function.
+	(elf_get_section_covering, elf_get_section_type): Likewise.
+
 2012-04-26  Petr Machata  <pmachata@redhat.com>
 
 	* common.h (arch_breakpoint_init, arch_breakpoint_destroy)
