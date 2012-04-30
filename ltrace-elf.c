@@ -175,8 +175,8 @@ need_data(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
 {
 	assert(data != NULL);
 	if (data->d_size < size || offset > data->d_size - size) {
-		debug(1, "Not enough data to read %zd-byte value"
-		      " at offset %zd.", size, offset);
+		debug(1, "Not enough data to read %"PRId64"-byte value"
+		      " at offset %"PRId64".", size, offset);
 		return -1;
 	}
 	return 0;

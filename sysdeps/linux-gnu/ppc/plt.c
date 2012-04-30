@@ -230,7 +230,9 @@ arch_translate_address_dyn(struct Process *proc,
 			error(0, errno, "dynamic .opd translation of %p", addr);
 			return -1;
 		}
-		*ret = (target_address_t)value;
+		/* XXX The double cast should be removed when
+		 * target_address_t becomes integral type.  */
+		*ret = (target_address_t)(uintptr_t)value;
 		return 0;
 	}
 
@@ -243,14 +245,17 @@ arch_translate_address(struct ltelf *lte,
 		       target_address_t addr, target_address_t *ret)
 {
 	if (lte->ehdr.e_machine == EM_PPC64) {
-		GElf_Xword offset = (GElf_Addr)addr - lte->arch.opd_base;
+		/* XXX The double cast should be removed when
+		 * target_address_t becomes integral type.  */
+		GElf_Xword offset
+			= (GElf_Addr)(uintptr_t)addr - lte->arch.opd_base;
 		uint64_t value;
 		if (elf_read_u64(lte->arch.opd_data, offset, &value) < 0) {
 			error(0, 0, "static .opd translation of %p: %s", addr,
 			      elf_errmsg(-1));
 			return -1;
 		}
-		*ret = (target_address_t)(value + lte->bias);
+		*ret = (target_address_t)(uintptr_t)(value + lte->bias);
 		return 0;
 	}
 
