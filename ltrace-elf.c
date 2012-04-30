@@ -144,7 +144,7 @@ elf_get_section_type(struct ltelf *lte, GElf_Word type,
 }
 
 static int
-need_data(Elf_Data *data, size_t offset, size_t size)
+need_data(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
 {
 	assert(data != NULL);
 	if (data->d_size < size || offset > data->d_size - size) {
@@ -157,7 +157,7 @@ need_data(Elf_Data *data, size_t offset, size_t size)
 
 #define DEF_READER(NAME, SIZE)						\
 	int								\
-	NAME(Elf_Data *data, size_t offset, uint##SIZE##_t *retp)	\
+	NAME(Elf_Data *data, GElf_Xword offset, uint##SIZE##_t *retp)	\
 	{								\
 		if (!need_data(data, offset, SIZE / 8) < 0)		\
 			return -1;					\
