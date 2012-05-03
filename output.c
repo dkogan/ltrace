@@ -22,9 +22,10 @@ static int current_depth = 0;
 static int current_column = 0;
 
 static void
-output_indent(Process *proc) {
-	current_column +=
-	    fprintf(options.output, "%*s", options.indent * proc->callstack_depth, "");
+output_indent(struct Process *proc)
+{
+	int d = options.indent * (proc->callstack_depth - 1);
+	current_column += fprintf(options.output, "%*s", d, "");
 }
 
 static void
