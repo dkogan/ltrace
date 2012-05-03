@@ -494,9 +494,19 @@ process_options(int argc, char **argv)
 		case 'L':
 			libcalls = 0;
 			break;
-		case 'n':
-			options.indent = atoi(optarg);
+		case 'n': {
+			char *endptr;
+			long int l = strtol(optarg, &endptr, 0);
+			/* Arbitrary cut-off.  Nobody needs to indent
+			 * more than, say, 8, anyway.  */
+			if (l < 0 || l > 20 || *optarg == 0 || *endptr != 0) {
+				fprintf(stderr, "Invalid argument to -n: '%s'."
+					"  Use integer 0..20.\n", optarg);
+				exit(1);
+			}
+			options.indent = (int)l;
 			break;
+		}
 		case 'o':
 			options.output = fopen(optarg, "w");
 			if (!options.output) {
