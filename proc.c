@@ -49,6 +49,7 @@ arch_dynlink_done(struct Process *proc)
 #endif
 
 static void add_process(struct Process *proc, int was_exec);
+static void unlist_process(struct Process *proc);
 
 static int
 process_bare_init(struct Process *proc, const char *filename,
@@ -96,7 +97,7 @@ process_bare_destroy(struct Process *proc, int was_exec)
 	dict_clear(proc->breakpoints);
 	if (!was_exec) {
 		free(proc->filename);
-		remove_process(proc);
+		unlist_process(proc);
 	}
 }
 
