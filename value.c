@@ -433,3 +433,23 @@ value_is_zero(struct value *val, struct value_dict *arguments)
 	}
 	return zero;
 }
+
+int
+value_pass_by_reference(struct value *value)
+{
+	assert(value != NULL);
+	assert(value->type->type == ARGTYPE_STRUCT);
+
+	struct arg_type_info *new_info = calloc(sizeof(*new_info), 1);
+	if (new_info == NULL)
+		return -1;
+
+	int own;
+	struct arg_type_info *orig;
+	value_take_type(value, &orig, &own);
+	type_init_pointer(new_info, orig, own);
+	new_info->lens = orig->lens;
+	value_set_type(value, new_info, 1);
+
+	return 0;
+}

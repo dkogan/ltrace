@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2010,2011 Petr Machata
+ * Copyright (C) 2010,2011,2012 Petr Machata
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -501,19 +501,8 @@ classify(Process *proc, struct fetch_context *context,
 static ssize_t
 pass_by_reference(struct value *valuep, enum arg_class classes[])
 {
-	if (valuep != NULL) {
-		struct arg_type_info *new_info
-			= calloc(sizeof(*new_info), 1);
-		if (new_info == NULL)
-			return -1;
-
-		int own;
-		struct arg_type_info *orig;
-		value_take_type(valuep, &orig, &own);
-		type_init_pointer(new_info, orig, own);
-		new_info->lens = orig->lens;
-		value_set_type(valuep, new_info, 1);
-	}
+	if (valuep != NULL && value_pass_by_reference(valuep) < 0)
+		return -1;
 	classes[0] = CLASS_INTEGER;
 	return 1;
 }
