@@ -99,7 +99,8 @@ unsigned char *
 value_reserve(struct value *valp, size_t size)
 {
 	if (size <= sizeof(valp->u.value)) {
-		value_set_word(valp, 0);
+		valp->where = VAL_LOC_WORD;
+		valp->u.value = 0;
 	} else {
 		valp->where = VAL_LOC_COPY;
 		valp->u.address = calloc(size, 1);
