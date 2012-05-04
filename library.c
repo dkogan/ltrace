@@ -27,7 +27,7 @@
 #include "library.h"
 #include "proc.h" // for enum callback_status
 #include "debug.h"
-#include "common.h" // for arch_library_symbol_init, arch_library_init
+#include "backend.h" // for arch_library_symbol_init, arch_library_init
 
 #ifndef ARCH_HAVE_LIBRARY_DATA
 void

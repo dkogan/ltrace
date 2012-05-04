@@ -20,9 +20,11 @@
 
 #include <stdlib.h>
 #include <string.h>
+
 #include "fetch.h"
 #include "value.h"
 #include "arch.h"
+#include "type.h"
 
 #ifdef ARCH_HAVE_FETCH_ARG
 struct fetch_context *arch_fetch_arg_init(enum tof type, struct Process *proc,

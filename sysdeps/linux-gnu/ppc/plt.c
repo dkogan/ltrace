@@ -11,6 +11,7 @@
 #include "library.h"
 #include "breakpoint.h"
 #include "linux-gnu/trace.h"
+#include "backend.h"
 
 /* There are two PLT types on 32-bit PPC: old-style, BSS PLT, and
  * new-style "secure" PLT.  We can tell one from the other by the
