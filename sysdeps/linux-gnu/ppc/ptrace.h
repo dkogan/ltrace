@@ -11,6 +11,4 @@ typedef struct {
   int valid;
   gregset_t regs;
   fpregset_t fpregs;
-  gregset_t regs_copy;
-  fpregset_t fpregs_copy;
 } proc_archdep;

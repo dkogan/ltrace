@@ -90,9 +90,9 @@ gimme_arg_regset(enum tof type, Process *proc, int arg_num,
 			return cvt.val;
 		}
 	}
-	else if (greg <= 10)
+	else if (greg <= 10) {
 		return (*regs)[greg++];
-	else {
+	} else {
 #ifdef __powerpc64__
 		if (proc->mask_32bit)
 			return ptrace (PTRACE_PEEKDATA, proc->pid,
@@ -151,17 +151,12 @@ gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 
 
 	if (type == LT_TOF_FUNCTIONR) {
-		if (arg_num == -1)
-			return gimme_retval(proc, arg_num, info,
-					    &arch->regs, &arch->fpregs);
-		else
-			return gimme_arg_regset(type, proc, arg_num, info,
-						&arch->regs_copy,
-						&arch->fpregs_copy);
-	}
-	else
+		return gimme_retval(proc, arg_num, info,
+				    &arch->regs, &arch->fpregs);
+	} else {
 		return gimme_arg_regset(type, proc, arg_num, info,
 					&arch->regs, &arch->fpregs);
+	}
 }
 
 
