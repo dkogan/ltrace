@@ -4,7 +4,8 @@ noinst_LTLIBRARIES = \
 ___libcpu_la_SOURCES = \
 	plt.c \
 	regs.c \
-	trace.c
+	trace.c \
+	fetch.c
 
 noinst_HEADERS = \
 	arch.h \
