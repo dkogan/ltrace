@@ -20,10 +20,10 @@
 # define PTRACE_POKEUSER PTRACE_POKEUSR
 #endif
 
-#define off_r0 0
-#define off_r7 28
-#define off_ip 48
-#define off_pc 60
+#define off_r0 ((void *)0)
+#define off_r7 ((void *)28)
+#define off_ip ((void *)48)
+#define off_pc ((void *)60)
 
 void
 get_arch_dep(Process *proc) {
@@ -45,9 +45,11 @@ syscall_p(Process *proc, int status, int *sysnum) {
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
 		/* get the user's pc (plus 8) */
-		int pc = ptrace(PTRACE_PEEKUSER, proc->pid, off_pc, 0);
+		unsigned pc = ptrace(PTRACE_PEEKUSER, proc->pid, off_pc, 0);
+		pc = pc - 4;
 		/* fetch the SWI instruction */
-		unsigned insn = ptrace(PTRACE_PEEKTEXT, proc->pid, pc - 4, 0);
+		unsigned insn = ptrace(PTRACE_PEEKTEXT, proc->pid,
+				       (void *)pc, 0);
 		int ip = ptrace(PTRACE_PEEKUSER, proc->pid, off_ip, 0);
 
 		if (insn == 0xef000000 || insn == 0x0f000000
@@ -63,7 +65,8 @@ syscall_p(Process *proc, int status, int *sysnum) {
 			 * are coming from a signal handler, so the current
 			 * PC does not point to the instruction just after the
 			 * "swi" one. */
-			output_line(proc, "unexpected instruction 0x%x at %p", insn, pc - 4);
+			output_line(proc, "unexpected instruction 0x%x at %p",
+				    insn, pc);
 			return 0;
 		}
 		if ((*sysnum & 0xf0000) == 0xf0000) {
@@ -93,8 +96,8 @@ gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info) {
 				return a->regs.uregs[arg_num];
 			if (a->valid && type == LT_TOF_FUNCTIONR)
 				return a->func_arg[arg_num];
-			return ptrace(PTRACE_PEEKUSER, proc->pid, 4 * arg_num,
-				      0);
+			return ptrace(PTRACE_PEEKUSER, proc->pid,
+				      (void *)(4 * arg_num), 0);
 		} else {
 			return ptrace(PTRACE_PEEKDATA, proc->pid,
 				      proc->stack_pointer + 4 * (arg_num - 4),
@@ -106,8 +109,8 @@ gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info) {
 				return a->regs.uregs[arg_num];
 			if (a->valid && type == LT_TOF_SYSCALLR)
 				return a->sysc_arg[arg_num];
-			return ptrace(PTRACE_PEEKUSER, proc->pid, 4 * arg_num,
-				      0);
+			return ptrace(PTRACE_PEEKUSER, proc->pid,
+				      (void *)(4 * arg_num), 0);
 		} else {
 			return ptrace(PTRACE_PEEKDATA, proc->pid,
 				      proc->stack_pointer + 4 * (arg_num - 5),

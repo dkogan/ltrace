@@ -101,7 +101,7 @@ void
 trace_me(void)
 {
 	debug(DEBUG_PROCESS, "trace_me: pid=%d", getpid());
-	if (ptrace(PTRACE_TRACEME, 0, 1, 0) < 0) {
+	if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) {
 		perror("PTRACE_TRACEME");
 		trace_fail_warning(getpid());
 		exit(1);
@@ -133,7 +133,7 @@ trace_pid(pid_t pid)
 	/* This shouldn't emit error messages, as there are legitimate
 	 * reasons that the PID can't be attached: like it may have
 	 * already ended.  */
-	if (ptrace(PTRACE_ATTACH, pid, 1, 0) < 0)
+	if (ptrace(PTRACE_ATTACH, pid, 0, 0) < 0)
 		return -1;
 
 	return wait_for_proc(pid);
@@ -151,8 +151,8 @@ trace_set_options(struct Process *proc)
 	long options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK |
 		PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE |
 		PTRACE_O_TRACEEXEC;
-	if (ptrace(PTRACE_SETOPTIONS, pid, 0, options) < 0 &&
-	    ptrace(PTRACE_OLDSETOPTIONS, pid, 0, options) < 0) {
+	if (ptrace(PTRACE_SETOPTIONS, pid, 0, (void *)options) < 0 &&
+	    ptrace(PTRACE_OLDSETOPTIONS, pid, 0, (void *)options) < 0) {
 		perror("PTRACE_SETOPTIONS");
 		return;
 	}
@@ -162,13 +162,15 @@ trace_set_options(struct Process *proc)
 void
 untrace_pid(pid_t pid) {
 	debug(DEBUG_PROCESS, "untrace_pid: pid=%d", pid);
-	ptrace(PTRACE_DETACH, pid, 1, 0);
+	ptrace(PTRACE_DETACH, pid, 0, 0);
 }
 
 void
-continue_after_signal(pid_t pid, int signum) {
-	debug(DEBUG_PROCESS, "continue_after_signal: pid=%d, signum=%d", pid, signum);
-	ptrace(PTRACE_SYSCALL, pid, 0, signum);
+continue_after_signal(pid_t pid, int signum)
+{
+	debug(DEBUG_PROCESS, "continue_after_signal: pid=%d, signum=%d",
+	      pid, signum);
+	ptrace(PTRACE_SYSCALL, pid, 0, (void *)(uintptr_t)signum);
 }
 
 static enum ecb_status

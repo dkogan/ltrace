@@ -15,9 +15,9 @@
 # define PTRACE_POKEUSER PTRACE_POKEUSR
 #endif
 
-#define off_pc 60
-#define off_lr 56
-#define off_sp 52
+#define off_pc ((void *)60)
+#define off_lr ((void *)56)
+#define off_sp ((void *)52)
 
 void *
 get_instruction_pointer(Process *proc) {
