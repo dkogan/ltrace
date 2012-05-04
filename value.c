@@ -287,34 +287,71 @@ value_init_deref(struct value *ret_val, struct value *valp)
 	return 0;
 }
 
-int
-value_extract_word(struct value *value, long *retp, struct value_dict *arguments)
+static int
+value_extract_buf_sz(struct value *value, unsigned char *tgt, size_t sz,
+		     struct value_dict *arguments)
 {
-	union {
-		long val;
-		unsigned char buf[0];
-	} u;
-	memset(u.buf, 0, sizeof(u));
-	if (value_extract_buf(value, u.buf, arguments) < 0)
+	unsigned char *data = value_get_data(value, arguments);
+	if (data == NULL)
 		return -1;
-	*retp = u.val;
+
+	memcpy(tgt, data, sz);
 	return 0;
+}
+
+int
+value_extract_word(struct value *value, long *retp,
+		   struct value_dict *arguments)
+{
+	size_t sz = type_sizeof(value->inferior, value->type);
+	if (sz == (size_t)-1)
+		return -1;
+	assert(sz <= sizeof(long));
+
+	if (sz == 0) {
+		*retp = 0;
+		return 0;
+	}
+
+	union {
+		uint8_t u8;
+		uint16_t u16;
+		uint32_t u32;
+		uint64_t u64;
+		unsigned char buf[0];
+	} u = {};
+
+	if (value_extract_buf_sz(value, u.buf, sz, arguments) < 0)
+		return -1;
+
+	switch (sz) {
+	case 1:
+		*retp = (long)u.u8;
+		return 0;
+	case 2:
+		*retp = (long)u.u16;
+		return 0;
+	case 4:
+		*retp = (long)u.u32;
+		return 0;
+	case 8:
+		*retp = (long)u.u64;
+		return 0;
+	default:
+		assert(sz != sz);
+		abort();
+	}
 }
 
 int
 value_extract_buf(struct value *value, unsigned char *tgt,
 		  struct value_dict *arguments)
 {
-	unsigned char *data = value_get_data(value, arguments);
-	if (data == NULL)
-		return -1;
-
 	size_t sz = type_sizeof(value->inferior, value->type);
 	if (sz == (size_t)-1)
 		return -1;
 
-	memcpy(tgt, data, sz);
-	return 0;
+	return value_extract_buf_sz(value, tgt, sz, arguments);
 }
 
 struct value *
