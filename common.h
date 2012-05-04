@@ -251,15 +251,6 @@ void arch_process_destroy(struct Process *proc);
 int arch_process_clone(struct Process *retp, struct Process *proc);
 int arch_process_exec(struct Process *proc);
 
-typedef void *target_address_t;
-/* This should extract entry point address and interpreter (dynamic
- * linker) bias if possible.  Returns 0 if there were no errors, -1
- * otherwise.  Sets *ENTRYP and *INTERP_BIASP to non-zero values if
- * the corresponding value is known.  Unknown values are set to 0.  */
-int process_get_entry(struct Process *proc,
-		      target_address_t *entryp,
-		      target_address_t *interp_biasp);
-
 /* This is called after the dynamic linker is done with the
  * process startup.  */
 void arch_dynlink_done(struct Process *proc);

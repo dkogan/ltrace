@@ -104,14 +104,6 @@ process_bare_destroy(struct Process *proc, int was_exec)
 static int
 process_init_main(struct Process *proc)
 {
-	target_address_t entry;
-	target_address_t interp_bias;
-	if (process_get_entry(proc, &entry, &interp_bias) < 0) {
-		fprintf(stderr, "Couldn't get entry points of process %d\n",
-			proc->pid);
-		return -1;
-	}
-
 	if (breakpoints_init(proc) < 0) {
 		fprintf(stderr, "failed to init breakpoints %d\n",
 			proc->pid);
