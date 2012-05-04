@@ -313,7 +313,7 @@ value_set_word(struct value *value, long word)
 {
 	size_t sz = type_sizeof(value->inferior, value->type);
 	assert(sz != (size_t)-1);
-	assert(sz <= sizeof(long));
+	assert(sz <= sizeof(value->u.value));
 
 	value->where = VAL_LOC_WORD;
 
@@ -362,7 +362,7 @@ value_extract_word(struct value *value, long *retp,
 	size_t sz = type_sizeof(value->inferior, value->type);
 	if (sz == (size_t)-1)
 		return -1;
-	assert(sz <= sizeof(long));
+	assert(sz <= sizeof(value->u.value));
 
 	if (sz == 0) {
 		*retp = 0;
