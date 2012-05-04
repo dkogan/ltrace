@@ -102,7 +102,7 @@ xinfdump(long pid, void *ptr, int len) {
 	addr = ((addr + sizeof(long) - 1) / sizeof(long)) * sizeof(long);
 
 	for (i = 0; i < wrdcnt; ++i) {
-		infwords[i] = ptrace(PTRACE_PEEKTEXT, pid, addr);
+		infwords[i] = ptrace(PTRACE_PEEKTEXT, pid, (void *)addr, NULL);
 		addr += sizeof(long);
 	}
 
