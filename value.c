@@ -95,13 +95,6 @@ value_destroy(struct value *val)
 	value_set_type(val, NULL, 0);
 }
 
-void
-value_set_word(struct value *valp, long value)
-{
-	valp->where = VAL_LOC_WORD;
-	valp->u.value = value;
-}
-
 unsigned char *
 value_reserve(struct value *valp, size_t size)
 {
@@ -287,6 +280,68 @@ value_init_deref(struct value *ret_val, struct value *valp)
 	return 0;
 }
 
+/* The functions value_extract_buf and value_extract_word assume that
+ * data in VALUE is stored at the start of the internal buffer.  For
+ * value_extract_buf in particular there's no other reasonable
+ * default.  If we need to copy out four bytes, they need to be the
+ * bytes pointed to by the buffer pointer.
+ *
+ * But actually the situation is similar for value_extract_word as
+ * well.  This function is used e.g. to extract characters from
+ * strings.  Those weren't stored by value_set_word, they might still
+ * be in client for all we know.  So value_extract_word has to assume
+ * that the whole of data is data is stored at the buffer pointer.
+ *
+ * This is a problem on big endian machines, where 2-byte quantity
+ * carried in 4- or 8-byte long is stored at the end of that long.
+ * (Though that quantity itself is still big endian.)  So we need to
+ * make a little dance to shift the value to the right part of the
+ * buffer.  */
+
+union word_data {
+	uint8_t u8;
+	uint16_t u16;
+	uint32_t u32;
+	uint64_t u64;
+	long l;
+	unsigned char buf[0];
+} u;
+
+void
+value_set_word(struct value *value, long word)
+{
+	size_t sz = type_sizeof(value->inferior, value->type);
+	assert(sz != (size_t)-1);
+	assert(sz <= sizeof(long));
+
+	value->where = VAL_LOC_WORD;
+
+	union word_data u = {};
+
+	switch (sz) {
+	case 0:
+		u.l = 0;
+		break;
+	case 1:
+		u.u8 = word;
+		break;
+	case 2:
+		u.u16 = word;
+		break;
+	case 4:
+		u.u32 = word;
+		break;
+	case 8:
+		u.u64 = word;
+		break;
+	default:
+		assert(sz != sz);
+		abort();
+	}
+
+	value->u.value = u.l;
+}
+
 static int
 value_extract_buf_sz(struct value *value, unsigned char *tgt, size_t sz,
 		     struct value_dict *arguments)
@@ -313,14 +368,7 @@ value_extract_word(struct value *value, long *retp,
 		return 0;
 	}
 
-	union {
-		uint8_t u8;
-		uint16_t u16;
-		uint32_t u32;
-		uint64_t u64;
-		unsigned char buf[0];
-	} u = {};
-
+	union word_data u = {};
 	if (value_extract_buf_sz(value, u.buf, sz, arguments) < 0)
 		return -1;
 
