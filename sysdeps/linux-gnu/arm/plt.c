@@ -1,6 +1,8 @@
 #include <gelf.h>
+
 #include "proc.h"
-#include "common.h"
+#include "library.h"
+#include "ltrace-elf.h"
 
 static int
 arch_plt_entry_has_stub(struct ltelf *lte, size_t off) {
