@@ -769,7 +769,7 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 		if (value == NULL)
 			goto err;
 		value_init_detached(value, NULL, *retp, 0);
-		value_set_long(value, last_val);
+		value_set_word(value, last_val);
 
 		if (lens_enum_add(lens, key, 1, value, 1) < 0)
 			goto err;

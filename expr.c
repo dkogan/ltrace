@@ -70,7 +70,7 @@ expr_init_const_word(struct expr_node *node, long l,
 {
 	struct value val;
 	value_init_detached(&val, NULL, type, own_type);
-	value_set_long(&val, l);
+	value_set_word(&val, l);
 	expr_init_const(node, &val);
 }
 

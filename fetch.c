@@ -73,7 +73,7 @@ arch_fetch_arg_next(struct fetch_context *context, enum tof type,
 		    struct arg_type_info *info, struct value *valuep)
 {
 	long l = gimme_arg(type, proc, context->argnum++, info);
-	value_set_long(valuep, l);
+	value_set_word(valuep, l);
 	return 0;
 }
 
@@ -83,7 +83,7 @@ arch_fetch_retval(struct fetch_context *context, enum tof type,
 		  struct arg_type_info *info, struct value *valuep)
 {
 	long l = gimme_arg(type, proc, -1, info);
-	value_set_long(valuep, l);
+	value_set_word(valuep, l);
 	return 0;
 }
 

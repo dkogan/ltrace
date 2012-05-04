@@ -96,7 +96,7 @@ value_destroy(struct value *val)
 }
 
 void
-value_set_long(struct value *valp, long value)
+value_set_word(struct value *valp, long value)
 {
 	valp->where = VAL_LOC_WORD;
 	valp->u.value = value;
@@ -106,7 +106,7 @@ unsigned char *
 value_reserve(struct value *valp, size_t size)
 {
 	if (size <= sizeof(valp->u.value)) {
-		value_set_long(valp, 0);
+		value_set_word(valp, 0);
 	} else {
 		valp->where = VAL_LOC_COPY;
 		valp->u.address = calloc(size, 1);

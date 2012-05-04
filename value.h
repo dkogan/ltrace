@@ -94,7 +94,7 @@ void value_destroy(struct value *val);
 
 /* Set the data held by VALP to VALUE.  This also sets the value's
  * where to VAL_LOC_WORD.  */
-void value_set_long(struct value *valp, long value);
+void value_set_word(struct value *valp, long value);
 
 /* Set the data held by VALP to a buffer of size SIZE.  This buffer
  * may be allocated by malloc.  Returns NULL on failure.  */

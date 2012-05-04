@@ -48,7 +48,7 @@ zero_callback_max(struct value *ret_value, struct value *lhs,
 
 	struct arg_type_info *long_type = type_get_simple(ARGTYPE_LONG);
 	value_init_detached(ret_value, NULL, long_type, 0);
-	value_set_long(ret_value, i);
+	value_set_word(ret_value, i);
 	return 0;
 }
 
