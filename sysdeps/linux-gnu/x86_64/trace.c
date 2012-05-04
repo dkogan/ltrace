@@ -692,7 +692,7 @@ arch_fetch_arg_init(enum tof type, Process *proc,
 	}
 
 	struct fetch_context *ret;
-	if (proc->mask_32bit)
+	if (proc->e_machine == EM_386)
 		ret = arch_fetch_arg_init_32(ctx, type, proc, ret_info);
 	else
 		ret = arch_fetch_arg_init_64(ctx, type, proc, ret_info);
@@ -788,7 +788,7 @@ int
 arch_fetch_arg_next(struct fetch_context *context, enum tof type,
 		    Process *proc, struct arg_type_info *info, struct value *valuep)
 {
-	if (proc->mask_32bit)
+	if (proc->e_machine == EM_386)
 		return arch_fetch_arg_next_32(context, type, proc,
 					      info, valuep);
 
@@ -811,7 +811,7 @@ int
 arch_fetch_retval(struct fetch_context *context, enum tof type,
 		  Process *proc, struct arg_type_info *info, struct value *valuep)
 {
-	if (proc->mask_32bit)
+	if (proc->e_machine == EM_386)
 		return arch_fetch_retval_32(context, type, proc, info, valuep);
 
 	return arch_fetch_fun_retval(context, type, proc, info, valuep);
@@ -827,7 +827,7 @@ arch_fetch_arg_done(struct fetch_context *context)
 size_t
 arch_type_sizeof(Process *proc, struct arg_type_info *info)
 {
-	if (proc == NULL || !proc->mask_32bit)
+	if (proc == NULL || proc->e_machine != EM_386)
 		return (size_t)-2;
 
 	switch (info->type) {
@@ -855,7 +855,7 @@ arch_type_sizeof(Process *proc, struct arg_type_info *info)
 size_t
 arch_type_alignof(Process *proc, struct arg_type_info *info)
 {
-	if (proc == NULL || !proc->mask_32bit)
+	if (proc == NULL || proc->e_machine != EM_386)
 		return (size_t)-2;
 
 	switch (info->type) {
