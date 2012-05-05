@@ -1,3 +1,27 @@
+/*
+ * This file is part of ltrace.
+ * Copyright (C) 2010,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011 Andreas Schwab
+ * Copyright (C) 2002,2004,2008,2009 Juan Cespedes
+ * Copyright (C) 2008 Luis Machado, IBM Corporation
+ * Copyright (C) 2006 Ian Wienand
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
+
 #include "config.h"
 
 #include <sys/types.h>
@@ -40,9 +64,6 @@ get_arch_dep(Process *proc) {
 
 #define SYSCALL_INSN   0x44000002
 
-unsigned int greg = 3;
-unsigned int freg = 1;
-
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise. */
 int
 syscall_p(Process *proc, int status, int *sysnum) {
@@ -67,98 +88,6 @@ syscall_p(Process *proc, int status, int *sysnum) {
 	}
 	return 0;
 }
-
-static long
-gimme_arg_regset(enum tof type, Process *proc, int arg_num,
-		 struct arg_type_info *info,
-		 gregset_t *regs, fpregset_t *fpregs)
-{
-	union { long val; float fval; double dval; } cvt;
-
-	if (info->type == ARGTYPE_FLOAT || info->type == ARGTYPE_DOUBLE) {
-		if (freg <= 13 || (proc->mask_32bit && freg <= 8)) {
-			double val = GET_FPREG(*fpregs, freg);
-
-			if (info->type == ARGTYPE_FLOAT)
-				cvt.fval = val;
-			else
-				cvt.dval = val;
-
-			freg++;
-			greg++;
-
-			return cvt.val;
-		}
-	}
-	else if (greg <= 10) {
-		return (*regs)[greg++];
-	} else {
-#ifdef __powerpc64__
-		if (proc->mask_32bit)
-			return ptrace (PTRACE_PEEKDATA, proc->pid,
-				       proc->stack_pointer + 8 +
-				       sizeof (int) * (arg_num - 8), 0) >> 32;
-		else
-			return ptrace (PTRACE_PEEKDATA, proc->pid,
-				       proc->stack_pointer + 112 +
-				       sizeof (long) * (arg_num - 8), 0);
-#else
-		return ptrace (PTRACE_PEEKDATA, proc->pid,
-			       proc->stack_pointer + 8 +
-			       sizeof (long) * (arg_num - 8), 0);
-#endif
-	}
-
-	return 0;
-}
-
-static long
-gimme_retval(Process *proc, int arg_num, struct arg_type_info *info,
-	     gregset_t *regs, fpregset_t *fpregs)
-{
-	union { long val; float fval; double dval; } cvt;
-	if (info->type == ARGTYPE_FLOAT || info->type == ARGTYPE_DOUBLE) {
-		double val = GET_FPREG(*fpregs, 1);
-
-		if (info->type == ARGTYPE_FLOAT)
-			cvt.fval = val;
-		else
-			cvt.dval = val;
-
-		return cvt.val;
-	}
-	else 
-		return (*regs)[3];
-}
-
-/* Grab functions arguments based on the PPC64 ABI.  */
-long
-gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
-{
-	proc_archdep *arch = (proc_archdep *)proc->arch_ptr;
-	if (arch == NULL || !arch->valid)
-		return -1;
-
-	/* Check if we're entering a new function call to list parameters.  If
-	   so, initialize the register control variables to keep track of where
-	   the parameters were stored.  */
-	if ((type == LT_TOF_FUNCTION || type == LT_TOF_FUNCTIONR)
-	    && arg_num == 0) {
-		/* Initialize the set of registrers for parameter passing.  */
-		greg = 3;
-		freg = 1;
-	}
-
-
-	if (type == LT_TOF_FUNCTIONR) {
-		return gimme_retval(proc, arg_num, info,
-				    &arch->regs, &arch->fpregs);
-	} else {
-		return gimme_arg_regset(type, proc, arg_num, info,
-					&arch->regs, &arch->fpregs);
-	}
-}
-
 
 /* The atomic skip code is mostly taken from GDB.  */
 
