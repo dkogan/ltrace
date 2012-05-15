@@ -423,17 +423,23 @@ breakpoints_init(Process *proc)
 
 	entry_bp = malloc(sizeof(*entry_bp));
 	if (entry_bp == NULL
-	    || (result = entry_breakpoint_init(proc, entry_bp,
-					       lib->entry, lib)) < 0)
-		goto fail;
-	++bp_state;
+	    || (entry_breakpoint_init(proc, entry_bp,
+				      lib->entry, lib)) < 0) {
+		fprintf(stderr,
+			"Couldn't initialize entry breakpoint for PID %d.\n"
+			"Some tracing events may be missed.\n", proc->pid);
+		free(entry_bp);
 
-	if ((result = proc_add_breakpoint(proc, &entry_bp->super)) < 0)
-		goto fail;
-	++bp_state;
+	} else {
+		++bp_state;
 
-	if ((result = breakpoint_turn_on(&entry_bp->super, proc)) < 0)
-		goto fail;
+		if ((result = proc_add_breakpoint(proc, &entry_bp->super)) < 0)
+			goto fail;
+		++bp_state;
+
+		if ((result = breakpoint_turn_on(&entry_bp->super, proc)) < 0)
+			goto fail;
+	}
 	proc_add_library(proc, lib);
 
 	proc->callstack_depth = 0;
