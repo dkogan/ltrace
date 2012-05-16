@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ucontext.h>
 
 #include <stdio.h>
 
@@ -87,9 +88,19 @@ fetch_context_init(struct Process *proc, struct fetch_context *context)
 		if (ptrace(PTRACE_GETREGS64, proc->pid, 0,
 			   &context->regs.r64) < 0)
 			return -1;
-	} else if (ptrace(PTRACE_GETREGS, proc->pid, 0,
-			  &context->regs.r32) < 0) {
-		return -1;
+	} else {
+#ifdef __powerpc64__
+		if (ptrace(PTRACE_GETREGS, proc->pid, 0,
+			  &context->regs.r64) < 0)
+			return -1;
+		unsigned i;
+		for (i = 0; i < sizeof(context->regs.r64)/8; ++i)
+			context->regs.r32[i] = context->regs.r64[i];
+#else
+		if (ptrace(PTRACE_GETREGS, proc->pid, 0,
+			  &context->regs.r32) < 0)
+			return -1;
+#endif
 	}
 
 	if (ptrace(PTRACE_GETFPREGS, proc->pid, 0, &context->fpregs) < 0)
@@ -170,6 +181,8 @@ read_gpr(struct fetch_context *ctx, struct Process *proc, int reg_num)
 		return ctx->regs.r64[reg_num];
 }
 
+static void snip_small_int(unsigned char *buf, size_t sz);
+
 static int
 allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 	     struct arg_type_info *info, struct value *valuep)
@@ -190,10 +203,12 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 
 	union {
 		uint64_t i64;
-		char buf[0];
+		unsigned char buf[0];
 	} u;
 
 	u.i64 = read_gpr(ctx, proc, reg_num);
+	if (proc->e_machine == EM_PPC)
+		snip_small_int(u.buf, 4);
 	memcpy(value_get_raw_data(valuep), u.buf, sz);
 	return 0;
 }
@@ -202,7 +217,7 @@ static int
 allocate_float(struct fetch_context *ctx, struct Process *proc,
 	       struct arg_type_info *info, struct value *valuep)
 {
-	int pool = proc->e_machine == EM_PPC ? 8 : 13;
+	int pool = proc->e_machine == EM_PPC64 ? 13 : 8;
 	if (ctx->freg <= pool) {
 		union {
 			double d;
@@ -265,10 +280,6 @@ static int
 allocate_argument(struct fetch_context *ctx, struct Process *proc,
 		  struct arg_type_info *info, struct value *valuep)
 {
-	/* There are some attempts around, but this is essentially
-	 * broken.  */
-	assert(proc->e_machine != EM_PPC);
-
 	/* Floating point types and void are handled specially.  */
 	switch (info->type) {
 	case ARGTYPE_VOID:
@@ -308,25 +319,27 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 		abort();
 	}
 
+	unsigned width = proc->e_machine == EM_PPC64 ? 8 : 4;
+
 	/* For other cases (integral types and aggregates), read the
 	 * eightbytes comprising the data.  */
 	size_t sz = type_sizeof(proc, info);
 	if (sz == (size_t)-1)
 		return -1;
-	size_t eightbytes = (sz + 7) / 8;  /* Round up.  */
-	unsigned char *buf = value_reserve(valuep, eightbytes * 8);
+	size_t slots = (sz + width - 1) / width;  /* Round up.  */
+	unsigned char *buf = value_reserve(valuep, slots * width);
 	if (buf == NULL)
 		return -1;
 	struct arg_type_info *long_info = type_get_simple(ARGTYPE_LONG);
 
 	unsigned char *ptr = buf;
-	while (eightbytes-- > 0) {
+	while (slots-- > 0) {
 		struct value val;
 		value_init(&val, proc, NULL, long_info, 0);
 		int rc = allocate_gpr(ctx, proc, long_info, &val);
 		if (rc >= 0) {
-			memcpy(ptr, value_get_data(&val, NULL), 8);
-			ptr += 8;
+			memcpy(ptr, value_get_data(&val, NULL), width);
+			ptr += width;
 		}
 		value_destroy(&val);
 		if (rc < 0)
@@ -334,7 +347,7 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 	}
 
 	/* Small values need post-processing.  */
-	if (proc->e_machine == EM_PPC64 && sz < 8) {
+	if (proc->e_machine == EM_PPC64 && sz < width) {
 		switch (info->type) {
 		case ARGTYPE_LONG:
 		case ARGTYPE_ULONG:
@@ -364,7 +377,7 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 		case ARGTYPE_FLOAT:
 		case ARGTYPE_ARRAY:
 		case ARGTYPE_STRUCT:
-			memmove(buf, buf + 8 - sz, sz);
+			memmove(buf, buf + width - sz, sz);
 			break;
 		}
 	}
