@@ -24,21 +24,18 @@
 
 #include "config.h"
 
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <sys/ptrace.h>
-#include <asm/ptrace.h>
+#include <assert.h>
 #include <elf.h>
 #include <errno.h>
+#include <signal.h>
 #include <string.h>
 
-#include "proc.h"
-#include "common.h"
-#include "ptrace.h"
-#include "breakpoint.h"
-#include "type.h"
 #include "backend.h"
+#include "breakpoint.h"
+#include "common.h"
+#include "proc.h"
+#include "ptrace.h"
+#include "type.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -50,16 +47,9 @@
 
 void
 get_arch_dep(Process *proc) {
-	if (proc->arch_ptr == NULL) {
-		proc->arch_ptr = malloc(sizeof(proc_archdep));
 #ifdef __powerpc64__
-		proc->mask_32bit = (proc->e_machine == EM_PPC);
+	proc->mask_32bit = (proc->e_machine == EM_PPC);
 #endif
-	}
-
-	proc_archdep *a = (proc_archdep *) (proc->arch_ptr);
-	a->valid = (ptrace(PTRACE_GETREGS, proc->pid, 0, &a->regs) >= 0)
-		&& (ptrace(PTRACE_GETFPREGS, proc->pid, 0, &a->fpregs) >= 0);
 }
 
 #define SYSCALL_INSN   0x44000002
