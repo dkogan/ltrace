@@ -137,8 +137,24 @@ static int
 allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
-	assert(!"allocate_stack_slot not implemented");
-	abort();
+	size_t sz = type_sizeof(proc, info);
+	if (sz == (size_t)-1)
+		return -1;
+
+	size_t a = type_alignof(valuep->inferior, valuep->type);
+	if (proc->e_machine == EM_PPC && a < 4)
+		a = 4;
+	else if (proc->e_machine == EM_PPC64 && a < 8)
+		a = 8;
+
+	ctx->stack_pointer
+		= (target_address_t)align((uint64_t)ctx->stack_pointer, a);
+
+	valuep->where = VAL_LOC_INFERIOR;
+	valuep->u.address = ctx->stack_pointer;
+	ctx->stack_pointer += sz;
+
+	return 0;
 }
 
 static int
@@ -230,6 +246,38 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
+allocate_struct(struct fetch_context *ctx, struct Process *proc,
+		struct arg_type_info *info, struct value *valuep)
+{
+	assert(proc->e_machine == EM_PPC64);
+
+	size_t sz = type_sizeof(proc, info);
+	if (sz == (size_t)-1)
+		return -1;
+
+	size_t eightbytes = (sz + 7) / 8;  /* Round up.  */
+	unsigned char *buf = value_reserve(valuep, eightbytes * 8);
+	if (buf == NULL)
+		return -1;
+
+	while (eightbytes-- > 0) {
+		struct value val;
+		struct arg_type_info *info1 = type_get_simple(ARGTYPE_LONG);
+		value_init(&val, proc, NULL, info1, 0);
+		int rc = allocate_gpr(ctx, proc, info1, &val);
+		if (rc >= 0) {
+			memcpy(buf, value_get_data(&val, NULL), 8);
+			buf += 8;
+		}
+		value_destroy(&val);
+		if (rc < 0)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int
 allocate_argument(struct fetch_context *ctx, struct Process *proc,
 		  struct arg_type_info *info, struct value *valuep)
 {
@@ -253,14 +301,16 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 		return allocate_float(ctx, proc, info, valuep);
 
 	case ARGTYPE_STRUCT:
-		/* Fixed size aggregates and unions passed by value
-		 * are mapped to as many doublewords of the parameter
-		 * save area as the value uses in memory.  [...] The
-		 * first eight doublewords mapped to the parameter
-		 * save area correspond to the registers r3 through
-		 * r10.  */
-		assert(!"arch_fetch_arg_next structures not implemented");
-		abort();
+		if (proc->e_machine == EM_PPC)
+			return value_pass_by_reference(valuep);
+
+		/* PPC64: Fixed size aggregates and unions passed by
+		 * value are mapped to as many doublewords of the
+		 * parameter save area as the value uses in memory.
+		 * [...] The first eight doublewords mapped to the
+		 * parameter save area correspond to the registers r3
+		 * through r10.  */
+		return allocate_struct(ctx, proc, info, valuep);
 
 	case ARGTYPE_ARRAY:
 		/* Arrays decay into pointers.  */
@@ -290,11 +340,6 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 
 		uint64_t addr = read_gpr(ctx, proc, 3);
 		value_init(valuep, proc, NULL, info, 0);
-
-		if (value_pass_by_reference(valuep) < 0) {
-			value_destroy(valuep);
-			return -1;
-		}
 
 		valuep->where = VAL_LOC_INFERIOR;
 		valuep->u.address = (target_address_t)addr;
