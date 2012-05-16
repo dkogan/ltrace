@@ -198,3 +198,77 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 	ptrace(PTRACE_CONT, proc->pid, 0, 0);
 	return 0;
 }
+
+size_t
+arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
+{
+	if (proc == NULL)
+		return (size_t)-2;
+
+	switch (info->type) {
+	case ARGTYPE_VOID:
+		return 0;
+
+	case ARGTYPE_CHAR:
+		return 1;
+
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+		return 2;
+
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+		return 4;
+
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+		return proc->e_machine == EM_PPC64 ? 8 : 4;
+
+	case ARGTYPE_FLOAT:
+		return 4;
+	case ARGTYPE_DOUBLE:
+		return 8;
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		/* Use default value.  */
+		return (size_t)-2;
+	}
+	assert(info->type != info->type);
+	abort();
+}
+
+size_t
+arch_type_alignof(struct Process *proc, struct arg_type_info *info)
+{
+	if (proc == NULL)
+		return (size_t)-2;
+
+	switch (info->type) {
+	case ARGTYPE_VOID:
+		assert(info->type != ARGTYPE_VOID);
+		break;
+
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+		/* On both PPC and PPC64, fundamental types have the
+		 * same alignment as size.  */
+		return arch_type_sizeof(proc, info);
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		/* Use default value.  */
+		return (size_t)-2;
+	}
+	assert(info->type != info->type);
+	abort();
+}

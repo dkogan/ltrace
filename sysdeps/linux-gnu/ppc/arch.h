@@ -45,6 +45,8 @@
 #define ARCH_HAVE_DYNLINK_DONE
 #define ARCH_HAVE_FETCH_ARG
 #define ARCH_ENDIAN_BIG
+#define ARCH_HAVE_SIZEOF
+#define ARCH_HAVE_ALIGNOF
 
 struct library_symbol;
 
