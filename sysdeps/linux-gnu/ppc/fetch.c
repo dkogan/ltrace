@@ -141,7 +141,8 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 	if (sz == (size_t)-1)
 		return -1;
 
-	size_t a = type_alignof(valuep->inferior, valuep->type);
+	size_t a = type_alignof(proc, info);
+	size_t off = 0;
 	if (proc->e_machine == EM_PPC && a < 4)
 		a = 4;
 	else if (proc->e_machine == EM_PPC64 && a < 8)
@@ -150,41 +151,14 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 	ctx->stack_pointer
 		= (target_address_t)align((uint64_t)ctx->stack_pointer, a);
 
-	valuep->where = VAL_LOC_INFERIOR;
-	valuep->u.address = ctx->stack_pointer;
+	if (valuep != NULL) {
+		valuep->where = VAL_LOC_INFERIOR;
+		valuep->u.address = ctx->stack_pointer + off;
+	}
+
 	ctx->stack_pointer += sz;
 
 	return 0;
-}
-
-static int
-allocate_float(struct fetch_context *ctx, struct Process *proc,
-	       struct arg_type_info *info, struct value *valuep)
-{
-	int pool = proc->e_machine == EM_PPC ? 8 : 13;
-	if (ctx->freg <= pool) {
-		union {
-			double d;
-			float f;
-			char buf[0];
-		} u = { .d = ctx->fpregs.fpregs[ctx->freg] };
-
-		ctx->freg++;
-		ctx->greg++;
-
-		size_t sz = sizeof(double);
-		if (info->type == ARGTYPE_FLOAT) {
-			sz = sizeof(float);
-			u.f = (float)u.d;
-		}
-
-		if (value_reserve(valuep, sz) == NULL)
-			return -1;
-
-		memcpy(value_get_raw_data(valuep), u.buf, sz);
-		return 0;
-	}
-	return allocate_stack_slot(ctx, proc, info, valuep);
 }
 
 static uint64_t
@@ -216,18 +190,61 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 
 	union {
 		uint64_t i64;
+		char buf[0];
+	} u;
+
+	u.i64 = read_gpr(ctx, proc, reg_num);
+	memcpy(value_get_raw_data(valuep), u.buf, sz);
+	return 0;
+}
+
+static int
+allocate_float(struct fetch_context *ctx, struct Process *proc,
+	       struct arg_type_info *info, struct value *valuep)
+{
+	int pool = proc->e_machine == EM_PPC ? 8 : 13;
+	if (ctx->freg <= pool) {
+		union {
+			double d;
+			float f;
+			char buf[0];
+		} u = { .d = ctx->fpregs.fpregs[ctx->freg] };
+
+		ctx->freg++;
+		allocate_gpr(ctx, proc, info, NULL);
+
+		size_t sz = sizeof(double);
+		if (info->type == ARGTYPE_FLOAT) {
+			sz = sizeof(float);
+			u.f = (float)u.d;
+		}
+
+		if (value_reserve(valuep, sz) == NULL)
+			return -1;
+
+		memcpy(value_get_raw_data(valuep), u.buf, sz);
+		return 0;
+	}
+	return allocate_stack_slot(ctx, proc, info, valuep);
+}
+
+/* The support for little endian PowerPC is in upstream Linux and BFD,
+ * and Unix-like Solaris, which we might well support at some point,
+ * runs PowerPC in little endian as well.  This code moves SZ-sized
+ * value to the beginning of doubleword-sized BUF regardless of
+ * endian.  */
+static void
+snip_small_int(unsigned char *buf, size_t sz)
+{
+	union {
+		uint64_t i64;
 		uint32_t i32;
 		uint16_t i16;
 		uint8_t i8;
 		char buf[0];
 	} u;
+	memcpy(u.buf, buf, 8);
 
-	u.i64 = read_gpr(ctx, proc, reg_num);
-
-	/* The support for little endian PowerPC is in upstream Linux
-	 * and BFD, and Unix-like Solaris, which we might well support
-	 * at some point, runs PowerPC in little endian as well.  So
-	 * let's do it the hard way.  */
 	switch (sz) {
 	case 1:
 		u.i8 = u.i64;
@@ -241,85 +258,118 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 		break;
 	}
 
-	memcpy(value_get_raw_data(valuep), u.buf, sz);
-	return 0;
-}
-
-static int
-allocate_struct(struct fetch_context *ctx, struct Process *proc,
-		struct arg_type_info *info, struct value *valuep)
-{
-	assert(proc->e_machine == EM_PPC64);
-
-	size_t sz = type_sizeof(proc, info);
-	if (sz == (size_t)-1)
-		return -1;
-
-	size_t eightbytes = (sz + 7) / 8;  /* Round up.  */
-	unsigned char *buf = value_reserve(valuep, eightbytes * 8);
-	if (buf == NULL)
-		return -1;
-
-	while (eightbytes-- > 0) {
-		struct value val;
-		struct arg_type_info *info1 = type_get_simple(ARGTYPE_LONG);
-		value_init(&val, proc, NULL, info1, 0);
-		int rc = allocate_gpr(ctx, proc, info1, &val);
-		if (rc >= 0) {
-			memcpy(buf, value_get_data(&val, NULL), 8);
-			buf += 8;
-		}
-		value_destroy(&val);
-		if (rc < 0)
-			return rc;
-	}
-
-	return 0;
+	memcpy(buf, u.buf, sz);
 }
 
 static int
 allocate_argument(struct fetch_context *ctx, struct Process *proc,
 		  struct arg_type_info *info, struct value *valuep)
 {
+	/* There are some attempts around, but this is essentially
+	 * broken.  */
+	assert(proc->e_machine != EM_PPC);
+
+	/* Floating point types and void are handled specially.  */
 	switch (info->type) {
 	case ARGTYPE_VOID:
 		value_set_word(valuep, 0);
 		return 0;
-
-	case ARGTYPE_INT:
-	case ARGTYPE_UINT:
-	case ARGTYPE_LONG:
-	case ARGTYPE_ULONG:
-	case ARGTYPE_CHAR:
-	case ARGTYPE_SHORT:
-	case ARGTYPE_USHORT:
-	case ARGTYPE_POINTER:
-		return allocate_gpr(ctx, proc, info, valuep);
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
 		return allocate_float(ctx, proc, info, valuep);
 
 	case ARGTYPE_STRUCT:
-		if (proc->e_machine == EM_PPC)
-			return value_pass_by_reference(valuep);
-
-		/* PPC64: Fixed size aggregates and unions passed by
-		 * value are mapped to as many doublewords of the
-		 * parameter save area as the value uses in memory.
-		 * [...] The first eight doublewords mapped to the
-		 * parameter save area correspond to the registers r3
-		 * through r10.  */
-		return allocate_struct(ctx, proc, info, valuep);
+		if (proc->e_machine == EM_PPC) {
+			if (value_pass_by_reference(valuep) < 0)
+				return -1;
+		} else {
+			/* PPC64: Fixed size aggregates and unions passed by
+			 * value are mapped to as many doublewords of the
+			 * parameter save area as the value uses in memory.
+			 * [...] The first eight doublewords mapped to the
+			 * parameter save area correspond to the registers r3
+			 * through r10.  */
+		}
+		/* fall through */
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+		break;
 
 	case ARGTYPE_ARRAY:
-		/* Arrays decay into pointers.  */
+		/* Arrays decay into pointers.  XXX Fortran?  */
 		assert(info->type != ARGTYPE_ARRAY);
 		abort();
 	}
 
-	assert(info->type != info->type);
-	abort();
+	/* For other cases (integral types and aggregates), read the
+	 * eightbytes comprising the data.  */
+	size_t sz = type_sizeof(proc, info);
+	if (sz == (size_t)-1)
+		return -1;
+	size_t eightbytes = (sz + 7) / 8;  /* Round up.  */
+	unsigned char *buf = value_reserve(valuep, eightbytes * 8);
+	if (buf == NULL)
+		return -1;
+	struct arg_type_info *long_info = type_get_simple(ARGTYPE_LONG);
+
+	unsigned char *ptr = buf;
+	while (eightbytes-- > 0) {
+		struct value val;
+		value_init(&val, proc, NULL, long_info, 0);
+		int rc = allocate_gpr(ctx, proc, long_info, &val);
+		if (rc >= 0) {
+			memcpy(ptr, value_get_data(&val, NULL), 8);
+			ptr += 8;
+		}
+		value_destroy(&val);
+		if (rc < 0)
+			return rc;
+	}
+
+	/* Small values need post-processing.  */
+	if (proc->e_machine == EM_PPC64 && sz < 8) {
+		switch (info->type) {
+		case ARGTYPE_LONG:
+		case ARGTYPE_ULONG:
+		case ARGTYPE_POINTER:
+		case ARGTYPE_DOUBLE:
+		case ARGTYPE_VOID:
+			abort();
+
+		/* Simple integer types (char, short, int, long, enum)
+		 * are mapped to a single doubleword. Values shorter
+		 * than a doubleword are sign or zero extended as
+		 * necessary.  */
+		case ARGTYPE_CHAR:
+		case ARGTYPE_SHORT:
+		case ARGTYPE_INT:
+		case ARGTYPE_USHORT:
+		case ARGTYPE_UINT:
+			snip_small_int(buf, sz);
+			break;
+
+		/* Single precision floating point values are mapped
+		 * to the second word in a single doubleword.
+		 *
+		 * An aggregate or union smaller than one doubleword
+		 * in size is padded so that it appears in the least
+		 * significant bits of the doubleword.  */
+		case ARGTYPE_FLOAT:
+		case ARGTYPE_ARRAY:
+		case ARGTYPE_STRUCT:
+			memmove(buf, buf + 8 - sz, sz);
+			break;
+		}
+	}
+
+	return 0;
 }
 
 int
