@@ -72,7 +72,7 @@ fetch_context_init(struct Process *proc, struct fetch_context *context)
 	context->greg = 3;
 	context->freg = 1;
 
-	if (proc->e_machine == EM_PPC64)
+	if (proc->e_machine == EM_PPC)
 		context->stack_pointer = proc->stack_pointer + 8;
 	else
 		context->stack_pointer = proc->stack_pointer + 112;
