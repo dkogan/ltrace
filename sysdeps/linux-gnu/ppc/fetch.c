@@ -326,7 +326,7 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 
 	/* For other cases (integral types and aggregates), read the
 	 * eightbytes comprising the data.  */
-	size_t sz = type_sizeof(proc, info);
+	size_t sz = type_sizeof(proc, valuep->type);
 	if (sz == (size_t)-1)
 		return -1;
 	size_t slots = (sz + width - 1) / width;  /* Round up.  */
