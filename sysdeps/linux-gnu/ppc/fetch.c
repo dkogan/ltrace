@@ -183,7 +183,41 @@ read_gpr(struct fetch_context *ctx, struct Process *proc, int reg_num)
 		return ctx->regs.r64[reg_num];
 }
 
-static void snip_small_int(unsigned char *buf, size_t w, size_t sz);
+/* The support for little endian PowerPC is in upstream Linux and BFD,
+ * and Unix-like Solaris, which we might well support at some point,
+ * runs PowerPC in little endian as well.  This code moves SZ-sized
+ * value to the beginning of W-sized BUF regardless of
+ * endian.  */
+static void
+align_small_int(unsigned char *buf, size_t w, size_t sz)
+{
+	assert(w == 4 || w == 8);
+	union {
+		uint64_t i64;
+		uint32_t i32;
+		uint16_t i16;
+		uint8_t i8;
+		char buf[0];
+	} u;
+	memcpy(u.buf, buf, w);
+	if (w == 4)
+		u.i64 = u.i32;
+
+	switch (sz) {
+	case 1:
+		u.i8 = u.i64;
+		break;
+	case 2:
+		u.i16 = u.i64;
+		break;
+	case 4:
+		u.i32 = u.i64;
+	case 8:
+		break;
+	}
+
+	memcpy(buf, u.buf, sz);
+}
 
 static int
 allocate_gpr(struct fetch_context *ctx, struct Process *proc,
@@ -210,7 +244,7 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 
 	u.i64 = read_gpr(ctx, proc, reg_num);
 	if (proc->e_machine == EM_PPC)
-		snip_small_int(u.buf, 8, sz);
+		align_small_int(u.buf, 8, sz);
 	memcpy(value_get_raw_data(valuep), u.buf, sz);
 	return 0;
 }
@@ -244,42 +278,6 @@ allocate_float(struct fetch_context *ctx, struct Process *proc,
 		return 0;
 	}
 	return allocate_stack_slot(ctx, proc, info, valuep);
-}
-
-/* The support for little endian PowerPC is in upstream Linux and BFD,
- * and Unix-like Solaris, which we might well support at some point,
- * runs PowerPC in little endian as well.  This code moves SZ-sized
- * value to the beginning of W-sized BUF regardless of
- * endian.  */
-static void
-snip_small_int(unsigned char *buf, size_t w, size_t sz)
-{
-	assert(w == 4 || w == 8);
-	union {
-		uint64_t i64;
-		uint32_t i32;
-		uint16_t i16;
-		uint8_t i8;
-		char buf[0];
-	} u;
-	memcpy(u.buf, buf, w);
-	if (w == 4)
-		u.i64 = u.i32;
-
-	switch (sz) {
-	case 1:
-		u.i8 = u.i64;
-		break;
-	case 2:
-		u.i16 = u.i64;
-		break;
-	case 4:
-		u.i32 = u.i64;
-	case 8:
-		break;
-	}
-
-	memcpy(buf, u.buf, sz);
 }
 
 static int
@@ -371,7 +369,7 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 		case ARGTYPE_INT:
 		case ARGTYPE_USHORT:
 		case ARGTYPE_UINT:
-			snip_small_int(buf, width, sz);
+			align_small_int(buf, width, sz);
 			break;
 
 		/* Single precision floating point values are mapped
