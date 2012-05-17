@@ -159,8 +159,10 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 	else if (proc->e_machine == EM_PPC64 && a < 8)
 		a = 8;
 
-	ctx->stack_pointer
-		= (target_address_t)align((uint64_t)ctx->stack_pointer, a);
+	/* XXX Remove the two double casts when target_address_t
+	 * becomes integral type.  */
+	uintptr_t tmp = align((uint64_t)(uintptr_t)ctx->stack_pointer, a);
+	ctx->stack_pointer = (target_address_t)tmp;
 
 	if (valuep != NULL) {
 		valuep->where = VAL_LOC_INFERIOR;
@@ -409,7 +411,9 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 		value_init(valuep, proc, NULL, info, 0);
 
 		valuep->where = VAL_LOC_INFERIOR;
-		valuep->u.address = (target_address_t)addr;
+		/* XXX Remove the double cast when target_address_t
+		 * becomes integral type. */
+		valuep->u.address = (target_address_t)(uintptr_t)addr;
 		return 0;
 	}
 
