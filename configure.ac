@@ -267,7 +267,15 @@ AC_CONFIG_FILES([
 	Makefile
 	sysdeps/Makefile
 	sysdeps/linux-gnu/Makefile
-	sysdeps/linux-gnu/${HOST_CPU}/Makefile
+	sysdeps/linux-gnu/alpha/Makefile
+	sysdeps/linux-gnu/arm/Makefile
+	sysdeps/linux-gnu/ia64/Makefile
+	sysdeps/linux-gnu/m68k/Makefile
+	sysdeps/linux-gnu/mipsel/Makefile
+	sysdeps/linux-gnu/ppc/Makefile
+	sysdeps/linux-gnu/s390/Makefile
+	sysdeps/linux-gnu/sparc/Makefile
+	sysdeps/linux-gnu/x86/Makefile
 	testsuite/Makefile
 	testsuite/ltrace.main/Makefile
 	testsuite/ltrace.minor/Makefile
