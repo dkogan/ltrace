@@ -513,11 +513,9 @@ fetch_register_banks(struct Process *proc, struct fetch_context *context,
 	context->ireg = 0;
 
 	if (floating) {
-#ifdef __x86_64__
 		if (ptrace(PTRACE_GETFPREGS, proc->pid,
 			   0, &context->fpregs) < 0)
 			return -1;
-#endif
 		context->freg = 0;
 	} else {
 		context->freg = -1;

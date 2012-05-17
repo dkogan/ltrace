@@ -35,7 +35,7 @@ if [regexp {ELF from incompatible architecture} $exec_output] {
 	return
 }
 
-set xfail_spec {"arm*-*" "i*86-*"}
+set xfail_spec {"arm*-*" }
 set xfail_spec_arm {"arm*-*"}
 
 # Verify the output
