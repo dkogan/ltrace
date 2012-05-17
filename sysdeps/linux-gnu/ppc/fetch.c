@@ -226,7 +226,8 @@ allocate_float(struct fetch_context *ctx, struct Process *proc,
 		} u = { .d = ctx->fpregs.fpregs[ctx->freg] };
 
 		ctx->freg++;
-		allocate_gpr(ctx, proc, info, NULL);
+		if (proc->e_machine == EM_PPC64)
+			allocate_gpr(ctx, proc, info, NULL);
 
 		size_t sz = sizeof(double);
 		if (info->type == ARGTYPE_FLOAT) {
