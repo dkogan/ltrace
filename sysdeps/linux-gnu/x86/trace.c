@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2010,2011,2012 Petr Machata
+ * Copyright (C) 2010,2011,2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <sys/reg.h>
+#include <sys/wait.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -41,16 +42,30 @@
 # define PTRACE_POKEUSER PTRACE_POKEUSR
 #endif
 
+#ifdef __x86_64__
+# define ORIG_XAX (8 * ORIG_RAX)
+#else
+# define ORIG_XAX (4 * ORIG_EAX)
+#endif
+
+#ifdef __x86_64__
+static const int x86_64 = 1;
+#else
+static const int x86_64 = 0;
+#endif
+
 void
 get_arch_dep(struct Process *proc)
 {
-	long l = ptrace(PTRACE_PEEKUSER, proc->pid, 8 * CS, 0);
-	if (l == -1 && errno != 0)
-		return;
+	/* Unfortunately there are still remnants of mask_32bit uses
+	 * around.  */
 
-	if (l == 0x23) {
-		proc->mask_32bit = 1;
+	if (proc->e_machine == EM_X86_64) {
+		proc->mask_32bit = 0;
 		proc->personality = 1;
+	} else if (x86_64) { /* x86_64/i386 */
+		proc->mask_32bit = 1;
+		proc->personality = 0;
 	} else {
 		proc->mask_32bit = 0;
 		proc->personality = 0;
@@ -68,7 +83,7 @@ syscall_p(struct Process *proc, int status, int *sysnum)
 		if (proc->callstack_depth > 0)
 			elem = proc->callstack + proc->callstack_depth - 1;
 
-		long int ret = ptrace(PTRACE_PEEKUSER, proc->pid, 8 * ORIG_RAX, 0);
+		long int ret = ptrace(PTRACE_PEEKUSER, proc->pid, ORIG_XAX, 0);
 		if (ret == -1) {
 			if (errno)
 				return -1;
@@ -96,42 +111,12 @@ syscall_p(struct Process *proc, int status, int *sysnum)
 size_t
 arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
 {
-	if (proc == NULL || proc->e_machine != EM_386)
+	if (proc == NULL)
 		return (size_t)-2;
 
 	switch (info->type) {
 	case ARGTYPE_VOID:
-	case ARGTYPE_CHAR:
-	case ARGTYPE_SHORT:
-	case ARGTYPE_USHORT:
-	case ARGTYPE_FLOAT:
-	case ARGTYPE_DOUBLE:
-	case ARGTYPE_ARRAY:
-	case ARGTYPE_STRUCT:
-		/* Use default value.  */
-		return (size_t)-2;
-
-	case ARGTYPE_INT:
-	case ARGTYPE_UINT:
-	case ARGTYPE_LONG:
-	case ARGTYPE_ULONG:
-	case ARGTYPE_POINTER:
-		return 4;
-	}
-	abort();
-}
-
-size_t
-arch_type_alignof(struct Process *proc, struct arg_type_info *info)
-{
-	if (proc == NULL || proc->e_machine != EM_386)
-		return (size_t)-2;
-
-	switch (info->type) {
-	case ARGTYPE_ARRAY:
-	case ARGTYPE_STRUCT:
-		/* Use default value.  */
-		return (size_t)-2;
+		return 0;
 
 	case ARGTYPE_CHAR:
 		return 1;
@@ -140,18 +125,65 @@ arch_type_alignof(struct Process *proc, struct arg_type_info *info)
 	case ARGTYPE_USHORT:
 		return 2;
 
-	case ARGTYPE_FLOAT:
-	case ARGTYPE_DOUBLE:
 	case ARGTYPE_INT:
 	case ARGTYPE_UINT:
+		return 4;
+
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
 	case ARGTYPE_POINTER:
+		return proc->e_machine == EM_X86_64 ? 8 : 4;
+
+	case ARGTYPE_FLOAT:
+		return 4;
+	case ARGTYPE_DOUBLE:
+		return 8;
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		/* Use default value.  */
+		return (size_t)-2;
+	}
+	assert(info->type != info->type);
+	abort();
+}
+
+size_t
+arch_type_alignof(struct Process *proc, struct arg_type_info *info)
+{
+	if (proc == NULL)
+		return (size_t)-2;
+
+	switch (info->type) {
+	case ARGTYPE_VOID:
+		assert(info->type != ARGTYPE_VOID);
+		break;
+
+	case ARGTYPE_CHAR:
+		return 1;
+
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+		return 2;
+
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
 		return 4;
 
-	case ARGTYPE_VOID:
-		assert(!"Unexpected i386 alignof type!");
-		abort();
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+		return proc->e_machine == EM_X86_64 ? 8 : 4;
+
+	case ARGTYPE_FLOAT:
+		return 4;
+	case ARGTYPE_DOUBLE:
+		return proc->e_machine == EM_X86_64 ? 8 : 4;
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		/* Use default value.  */
+		return (size_t)-2;
 	}
 	abort();
 }

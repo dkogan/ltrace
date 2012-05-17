@@ -1,3 +1,4 @@
+/* This file is for i386 system call names.  */
 	"restart_syscall",                 /* 0 */
 	"exit",                            /* 1 */
 	"fork",                            /* 2 */

@@ -18,10 +18,10 @@ AC_SUBST(HOST_OS)
 
 case "${host_cpu}" in
     arm*|sa110)		HOST_CPU="arm" ;;
-    i?86)		HOST_CPU="i386" ;;
     powerpc|powerpc64)	HOST_CPU="ppc" ;;
     sun4u|sparc64)	HOST_CPU="sparc" ;;
     s390x)		HOST_CPU="s390" ;;
+    i?86|x86_64)	HOST_CPU="x86" ;;
     *)			HOST_CPU="${host_cpu}" ;;
 esac
 AC_SUBST(HOST_CPU)
@@ -267,16 +267,7 @@ AC_CONFIG_FILES([
 	Makefile
 	sysdeps/Makefile
 	sysdeps/linux-gnu/Makefile
-	sysdeps/linux-gnu/alpha/Makefile
-	sysdeps/linux-gnu/arm/Makefile
-	sysdeps/linux-gnu/i386/Makefile
-	sysdeps/linux-gnu/ia64/Makefile
-	sysdeps/linux-gnu/m68k/Makefile
-	sysdeps/linux-gnu/mipsel/Makefile
-	sysdeps/linux-gnu/ppc/Makefile
-	sysdeps/linux-gnu/s390/Makefile
-	sysdeps/linux-gnu/sparc/Makefile
-	sysdeps/linux-gnu/x86_64/Makefile
+	sysdeps/linux-gnu/${HOST_CPU}/Makefile
 	testsuite/Makefile
 	testsuite/ltrace.main/Makefile
 	testsuite/ltrace.minor/Makefile

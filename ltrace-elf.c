@@ -273,8 +273,11 @@ open_elf(struct ltelf *lte, const char *filename)
 		exit(EXIT_FAILURE);
 	}
 
-	if ((lte->ehdr.e_ident[EI_CLASS] != LT_ELFCLASS
-	     || lte->ehdr.e_machine != LT_ELF_MACHINE)
+	if (1
+#ifdef LT_ELF_MACHINE
+	    && (lte->ehdr.e_ident[EI_CLASS] != LT_ELFCLASS
+		|| lte->ehdr.e_machine != LT_ELF_MACHINE)
+#endif
 #ifdef LT_ELF_MACHINE2
 	    && (lte->ehdr.e_ident[EI_CLASS] != LT_ELFCLASS2
 		|| lte->ehdr.e_machine != LT_ELF_MACHINE2)

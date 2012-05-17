@@ -1,6 +1,8 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 1998,2004 Juan Cespedes
+ * Copyright (C) 2011 Petr Machata
+ * Copyright (C) 2006 Ian Wienand
+ * Copyright (C) 2004 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,7 +23,18 @@
 #define BREAKPOINT_VALUE {0xcc}
 #define BREAKPOINT_LENGTH 1
 #define DECR_PC_AFTER_BREAK 1
+#define ARCH_HAVE_FETCH_ARG
+#define ARCH_HAVE_SIZEOF
+#define ARCH_HAVE_ALIGNOF
 #define ARCH_ENDIAN_LITTLE
 
-#define LT_ELFCLASS	ELFCLASS32
-#define LT_ELF_MACHINE	EM_386
+#ifdef __x86_64__
+#define LT_ELFCLASS	ELFCLASS64
+#define LT_ELF_MACHINE	EM_X86_64
+#endif
+#define LT_ELFCLASS2	ELFCLASS32
+#define LT_ELF_MACHINE2	EM_386
+
+/* __NR_fork, __NR_clone, __NR_clone2, __NR_vfork and __NR_execve
+   from asm-i386/unistd.h.  */
+#define FORK_EXEC_SYSCALLS , { 2, 120, -1, 190, 11 }

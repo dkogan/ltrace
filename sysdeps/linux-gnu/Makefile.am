@@ -1,14 +1,13 @@
 DIST_SUBDIRS = \
 	alpha \
 	arm \
-	i386 \
 	ia64 \
 	m68k \
 	mipsel \
 	ppc \
 	s390 \
 	sparc \
-	x86_64
+	x86
 
 SUBDIRS = \
 	$(HOST_CPU)

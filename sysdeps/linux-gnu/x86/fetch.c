@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "backend.h"
 #include "expr.h"
 #include "fetch.h"
 #include "proc.h"
@@ -55,6 +56,7 @@ struct fetch_context
 {
 	struct user_regs_struct iregs;
 	struct user_fpregs_struct fpregs;
+
 	void *stack_pointer;
 	size_t ireg;	/* Used-up integer registers.  */
 	size_t freg;	/* Used-up floating registers.  */
@@ -69,9 +71,17 @@ struct fetch_context
 		} x86_64;
 		struct {
 			struct value retval;
-		} i386;
+		} ix86;
 	} u;
 };
+
+#ifndef __x86_64__
+__attribute__((noreturn)) static void
+i386_unreachable(void)
+{
+	abort();
+}
+#endif
 
 static int
 contains_unaligned_fields(struct arg_type_info *info)
@@ -104,6 +114,7 @@ static void
 copy_sse_register(struct fetch_context *context, struct value *valuep,
 		  int half, size_t sz, size_t offset)
 {
+#ifdef __x86_64__
 	union {
 		uint32_t sse[4];
 		long halves[2];
@@ -115,6 +126,9 @@ copy_sse_register(struct fetch_context *context, struct value *valuep,
 		unsigned char *buf = value_get_raw_data(valuep);
 		memcpy(buf + offset, u.halves + half, sz);
 	}
+#else
+	i386_unreachable();
+#endif
 }
 
 static void
@@ -175,7 +189,12 @@ allocate_x87(struct fetch_context *context, struct value *valuep,
 		 * value_set_type), but for that we first need to
 		 * support long double in the first place.  */
 
-		unsigned int *reg = &context->fpregs.st_space[0];
+#ifdef __x86_64__
+		unsigned int *reg;
+#else
+		long int *reg;
+#endif
+		reg = &context->fpregs.st_space[0];
 		memcpy(&u.ld, reg, sizeof(u));
 		if (valuep->type->type == ARGTYPE_FLOAT)
 			u.f = (float)u.ld;
@@ -202,6 +221,7 @@ allocate_integer(struct fetch_context *context, struct value *valuep,
 
 	switch (pool) {
 	case POOL_FUNCALL:
+#ifdef __x86_64__
 		switch (context->ireg) {
 			HANDLE(0, rdi);
 			HANDLE(1, rsi);
@@ -213,8 +233,12 @@ allocate_integer(struct fetch_context *context, struct value *valuep,
 			allocate_stack_slot(context, valuep, sz, offset, 8);
 			return CLASS_MEMORY;
 		}
+#else
+		i386_unreachable();
+#endif
 
 	case POOL_SYSCALL:
+#ifdef __x86_64__
 		switch (context->ireg) {
 			HANDLE(0, rdi);
 			HANDLE(1, rsi);
@@ -226,13 +250,20 @@ allocate_integer(struct fetch_context *context, struct value *valuep,
 			assert(!"More than six syscall arguments???");
 			abort();
 		}
+#else
+		i386_unreachable();
+#endif
 
 	case POOL_RETVAL:
 		switch (context->ireg) {
+#ifdef __x86_64__
 			HANDLE(0, rax);
 			HANDLE(1, rdx);
+#else
+			HANDLE(0, eax);
+#endif
 		default:
-			assert(!"More than two return value classes???");
+			assert(!"Too many return value classes.");
 			abort();
 		}
 	}
@@ -482,9 +513,11 @@ fetch_register_banks(struct Process *proc, struct fetch_context *context,
 	context->ireg = 0;
 
 	if (floating) {
+#ifdef __x86_64__
 		if (ptrace(PTRACE_GETFPREGS, proc->pid,
 			   0, &context->fpregs) < 0)
 			return -1;
+#endif
 		context->freg = 0;
 	} else {
 		context->freg = -1;
@@ -515,11 +548,11 @@ arch_fetch_retval_32(struct fetch_context *context, enum tof type,
 	if (fetch_register_banks(proc, context, type == LT_TOF_FUNCTIONR) < 0)
 		return -1;
 
-	struct value *retval = &context->u.i386.retval;
+	struct value *retval = &context->u.ix86.retval;
 	if (retval->type != NULL) {
 		/* Struct return value was extracted when in fetch
 		 * init.  */
-		memcpy(valuep, &context->u.i386.retval, sizeof(*valuep));
+		memcpy(valuep, &context->u.ix86.retval, sizeof(*valuep));
 		return 0;
 	}
 
@@ -561,18 +594,30 @@ arch_fetch_retval_32(struct fetch_context *context, enum tof type,
 	abort();
 }
 
+static target_address_t
+fetch_stack_pointer(struct fetch_context *context)
+{
+	target_address_t sp;
+#ifdef __x86_64__
+	sp = (target_address_t)context->iregs.rsp;
+#else
+	sp = (target_address_t)context->iregs.esp;
+#endif
+	return sp;
+}
+
 struct fetch_context *
 arch_fetch_arg_init_32(struct fetch_context *context,
 		       enum tof type, struct Process *proc,
 		       struct arg_type_info *ret_info)
 {
-	context->stack_pointer = (void *)(context->iregs.rsp + 4);
+	context->stack_pointer = fetch_stack_pointer(context) + 4;
 
 	size_t sz = type_sizeof(proc, ret_info);
 	if (sz == (size_t)-1)
 		return NULL;
 
-	struct value *retval = &context->u.i386.retval;
+	struct value *retval = &context->u.ix86.retval;
 	if (ret_info->type == ARGTYPE_STRUCT) {
 		value_init(retval, proc, NULL, ret_info, 0);
 
@@ -593,7 +638,7 @@ arch_fetch_arg_init_64(struct fetch_context *ctx, enum tof type,
 		       struct Process *proc, struct arg_type_info *ret_info)
 {
 	/* The first stack slot holds a return address.  */
-	ctx->stack_pointer = (void *)(ctx->iregs.rsp + 8);
+	ctx->stack_pointer = fetch_stack_pointer(ctx) + 8;
 
 	size_t size;
 	ctx->u.x86_64.num_ret_classes

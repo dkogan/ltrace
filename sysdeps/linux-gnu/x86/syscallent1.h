@@ -1,3 +1,4 @@
+/* This file is for x86_64 system call names.  */
 "read",				/* 0 */
     "write",			/* 1 */
     "open",			/* 2 */
