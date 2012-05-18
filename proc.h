@@ -23,6 +23,8 @@
 #ifndef _PROC_H_
 #define _PROC_H_
 
+#include "config.h"
+
 #if defined(HAVE_LIBUNWIND)
 # include <libunwind.h>
 #endif /* defined(HAVE_LIBUNWIND) */
