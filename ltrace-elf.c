@@ -593,7 +593,8 @@ populate_this_symtab(struct Process *proc, const char *filename,
 
 		/* XXX support IFUNC as well.  */
 		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC
-		    || sym.st_value == 0)
+		    || sym.st_value == 0
+		    || sym.st_shndx == STN_UNDEF)
 			continue;
 
 		const char *orig_name = strtab + sym.st_name;
