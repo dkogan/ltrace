@@ -563,7 +563,8 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 	tabto(options.align - 1);
 	fprintf(options.output, "= ");
 
-	output_one(&retval, stel->arguments);
+	if (context != NULL && retval.type != NULL)
+		output_one(&retval, stel->arguments);
 
 	if (own_retval)
 		value_destroy(&retval);
