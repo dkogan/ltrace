@@ -28,4 +28,13 @@ struct arch_process_data {
 };
 #endif
 
+#ifndef ARCH_HAVE_ADDRESS_TYPES
+/* We should in general be able to trace 64-bit processes with 32-bit
+ * ltrace.  (At least PPC has several PTRACE requests related to
+ * tracing 64-on-32, so presumably it should be possible.)  But ltrace
+ * is currently hopelessly infested with using void* for host address.
+ * So keep with it, for now.  */
+typedef void *arch_addr_t;
+#endif
+
 #endif /* LTRACE_SYSDEP_H */

@@ -104,7 +104,7 @@ host_powerpc64()
 }
 
 int
-read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp)
+read_target_4(struct Process *proc, arch_addr_t addr, uint32_t *lp)
 {
 	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 	if (l == -1UL && errno)
@@ -117,7 +117,7 @@ read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp)
 }
 
 static int
-read_target_8(struct Process *proc, target_address_t addr, uint64_t *lp)
+read_target_8(struct Process *proc, arch_addr_t addr, uint64_t *lp)
 {
 	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 	if (l == -1UL && errno)
@@ -135,7 +135,7 @@ read_target_8(struct Process *proc, target_address_t addr, uint64_t *lp)
 }
 
 int
-read_target_long(struct Process *proc, target_address_t addr, uint64_t *lp)
+read_target_long(struct Process *proc, arch_addr_t addr, uint64_t *lp)
 {
 	if (proc->e_machine == EM_PPC) {
 		uint32_t w;
@@ -223,7 +223,7 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
  * already.  */
 int
 arch_translate_address_dyn(struct Process *proc,
-			   target_address_t addr, target_address_t *ret)
+			   arch_addr_t addr, arch_addr_t *ret)
 {
 	if (proc->e_machine == EM_PPC64) {
 		uint64_t value;
@@ -232,8 +232,8 @@ arch_translate_address_dyn(struct Process *proc,
 			return -1;
 		}
 		/* XXX The double cast should be removed when
-		 * target_address_t becomes integral type.  */
-		*ret = (target_address_t)(uintptr_t)value;
+		 * arch_addr_t becomes integral type.  */
+		*ret = (arch_addr_t)(uintptr_t)value;
 		return 0;
 	}
 
@@ -243,11 +243,11 @@ arch_translate_address_dyn(struct Process *proc,
 
 int
 arch_translate_address(struct ltelf *lte,
-		       target_address_t addr, target_address_t *ret)
+		       arch_addr_t addr, arch_addr_t *ret)
 {
 	if (lte->ehdr.e_machine == EM_PPC64) {
 		/* XXX The double cast should be removed when
-		 * target_address_t becomes integral type.  */
+		 * arch_addr_t becomes integral type.  */
 		GElf_Xword offset
 			= (GElf_Addr)(uintptr_t)addr - lte->arch.opd_base;
 		uint64_t value;
@@ -256,7 +256,7 @@ arch_translate_address(struct ltelf *lte,
 			      elf_errmsg(-1));
 			return -1;
 		}
-		*ret = (target_address_t)(uintptr_t)(value + lte->bias);
+		*ret = (arch_addr_t)(uintptr_t)(value + lte->bias);
 		return 0;
 	}
 
@@ -509,8 +509,8 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 			}
 
 			/* XXX The double cast should be removed when
-			 * target_address_t becomes integral type.  */
-			target_address_t addr = (target_address_t)
+			 * arch_addr_t becomes integral type.  */
+			arch_addr_t addr = (arch_addr_t)
 				(uintptr_t)sym.st_value + lte->bias;
 			if (library_symbol_init(libsym, addr, sym_name, 1,
 						LS_TOPLT_EXEC) < 0)
@@ -533,7 +533,7 @@ read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
 	 * either can change.  */
 	uint64_t l;
 	/* XXX double cast.  */
-	if (read_target_8(proc, (target_address_t)(uintptr_t)addr, &l) < 0) {
+	if (read_target_8(proc, (arch_addr_t)(uintptr_t)addr, &l) < 0) {
 		error(0, errno, "ptrace .plt slot value @%#" PRIx64, addr);
 		return -1;
 	}
@@ -621,9 +621,9 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 	}
 
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
+	 * arch_addr_t becomes integral type.  */
 	if (library_symbol_init(libsym,
-				(target_address_t)(uintptr_t)plt_entry_addr,
+				(arch_addr_t)(uintptr_t)plt_entry_addr,
 				name, 1, LS_TOPLT_EXEC) < 0)
 		goto fail;
 	libsym->arch.plt_slot_addr = plt_slot_addr;
@@ -760,7 +760,7 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 	/* We need to install to the next instruction.  ADDR points to
 	 * a store instruction, so moving the breakpoint one
 	 * instruction forward is safe.  */
-	target_address_t addr = get_instruction_pointer(proc) + 4;
+	arch_addr_t addr = get_instruction_pointer(proc) + 4;
 	leader->arch.dl_plt_update_bp = insert_breakpoint(proc, addr, NULL);
 	if (leader->arch.dl_plt_update_bp == NULL)
 		goto done;
@@ -784,8 +784,8 @@ static void
 jump_to_entry_point(struct Process *proc, struct breakpoint *bp)
 {
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
-	target_address_t rv = (target_address_t)
+	 * arch_addr_t becomes integral type.  */
+	arch_addr_t rv = (arch_addr_t)
 		(uintptr_t)bp->libsym->arch.resolved_value;
 	set_instruction_pointer(proc, rv);
 }

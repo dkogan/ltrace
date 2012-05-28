@@ -54,7 +54,7 @@ typedef uint32_t gregs32_t[48];
 typedef uint64_t gregs64_t[48];
 
 struct fetch_context {
-	target_address_t stack_pointer;
+	arch_addr_t stack_pointer;
 	int greg;
 	int freg;
 	int ret_struct;
@@ -159,10 +159,10 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 	else if (proc->e_machine == EM_PPC64 && a < 8)
 		a = 8;
 
-	/* XXX Remove the two double casts when target_address_t
+	/* XXX Remove the two double casts when arch_addr_t
 	 * becomes integral type.  */
 	uintptr_t tmp = align((uint64_t)(uintptr_t)ctx->stack_pointer, a);
-	ctx->stack_pointer = (target_address_t)tmp;
+	ctx->stack_pointer = (arch_addr_t)tmp;
 
 	if (valuep != NULL) {
 		valuep->where = VAL_LOC_INFERIOR;
@@ -409,9 +409,9 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 		value_init(valuep, proc, NULL, info, 0);
 
 		valuep->where = VAL_LOC_INFERIOR;
-		/* XXX Remove the double cast when target_address_t
+		/* XXX Remove the double cast when arch_addr_t
 		 * becomes integral type. */
-		valuep->u.address = (target_address_t)(uintptr_t)addr;
+		valuep->u.address = (arch_addr_t)(uintptr_t)addr;
 		return 0;
 	}
 

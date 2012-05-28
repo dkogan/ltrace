@@ -20,7 +20,7 @@
 #ifndef ARCH_HAVE_TRANSLATE_ADDRESS
 int
 arch_translate_address_dyn(struct Process *proc,
-		       target_address_t addr, target_address_t *ret)
+		       arch_addr_t addr, arch_addr_t *ret)
 {
 	*ret = addr;
 	return 0;
@@ -29,7 +29,7 @@ arch_translate_address_dyn(struct Process *proc,
 struct ltelf;
 int
 arch_translate_address(struct ltelf *lte,
-		       target_address_t addr, target_address_t *ret)
+		       arch_addr_t addr, arch_addr_t *ret)
 {
 	*ret = addr;
 	return 0;
@@ -95,7 +95,7 @@ arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp)
 
 static void
 breakpoint_init_base(struct breakpoint *bp, struct Process *proc,
-		     target_address_t addr, struct library_symbol *libsym)
+		     arch_addr_t addr, struct library_symbol *libsym)
 {
 	bp->cbs = NULL;
 	bp->addr = addr;
@@ -110,7 +110,7 @@ breakpoint_init_base(struct breakpoint *bp, struct Process *proc,
  * need process for anything.  */
 int
 breakpoint_init(struct breakpoint *bp, struct Process *proc,
-		target_address_t addr, struct library_symbol *libsym)
+		arch_addr_t addr, struct library_symbol *libsym)
 {
 	breakpoint_init_base(bp, proc, addr, libsym);
 	return arch_breakpoint_init(proc, bp);
@@ -357,7 +357,7 @@ disable_all_breakpoints(Process *proc) {
  * for one structure.  */
 struct entry_breakpoint {
 	struct breakpoint super;
-	target_address_t dyn_addr;
+	arch_addr_t dyn_addr;
 };
 
 static void
@@ -366,7 +366,7 @@ entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 	struct entry_breakpoint *bp = (void *)a;
 	if (proc == NULL || proc->leader == NULL)
 		return;
-	target_address_t dyn_addr = bp->dyn_addr;
+	arch_addr_t dyn_addr = bp->dyn_addr;
 	delete_breakpoint(proc, bp->super.addr);
 	linkmap_init(proc, dyn_addr);
 	arch_dynlink_done(proc);
@@ -374,7 +374,7 @@ entry_breakpoint_on_hit(struct breakpoint *a, struct Process *proc)
 
 int
 entry_breakpoint_init(struct Process *proc,
-		      struct entry_breakpoint *bp, target_address_t addr,
+		      struct entry_breakpoint *bp, arch_addr_t addr,
 		      struct library *lib)
 {
 	int err;

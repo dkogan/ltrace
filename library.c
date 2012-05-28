@@ -71,10 +71,10 @@ target_address_hash(const void *key)
 {
 	/* XXX this assumes that key is passed by value.  */
 	union {
-		target_address_t addr;
-		unsigned int ints[sizeof(target_address_t)
+		arch_addr_t addr;
+		unsigned int ints[sizeof(arch_addr_t)
 				  / sizeof(unsigned int)];
-	} u = { .addr = (target_address_t)key };
+	} u = { .addr = (arch_addr_t)key };
 
 	size_t i;
 	unsigned int h = 0;
@@ -87,8 +87,8 @@ int
 target_address_cmp(const void *key1, const void *key2)
 {
 	/* XXX this assumes that key is passed by value.  */
-	target_address_t addr1 = (target_address_t)key1;
-	target_address_t addr2 = (target_address_t)key2;
+	arch_addr_t addr1 = (arch_addr_t)key1;
+	arch_addr_t addr2 = (arch_addr_t)key2;
 	return addr1 < addr2 ? 1
 	     : addr1 > addr2 ? -1 : 0;
 }
@@ -110,7 +110,7 @@ strdup_if_owned(const char **retp, const char *str, int owned)
 
 static void
 private_library_symbol_init(struct library_symbol *libsym,
-			    target_address_t addr,
+			    arch_addr_t addr,
 			    const char *name, int own_name,
 			    enum toplt type_of_plt)
 {
@@ -130,7 +130,7 @@ private_library_symbol_destroy(struct library_symbol *libsym)
 
 int
 library_symbol_init(struct library_symbol *libsym,
-		    target_address_t addr, const char *name, int own_name,
+		    arch_addr_t addr, const char *name, int own_name,
 		    enum toplt type_of_plt)
 {
 	private_library_symbol_init(libsym, addr, name, own_name, type_of_plt);
@@ -358,5 +358,5 @@ library_named_cb(struct Process *proc, struct library *lib, void *name)
 enum callback_status
 library_with_key_cb(struct Process *proc, struct library *lib, void *keyp)
 {
-	return lib->key == *(target_address_t *)keyp ? CBS_STOP : CBS_CONT;
+	return lib->key == *(arch_addr_t *)keyp ? CBS_STOP : CBS_CONT;
 }

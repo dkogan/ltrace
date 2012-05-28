@@ -33,13 +33,6 @@ enum toplt {
 	LS_TOPLT_EXEC,		/* PLT for this symbol is executable. */
 };
 
-/* We should in general be able to trace 64-bit processes with 32-bit
- * ltrace.  (At least PPC has several PTRACE requests related to
- * tracing 64-on-32, so presumably it should be possible.)  But ltrace
- * is currently hopelessly infested with using void* for host address.
- * So keep with it, for now.  */
-typedef void *target_address_t;
-
 /* Dict interface.  */
 unsigned int target_address_hash(const void *key);
 int target_address_cmp(const void *key1, const void *key2);
@@ -48,7 +41,7 @@ struct library_symbol {
 	struct library_symbol *next;
 	struct library *lib;
 	const char *name;
-	target_address_t enter_addr;
+	arch_addr_t enter_addr;
 	enum toplt plt_type;
 	char own_name;
 	struct arch_library_symbol_data arch;
@@ -57,7 +50,7 @@ struct library_symbol {
 /* Init LIBSYM.  NAME will be freed when LIBSYM is destroyed if
  * OWN_NAME.  ARCH has to be initialized by a separate call.  */
 int library_symbol_init(struct library_symbol *libsym,
-			target_address_t addr, const char *name, int own_name,
+			arch_addr_t addr, const char *name, int own_name,
 			enum toplt type_of_plt);
 
 /* Copy library symbol SYM into the area pointed-to by RETP.  Return 0
@@ -102,20 +95,20 @@ struct library {
 
 	/* Unique key. Two library objects are considered equal, if
 	 * they have the same key.  */
-	target_address_t key;
+	arch_addr_t key;
 
 	/* Address where the library is mapped.  Two library objects
 	 * are considered equal, if they have the same base.  */
-	target_address_t base;
+	arch_addr_t base;
 
 	/* Absolute address of the entry point.  Useful for main
 	 * binary, though I suppose the value might be useful for the
 	 * dynamic linker, too (in case we ever want to do early
 	 * process tracing).  */
-	target_address_t entry;
+	arch_addr_t entry;
 
 	/* Address of PT_DYNAMIC segment.  */
-	target_address_t dyn_addr;
+	arch_addr_t dyn_addr;
 
 	/* Symbols associated with the library.  */
 	struct library_symbol *symbols;
@@ -171,14 +164,14 @@ enum callback_status library_named_cb(struct Process *proc,
 /* A function that can be used as proc_each_library callback.  Looks
  * for a library with given base.
  *
- * NOTE: The key is passed as a POINTER to target_address_t (that
- * because in general, target_address_t doesn't fit in void*).  */
+ * NOTE: The key is passed as a POINTER to arch_addr_t (that
+ * because in general, arch_addr_t doesn't fit in void*).  */
 enum callback_status library_with_key_cb(struct Process *proc,
 					 struct library *lib, void *keyp);
 
 /* XXX this should really be in backend.h (as on pmachata/revamp
  * branch), or, on this branch, in common.h.  But we need
- * target_address_t (which should also be in backend.h, I reckon), so
+ * arch_addr_t (which should also be in backend.h, I reckon), so
  * stuff it here for the time being.  */
 /* This function is implemented in the back end.  It is called for all
  * raw addresses as read from symbol tables etc.  If necessary on
@@ -187,10 +180,10 @@ enum callback_status library_with_key_cb(struct Process *proc,
  * success and a negative value on failure.  */
 struct ltelf;
 int arch_translate_address(struct ltelf *lte,
-			   target_address_t addr, target_address_t *ret);
+			   arch_addr_t addr, arch_addr_t *ret);
 /* This is the same function as arch_translate_address, except it's
  * used at the point that we don't have ELF available anymore.  */
 int arch_translate_address_dyn(struct Process *proc,
-			       target_address_t addr, target_address_t *ret);
+			       arch_addr_t addr, arch_addr_t *ret);
 
 #endif /* _LIBRARY_H_ */

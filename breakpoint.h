@@ -81,7 +81,7 @@ void breakpoint_on_retract(struct breakpoint *bp, struct Process *proc);
  * disabled.  orig_value has to be set separately.  CBS may be
  * NULL.  */
 int breakpoint_init(struct breakpoint *bp, struct Process *proc,
-		    target_address_t addr, struct library_symbol *libsym);
+		    arch_addr_t addr, struct library_symbol *libsym);
 
 /* Make a clone of breakpoint BP into the area of memory pointed to by
  * RETP.  The original breakpoint was assigned to process OLD_PROC,

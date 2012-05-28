@@ -288,7 +288,7 @@ select_32_64(struct Process *proc, void *p32, void *p64)
 }
 
 static int
-fetch_dyn64(struct Process *proc, target_address_t *addr, Elf64_Dyn *ret)
+fetch_dyn64(struct Process *proc, arch_addr_t *addr, Elf64_Dyn *ret)
 {
 	if (umovebytes(proc, *addr, ret, sizeof(*ret)) != sizeof(*ret))
 		return -1;
@@ -297,7 +297,7 @@ fetch_dyn64(struct Process *proc, target_address_t *addr, Elf64_Dyn *ret)
 }
 
 static int
-fetch_dyn32(struct Process *proc, target_address_t *addr, Elf64_Dyn *ret)
+fetch_dyn32(struct Process *proc, arch_addr_t *addr, Elf64_Dyn *ret)
 {
 	Elf32_Dyn dyn;
 	if (umovebytes(proc, *addr, &dyn, sizeof(dyn)) != sizeof(dyn))
@@ -312,14 +312,14 @@ fetch_dyn32(struct Process *proc, target_address_t *addr, Elf64_Dyn *ret)
 
 static int (*
 dyn_fetcher(struct Process *proc))(struct Process *,
-				   target_address_t *, Elf64_Dyn *)
+				   arch_addr_t *, Elf64_Dyn *)
 {
 	return select_32_64(proc, fetch_dyn32, fetch_dyn64);
 }
 
 static int
-find_dynamic_entry_addr(struct Process *proc, target_address_t src_addr,
-			int d_tag, target_address_t *ret)
+find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
+			int d_tag, arch_addr_t *ret)
 {
 	debug(DEBUG_FUNCTION, "find_dynamic_entry()");
 
@@ -340,8 +340,8 @@ find_dynamic_entry_addr(struct Process *proc, target_address_t src_addr,
 
 		if (entry.d_tag == d_tag) {
 			/* XXX The double cast should be removed when
-			 * target_address_t becomes integral type.  */
-			*ret = (target_address_t)(uintptr_t)entry.d_un.d_val;
+			 * arch_addr_t becomes integral type.  */
+			*ret = (arch_addr_t)(uintptr_t)entry.d_un.d_val;
 			debug(2, "found address: %p in dtag %d", *ret, d_tag);
 			return 0;
 		}
@@ -364,7 +364,7 @@ struct lt_link_map_32 LT_LINK_MAP(32);
 struct lt_link_map_64 LT_LINK_MAP(64);
 
 static int
-fetch_lm64(struct Process *proc, target_address_t addr,
+fetch_lm64(struct Process *proc, arch_addr_t addr,
 	   struct lt_link_map_64 *ret)
 {
 	if (umovebytes(proc, addr, ret, sizeof(*ret)) != sizeof(*ret))
@@ -373,7 +373,7 @@ fetch_lm64(struct Process *proc, target_address_t addr,
 }
 
 static int
-fetch_lm32(struct Process *proc, target_address_t addr,
+fetch_lm32(struct Process *proc, arch_addr_t addr,
 	   struct lt_link_map_64 *ret)
 {
 	struct lt_link_map_32 lm;
@@ -391,7 +391,7 @@ fetch_lm32(struct Process *proc, target_address_t addr,
 
 static int (*
 lm_fetcher(struct Process *proc))(struct Process *,
-				  target_address_t, struct lt_link_map_64 *)
+				  arch_addr_t, struct lt_link_map_64 *)
 {
 	return select_32_64(proc, fetch_lm32, fetch_lm64);
 }
@@ -410,7 +410,7 @@ struct lt_r_debug_32 LT_R_DEBUG(32);
 struct lt_r_debug_64 LT_R_DEBUG(64);
 
 static int
-fetch_rd64(struct Process *proc, target_address_t addr,
+fetch_rd64(struct Process *proc, arch_addr_t addr,
 	   struct lt_r_debug_64 *ret)
 {
 	if (umovebytes(proc, addr, ret, sizeof(*ret)) != sizeof(*ret))
@@ -419,7 +419,7 @@ fetch_rd64(struct Process *proc, target_address_t addr,
 }
 
 static int
-fetch_rd32(struct Process *proc, target_address_t addr,
+fetch_rd32(struct Process *proc, arch_addr_t addr,
 	   struct lt_r_debug_64 *ret)
 {
 	struct lt_r_debug_32 rd;
@@ -437,7 +437,7 @@ fetch_rd32(struct Process *proc, target_address_t addr,
 
 static int (*
 rdebug_fetcher(struct Process *proc))(struct Process *,
-				      target_address_t, struct lt_r_debug_64 *)
+				      arch_addr_t, struct lt_r_debug_64 *)
 {
 	return select_32_64(proc, fetch_rd32, fetch_rd64);
 }
@@ -453,8 +453,8 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 	}
 
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
-	target_address_t addr = (target_address_t)(uintptr_t)dbg->r_map;
+	 * arch_addr_t becomes integral type.  */
+	arch_addr_t addr = (arch_addr_t)(uintptr_t)dbg->r_map;
 
 	while (addr != 0) {
 		struct lt_link_map_64 rlm;
@@ -463,10 +463,10 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 			return;
 		}
 
-		target_address_t key = addr;
+		arch_addr_t key = addr;
 		/* XXX The double cast should be removed when
-		 * target_address_t becomes integral type.  */
-		addr = (target_address_t)(uintptr_t)rlm.l_next;
+		 * arch_addr_t becomes integral type.  */
+		addr = (arch_addr_t)(uintptr_t)rlm.l_next;
 		if (rlm.l_name == 0) {
 			debug(2, "Name of mapped library is NULL");
 			return;
@@ -474,8 +474,8 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 
 		char lib_name[BUFSIZ];
 		/* XXX The double cast should be removed when
-		 * target_address_t becomes integral type.  */
-		umovebytes(proc, (target_address_t)(uintptr_t)rlm.l_name,
+		 * arch_addr_t becomes integral type.  */
+		umovebytes(proc, (arch_addr_t)(uintptr_t)rlm.l_name,
 			   lib_name, sizeof(lib_name));
 
 		if (*lib_name == '\0') {
@@ -512,7 +512,7 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 /* A struct stored at proc->debug.  */
 struct debug_struct
 {
-	target_address_t debug_addr;
+	arch_addr_t debug_addr;
 	int state;
 };
 
@@ -561,7 +561,7 @@ rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 }
 
 int
-linkmap_init(struct Process *proc, target_address_t dyn_addr)
+linkmap_init(struct Process *proc, arch_addr_t dyn_addr)
 {
 	debug(DEBUG_FUNCTION, "linkmap_init()");
 
@@ -590,8 +590,8 @@ linkmap_init(struct Process *proc, target_address_t dyn_addr)
 	}
 
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
-	target_address_t addr = (target_address_t)(uintptr_t)rdbg.r_brk;
+	 * arch_addr_t becomes integral type.  */
+	arch_addr_t addr = (arch_addr_t)(uintptr_t)rdbg.r_brk;
 	if (arch_translate_address_dyn(proc, addr, &addr) < 0)
 		goto fail;
 

@@ -86,8 +86,8 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		goto fail;
 
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
-	target_address_t taddr = (target_address_t)
+	 * arch_addr_t becomes integral type.  */
+	arch_addr_t taddr = (arch_addr_t)
 		(uintptr_t)(addr + lte->bias);
 
 	if (library_symbol_init(libsym, taddr, name, 1, LS_TOPLT_EXEC) < 0) {
@@ -575,7 +575,7 @@ populate_plt(struct Process *proc, const char *filename,
  * each address, and replace name in libsym with a shorter variant if
  * we find it.  */
 struct unique_symbol {
-	target_address_t addr;
+	arch_addr_t addr;
 	struct library_symbol *libsym;
 };
 
@@ -644,9 +644,9 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		if (!filter_matches_symbol(options.static_filter, name, lib))
 			continue;
 
-		target_address_t addr = (target_address_t)
+		arch_addr_t addr = (arch_addr_t)
 			(uintptr_t)(sym.st_value + lte->bias);
-		target_address_t naddr;
+		arch_addr_t naddr;
 
 		/* On arches that support OPD, the value of typical
 		 * function symbol will be a pointer to .opd, but some
@@ -766,18 +766,18 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 	}
 
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
-	target_address_t entry = (target_address_t)(uintptr_t)lte.entry_addr;
+	 * arch_addr_t becomes integral type.  */
+	arch_addr_t entry = (arch_addr_t)(uintptr_t)lte.entry_addr;
 	if (arch_translate_address(&lte, entry, &entry) < 0)
 		goto fail;
 
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
-	lib->base = (target_address_t)(uintptr_t)lte.base_addr;
+	 * arch_addr_t becomes integral type.  */
+	lib->base = (arch_addr_t)(uintptr_t)lte.base_addr;
 	lib->entry = entry;
 	/* XXX The double cast should be removed when
-	 * target_address_t becomes integral type.  */
-	lib->dyn_addr = (target_address_t)(uintptr_t)lte.dyn_addr;
+	 * arch_addr_t becomes integral type.  */
+	lib->dyn_addr = (arch_addr_t)(uintptr_t)lte.dyn_addr;
 
 	if (filter_matches_library(options.plt_filter, lib)
 	    && populate_plt(proc, filename, &lte, lib) < 0)

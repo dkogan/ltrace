@@ -47,12 +47,12 @@
 # define XSP (4 * UESP)
 #endif
 
-static target_address_t
-conv_32(target_address_t val)
+static arch_addr_t
+conv_32(arch_addr_t val)
 {
-	/* XXX Drop the multiple double casts when target_address_t
+	/* XXX Drop the multiple double casts when arch_addr_t
 	 * becomes integral.  */
-	return (target_address_t)(uintptr_t)(uint32_t)(uintptr_t)val;
+	return (arch_addr_t)(uintptr_t)(uint32_t)(uintptr_t)val;
 }
 
 void *
@@ -65,7 +65,7 @@ get_instruction_pointer(struct Process *proc)
 }
 
 void
-set_instruction_pointer(struct Process *proc, target_address_t addr)
+set_instruction_pointer(struct Process *proc, arch_addr_t addr)
 {
 	if (proc->e_machine == EM_386)
 		addr = conv_32(addr);
@@ -82,9 +82,9 @@ get_stack_pointer(struct Process *proc)
 		return NULL;
 	}
 
-	/* XXX Drop the multiple double casts when target_address_t
+	/* XXX Drop the multiple double casts when arch_addr_t
 	 * becomes integral.  */
-	target_address_t ret = (target_address_t)(uintptr_t)sp;
+	arch_addr_t ret = (arch_addr_t)(uintptr_t)sp;
 	if (proc->e_machine == EM_386)
 		ret = conv_32(ret);
 	return ret;
@@ -100,9 +100,9 @@ get_return_addr(struct Process *proc, void *sp)
 		return NULL;
 	}
 
-	/* XXX Drop the multiple double casts when target_address_t
+	/* XXX Drop the multiple double casts when arch_addr_t
 	 * becomes integral.  */
-	target_address_t ret = (target_address_t)(uintptr_t)a;
+	arch_addr_t ret = (arch_addr_t)(uintptr_t)a;
 	if (proc->e_machine == EM_386)
 		ret = conv_32(ret);
 	return ret;

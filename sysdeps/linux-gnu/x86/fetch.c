@@ -592,14 +592,14 @@ arch_fetch_retval_32(struct fetch_context *context, enum tof type,
 	abort();
 }
 
-static target_address_t
+static arch_addr_t
 fetch_stack_pointer(struct fetch_context *context)
 {
-	target_address_t sp;
+	arch_addr_t sp;
 #ifdef __x86_64__
-	sp = (target_address_t)context->iregs.rsp;
+	sp = (arch_addr_t)context->iregs.rsp;
 #else
-	sp = (target_address_t)context->iregs.esp;
+	sp = (arch_addr_t)context->iregs.esp;
 #endif
 	return sp;
 }

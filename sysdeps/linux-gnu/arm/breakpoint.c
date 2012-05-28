@@ -95,7 +95,7 @@ int
 arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp)
 {
 	/* XXX That uintptr_t cast is there temporarily until
-	 * target_address_t becomes integral type.  */
+	 * arch_addr_t becomes integral type.  */
 	int thumb_mode = ((uintptr_t)sbp->addr) & 1;
 	if (thumb_mode)
 		sbp->addr = (void *)((uintptr_t)sbp->addr & ~1);

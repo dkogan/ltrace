@@ -782,7 +782,7 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 			 * reason for the re-enablement.  In that case
 			 * handle it.  */
 			if (event->type == EVENT_BREAKPOINT) {
-				target_address_t ip
+				arch_addr_t ip
 					= get_instruction_pointer(task);
 				struct breakpoint *other
 					= address2bpstruct(leader, ip);

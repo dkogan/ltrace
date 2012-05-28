@@ -99,7 +99,7 @@ struct Process {
 	/* Dictionary of breakpoints (which is a mapping
 	 * address->breakpoint).  This is NULL for non-leader
 	 * processes.  XXX note that we store addresses (keys) by
-	 * value.  That assumes that target_address_t fits in host
+	 * value.  That assumes that arch_addr_t fits in host
 	 * pointer.  */
 	Dict * breakpoints;
 

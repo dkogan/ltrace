@@ -94,14 +94,14 @@ syscall_p(Process *proc, int status, int *sysnum) {
 #define BRANCH_MASK 0xfc000000
 
 /* In plt.h.  XXX make this official interface.  */
-int read_target_4(struct Process *proc, target_address_t addr, uint32_t *lp);
+int read_target_4(struct Process *proc, arch_addr_t addr, uint32_t *lp);
 
 int
 arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 		       int (*add_cb)(void *addr, void *data),
 		       void *add_cb_data)
 {
-	target_address_t ip = get_instruction_pointer(proc);
+	arch_addr_t ip = get_instruction_pointer(proc);
 	struct breakpoint *other = address2bpstruct(proc->leader, ip);
 
 	debug(1, "arch_atomic_singlestep pid=%d addr=%p %s(%p)",
@@ -129,7 +129,7 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 	debug(1, "singlestep over atomic block at %p", ip);
 
 	int insn_count;
-	target_address_t addr = ip;
+	arch_addr_t addr = ip;
 	for (insn_count = 0; ; ++insn_count) {
 		addr += 4;
 		unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
@@ -149,7 +149,7 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 			int absolute = insn & 2;
 
 			/* XXX drop the following casts.  */
-			target_address_t branch_addr;
+			arch_addr_t branch_addr;
 			if (absolute)
 				branch_addr = (void *)(uintptr_t)immediate;
 			else

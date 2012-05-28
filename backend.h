@@ -22,6 +22,8 @@
 #define BACKEND_H
 
 #include "forward.h"
+#include "sysdep.h"
+
 #include <gelf.h>
 
 enum process_status {
@@ -32,8 +34,6 @@ enum process_status {
 	ps_zombie,
 	ps_other,	/* Necessary other states can be added as needed.  */
 };
-
-typedef void *target_address_t;
 
 /*
  * This file contains documentation of back end interface.  Some of
@@ -93,7 +93,7 @@ void get_arch_dep(struct Process *proc);
  * XXX note that the IP must fit into an arch pointer.  This prevents
  * us to use 32-bit ltrace to trace 64-bit process, even on arches
  * that would otherwise support this.  Above we have a definition of
- * target_address_t.  This should be converted to an integral type and
+ * arch_addr_t.  This should be converted to an integral type and
  * used for target addresses throughout.  */
 void *get_instruction_pointer(struct Process *proc);
 
@@ -183,7 +183,7 @@ void *sym2addr(struct Process *proc, struct library_symbol *sym);
 /* Called at some point after we have attached to PROC.  This callback
  * should insert an introspection breakpoint for handling dynamic
  * linker library loads.  */
-int linkmap_init(struct Process *proc, target_address_t dyn_addr);
+int linkmap_init(struct Process *proc, arch_addr_t dyn_addr);
 
 /* Called for breakpoints defined over an artificial symbol "".  This
  * can be used (like it is on Linux/GNU) to add more breakpoints
@@ -240,8 +240,8 @@ int arch_process_exec(struct Process *proc);
  * otherwise.  Sets *ENTRYP and *INTERP_BIASP to non-zero values if
  * the corresponding value is known.  Unknown values are set to 0.  */
 int process_get_entry(struct Process *proc,
-		      target_address_t *entryp,
-		      target_address_t *interp_biasp);
+		      arch_addr_t *entryp,
+		      arch_addr_t *interp_biasp);
 
 /* This is called after the dynamic linker is done with the
  * process startup.  */
