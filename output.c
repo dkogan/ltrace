@@ -546,12 +546,12 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 		value_init(&retval, proc, NULL, func->return_info, 0);
 		own_retval = 1;
 		if (fetch_retval(context, type, proc, func->return_info,
-				 &retval) == 0) {
-			if (stel->arguments != NULL
-			    && val_dict_push_named(stel->arguments, &retval,
-						   "retval", 0) == 0)
-				own_retval = 0;
-		}
+				 &retval) < 0)
+			value_set_type(&retval, NULL, 0);
+		else if (stel->arguments != NULL
+			   && val_dict_push_named(stel->arguments, &retval,
+						  "retval", 0) == 0)
+			own_retval = 0;
 	}
 
 	if (stel->arguments != NULL)
