@@ -22,6 +22,7 @@
 #define BREAKPOINT_LENGTH 2
 #define DECR_PC_AFTER_BREAK 2
 #define ARCH_ENDIAN_BIG
+#define ARCH_HAVE_FETCH_ARG
 
 #ifdef __s390x__
 #define LT_ELFCLASS	ELFCLASS64
