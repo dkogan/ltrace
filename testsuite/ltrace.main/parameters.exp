@@ -135,3 +135,9 @@ ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
 set pattern "func_charp_string(\\\"null-terminated string\\\")"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_dbl_eqv({ 2.500* }, { { 1.50* } }, { { { 0.50* } } }, { { { { -0.50* } } } }).*= { 4.00* }"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+
+set pattern "func_flt_eqv({ 2.500* }, { { 1.50* } }, { { { 0.50* } } }, { { { { -0.50* } } } }).*= { 4.00* }"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1

@@ -218,5 +218,29 @@ main ()
   void func_charp_string(char *p);
   func_charp_string("null-terminated string");
 
+  struct dbl_eqv1 { double d; };
+  struct dbl_eqv2 { struct dbl_eqv1 d; };
+  struct dbl_eqv3 { struct dbl_eqv2 d; };
+  struct dbl_eqv4 { struct dbl_eqv3 d; };
+
+  struct flt_eqv1 { float d; };
+  struct flt_eqv2 { struct flt_eqv1 d; };
+  struct flt_eqv3 { struct flt_eqv2 d; };
+  struct flt_eqv4 { struct flt_eqv3 d; };
+
+  struct dbl_eqv1 func_dbl_eqv(struct dbl_eqv1 a, struct dbl_eqv2 b,
+			       struct dbl_eqv3 c, struct dbl_eqv4 d);
+  func_dbl_eqv((struct dbl_eqv1){ 2.5 },
+	       (struct dbl_eqv2){ { 1.5 } },
+	       (struct dbl_eqv3){ { { 0.5 } } },
+	       (struct dbl_eqv4){ { { { -0.5 } } } });
+
+  struct flt_eqv1 func_flt_eqv(struct flt_eqv1 a, struct flt_eqv2 b,
+			       struct flt_eqv3 c, struct flt_eqv4 d);
+  func_flt_eqv((struct flt_eqv1){ 2.5 },
+	       (struct flt_eqv2){ { 1.5 } },
+	       (struct flt_eqv3){ { { 0.5 } } },
+	       (struct flt_eqv4){ { { { -0.5 } } } });
+
   return 0;
 }
