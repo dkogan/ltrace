@@ -41,6 +41,16 @@ struct fetch_context {
 };
 
 static int
+s390x(struct fetch_context *ctx)
+{
+#ifdef __s390x__
+	if ((ctx->regs.psw.mask & 0x180000000UL) == 0x180000000UL)
+		return 1;
+#endif
+	return 0;
+}
+
+static int
 fp_equivalent(struct arg_type_info *info)
 {
 	switch (info->type) {
@@ -105,7 +115,8 @@ arch_fetch_arg_init(enum tof type, struct Process *proc,
 		return NULL;
 	}
 
-	context->stack_pointer = get_stack_pointer(proc) + 160;
+	context->stack_pointer = get_stack_pointer(proc)
+		+ (s390x(context) ? 160 : 96);
 	if (ret_info->type == ARGTYPE_STRUCT)
 		++context->greg;
 
@@ -127,23 +138,30 @@ static int
 allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
+	/* Note: when here, we shouldn't see composite types, those
+	 * are passed by reference, which is handled below.  Here we
+	 * only deal with integers, floats, etc.  */
+
 	size_t sz = type_sizeof(proc, info);
 	if (sz == (size_t)-1)
 		return -1;
-	size_t a = type_alignof(proc, info);
-	if (a < 8)
-		a = 8;
-	size_t off = sz < a ? a - sz : 0;
 
-	/* XXX Remove the two double casts when arch_addr_t
-	 * becomes integral type.  */
-	uintptr_t tmp = align((uint64_t)(uintptr_t)ctx->stack_pointer, a);
-	ctx->stack_pointer = (arch_addr_t)tmp;
+	size_t a;
+	if (s390x(ctx)) {
+		assert(sz <= 8);
+		a = 8;
+	} else {
+		/* Note: double is 8 bytes.  */
+		assert(sz <= 8);
+		a = 4;
+	}
+
+	size_t off = sz < a ? a - sz : 0;
 
 	valuep->where = VAL_LOC_INFERIOR;
 	valuep->u.address = ctx->stack_pointer + off;
 
-	ctx->stack_pointer += sz;
+	ctx->stack_pointer += sz > a ? sz : a;
 	return 0;
 }
 
@@ -168,7 +186,19 @@ static int
 allocate_fpr(struct fetch_context *ctx, struct Process *proc,
 	     struct arg_type_info *info, struct value *valuep)
 {
-	if (ctx->freg > 6)
+	/* +--------+--------+--------+
+	 * | PSW.31 | PSW.32 | mode   |
+	 * +--------+--------+--------+
+	 * | 0      | 0      | 24-bit |
+	 * | 0      | 1      | 31-bit |
+	 * | 1      | 1      | 64-bit |
+	 * +--------+--------+--------+
+	 * (Note: The leftmost bit is PSW.0, rightmost PSW.63.)
+	 */
+
+	int pool = s390x(ctx) ? 6 : 2;
+
+	if (ctx->freg > pool)
 		return allocate_stack_slot(ctx, proc, info, valuep);
 
 	size_t sz = type_sizeof(proc, info);
@@ -190,6 +220,11 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 		    struct Process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
+	/* XXX structures<4 bytes on s390 and structures<8 bytes on
+	 * s390x are passed in register.  On s390, long long and
+	 * structures<8 bytes are passed in two consecutive
+	 * registers (if two are available).  */
+
 	switch (info->type) {
 	case ARGTYPE_VOID:
 		value_set_word(valuep, 0);
