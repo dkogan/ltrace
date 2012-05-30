@@ -43,6 +43,16 @@ struct fetch_context {
 static int
 s390x(struct fetch_context *ctx)
 {
+	/* +--------+--------+--------+
+	 * | PSW.31 | PSW.32 | mode   |
+	 * +--------+--------+--------+
+	 * | 0      | 0      | 24-bit | Not supported in Linux
+	 * | 0      | 1      | 31-bit | s390 compatible mode
+	 * | 1      | 1      | 64-bit | z/Architecture, "s390x"
+	 * +--------+--------+--------+
+	 * (Note: The leftmost bit is PSW.0, rightmost PSW.63.)
+	 */
+
 #ifdef __s390x__
 	if ((ctx->regs.psw.mask & 0x180000000UL) == 0x180000000UL)
 		return 1;
@@ -186,15 +196,6 @@ static int
 allocate_fpr(struct fetch_context *ctx, struct Process *proc,
 	     struct arg_type_info *info, struct value *valuep)
 {
-	/* +--------+--------+--------+
-	 * | PSW.31 | PSW.32 | mode   |
-	 * +--------+--------+--------+
-	 * | 0      | 0      | 24-bit |
-	 * | 0      | 1      | 31-bit |
-	 * | 1      | 1      | 64-bit |
-	 * +--------+--------+--------+
-	 * (Note: The leftmost bit is PSW.0, rightmost PSW.63.)
-	 */
 
 	int pool = s390x(ctx) ? 6 : 2;
 
