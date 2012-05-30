@@ -250,11 +250,6 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	if (sz == (size_t)-1)
 		return -1;
 
-	/* XXX structures<4 bytes on s390 and structures<8 bytes on
-	 * s390x are passed in register.  On s390, long long and
-	 * structures<8 bytes are passed in two consecutive
-	 * registers (if two are available).  */
-
 	switch (info->type) {
 	case ARGTYPE_VOID:
 		value_set_word(valuep, 0);
@@ -267,11 +262,16 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	case ARGTYPE_DOUBLE:
 			return allocate_fpr(ctx, proc, info, valuep, sz);
 
-		/* Small structures are passed in registers.  */
+		/* Structures<4 bytes on s390 and structures<8 bytes
+		 * on s390x are passed in register.  On s390, long
+		 * long and structures<8 bytes are passed in two
+		 * consecutive registers (if two are available).  */
+
 		if (sz <= (s390x(ctx) ? 8 : 4))
 			return allocate_gpr(ctx, proc, info, valuep, sz);
 		else if (sz <= 8)
 			return allocate_gpr_pair(ctx, proc, info, valuep, sz);
+
 		/* fall through */
 
 	case ARGTYPE_ARRAY:
