@@ -1,24 +1,38 @@
 /*
-** S390 specific part of trace.c
-**
-** Other routines are in ../trace.c and need to be combined
-** at link time with this code.
-**
-** Copyright (C) 2001,2005 IBM Corp.
-*/
+ * This file is part of ltrace.
+ * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2001,2005 IBM Corp.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ */
 
 #include "config.h"
 
-#include <errno.h>
-#include <stdlib.h>
+#include <asm/ptrace.h>
+#include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <assert.h>
+#include <errno.h>
 #include <signal.h>
-#include <sys/ptrace.h>
-#include <asm/ptrace.h>
+#include <stdlib.h>
 
-#include "proc.h"
 #include "common.h"
+#include "proc.h"
+#include "type.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -200,4 +214,84 @@ gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
 		ret &= 0xffffffff;
 #endif
 	return ret;
+}
+
+size_t
+arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
+{
+	if (proc == NULL)
+		return (size_t)-2;
+
+	switch (info->type) {
+	case ARGTYPE_VOID:
+		return 0;
+
+	case ARGTYPE_CHAR:
+		return 1;
+
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+		return 2;
+
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+		return 4;
+
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+		return proc->e_class == ELFCLASS64 ? 8 : 4;
+
+	case ARGTYPE_FLOAT:
+		return 4;
+	case ARGTYPE_DOUBLE:
+		return 8;
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		/* Use default value.  */
+		return (size_t)-2;
+	}
+	assert(info->type != info->type);
+	abort();
+}
+
+size_t
+arch_type_alignof(struct Process *proc, struct arg_type_info *info)
+{
+	if (proc == NULL)
+		return (size_t)-2;
+
+	switch (info->type) {
+	case ARGTYPE_VOID:
+		assert(info->type != ARGTYPE_VOID);
+		break;
+
+	case ARGTYPE_CHAR:
+		return 1;
+
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+		return 2;
+
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+		return 4;
+
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+		return proc->e_class == ELFCLASS64 ? 8 : 4;
+
+	case ARGTYPE_FLOAT:
+		return 4;
+	case ARGTYPE_DOUBLE:
+		return 8;
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		/* Use default value.  */
+		return (size_t)-2;
+	}
+	abort();
 }
