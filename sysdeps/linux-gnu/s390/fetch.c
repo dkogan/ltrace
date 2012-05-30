@@ -146,15 +146,12 @@ arch_fetch_arg_clone(struct Process *proc,
 
 static int
 allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
-		    struct arg_type_info *info, struct value *valuep)
+		    struct arg_type_info *info, struct value *valuep,
+		    size_t sz)
 {
 	/* Note: when here, we shouldn't see composite types, those
 	 * are passed by reference, which is handled below.  Here we
 	 * only deal with integers, floats, etc.  */
-
-	size_t sz = type_sizeof(proc, info);
-	if (sz == (size_t)-1)
-		return -1;
 
 	size_t a;
 	if (s390x(ctx)) {
@@ -183,10 +180,11 @@ copy_gpr(struct fetch_context *ctx, struct value *valuep, int regno)
 
 static int
 allocate_gpr(struct fetch_context *ctx, struct Process *proc,
-	     struct arg_type_info *info, struct value *valuep)
+	     struct arg_type_info *info, struct value *valuep,
+	     size_t sz)
 {
 	if (ctx->greg > 6)
-		return allocate_stack_slot(ctx, proc, info, valuep);
+		return allocate_stack_slot(ctx, proc, info, valuep, sz);
 
 	copy_gpr(ctx, valuep, ctx->greg++);
 	return 0;
@@ -194,17 +192,13 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 
 static int
 allocate_fpr(struct fetch_context *ctx, struct Process *proc,
-	     struct arg_type_info *info, struct value *valuep)
+	     struct arg_type_info *info, struct value *valuep,
+	     size_t sz)
 {
-
 	int pool = s390x(ctx) ? 6 : 2;
 
 	if (ctx->freg > pool)
-		return allocate_stack_slot(ctx, proc, info, valuep);
-
-	size_t sz = type_sizeof(proc, info);
-	if (sz == (size_t)-1)
-		return -1;
+		return allocate_stack_slot(ctx, proc, info, valuep, sz);
 
 	if (value_reserve(valuep, sz) == NULL)
 		return -1;
@@ -221,6 +215,10 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 		    struct Process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
+	size_t sz = type_sizeof(proc, info);
+	if (sz == (size_t)-1)
+		return -1;
+
 	/* XXX structures<4 bytes on s390 and structures<8 bytes on
 	 * s390x are passed in register.  On s390, long long and
 	 * structures<8 bytes are passed in two consecutive
@@ -237,10 +235,10 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
-			return allocate_fpr(ctx, proc, info, valuep);
+			return allocate_fpr(ctx, proc, info, valuep, sz);
 
 		if (type_sizeof(proc, info) < 8)
-			return allocate_gpr(ctx, proc, info,valuep);
+			return allocate_gpr(ctx, proc, info, valuep, sz);
 		/* fall through */
 
 	case ARGTYPE_ARRAY:
@@ -256,7 +254,7 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	case ARGTYPE_SHORT:
 	case ARGTYPE_USHORT:
 	case ARGTYPE_POINTER:
-		return allocate_gpr(ctx, proc, info, valuep);
+		return allocate_gpr(ctx, proc, info, valuep, sz);
 	}
 	return -1;
 }
