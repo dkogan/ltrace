@@ -265,3 +265,39 @@ func_flt_eqv(struct flt_eqv1 a, struct flt_eqv2 b,
 {
 	return (struct flt_eqv1){ a.d + b.d.d + c.d.d.d + d.d.d.d.d };
 }
+
+struct struct_empty {};
+struct struct_size1 { char a; };
+struct struct_size2 { short a; };
+struct struct_size4 { int a; };
+struct struct_size8 { int a; int b; };
+
+struct struct_empty
+func_struct_empty(struct struct_empty e)
+{
+	return e;
+}
+
+struct struct_size1
+func_struct_size1(struct struct_size1 e)
+{
+	return e;
+}
+
+struct struct_size2
+func_struct_size2(struct struct_size2 e)
+{
+	return e;
+}
+
+struct struct_size4
+func_struct_size4(struct struct_size4 e)
+{
+	return e;
+}
+
+struct struct_size8
+func_struct_size8(struct struct_size8 e)
+{
+	return e;
+}

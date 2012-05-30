@@ -242,5 +242,25 @@ main ()
 	       (struct flt_eqv3){ { { 0.5 } } },
 	       (struct flt_eqv4){ { { { -0.5 } } } });
 
+  struct struct_empty {};
+  struct struct_empty func_struct_empty(struct struct_empty e);
+  func_struct_empty((struct struct_empty) {});
+
+  struct struct_size1 { char a; };
+  struct struct_size1 func_struct_size1(struct struct_size1 e);
+  func_struct_size1((struct struct_size1){ '5' });
+
+  struct struct_size2 { short a; };
+  struct struct_size2 func_struct_size2(struct struct_size2 e);
+  func_struct_size2((struct struct_size2){ 5 });
+
+  struct struct_size4 { int a; };
+  struct struct_size4 func_struct_size4(struct struct_size4 e);
+  func_struct_size4((struct struct_size4){ 5 });
+
+  struct struct_size8 { int a; int b; };
+  struct struct_size8 func_struct_size8(struct struct_size8 e);
+  func_struct_size8((struct struct_size8){ 5, 6 });
+
   return 0;
 }
