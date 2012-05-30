@@ -121,7 +121,15 @@ struct Process {
 	void * stack_pointer;      /* To get return addr, args... */
 	void * return_addr;
 	void * arch_ptr;
+
+	/* XXX We would like to replace this with a pointer to ABI
+	 * object that would provide the relevant services, instead of
+	 * checking the necessary flags in the back end ad
+	 * nauseam.  */
 	short e_machine;
+	char e_class;
+
+	/* XXX this shoudl go to ARM's arch_process_data.  */
 #ifdef __arm__
 	int thumb_mode;           /* ARM execution mode: 0: ARM, 1: Thumb */
 #endif

@@ -736,6 +736,7 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 	}
 
 	proc->e_machine = lte.ehdr.e_machine;
+	proc->e_class = lte.ehdr.e_ident[EI_CLASS];
 
 	int status = 0;
 	if (lib == NULL)
