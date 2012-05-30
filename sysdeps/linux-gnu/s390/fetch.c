@@ -149,9 +149,9 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 		    struct arg_type_info *info, struct value *valuep,
 		    size_t sz)
 {
-	/* Note: when here, we shouldn't see composite types, those
+	/* Note: here we shouldn't see large composite types, those
 	 * are passed by reference, which is handled below.  Here we
-	 * only deal with integers, floats, etc.  */
+	 * only deal with integers, floats, small structs, etc.  */
 
 	size_t a;
 	if (s390x(ctx)) {
@@ -187,6 +187,37 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 		return allocate_stack_slot(ctx, proc, info, valuep, sz);
 
 	copy_gpr(ctx, valuep, ctx->greg++);
+	return 0;
+}
+
+static int
+allocate_gpr_pair(struct fetch_context *ctx, struct Process *proc,
+		  struct arg_type_info *info, struct value *valuep,
+		  size_t sz)
+{
+	assert(!s390x(ctx));
+	assert(sz <= 8);
+
+	if (ctx->greg > 5) {
+		ctx->greg = 7;
+		return allocate_stack_slot(ctx, proc, info, valuep, sz);
+	}
+
+	if (value_reserve(valuep, sz) == NULL)
+		return -1;
+
+	unsigned char *ptr = value_get_raw_data(valuep);
+	union {
+		struct {
+			uint32_t a;
+			uint32_t b;
+		};
+		unsigned char buf[8];
+	} u;
+	u.a = ctx->regs.gprs[ctx->greg++];
+	u.b = ctx->regs.gprs[ctx->greg++];
+	memcpy(ptr, u.buf, sz);
+
 	return 0;
 }
 
@@ -232,13 +263,15 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	case ARGTYPE_STRUCT:
 		if (fp_equivalent(info))
 			/* fall through */
-
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
 			return allocate_fpr(ctx, proc, info, valuep, sz);
 
-		if (type_sizeof(proc, info) < 8)
+		/* Small structures are passed in registers.  */
+		if (sz <= (s390x(ctx) ? 8 : 4))
 			return allocate_gpr(ctx, proc, info, valuep, sz);
+		else if (sz <= 8)
+			return allocate_gpr_pair(ctx, proc, info, valuep, sz);
 		/* fall through */
 
 	case ARGTYPE_ARRAY:
