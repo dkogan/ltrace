@@ -174,48 +174,6 @@ syscall_p(Process *proc, int status, int *sysnum) {
 	return 0;
 }
 
-long
-gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
-{
-	long ret;
-
-	switch (arg_num) {
-	case -1:		/* return value */
-		ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_GPR2, 0);
-		break;
-	case 0:
-		ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_ORIGGPR2, 0);
-		break;
-	case 1:
-		ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_GPR3, 0);
-		break;
-	case 2:
-		ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_GPR4, 0);
-		break;
-	case 3:
-		ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_GPR5, 0);
-		break;
-	case 4:
-		ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_GPR6, 0);
-		break;
-	default:
-		/*Rest of the params saved in stack */
-		if (arg_num >= 5) {
-			ret = ptrace(PTRACE_PEEKUSER, proc->pid,
-				     proc->stack_pointer + 96 +
-				     4 * (arg_num - 5), 0);
-		} else {
-			fprintf(stderr, "gimme_arg called with wrong arguments\n");
-			exit(2);
-		}
-	}
-#ifdef __s390x__
-	if (proc->mask_32bit)
-		ret &= 0xffffffff;
-#endif
-	return ret;
-}
-
 size_t
 arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
 {
