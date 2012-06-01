@@ -32,6 +32,9 @@ if [regexp {ELF from incompatible architecture} $exec_output] {
 } elseif [ regexp {Couldn't get .hash data} $exec_output ] {
 	fail "Couldn't get .hash data!"
 	return
+} elseif [ regexp {invalid option} $exec_output ] {
+	unsupported "Demangle support not compiled in."
+	return
 }
 
 # read function declarations from demangle.cpp and verify them in demangle.ltrace.
