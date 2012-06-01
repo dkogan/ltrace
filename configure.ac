@@ -82,6 +82,14 @@ AC_CHECK_LIB([supc++], [__cxa_demangle], [
 AC_SUBST(libsupcxx_LIBS)
 
 
+# HAVE_LIBSTDC__
+AC_CHECK_LIB([stdc++], [__cxa_demangle], [
+	AC_DEFINE([HAVE_LIBSTDC__], [1], [we have libstdc++])
+	libstdcxx_LIBS="-lstdc++"], [
+	libstdcxx_LIBS=""])
+AC_SUBST(libstdcxx_LIBS)
+
+
 dnl Check security_get_boolean_active availability.
 AC_CHECK_HEADERS(selinux/selinux.h)
 AC_CHECK_LIB(selinux, security_get_boolean_active)
