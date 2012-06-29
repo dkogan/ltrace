@@ -189,17 +189,18 @@ This reads: trace malloc and free, but don't trace anything that comes
 from libc.  Semi-formally, the syntax of the above example looks
 approximately like this:
 
-{[+-][\fIsymbol pattern\fR][@\fIlibrary pattern\fR]}
+{[+-][\fIsymbol_pattern\fR][@\fIlibrary_pattern\fR]}
 
-\fISymbol pattern\fR is used to match symbol names, \fIlibrary
-pattern\fR to match library SONAMEs.  Both are implicitly globs, but
-can be regular expressions as well (see below).  The glob syntax
-supports meta-characters \fB*\fR and \fB?\fR and character classes,
-similarly to what basic bash globs support.  \fB^\fR and \fB$\fR are
-recognized to mean, respectively, start and end of given name.
+\fISymbol_pattern\fR is used to match symbol names,
+\fIlibrary_pattern\fR to match library SONAMEs.  Both are implicitly
+globs, but can be regular expressions as well (see below).  The glob
+syntax supports meta-characters \fB*\fR and \fB?\fR and character
+classes, similarly to what basic bash globs support.  \fB^\fR and
+\fB$\fR are recognized to mean, respectively, start and end of given
+name.
 
-Both \fIsymbol pattern\fR and \fIlibrary pattern\fR have to match the
-whole name.  If you want to match only a part of name, surround it
+Both \fIsymbol_pattern\fR and \fIlibrary_pattern\fR have to match the
+whole name.  If you want to match only part of the name, surround it
 with one or two *'s as appropriate.  The exception is if the pattern
 is not mentioned at all, in which case it's as if the corresponding
 pattern were \fB*\fR.  (So \fBmalloc\fR is really \fBmalloc@*\fR and
@@ -227,10 +228,10 @@ there was another rule \fB@*\fR in front of it.
 
 The above rules are used to construct the set of traced symbols.  Each
 candidate symbol is passed through the chain of above rules.
-Initially, the symbol is \fIunmarked\fR.  If it symbol matches a
-\fB+\fR rule, it becomes \fImarked\fR, if it matches a \fB-\fR rule,
-it becomes \fIunmarked\fR.  If, after applying all rules, the symbol
-is \fImarked\fR, it will be traced.
+Initially, the symbol is \fIunmarked\fR.  If it matches a \fB+\fR
+rule, it becomes \fImarked\fR, if it matches a \fB-\fR rule, it
+becomes \fIunmarked\fR again.  If, after applying all rules, the
+symbol is \fImarked\fR, it will be traced.
 
 .SH BUGS
 It has most of the bugs stated in
