@@ -12,7 +12,7 @@ AC_CANONICAL_HOST
 
 case "${host_os}" in
     linux-gnu*)	HOST_OS="linux-gnu" ;;
-    *)		AC_MSG_ERROR([unkown host-os ${host_osx}]) ;;
+    *)		AC_MSG_ERROR([unkown host-os ${host_os}]) ;;
 esac
 AC_SUBST(HOST_OS)
 
