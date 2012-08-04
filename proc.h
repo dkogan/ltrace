@@ -25,6 +25,8 @@
 
 #include "config.h"
 
+#include <sys/time.h>
+
 #if defined(HAVE_LIBUNWIND)
 # include <libunwind.h>
 #endif /* defined(HAVE_LIBUNWIND) */
