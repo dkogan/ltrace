@@ -1,7 +1,9 @@
 #include "config.h"
 
 #include <assert.h>
+#ifdef	__linux__
 #include <endian.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
