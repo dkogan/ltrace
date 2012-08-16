@@ -207,6 +207,7 @@ static void
 private_library_init(struct library *lib, enum library_type type)
 {
 	lib->next = NULL;
+	lib->key = NULL;
 	lib->soname = NULL;
 	lib->own_soname = 0;
 	lib->pathname = NULL;
