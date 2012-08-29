@@ -1,10 +1,6 @@
 #ifndef _DEBUG_H
 #define _DEBUG_H
 
-#ifdef	__linux__
-#include <features.h>
-#endif
-
 /* debug levels:
  */
 enum {
