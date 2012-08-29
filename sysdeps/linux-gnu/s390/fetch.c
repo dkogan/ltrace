@@ -61,35 +61,6 @@ s390x(struct fetch_context *ctx)
 }
 
 static int
-fp_equivalent(struct arg_type_info *info)
-{
-	switch (info->type) {
-	case ARGTYPE_VOID:
-	case ARGTYPE_INT:
-	case ARGTYPE_UINT:
-	case ARGTYPE_LONG:
-	case ARGTYPE_ULONG:
-	case ARGTYPE_CHAR:
-	case ARGTYPE_SHORT:
-	case ARGTYPE_USHORT:
-	case ARGTYPE_ARRAY:
-	case ARGTYPE_POINTER:
-		return 0;
-
-	case ARGTYPE_FLOAT:
-	case ARGTYPE_DOUBLE:
-		return 1;
-
-	case ARGTYPE_STRUCT:
-		if (type_struct_size(info) != 1)
-			return 0;
-		return fp_equivalent(type_element(info, 0));
-	}
-	assert(info->type != info->type);
-	abort();
-}
-
-static int
 fetch_register_banks(struct Process *proc, struct fetch_context *ctx)
 {
 	ptrace_area parea;
@@ -256,7 +227,7 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 		return 0;
 
 	case ARGTYPE_STRUCT:
-		if (fp_equivalent(info))
+		if (type_get_fp_equivalent(info) != NULL)
 			/* fall through */
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:

@@ -513,3 +513,37 @@ type_is_signed(enum arg_type type)
 	}
 	abort();
 }
+
+struct arg_type_info *
+type_get_fp_equivalent(struct arg_type_info *info)
+{
+	/* Extract innermost structure.  Give up early if any
+	 * component has more than one element.  */
+	while (info->type == ARGTYPE_STRUCT) {
+		if (type_struct_size(info) != 1)
+			return NULL;
+		info = type_element(info, 0);
+	}
+
+	switch (info->type) {
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_UINT:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_VOID:
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_POINTER:
+		return NULL;
+
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+		return info;
+
+	case ARGTYPE_STRUCT:
+		abort();
+	}
+	abort();
+}

@@ -130,4 +130,11 @@ int type_is_integral(enum arg_type type);
 /* Whether TYPE, which shall be integral, is a signed type.  */
 int type_is_signed(enum arg_type type);
 
+/* If INFO is floating point equivalent type, return the corresponding
+ * floating point type.  Otherwise return NULL.  Floating point
+ * equivalent types are either ARGTYPE_FLOAT, or ARGTYPE_DOUBLE, or
+ * ARGTYPE_STRUCT whose sole member is a floating point equivalent
+ * type.  */
+struct arg_type_info *type_get_fp_equivalent(struct arg_type_info *info);
+
 #endif /* TYPE_H */

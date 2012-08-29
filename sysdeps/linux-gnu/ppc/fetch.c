@@ -340,13 +340,30 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 	while (slots-- > 0) {
 		struct value val;
 		value_init(&val, proc, NULL, long_info, 0);
-		int rc = allocate_gpr(ctx, proc, long_info, &val);
+
+		/* Floating point registers [...] are used [...] to
+		   pass [...] one member aggregates passed by value
+		   containing a floating point value[.]  Note that for
+		   one member aggregates, "containing" extends to
+		   aggregates within aggregates ad infinitum.  */
+		int rc;
+		struct arg_type_info *fp_info
+			= type_get_fp_equivalent(valuep->type);
+		if (fp_info != NULL)
+			rc = allocate_float(ctx, proc, fp_info, &val);
+		else
+			rc = allocate_gpr(ctx, proc, long_info, &val);
+
 		if (rc >= 0) {
 			memcpy(ptr, value_get_data(&val, NULL), width);
 			ptr += width;
 		}
 		value_destroy(&val);
-		if (rc < 0)
+
+		/* Bail out if we failed or if we are dealing with
+		 * FP-equivalent.  Those don't need the adjustments
+		 * made below.  */
+		if (rc < 0 || fp_info != NULL)
 			return rc;
 	}
 
