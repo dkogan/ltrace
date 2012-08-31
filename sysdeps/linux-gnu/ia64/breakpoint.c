@@ -2,12 +2,12 @@
  *  -Ian Wienand <ianw@gelato.unsw.edu.au> 10/3/2005
  */
 
-#include "config.h"
-
 #include <sys/ptrace.h>
 #include <string.h>
 #include <assert.h>
-#include "common.h"
+
+#include "breakpoint.h"
+#include "debug.h"
 
 static long long
 extract_bit_field(char *bundle, int from, int len) {

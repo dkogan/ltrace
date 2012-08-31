@@ -1,6 +1,11 @@
 2012-08-31  Petr Machata  <pmachata@redhat.com>
 
 	* sysdeps/linux-gnu/ia64/breakpoint.c (arch_enable_breakpoint):
+	Don't include config.h, common.h.  Include breakpoint.h, debug.h.
+
+2012-08-31  Petr Machata  <pmachata@redhat.com>
+
+	* sysdeps/linux-gnu/ia64/breakpoint.c (arch_enable_breakpoint):
 	Use assert instead of printing an error that should never happen.
 
 2012-08-31  Petr Machata  <pmachata@redhat.com>
