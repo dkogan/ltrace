@@ -63,7 +63,7 @@ READER(read_double, double)
 		int##BITS##_t i = l;					\
 		switch (format) {					\
 		case INT_FMT_unknown:					\
-			if (i < -10000 || i > 10000)			\
+			if (l < -10000 || l > 10000)			\
 		case INT_FMT_x:						\
 			return fprintf(stream, "%#"PRIx##BITS, i);	\
 		case INT_FMT_i:						\
