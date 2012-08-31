@@ -65,15 +65,18 @@ ltrace_LDADD = \
 
 noinst_HEADERS = \
 	backend.h \
+	breakpoint.h \
 	common.h \
 	debug.h \
 	defs.h \
 	demangle.h \
 	dict.h \
+	forward.h \
 	ltrace-elf.h \
 	ltrace.h \
 	options.h \
 	output.h \
+	proc.h \
 	read_config_file.h \
 	library.h \
 	filter.h \
