@@ -6,6 +6,7 @@
 
 #include <sys/ptrace.h>
 #include <string.h>
+#include <assert.h>
 #include "common.h"
 
 static long long
@@ -161,9 +162,7 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 
 	debug(1, "Enable Breakpoint at %p)", sbp->addr);
 
-	if (slotnum > 2)
-		printf
-		    ("Can't insert breakpoint for slot numbers greater than 2.");
+	assert(slotnum <= 2);
 
 	addr &= ~0x0f;
 	bundle.ubundle[0] = ptrace(PTRACE_PEEKTEXT, pid, addr, 0);
