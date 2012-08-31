@@ -1,9 +1,11 @@
-#include "debug.h"
+#include <error.h>
 #include <gelf.h>
 #include <sys/ptrace.h>
-#include <error.h>
-#include "proc.h"
+
 #include "common.h"
+#include "debug.h"
+#include "proc.h"
+#include "library.h"
 
 /**
    \addtogroup mipsel
@@ -34,10 +36,12 @@
 
  */
 GElf_Addr
-arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela) {
-    debug(1,"plt_addr %x ndx %#x",lte->pltgot_addr, ndx);
-    return lte->pltgot_addr +
-		sizeof(void *) * (lte->mips_local_gotno + (ndx - lte->mips_gotsym));
+arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
+{
+    debug(1,"plt_addr %zx ndx %#zx",lte->arch.pltgot_addr, ndx);
+    return lte->arch.pltgot_addr +
+	    sizeof(void *) * (lte->arch.mips_local_gotno
+			      + (ndx - lte->arch.mips_gotsym));
 }
 /**
    \param proc The process to work on.

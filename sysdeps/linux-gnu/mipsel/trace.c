@@ -5,11 +5,14 @@
 #include <signal.h>
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
-#include "debug.h"
-#include "proc.h"
+
+#include "backend.h"
 #include "common.h"
+#include "debug.h"
 #include "mipsel.h"
+#include "proc.h"
 #include "type.h"
+
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
 #endif
