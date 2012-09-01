@@ -593,25 +593,6 @@ handle_breakpoint(Event *event)
 
 	for (i = event->proc->callstack_depth - 1; i >= 0; i--) {
 		if (brk_addr == event->proc->callstack[i].return_addr) {
-#if defined(__mips__)
-			void *addr = NULL;
-			struct library_symbol *sym= event->proc->callstack[i].c_un.libfunc;
-			struct library_symbol *new_sym;
-			assert(sym);
-			addr = sym2addr(event->proc, sym);
-			sbp = dict_find_entry(leader->breakpoints, addr);
-			if (sbp) {
-				if (addr != sbp->addr) {
-					insert_breakpoint(event->proc, addr, sym);
-				}
-			} else {
-				new_sym=malloc(sizeof(*new_sym) + strlen(sym->name) + 1);
-				memcpy(new_sym,sym,sizeof(*new_sym) + strlen(sym->name) + 1);
-				new_sym->next = leader->list_of_symbols;
-				leader->list_of_symbols = new_sym;
-				insert_breakpoint(event->proc, addr, new_sym);
-			}
-#endif
 			for (j = event->proc->callstack_depth - 1; j > i; j--) {
 				callstack_pop(event->proc);
 			}
