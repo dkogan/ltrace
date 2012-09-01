@@ -232,6 +232,7 @@ pending_new_remove(pid_t pid) {
 	debug(DEBUG_FUNCTION, "pending_new_remove(%d)", pid);
 
 	p = pending_news;
+	pred = NULL;
 	if (p->pid == pid) {
 		pending_news = p->next;
 		free(p);
