@@ -1,3 +1,7 @@
+2012-09-01  Petr Machata  <pmachata@redhat.com>
+
+	* sysdeps/linux-gnu/mips/syscallent.h: Update from latest kernel.
+
 2012-08-31  Petr Machata  <pmachata@redhat.com>
 
 	* sysdeps/linux-gnu/ia64/breakpoint.c (arch_enable_breakpoint):

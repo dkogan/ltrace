@@ -328,3 +328,20 @@
 	"dup3",                            /* 327 */
 	"pipe2",                           /* 328 */
 	"inotify_init1",                   /* 329 */
+	"preadv",                          /* 330 */
+	"pwritev",                         /* 331 */
+	"rt_tgsigqueueinfo",               /* 332 */
+	"perf_event_open",                 /* 333 */
+	"accept4",                         /* 334 */
+	"recvmmsg",                        /* 335 */
+	"fanotify_init",                   /* 336 */
+	"fanotify_mark",                   /* 337 */
+	"prlimit64",                       /* 338 */
+	"name_to_handle_at",               /* 339 */
+	"open_by_handle_at",               /* 340 */
+	"clock_adjtime",                   /* 341 */
+	"syncfs",                          /* 342 */
+	"sendmmsg",                        /* 343 */
+	"setns",                           /* 344 */
+	"process_vm_readv",                /* 345 */
+	"process_vm_writev",               /* 346 */
