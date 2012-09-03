@@ -7,7 +7,7 @@ ltrace \- A library call tracer
 
 .SH SYNOPSIS
 .B ltrace
-.I "[-bCfghiLrStttV] [-a column] [-A maxelts] [-D level] [-e expr] [-l filename] [-n nr] [-o filename] [-p pid] ... [-s strsize] [-u username] [-w count] [-X extern] [-x extern] ... [--align=column] [--debug=level] [--demangle] [--help] [--indent=nr] [--library=filename] [--no-signals] [--output=filename] [--version] [--where=NR] [command [arg ...]]"
+.I "[-bCfghiLrStttV] [-a column] [-A maxelts] [-D level] [-e expr] [-l filename] [-n nr] [-o filename] [-p pid] ... [-s strsize] [-u username] [-w count] [-x extern] ... [--align=column] [--debug=level] [--demangle] [--help] [--indent=nr] [--library=filename] [--no-signals] [--output=filename] [--version] [--where=NR] [command [arg ...]]"
 
 .SH DESCRIPTION
 .B ltrace
@@ -157,14 +157,6 @@ correct execution of setuid and/or setgid binaries.
 .I \-w, --where NR
 Show backtrace of NR stack frames for each traced function. This option enabled
 only if libunwind support was enabled at compile time.
-.TP
-.I \-X extern
-Some architectures need to know where to set a breakpoint that will be hit
-after the dynamic linker has run.  If this flag is used, then the breakpoint
-is set at
-.IR extern ,
-which must be an external function.  By default, '_start' is used.
-NOTE: this flag is only available on the architectures that need it.
 .TP
 .I \-x filter
 A qualifying expression which modifies which symbol table entry points

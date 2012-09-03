@@ -50,12 +50,6 @@ struct opt_p_t *opt_p = NULL;	/* attach to process with a given pid */
 /* List of filenames give to option -F: */
 struct opt_F_t *opt_F = NULL;	/* alternate configuration file(s) */
 
-#ifdef PLT_REINITALISATION_BP
-/* Set a break on the routine named here in order to re-initialize breakpoints
-   after all the PLTs have been initialzed */
-char *PLTs_initialized_by_here = PLT_REINITALISATION_BP;
-#endif
-
 static void
 err_usage(void) {
 	fprintf(stderr, "Try `%s --help' for more information\n", progname);
@@ -96,9 +90,6 @@ usage(void) {
 		"  -w=NR, --where=NR   print backtrace showing NR stack frames at most.\n"
 #endif /* defined(HAVE_LIBUNWIND) */
 		"  -x NAME             treat the global NAME like a library subroutine.\n"
-#ifdef PLT_REINITALISATION_BP
-		"  -X NAME             same as -x; and PLT's will be initialized by here.\n"
-#endif
 		"\nReport bugs to ltrace-devel@lists.alioth.debian.org\n",
 		progname);
 }
@@ -559,14 +550,6 @@ process_options(int argc, char **argv)
 			options.bt_depth = atoi(optarg);
 			break;
 #endif /* defined(HAVE_LIBUNWIND) */
-		case 'X':
-#ifdef PLT_REINITALISATION_BP
-			PLTs_initialized_by_here = optarg;
-#else
-			fprintf(stderr, "WARNING: \"-X\" not used for this "
-				"architecture: assuming you meant \"-x\"\n");
-#endif
-			/* Fall Thru */
 
 		case 'x':
 			parse_filter_chain(optarg, &options.static_filter);

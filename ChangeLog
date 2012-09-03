@@ -1,5 +1,14 @@
 2012-09-03  Petr Machata  <pmachata@redhat.com>
 
+	* ltrace-elf.c (PLTs_initialized_by_here): Remove.
+	* options.c: Likewise.
+	(usage): Drop the line mentioning -X.
+	(process_options): Remove handling of -X.
+	* sysdeps/linux-gnu/ppc/arch.h: Remove PLT_REINITALISATION_BP.
+	* ltrace.1: Drop mentions of -X.
+
+2012-09-03  Petr Machata  <pmachata@redhat.com>
+
 	* options.c (usage): Drop the line mentioning --no-plt.
 
 2012-09-01  Petr Machata  <pmachata@redhat.com>

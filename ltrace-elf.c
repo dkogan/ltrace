@@ -50,10 +50,6 @@
 #include "debug.h"
 #include "options.h"
 
-#ifdef PLT_REINITALISATION_BP
-extern char *PLTs_initialized_by_here;
-#endif
-
 #ifndef ARCH_HAVE_LTELF_DATA
 int
 arch_elf_init(struct ltelf *lte, struct library *lib)
