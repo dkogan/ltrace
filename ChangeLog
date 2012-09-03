@@ -1,3 +1,7 @@
+2012-09-03  Petr Machata  <pmachata@redhat.com>
+
+	* options.c (usage): Drop the line mentioning --no-plt.
+
 2012-09-01  Petr Machata  <pmachata@redhat.com>
 
 	* sysdeps/linux-gnu/mips/syscallent.h: Update from latest kernel.

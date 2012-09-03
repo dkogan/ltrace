@@ -78,7 +78,6 @@ usage(void) {
 		"  -e expr             modify which events to trace.\n"
 		"  -f                  trace children (fork() and clone()).\n"
 		"  -F, --config=FILE   load alternate configuration file (may be repeated).\n"
-		"  -g, --no-plt        disable breakpoints on PLT entries.\n"
 		"  -h, --help          display this help and exit.\n"
 		"  -i                  print instruction pointer at time of library call.\n"
 		"  -l, --library=FILE  print library calls from this library only.\n"
