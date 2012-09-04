@@ -31,9 +31,6 @@
 #define LT_ELFCLASS	ELFCLASS32
 #define LT_ELF_MACHINE	EM_MIPS
 
-#define PLTs_INIT_BY_HERE "_start"
-#define E_ENTRY_NAME    "_start"
-
 #define ARCH_HAVE_LTELF_DATA
 struct arch_ltelf_data {
 	size_t pltgot_addr;
