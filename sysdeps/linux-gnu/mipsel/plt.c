@@ -6,6 +6,7 @@
 #include "debug.h"
 #include "proc.h"
 #include "library.h"
+#include "backend.h"
 
 /**
    \addtogroup mipsel
@@ -92,7 +93,7 @@ sym2addr(Process *proc, struct library_symbol *sym) {
 
  */
 int
-arch_elf_init(struct ltelf *lte)
+arch_elf_init(struct ltelf *lte, struct library *lib)
 {
 	Elf_Scn *scn;
 	GElf_Shdr shdr;
