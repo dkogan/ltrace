@@ -1,5 +1,14 @@
 2012-09-08  Petr Machata  <pmachata@redhat.com>
 
+	* testsuite/ltrace.main/parameters-lib.c (func_hfa_f2): New.
+	(func_hfa_f3 .. func_hfa_f12): Likewise.
+	(func_hfa_d2 .. func_hfa_d12): Likewise.
+	* testsuite/ltrace.main/parameters.c (main): Call above.
+	* testsuite/ltrace.main/parameters.conf: Declare above.
+	* testsuite/ltrace.main/parameters.exp: Test above calls.
+
+2012-09-08  Petr Machata  <pmachata@redhat.com>
+
 	* sysdeps/linux-gnu/ia64/fetch.c: New file.
 	* sysdeps/linux-gnu/ia64/trace.c (gimme_long_arg): Removed.
 	(gimme_float_arg, gimme_arg, float_regs, f_index): Likewise.
