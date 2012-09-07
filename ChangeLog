@@ -1,5 +1,15 @@
 2012-09-08  Petr Machata  <pmachata@redhat.com>
 
+	* sysdeps/linux-gnu/ia64/fetch.c: New file.
+	* sysdeps/linux-gnu/ia64/trace.c (gimme_long_arg): Removed.
+	(gimme_float_arg, gimme_arg, float_regs, f_index): Likewise.
+	(fpreg_to_double): Moved to fetch.c.
+	* sysdeps/linux-gnu/ia64/arch.h (ARCH_HAVE_FETCH_ARG): Define it.
+	* sysdeps/linux-gnu/ia64/Makefile.am (___libcpu_la_SOURCES): Add
+	fetch.c.
+
+2012-09-08  Petr Machata  <pmachata@redhat.com>
+
 	* type.c, type.h (type_aggregate_size): New function.
 
 2012-09-13  Petr Machata  <pmachata@redhat.com>

@@ -5,7 +5,8 @@ ___libcpu_la_SOURCES = \
 	breakpoint.c \
 	plt.c \
 	regs.c \
-	trace.c
+	trace.c \
+	fetch.c
 
 noinst_HEADERS = \
 	arch.h \
