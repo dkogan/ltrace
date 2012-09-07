@@ -87,6 +87,11 @@ struct arg_type_info *type_struct_get(struct arg_type_info *info, size_t idx);
 /* Return number of fields of structure type INFO.  */
 size_t type_struct_size(struct arg_type_info *info);
 
+/* Return number of elements of an aggregate type INFO.  This can be
+ * either ARGTYPE_STRUCT or ARGTYPE_ARRAY of constant length.  If
+ * ARGTYPE_ARRAY does not have a constant length, this returns -1.  */
+size_t type_aggregate_size(struct arg_type_info *info);
+
 /* Initialize INFO so it becomes ARGTYPE_ARRAY.  The element type is
  * passed in ELEMENT_INFO, and array length in LENGTH_EXPR.  If,
  * respectively, OWN_INFO and OWN_LENGTH are true, the pointee and

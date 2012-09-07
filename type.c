@@ -460,6 +460,27 @@ type_element(struct arg_type_info *info, size_t emt)
 	}
 }
 
+size_t
+type_aggregate_size(struct arg_type_info *info)
+{
+	assert(info->type == ARGTYPE_STRUCT
+	       || info->type == ARGTYPE_ARRAY);
+
+	switch (info->type) {
+		long ret;
+	case ARGTYPE_ARRAY:
+		if (expr_eval_constant(info->u.array_info.length, &ret) < 0)
+			return (size_t)-1;
+		return (size_t)ret;
+
+	case ARGTYPE_STRUCT:
+		return type_struct_size(info);
+
+	default:
+		abort();
+	}
+}
+
 int
 type_is_integral(enum arg_type type)
 {

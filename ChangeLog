@@ -1,3 +1,7 @@
+2012-09-08  Petr Machata  <pmachata@redhat.com>
+
+	* type.c, type.h (type_aggregate_size): New function.
+
 2012-09-13  Petr Machata  <pmachata@redhat.com>
 
 	* fetch.c (arch_fetch_param_pack_start): New declaration or
