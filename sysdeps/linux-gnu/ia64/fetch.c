@@ -429,10 +429,8 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	case ARGTYPE_UINT:
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
-	case ARGTYPE_POINTER: {
-		int rc = allocate_arg(ctx, proc, info, valuep);
-		return rc;
-	}
+	case ARGTYPE_POINTER:
+		return allocate_arg(ctx, proc, info, valuep);
 
 	case ARGTYPE_ARRAY:
 		/* Arrays decay into pointers.  XXX Fortran?  */
