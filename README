@@ -38,6 +38,7 @@ people have contributed significantly to this project:
 * Eric Vaitl <evaitl@cisco.com> (mipsel port)
 * Petr Machata <pmachata@redhat.com> (misc fixes)
 * Joe Damato <ice799@gmail.com> (libdl support, libunwind support)
+* Edgar E. Iglesias <edgar.iglesias@gmail.com> (CRIS port)
 
 1. Introduction
 ---------------
