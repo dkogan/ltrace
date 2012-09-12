@@ -1,4 +1,4 @@
-	"0",                               /* 0 */
+	"restart_syscall",                 /* 0 */
 	"exit",                            /* 1 */
 	"fork",                            /* 2 */
 	"read",                            /* 3 */
@@ -15,7 +15,7 @@
 	"mknod",                           /* 14 */
 	"chmod",                           /* 15 */
 	"chown",                           /* 16 */
-	"break",                           /* 17 */
+	"17",                              /* 17 */
 	"oldstat",                         /* 18 */
 	"lseek",                           /* 19 */
 	"getpid",                          /* 20 */
@@ -29,11 +29,11 @@
 	"oldfstat",                        /* 28 */
 	"pause",                           /* 29 */
 	"utime",                           /* 30 */
-	"stty",                            /* 31 */
-	"gtty",                            /* 32 */
+	"31",                              /* 31 */
+	"32",                              /* 32 */
 	"access",                          /* 33 */
 	"nice",                            /* 34 */
-	"ftime",                           /* 35 */
+	"35",                              /* 35 */
 	"sync",                            /* 36 */
 	"kill",                            /* 37 */
 	"rename",                          /* 38 */
@@ -42,7 +42,7 @@
 	"dup",                             /* 41 */
 	"pipe",                            /* 42 */
 	"times",                           /* 43 */
-	"prof",                            /* 44 */
+	"44",                              /* 44 */
 	"brk",                             /* 45 */
 	"setgid",                          /* 46 */
 	"getgid",                          /* 47 */
@@ -51,13 +51,13 @@
 	"getegid",                         /* 50 */
 	"acct",                            /* 51 */
 	"umount2",                         /* 52 */
-	"lock",                            /* 53 */
+	"53",                              /* 53 */
 	"ioctl",                           /* 54 */
 	"fcntl",                           /* 55 */
-	"mpx",                             /* 56 */
+	"56",                              /* 56 */
 	"setpgid",                         /* 57 */
-	"ulimit",                          /* 58 */
-	"oldolduname",                     /* 59 */
+	"58",                              /* 58 */
+	"59",                              /* 59 */
 	"umask",                           /* 60 */
 	"chroot",                          /* 61 */
 	"ustat",                           /* 62 */
@@ -96,10 +96,10 @@
 	"fchown",                          /* 95 */
 	"getpriority",                     /* 96 */
 	"setpriority",                     /* 97 */
-	"profil",                          /* 98 */
+	"98",                              /* 98 */
 	"statfs",                          /* 99 */
 	"fstatfs",                         /* 100 */
-	"ioperm",                          /* 101 */
+	"101",                             /* 101 */
 	"socketcall",                      /* 102 */
 	"syslog",                          /* 103 */
 	"setitimer",                       /* 104 */
@@ -107,7 +107,7 @@
 	"stat",                            /* 106 */
 	"lstat",                           /* 107 */
 	"fstat",                           /* 108 */
-	"olduname",                        /* 109 */
+	"109",                             /* 109 */
 	"110",                             /* 110 */
 	"vhangup",                         /* 111 */
 	"112",                             /* 112 */
@@ -135,7 +135,7 @@
 	"bdflush",                         /* 134 */
 	"sysfs",                           /* 135 */
 	"personality",                     /* 136 */
-	"afs_syscall",                     /* 137 */
+	"137",                             /* 137 */
 	"setfsuid",                        /* 138 */
 	"setfsgid",                        /* 139 */
 	"_llseek",                         /* 140 */
@@ -276,7 +276,72 @@
 	"mq_notify",                       /* 275 */
 	"mq_getsetattr",                   /* 276 */
 	"waitid",                          /* 277 */
-	"vserver",                         /* 278 */
+	"278",                             /* 278 */
 	"add_key",                         /* 279 */
 	"request_key",                     /* 280 */
 	"keyctl",                          /* 281 */
+	"ioprio_set",                      /* 282 */
+	"ioprio_get",                      /* 283 */
+	"inotify_init",                    /* 284 */
+	"inotify_add_watch",               /* 285 */
+	"inotify_rm_watch",                /* 286 */
+	"migrate_pages",                   /* 287 */
+	"openat",                          /* 288 */
+	"mkdirat",                         /* 289 */
+	"mknodat",                         /* 290 */
+	"fchownat",                        /* 291 */
+	"futimesat",                       /* 292 */
+	"fstatat64",                       /* 293 */
+	"unlinkat",                        /* 294 */
+	"renameat",                        /* 295 */
+	"linkat",                          /* 296 */
+	"symlinkat",                       /* 297 */
+	"readlinkat",                      /* 298 */
+	"fchmodat",                        /* 299 */
+	"faccessat",                       /* 300 */
+	"pselect6",                        /* 301 */
+	"ppoll",                           /* 302 */
+	"unshare",                         /* 303 */
+	"set_robust_list",                 /* 304 */
+	"get_robust_list",                 /* 305 */
+	"splice",                          /* 306 */
+	"sync_file_range",                 /* 307 */
+	"tee",                             /* 308 */
+	"vmsplice",                        /* 309 */
+	"move_pages",                      /* 310 */
+	"sched_setaffinity",               /* 311 */
+	"sched_getaffinity",               /* 312 */
+	"kexec_load",                      /* 313 */
+	"getcpu",                          /* 314 */
+	"epoll_pwait",                     /* 315 */
+	"utimensat",                       /* 316 */
+	"signalfd",                        /* 317 */
+	"timerfd_create",                  /* 318 */
+	"eventfd",                         /* 319 */
+	"fallocate",                       /* 320 */
+	"timerfd_settime",                 /* 321 */
+	"timerfd_gettime",                 /* 322 */
+	"signalfd4",                       /* 323 */
+	"eventfd2",                        /* 324 */
+	"epoll_create1",                   /* 325 */
+	"dup3",                            /* 326 */
+	"pipe2",                           /* 327 */
+	"inotify_init1",                   /* 328 */
+	"preadv",                          /* 329 */
+	"pwritev",                         /* 330 */
+	"rt_tgsigqueueinfo",               /* 331 */
+	"perf_event_open",                 /* 332 */
+	"get_thread_area",                 /* 333 */
+	"set_thread_area",                 /* 334 */
+	"atomic_cmpxchg_32",               /* 335 */
+	"atomic_barrier",                  /* 336 */
+	"fanotify_init",                   /* 337 */
+	"fanotify_mark",                   /* 338 */
+	"prlimit64",                       /* 339 */
+	"name_to_handle_at",               /* 340 */
+	"open_by_handle_at",               /* 341 */
+	"clock_adjtime",                   /* 342 */
+	"syncfs",                          /* 343 */
+	"setns",                           /* 344 */
+	"process_vm_readv",                /* 345 */
+	"process_vm_writev",               /* 346 */
