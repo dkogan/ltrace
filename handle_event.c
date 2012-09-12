@@ -522,7 +522,7 @@ calc_time_spent(Process *proc) {
 	if (tv.tv_usec >= elem->time_spent.tv_usec) {
 		diff.tv_usec = tv.tv_usec - elem->time_spent.tv_usec;
 	} else {
-		diff.tv_sec++;
+		diff.tv_sec--;
 		diff.tv_usec = 1000000 + tv.tv_usec - elem->time_spent.tv_usec;
 	}
 	current_time_spent = diff;
