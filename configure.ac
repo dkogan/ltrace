@@ -270,6 +270,7 @@ AC_CONFIG_FILES([
 	sysdeps/linux-gnu/Makefile
 	sysdeps/linux-gnu/alpha/Makefile
 	sysdeps/linux-gnu/arm/Makefile
+	sysdeps/linux-gnu/cris/Makefile
 	sysdeps/linux-gnu/ia64/Makefile
 	sysdeps/linux-gnu/m68k/Makefile
 	sysdeps/linux-gnu/mipsel/Makefile
