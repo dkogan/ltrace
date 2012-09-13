@@ -18,6 +18,8 @@
  * 02110-1301 USA
  */
 
+#define ARCH_HAVE_FETCH_ARG
+
 #define BREAKPOINT_VALUE { 0x4e, 0x4f }
 #define BREAKPOINT_LENGTH 2
 #define DECR_PC_AFTER_BREAK 2
