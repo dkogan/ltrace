@@ -41,7 +41,7 @@ param_init_stop(struct param *param)
 }
 
 void
-param_init_pack(struct param *param,
+param_init_pack(struct param *param, enum param_pack_flavor ppflavor,
 		struct expr_node *args, size_t nargs, int own_args,
 		struct param_enum *(*init)(struct value *cb_args,
 					   size_t nargs,
@@ -57,6 +57,7 @@ param_init_pack(struct param *param,
 	param->u.pack.args = args;
 	param->u.pack.nargs = nargs;
 	param->u.pack.own_args = own_args;
+	param->u.pack.ppflavor = ppflavor;
 	param->u.pack.init = init;
 	param->u.pack.next = next;
 	param->u.pack.stop = stop;

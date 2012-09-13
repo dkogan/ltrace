@@ -46,6 +46,18 @@ enum param_flavor {
 	PARAM_FLAVOR_STOP,
 };
 
+enum param_pack_flavor {
+	/* This parameter pack expands to a list of ordinary
+	 * arguments.  For example if the last argument is sometimes
+	 * ignored, that would be described by a PARAM_PACK_ARGS
+	 * parameter pack.  ioctl or ptrace are two examples that
+	 * would benefit from this.  */
+	PARAM_PACK_ARGS,
+
+	/* This parameter pack represents a vararg argument.  */
+	PARAM_PACK_VARARGS,
+};
+
 enum param_status {
 	PPCB_ERR = -1,	/* An error occurred.  */
 	PPCB_STOP,	/* Stop fetching the arguments.  */
@@ -69,6 +81,7 @@ struct param {
 			struct expr_node *args;
 			size_t nargs;
 			int own_args;
+			enum param_pack_flavor ppflavor;
 
 			struct param_enum *(*init)(struct value *cb_args,
 						   size_t nargs,
@@ -112,7 +125,7 @@ void param_init_stop(struct param *param);
  * if not, whether this argument should be displayed.
  *
  * After the enumeration is ended, DONE callback is called.  */
-void param_init_pack(struct param *param,
+void param_init_pack(struct param *param, enum param_pack_flavor ppflavor,
 		     struct expr_node *args, size_t nargs, int own_args,
 		     struct param_enum *(*init)(struct value *cb_args,
 						size_t nargs,

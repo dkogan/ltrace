@@ -43,6 +43,13 @@ int arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 
 void arch_fetch_arg_done(struct fetch_context *context);
 
+# ifdef ARCH_HAVE_FETCH_PACK
+int arch_fetch_param_pack_start(struct fetch_context *context,
+				enum param_pack_flavor ppflavor);
+
+void arch_fetch_param_pack_end(struct fetch_context *context);
+# endif
+
 #else
 /* Fall back to gimme_arg.  */
 
@@ -96,6 +103,20 @@ arch_fetch_arg_done(struct fetch_context *context)
 }
 #endif
 
+#if !defined(ARCH_HAVE_FETCH_ARG) || !defined(ARCH_HAVE_FETCH_PACK)
+int
+arch_fetch_param_pack_start(struct fetch_context *context,
+			    enum param_pack_flavor ppflavor)
+{
+	return 0;
+}
+
+void
+arch_fetch_param_pack_end(struct fetch_context *context)
+{
+}
+#endif
+
 struct fetch_context *
 fetch_arg_init(enum tof type, struct Process *proc,
 	       struct arg_type_info *ret_info)
@@ -129,4 +150,17 @@ void
 fetch_arg_done(struct fetch_context *context)
 {
 	return arch_fetch_arg_done(context);
+}
+
+int
+fetch_param_pack_start(struct fetch_context *context,
+		       enum param_pack_flavor ppflavor)
+{
+	return arch_fetch_param_pack_start(context, ppflavor);
+}
+
+void
+fetch_param_pack_end(struct fetch_context *context)
+{
+	return arch_fetch_param_pack_end(context);
 }

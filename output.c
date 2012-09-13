@@ -350,13 +350,19 @@ fetch_one_param(enum tof type, Process *proc, struct fetch_context *context,
 		ssize_t *params_leftp)
 {
 	switch (param->flavor) {
+		int rc;
 	case PARAM_FLAVOR_TYPE:
 		return fetch_simple_param(type, proc, context, arguments,
 					  param->u.type.type, NULL);
 
 	case PARAM_FLAVOR_PACK:
-		return fetch_param_pack(type, proc, context, arguments,
-					param, params_leftp);
+		if (fetch_param_pack_start(context,
+					   param->u.pack.ppflavor) < 0)
+			return -1;
+	        rc = fetch_param_pack(type, proc, context, arguments,
+				      param, params_leftp);
+		fetch_param_pack_end(context);
+		return rc;
 
 	case PARAM_FLAVOR_STOP:
 		fetch_param_stop(arguments, params_leftp);

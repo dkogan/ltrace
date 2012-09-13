@@ -345,7 +345,7 @@ param_printf_done(struct param_enum *context)
 void
 param_pack_init_printf(struct param *param, struct expr_node *arg, int own_arg)
 {
-	param_init_pack(param, arg, 1, own_arg,
+	param_init_pack(param, PARAM_PACK_VARARGS, arg, 1, own_arg,
 			&param_printf_init, &param_printf_next,
 			&param_printf_stop, &param_printf_done);
 }

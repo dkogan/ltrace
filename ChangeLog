@@ -1,3 +1,18 @@
+2012-09-13  Petr Machata  <pmachata@redhat.com>
+
+	* fetch.c (arch_fetch_param_pack_start): New declaration or
+	definition (depending on values of ARCH_HAVE_FETCH_ARG,
+	ARCH_HAVE_FETCH_PACK).
+	(arch_fetch_param_pack_end): Likewise.
+	* fetch.c, fetch.h
+	(fetch_param_pack_start, fetch_param_pack_end): New function.
+	* output.c (fetch_one_param): Call fetch_param_pack_{start,end}.
+	* param.h (enum param_pack_flavor): New.
+	* param.h, param.c (param_init_pack): Add new argument of type
+	enum param_pack_flavor.
+	* printf.c (param_pack_init_printf): Adjust the call to
+	param_init_pack.
+
 2012-09-03  Petr Machata  <pmachata@redhat.com>
 
 	* ltrace-elf.c (PLTs_initialized_by_here): Remove.

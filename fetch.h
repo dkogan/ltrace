@@ -22,6 +22,7 @@
 #define FETCH_H
 
 #include "forward.h"
+#include "param.h"
 
 /* XXX isn't SYSCALL TOF just a different ABI?  Maybe we needed to
  * support variant ABIs all along.  */
@@ -60,5 +61,13 @@ int fetch_retval(struct fetch_context *context, enum tof type,
 /* Destroy fetch context.  CONTEXT shall be the same memory location
  * that was passed to fetch_arg_next.  */
 void fetch_arg_done(struct fetch_context *context);
+
+/* Called before fetching arguments that come from parameter packs.
+ * Returns 0 on success or a negative value on failure.  */
+int fetch_param_pack_start(struct fetch_context *context,
+			   enum param_pack_flavor ppflavor);
+
+/* Called after a parameter pack has been fetched.  */
+void fetch_param_pack_end(struct fetch_context *context);
 
 #endif /* FETCH_H */
