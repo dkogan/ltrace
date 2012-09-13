@@ -37,6 +37,7 @@
 struct fetch_context {
 	arch_addr_t stack_pointer;
 	struct pt_all_user_regs regs;
+	enum param_pack_flavor ppflavor;
 
 	/* Return values larger than 256 bits (except HFAs of up to 8
 	 * elements) are returned in a buffer allocated by the
@@ -69,6 +70,7 @@ fetch_context_init(struct Process *proc, struct fetch_context *context)
 	if (ptrace(PTRACE_GETREGS, proc->pid, 0, &context->regs) < 0)
 		return -1;
 	context->stack_pointer = (void *)(context->regs.gr[12] + 16);
+	context->ppflavor = PARAM_PACK_ARGS;
 
 	return 0;
 }
@@ -219,7 +221,9 @@ allocate_float(struct fetch_context *ctx, struct Process *proc,
 	 * floating-point parameter register, if one is
 	 * available. Floating-point parameter registers are allocated
 	 * as needed from the range f8-f15, starting with f8.  */
-	if (ctx->flt > 15)
+	/* Any register parameters corresponding to a
+	 * variable-argument specification are passed in GRs.  */
+	if (ctx->flt > 15 || ctx->ppflavor == PARAM_PACK_VARARGS)
 		/* If all available floating-point parameter registers
 		 * have been used, the actual parameter is passed in
 		 * the appropriate general register(s).  */
@@ -482,4 +486,18 @@ void
 arch_fetch_arg_done(struct fetch_context *context)
 {
 	free(context);
+}
+
+int
+arch_fetch_param_pack_start(struct fetch_context *context,
+			    enum param_pack_flavor ppflavor)
+{
+	context->ppflavor = ppflavor;
+	return 0;
+}
+
+void
+arch_fetch_param_pack_end(struct fetch_context *context)
+{
+	context->ppflavor = PARAM_PACK_ARGS;
 }
