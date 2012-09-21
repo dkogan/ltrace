@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011, 2012 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,10 +22,10 @@
 #include <assert.h>
 #include <string.h>
 
-#include "arch.h"
 #include "lens_enum.h"
 #include "lens_default.h"
 #include "value.h"
+#include "sysdep.h"
 #include "type.h"
 
 struct enum_entry {

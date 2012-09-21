@@ -22,8 +22,8 @@
 #include <string.h>
 
 #include "fetch.h"
+#include "sysdep.h"
 #include "value.h"
-#include "arch.h"
 #include "type.h"
 
 #ifdef ARCH_HAVE_FETCH_ARG

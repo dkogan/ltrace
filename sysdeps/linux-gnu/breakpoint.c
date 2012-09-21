@@ -29,7 +29,6 @@
 
 #include "common.h"
 #include "backend.h"
-#include "arch.h"
 #include "sysdep.h"
 #include "breakpoint.h"
 #include "proc.h"
