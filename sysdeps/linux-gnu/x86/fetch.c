@@ -411,12 +411,34 @@ get_array_field(struct arg_type_info *info, size_t emt)
 	return info->u.array_info.elt_type;
 }
 
+static int
+flatten_structure(struct arg_type_info *flattened, struct arg_type_info *info)
+{
+	size_t i;
+	for (i = 0; i < type_struct_size(info); ++i) {
+		struct arg_type_info *field = type_struct_get(info, i);
+		assert(field != NULL);
+		switch (field->type) {
+		case ARGTYPE_STRUCT:
+			if (flatten_structure(flattened, field) < 0)
+				return -1;
+			break;
+
+		default:
+			if (type_struct_add(flattened, field, 0) < 0)
+				return -1;
+		}
+	}
+	return 0;
+}
+
 static ssize_t
 classify(struct Process *proc, struct fetch_context *context,
 	 struct arg_type_info *info, struct value *valuep, enum arg_class classes[],
 	 size_t sz, size_t eightbytes)
 {
 	switch (info->type) {
+		struct arg_type_info flattened;
 	case ARGTYPE_VOID:
 		return 0;
 
@@ -458,11 +480,25 @@ classify(struct Process *proc, struct fetch_context *context,
 					   get_array_field);
 
 	case ARGTYPE_STRUCT:
-		/* N.B. "big" structs are dealt with in the
-		 * caller.  */
-		return classify_eightbytes(proc, context, info, valuep, classes,
-					   type_struct_size(info),
-					   eightbytes, type_struct_get);
+		/* N.B. "big" structs are dealt with in the caller.
+		 *
+		 * First, we need to flatten the structure.  In
+		 * struct(float,struct(float,float)), first two floats
+		 * both belong to the same eightbyte.  */
+		type_init_struct(&flattened);
+
+		ssize_t ret;
+		if (flatten_structure(&flattened, info) < 0) {
+			ret = -1;
+			goto done;
+		}
+		ret = classify_eightbytes(proc, context, &flattened,
+					  valuep, classes,
+					  type_struct_size(&flattened),
+					  eightbytes, type_struct_get);
+	done:
+		type_destroy(&flattened);
+		return ret;
 	}
 	abort();
 }
