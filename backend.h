@@ -180,6 +180,12 @@ size_t umovebytes (struct Process *proc, void *addr, void *buf, size_t count);
  * XXX the same points as for get_instruction_pointer apply. */
 void *sym2addr(struct Process *proc, struct library_symbol *sym);
 
+/* Obtain address of PLT entry corresponding to relocation RELA in
+ * file LTE.  This is NDX-th PLT entry in the file.
+ *
+ * XXX should this return arch_addr_t?  */
+GElf_Addr arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela);
+
 /* Called at some point after we have attached to PROC.  This callback
  * should insert an introspection breakpoint for handling dynamic
  * linker library loads.  */
@@ -194,8 +200,71 @@ struct Event *next_event(void);
 /* Called when process PROC was removed.  */
 void process_removed(struct Process *proc);
 
+/* This should extract entry point address and interpreter (dynamic
+ * linker) bias if possible.  Returns 0 if there were no errors, -1
+ * otherwise.  Sets *ENTRYP and *INTERP_BIASP to non-zero values if
+ * the corresponding value is known.  Unknown values are set to 0.
+ *
+ * XXX This is not currently used, but it will be necessary for proper
+ * support of PIE binaries.  */
+int process_get_entry(struct Process *proc,
+		      arch_addr_t *entryp,
+		      arch_addr_t *interp_biasp);
+
+
+/* Optional callbacks
+ *
+ * Some callbacks are only available if backend (arch.h) has a certain
+ * define.  If such a define is not present, default implementation
+ * (most often doing nothing at all) us used instead.  This is used
+ * for gradual extensions of ltrace, so that backends that are not
+ * fully up to date, or that don't need certain functionality, keep
+ * working, while other backends take advantage of the optional
+ * features.  */
+
+/* The following callbacks have to be implemented in backend if arch.h
+ * defines ARCH_HAVE_LTELF_DATA.  Those are used to init and destroy
+ * LTE->arch.  arch_elf_init returns 0 on success or a negative value
+ * on failure.  */
 int arch_elf_init(struct ltelf *lte, struct library *lib);
 void arch_elf_destroy(struct ltelf *lte);
+
+/* The following callbacks have to be implemented in backend if arch.h
+ * defines ARCH_HAVE_BREAKPOINT_DATA.  Those are used to init,
+ * destroy, and clone SBP->arch.  arch_breakpoint_init and
+ * arch_breakpoint_clone return 0 on success or a negative value on
+ * failure.  */
+int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
+void arch_breakpoint_destroy(struct breakpoint *sbp);
+int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
+
+/* The following callbacks have to be implemented in backend if arch.h
+ * defines ARCH_HAVE_LIBRARY_DATA.  Those are used to init, destroy
+ * and clone LIB->arch.  */
+void arch_library_init(struct library *lib);
+void arch_library_destroy(struct library *lib);
+void arch_library_clone(struct library *retp, struct library *lib);
+
+/* The following callbacks have to be implemented in backend if arch.h
+ * defines ARCH_HAVE_LIBRARY_SYMBOL_DATA.  Those are used to init,
+ * destroy and clone LIBSYM->arch.  arch_library_symbol_init and
+ * arch_library_symbol_clone return 0 on success or a negative value
+ * on failure.  */
+int arch_library_symbol_init(struct library_symbol *libsym);
+void arch_library_symbol_destroy(struct library_symbol *libsym);
+int arch_library_symbol_clone(struct library_symbol *retp,
+			      struct library_symbol *libsym);
+
+/* The following callbacks have to be implemented in backend if arch.h
+ * defines ARCH_HAVE_PROCESS_DATA.  Those are used to init, destroy
+ * and clone PROC->arch.  arch_process_exec is called to update
+ * PROC->arch in case that PROC underwent an exec.  See notes at
+ * process_init, process_destroy, process_clone and process_exec in
+ * proc.h.  */
+int arch_process_init(struct Process *proc);
+void arch_process_destroy(struct Process *proc);
+int arch_process_clone(struct Process *retp, struct Process *proc);
+int arch_process_exec(struct Process *proc);
 
 enum plt_status {
 	plt_fail,
@@ -203,38 +272,35 @@ enum plt_status {
 	plt_default,
 };
 
-enum plt_status arch_elf_add_plt_entry(struct Process *p, struct ltelf *l,
-				       const char *n, GElf_Rela *r, size_t i,
-				       struct library_symbol **ret);
+/* The following callback has to be implemented in backend if arch.h
+ * defines ARCH_HAVE_ADD_PLT_ENTRY.
+ *
+ * This is called for every PLT relocation R in ELF file LTE, that
+ * ltrace is about to add to a library constructed in process PROC.
+ * The corresponding PLT entry is for symbol called NAME, and it's
+ * I-th relocation in the file.
+ *
+ * If this function returns plt_default, PLT address is obtained by
+ * calling arch_plt_sym_val, and symbol is allocated.  If plt_ok or
+ * plt_default are returned, the chain of symbols passed back in RET
+ * is added to library under construction.  */
+enum plt_status arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+				       const char *name, GElf_Rela *rela,
+				       size_t i, struct library_symbol **ret);
 
-int arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp);
-void arch_breakpoint_destroy(struct breakpoint *sbp);
-int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
-
-void arch_library_init(struct library *lib);
-void arch_library_destroy(struct library *lib);
-void arch_library_clone(struct library *retp, struct library *lib);
-
-int arch_library_symbol_init(struct library_symbol *libsym);
-void arch_library_symbol_destroy(struct library_symbol *libsym);
-int arch_library_symbol_clone(struct library_symbol *retp,
-			      struct library_symbol *libsym);
-
-int arch_process_init(struct Process *proc);
-void arch_process_destroy(struct Process *proc);
-int arch_process_clone(struct Process *retp, struct Process *proc);
-int arch_process_exec(struct Process *proc);
-
-/* This should extract entry point address and interpreter (dynamic
- * linker) bias if possible.  Returns 0 if there were no errors, -1
- * otherwise.  Sets *ENTRYP and *INTERP_BIASP to non-zero values if
- * the corresponding value is known.  Unknown values are set to 0.  */
-int process_get_entry(struct Process *proc,
-		      arch_addr_t *entryp,
-		      arch_addr_t *interp_biasp);
-
-/* This is called after the dynamic linker is done with the
- * process startup.  */
+/* This callback needs to be implemented if arch.h defines
+ * ARCH_HAVE_DYNLINK_DONE.  It is called after the dynamic linker is
+ * done with the process startup.  */
 void arch_dynlink_done(struct Process *proc);
+
+/* If arch.h defines ARCH_HAVE_FETCH_ARG, the following callbacks have
+ * to be implemented: arch_fetch_arg_init, arch_fetch_arg_clone,
+ * arch_fetch_arg_done, arch_fetch_arg_next and arch_fetch_retval.
+ * See fetch.h for details.  */
+
+/* If arch.h defines both ARCH_HAVE_FETCH_ARG and
+ * ARCH_HAVE_FETCH_PACK, the following callbacks have to be
+ * implemented: arch_fetch_param_pack_start,
+ * arch_fetch_param_pack_end.  See fetch.h for details.  */
 
 #endif /* BACKEND_H */

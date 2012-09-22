@@ -56,8 +56,6 @@ int ltelf_read_library(struct library *lib, struct Process *proc,
  * point address is stored to *ENTRYP.  */
 struct library *ltelf_read_main_binary(struct Process *proc, const char *path);
 
-GElf_Addr arch_plt_sym_val(struct ltelf *, size_t, GElf_Rela *);
-
 Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
 int elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
 			     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);

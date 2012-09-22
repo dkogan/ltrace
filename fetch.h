@@ -70,4 +70,26 @@ int fetch_param_pack_start(struct fetch_context *context,
 /* Called after a parameter pack has been fetched.  */
 void fetch_param_pack_end(struct fetch_context *context);
 
+
+/* The following callbacks have to be implemented in backend if arch.h
+ * defines ARCH_HAVE_FETCH_ARG.  These backend callbacks correspond to
+ * above functions.  */
+struct fetch_context *arch_fetch_arg_init(enum tof type, struct Process *proc,
+					  struct arg_type_info *ret_info);
+struct fetch_context *arch_fetch_arg_clone(struct Process *proc,
+					   struct fetch_context *context);
+int arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
+			struct Process *proc, struct arg_type_info *info,
+			struct value *valuep);
+int arch_fetch_retval(struct fetch_context *ctx, enum tof type,
+		      struct Process *proc, struct arg_type_info *info,
+		      struct value *valuep);
+void arch_fetch_arg_done(struct fetch_context *context);
+
+/* The following callbacks have to be implemented in backend if arch.h
+ * defines ARCH_HAVE_FETCH_ARG and ARCH_HAVE_FETCH_PACK.  */
+int arch_fetch_param_pack_start(struct fetch_context *context,
+				enum param_pack_flavor ppflavor);
+void arch_fetch_param_pack_end(struct fetch_context *context);
+
 #endif /* FETCH_H */
