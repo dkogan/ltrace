@@ -1,3 +1,7 @@
+2012-09-22  Petr Machata  <pmachata@redhat.com>
+
+	* backend.h (arch_check_dbg): Drop.
+
 2012-09-13  Petr Machata  <pmachata@redhat.com>
 
 	* sysdeps/linux-gnu/ia64/arch.h (ARCH_HAVE_FETCH_PACK): Define it.

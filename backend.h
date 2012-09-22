@@ -185,16 +185,6 @@ void *sym2addr(struct Process *proc, struct library_symbol *sym);
  * linker library loads.  */
 int linkmap_init(struct Process *proc, arch_addr_t dyn_addr);
 
-/* Called for breakpoints defined over an artificial symbol "".  This
- * can be used (like it is on Linux/GNU) to add more breakpoints
- * because a dlopen'ed library was mapped in.
- *
- * XXX we should somehow clean up this interface.  For starters,
- * breakpoints should have their own handler callbacks, so that we can
- * generalize this to e.g. systemtap SDT probes.  linkmap_init could
- * perhaps be rolled into some other process init callback.  */
-void arch_check_dbg(struct Process *proc);
-
 /* This should produce and return the next event of one of the traced
  * processes.  The returned pointer will not be freed by the core and
  * should be either statically allocated, or the management should be
