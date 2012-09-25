@@ -25,8 +25,9 @@
 #include <assert.h>
 
 #include "library.h"
-#include "proc.h" // for enum callback_status
+#include "callback.h"
 #include "debug.h"
+#include "dict.h"
 #include "backend.h" // for arch_library_symbol_init, arch_library_init
 
 #ifndef ARCH_HAVE_LIBRARY_DATA

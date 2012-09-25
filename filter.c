@@ -25,6 +25,7 @@
 
 #include "filter.h"
 #include "library.h"
+#include "callback.h"
 
 void
 filter_init(struct filter *filt)

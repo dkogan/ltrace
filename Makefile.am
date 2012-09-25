@@ -85,6 +85,7 @@ noinst_HEADERS = \
 	type.h \
 	value.h \
 	value_dict.h \
+	callback.h \
 	expr.h \
 	fetch.h \
 	vect.h \

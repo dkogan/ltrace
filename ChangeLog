@@ -1,5 +1,10 @@
 2012-09-25  Petr Machata  <pmachata@redhat.com>
 
+	* callback.h: New file.
+	* proc.h (enum callback_status): Move to callback.h.
+
+2012-09-25  Petr Machata  <pmachata@redhat.com>
+
 	* sysdeps/linux-gnu/x86/arch.h (FORK_EXEC_SYSCALLS): Remove.
 
 2012-09-22  Petr Machata  <pmachata@redhat.com>

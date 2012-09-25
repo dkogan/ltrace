@@ -34,19 +34,10 @@
 #include "ltrace.h"
 #include "dict.h"
 #include "sysdep.h"
+#include "callback.h"
 
 struct library;
 struct breakpoint;
-
-/* XXX Move this somewhere where it makes sense.  When the mess in
- * common.h is disentangled, that would actually be a good place for
- * this.  */
-enum callback_status {
-	CBS_STOP, /* The iteration should stop.  */
-	CBS_CONT, /* The iteration should continue.  */
-	CBS_FAIL, /* There was an error.  The iteration should stop
-		   * and return error.  */
-};
 
 struct event_handler {
 	/* Event handler that overrides the default one.  Should
@@ -184,28 +175,16 @@ Process * pid2proc(pid_t pid);
  * Returns 0 on success or a negative value on failure.  */
 int process_clone(struct Process *retp, struct Process *proc, pid_t pid);
 
-/* Iterate through the processes that ltrace currently traces.  CB is
- * called for each process.  Tasks are considered to be processes for
- * the purpose of this iterator.
- *
- * Notes on this iteration interface: The iteration starts after the
- * process designated by START_AFTER, or at the first process if
- * START_AFTER is NULL.  DATA is passed verbatim to CB.  If CB returns
- * CBS_STOP, the iteration stops and the current iterator is returned.
- * That iterator can then be used to restart the iteration.  NULL is
- * returned when iteration ends.
- *
- * There's no provision for returning error states.  Errors need to be
- * signaled to the caller via DATA, together with any other data that
- * the callback needs.  */
+/* Iterate through the processes that ltrace currently traces.  Tasks
+ * are considered to be processes for the purpose of this iterator.
+ * See callback.h for notes on iteration interfaces.  */
 Process *each_process(Process *start_after,
 		      enum callback_status (*cb)(struct Process *proc,
 						 void *data),
 		      void *data);
 
-/* Iterate through list of tasks of given process PROC.  Restarts are
- * supported via START_AFTER (see each_process for details of
- * iteration interface).  */
+/* Iterate through list of tasks of given process PROC.  See
+ * callback.h for notes on iteration interfaces.  */
 Process *each_task(struct Process *proc, struct Process *start_after,
 		   enum callback_status (*cb)(struct Process *proc,
 					      void *data),
@@ -227,8 +206,8 @@ void proc_add_library(struct Process *proc, struct library *lib);
  * was found and unlinked, otherwise returns a negative value.  */
 int proc_remove_library(struct Process *proc, struct library *lib);
 
-/* Iterate through the libraries of PROC.  See each_process for
- * detailed description of the iteration interface.  */
+/* Iterate through the libraries of PROC.  See callback.h for notes on
+ * iteration interfaces.  */
 struct library *proc_each_library(struct Process *proc, struct library *start,
 				  enum callback_status (*cb)(struct Process *p,
 							     struct library *l,
@@ -242,8 +221,8 @@ int proc_add_breakpoint(struct Process *proc, struct breakpoint *bp);
  * does not find BP in PROC, it's hard error guarded by assertion.  */
 void proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp);
 
-/* Iterate through the libraries of PROC.  See each_process for
- * detailed description of the iteration interface.  */
+/* Iterate through the breakpoints of PROC.  See callback.h for notes
+ * on iteration interfaces.  */
 void *proc_each_breakpoint(struct Process *proc, void *start,
 			   enum callback_status (*cb)(struct Process *proc,
 						      struct breakpoint *bp,

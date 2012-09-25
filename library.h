@@ -23,6 +23,7 @@
 #define _LIBRARY_H_
 
 #include <stdint.h>
+#include "callback.h"
 #include "sysdep.h"
 
 struct Process;
@@ -144,9 +145,8 @@ void library_set_soname(struct library *lib,
 void library_set_pathname(struct library *lib,
 			  const char *new_name, int own_name);
 
-/* Iterate through list of symbols of library LIB.  Restarts are
- * supported via START_AFTER (see each_process for details of
- * iteration interface).  */
+/* Iterate through list of symbols of library LIB.  See callback.h for
+ * notes on this interface.  */
 struct library_symbol *library_each_symbol
 	(struct library *lib, struct library_symbol *start_after,
 	 enum callback_status (*cb)(struct library_symbol *, void *),
