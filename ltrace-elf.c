@@ -63,7 +63,7 @@ arch_elf_destroy(struct ltelf *lte)
 }
 #endif
 
-int
+static int
 default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 			  const char *a_name, GElf_Rela *rela, size_t ndx,
 			  struct library_symbol **ret)

@@ -1,3 +1,8 @@
+2012-09-26  Petr Machata  <pmachata@redhat.com>
+
+	* ltrace-elf.h (default_elf_add_plt_entry): Drop.
+	* ltrace-elf.c (default_elf_add_plt_entry): Make static.
+
 2012-09-25  Petr Machata  <pmachata@redhat.com>
 
 	* options.c (compile_libname): New function...
