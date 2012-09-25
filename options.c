@@ -52,7 +52,7 @@ struct opt_F_t *opt_F = NULL;	/* alternate configuration file(s) */
 
 static void
 err_usage(void) {
-	fprintf(stderr, "Try `%s --help' for more information\n", progname);
+	fprintf(stderr, "Try `%s --help' for more information.\n", progname);
 	exit(1);
 }
 
@@ -127,7 +127,7 @@ search_for_command(char *filename) {
 			m = n = strlen(path);
 		}
 		if (n + strlen(filename) + 1 >= PATH_MAX) {
-			fprintf(stderr, "Error: filename too long\n");
+			fprintf(stderr, "Error: filename too long.\n");
 			exit(1);
 		}
 		strncpy(pathname, path, n);
@@ -173,7 +173,7 @@ add_filter_rule(struct filter *filt, const char *expr,
 	struct filter_lib_matcher *matcher = malloc(sizeof(*matcher));
 
 	if (rule == NULL || matcher == NULL) {
-		fprintf(stderr, "rule near '%s' will be ignored: %s\n",
+		fprintf(stderr, "Rule near '%s' will be ignored: %s.\n",
 			expr, strerror(errno));
 	fail:
 		free(rule);
@@ -193,7 +193,7 @@ add_filter_rule(struct filter *filt, const char *expr,
 		if (status != 0) {
 			char buf[100];
 			regerror(status, &symbol_re, buf, sizeof buf);
-			fprintf(stderr, "rule near '%s' will be ignored: %s\n",
+			fprintf(stderr, "Rule near '%s' will be ignored: %s.\n",
 				expr, buf);
 			goto fail;
 		}
@@ -301,8 +301,8 @@ parse_filter(struct filter *filt, char *expr)
 				/* /XXX@YYY/ is the same as
 				 * /XXX/@/YYY/.  */
 				if (libend[0] != '/')
-					fprintf(stderr, "unmatched '/'"
-						" in symbol name\n");
+					fprintf(stderr, "Unmatched '/'"
+						" in symbol name.\n");
 				else
 					*libend-- = 0;
 			}
@@ -339,7 +339,7 @@ recursive_parse_chain(char *expr)
 {
 	struct filter *filt = malloc(sizeof(*filt));
 	if (filt == NULL) {
-		fprintf(stderr, "(part of) filter will be ignored: '%s': %s\n",
+		fprintf(stderr, "(Part of) filter will be ignored: '%s': %s.\n",
 			expr, strerror(errno));
 		return NULL;
 	}
@@ -359,7 +359,7 @@ parse_filter_chain(const char *expr, struct filter **retp)
 {
 	char *str = strdup(expr);
 	if (str == NULL) {
-		fprintf(stderr, "filter '%s' will be ignored: %s\n",
+		fprintf(stderr, "Filter '%s' will be ignored: %s.\n",
 			expr, strerror(errno));
 		return;
 	}
@@ -598,7 +598,8 @@ process_options(int argc, char **argv)
 		err_usage();
 	}
 	if (opt_r && opt_t) {
-		fprintf(stderr, "%s: Incompatible options -r and -t\n",
+		fprintf(stderr,
+			"%s: Options -r and -t can't be used together\n",
 			progname);
 		err_usage();
 	}
