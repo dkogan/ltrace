@@ -163,6 +163,34 @@ guess_cols(void) {
 	}
 }
 
+static int
+compile_libname(const char *expr, const char *a_lib, int lib_re_p,
+		struct filter_lib_matcher *matcher)
+{
+	if (strcmp(a_lib, "MAIN") == 0) {
+		filter_lib_matcher_main_init(matcher);
+	} else {
+		/* Add ^ and $ to the library expression as well.  */
+		char lib[strlen(a_lib) + 3];
+		sprintf(lib, "^%s$", a_lib);
+
+		enum filter_lib_matcher_type type
+			= lib[0] == '/' ? FLM_PATHNAME : FLM_SONAME;
+
+		regex_t lib_re;
+		int status = (lib_re_p ? regcomp : globcomp)(&lib_re, lib, 0);
+		if (status != 0) {
+			char buf[100];
+			regerror(status, &lib_re, buf, sizeof buf);
+			fprintf(stderr, "Rule near '%s' will be ignored: %s.\n",
+				expr, buf);
+			return -1;
+		}
+		filter_lib_matcher_name_init(matcher, type, lib_re);
+	}
+	return 0;
+}
+
 static void
 add_filter_rule(struct filter *filt, const char *expr,
 		enum filter_rule_type type,
@@ -182,14 +210,14 @@ add_filter_rule(struct filter *filt, const char *expr,
 	}
 
 	regex_t symbol_re;
-	int status;
 	{
 		/* Add ^ to the start of expression and $ to the end, so that
 		 * we match the whole symbol name.  Let the user write the "*"
 		 * explicitly if they wish.  */
 		char sym[strlen(a_sym) + 3];
 		sprintf(sym, "^%s$", a_sym);
-		status = (sym_re_p ? regcomp : globcomp)(&symbol_re, sym, 0);
+		int status = (sym_re_p ? regcomp : globcomp)
+			(&symbol_re, sym, 0);
 		if (status != 0) {
 			char buf[100];
 			regerror(status, &symbol_re, buf, sizeof buf);
@@ -199,28 +227,9 @@ add_filter_rule(struct filter *filt, const char *expr,
 		}
 	}
 
-	if (strcmp(a_lib, "MAIN") == 0) {
-		filter_lib_matcher_main_init(matcher);
-	} else {
-		/* Add ^ and $ to the library expression as well.  */
-		char lib[strlen(a_lib) + 3];
-		sprintf(lib, "^%s$", a_lib);
-
-		enum filter_lib_matcher_type type
-			= lib[0] == '/' ? FLM_PATHNAME : FLM_SONAME;
-
-		regex_t lib_re;
-		status = (lib_re_p ? regcomp : globcomp)(&lib_re, lib, 0);
-		if (status != 0) {
-			char buf[100];
-			regerror(status, &lib_re, buf, sizeof buf);
-			fprintf(stderr, "rule near '%s' will be ignored: %s\n",
-				expr, buf);
-
-			regfree(&symbol_re);
-			goto fail;
-		}
-		filter_lib_matcher_name_init(matcher, type, lib_re);
+	if (compile_libname(expr, a_lib, lib_re_p, matcher) < 0) {
+		regfree(&symbol_re);
+		goto fail;
 	}
 
 	filter_rule_init(rule, type, matcher, symbol_re);
@@ -228,11 +237,31 @@ add_filter_rule(struct filter *filt, const char *expr,
 }
 
 static int
+grok_libname_pattern(char **libnamep, char **libendp)
+{
+	char *libname = *libnamep;
+	char *libend = *libendp;
+
+	if (libend[0] != '/')
+		return 0;
+
+	*libend-- = 0;
+	if (libname != libend && libname[0] == '/')
+		++libname;
+	else
+		fprintf(stderr, "Unmatched '/' in library name.\n");
+
+	*libendp = libend;
+	*libnamep = libname;
+	return 1;
+}
+
+static int
 parse_filter(struct filter *filt, char *expr)
 {
-	/* Filter is a chain of sym@lib rules separated by '-'.  If
-	 * the filter expression starts with '-', the missing initial
-	 * rule is implicitly *@*.  */
+	/* Filter is a chain of sym@lib rules separated by '-' or '+'.
+	 * If the filter expression starts with '-', the missing
+	 * initial rule is implicitly *@*.  */
 
 	enum filter_rule_type type = FR_ADD;
 
@@ -311,15 +340,8 @@ parse_filter(struct filter *filt, char *expr)
 		/* If libname ends in '/', then we expect '/' in the
 		 * beginning too.  Otherwise the initial '/' is part
 		 * of absolute file name.  */
-		if (!lib_is_re && libend[0] == '/') {
-			lib_is_re = 1;
-			*libend-- = 0;
-			if (libname != libend && libname[0] == '/')
-				++libname;
-			else
-				fprintf(stderr, "unmatched '/'"
-					" in library name\n");
-		}
+		if (!lib_is_re)
+			lib_is_re = grok_libname_pattern(&libname, &libend);
 
 		if (*symname == 0) /* /@AA/ */
 			symname = "*";

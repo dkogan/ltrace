@@ -1,5 +1,12 @@
 2012-09-25  Petr Machata  <pmachata@redhat.com>
 
+	* options.c (compile_libname): New function...
+	(add_filter_rule): ... extracted from here.
+	(grok_libname_pattern): New function...
+	(parse_filter): ... extracted from here.
+
+2012-09-25  Petr Machata  <pmachata@redhat.com>
+
 	* forward.h (struct filter): New declaration.
 	* options.h: Include forward.h instead of declaring.
 
