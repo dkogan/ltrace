@@ -134,3 +134,25 @@ vect_destroy(struct vect *vec, void (*dtor)(void *emt, void *data), void *data)
 	}
 	free(vec->data);
 }
+
+void *
+vect_each(struct vect *vec, void *start_after,
+	  enum callback_status (*cb)(void *, void *), void *data)
+{
+	size_t i = start_after == NULL ? 0
+		: ((start_after - vec->data) / vec->elt_size) + 1;
+
+	for (; i < vec->size; ++i) {
+		void *slt = slot(vec, i);
+		switch ((*cb)(slt, data)) {
+		case CBS_FAIL:
+			/* XXX handle me */
+		case CBS_STOP:
+			return slt;
+		case CBS_CONT:
+			break;
+		}
+	}
+
+	return NULL;
+}

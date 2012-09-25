@@ -22,6 +22,9 @@
 #define VECT_H
 
 #include <stddef.h>
+#include <assert.h>
+
+#include "callback.h"
 
 /* Vector is an array that can grow as needed to accommodate the data
  * that it needs to hold.  ELT_SIZE is also used as an elementary
@@ -121,5 +124,23 @@ void vect_destroy(struct vect *vec,
 		vect_destroy((VECP), (void (*)(void *, void *))_dtor_callback, \
 			     DATA);					\
 	} while (0)
+
+/* Iterate through vector VEC.  See callback.h for notes on iteration
+ * interfaces.  */
+void *vect_each(struct vect *vec, void *start_after,
+		enum callback_status (*cb)(void *, void *), void *data);
+
+#define VECT_EACH(VECP, ELT_TYPE, START_AFTER, CB, DATA)		\
+	/* xxx GCC-ism necessary to get in the safety latches.  */	\
+	({								\
+		assert((VECP)->elt_size == sizeof(ELT_TYPE));		\
+		/* Check that CB is typed properly.  */			\
+		enum callback_status (*_cb)(ELT_TYPE *, void *) = CB;	\
+		ELT_TYPE *start_after = (START_AFTER);			\
+		(ELT_TYPE *)vect_each((VECP), start_after,		\
+				      (enum callback_status		\
+				       (*)(void *, void *))_cb,		\
+				      DATA);				\
+	})
 
 #endif /* VECT_H */

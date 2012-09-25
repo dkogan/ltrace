@@ -1,5 +1,10 @@
 2012-09-25  Petr Machata  <pmachata@redhat.com>
 
+	* vect.h, vect.c (vect_each): New function.
+	* vect.h (VECT_EACH): New wrapper macro.
+
+2012-09-25  Petr Machata  <pmachata@redhat.com>
+
 	* callback.h: New file.
 	* proc.h (enum callback_status): Move to callback.h.
 
