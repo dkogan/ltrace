@@ -1,3 +1,7 @@
+2012-09-25  Petr Machata  <pmachata@redhat.com>
+
+	* sysdeps/linux-gnu/x86/arch.h (FORK_EXEC_SYSCALLS): Remove.
+
 2012-09-22  Petr Machata  <pmachata@redhat.com>
 
 	* sysdeps/linux-gnu/x86/fetch.c (flatten_structure): New function.

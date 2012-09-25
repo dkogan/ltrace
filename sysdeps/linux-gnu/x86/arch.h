@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011 Petr Machata
+ * Copyright (C) 2011, 2012 Petr Machata
  * Copyright (C) 2006 Ian Wienand
  * Copyright (C) 2004 Juan Cespedes
  *
@@ -34,7 +34,3 @@
 #endif
 #define LT_ELFCLASS2	ELFCLASS32
 #define LT_ELF_MACHINE2	EM_386
-
-/* __NR_fork, __NR_clone, __NR_clone2, __NR_vfork and __NR_execve
-   from asm-i386/unistd.h.  */
-#define FORK_EXEC_SYSCALLS , { 2, 120, -1, 190, 11 }
