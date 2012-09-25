@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-struct filter;
+#include "forward.h"
 
 struct options_t {
 	int align;      /* -a: default alignment column for results */

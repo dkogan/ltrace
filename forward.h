@@ -12,3 +12,4 @@ struct param;
 struct param_enum;
 struct value;
 struct value_dict;
+struct filter;

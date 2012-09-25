@@ -1,5 +1,10 @@
 2012-09-25  Petr Machata  <pmachata@redhat.com>
 
+	* forward.h (struct filter): New declaration.
+	* options.h: Include forward.h instead of declaring.
+
+2012-09-25  Petr Machata  <pmachata@redhat.com>
+
 	* vect.h, vect.c (vect_each): New function.
 	* vect.h (VECT_EACH): New wrapper macro.
 
