@@ -77,3 +77,15 @@ ltrace_runtest $objdir/$subdir $binfile0
 ltrace_verify_output ${binfile0}.ltrace "filt->func1(" 1
 ltrace_verify_output ${binfile0}.ltrace "func1@libfilt1.so(.*)" 1
 ltrace_verify_output ${binfile0}.ltrace "func1 resumed" 1
+
+# Check that when given -l, we don't trace symbols from other
+# libraries.
+ltrace_options "-llibfilt1.so"
+ltrace_runtest $objdir/$subdir $binfile0
+ltrace_verify_output ${binfile0}.ltrace "filt->func1(.*)" 1
+
+ltrace_options "-llibfilt1.so" "-llibfilt2.so"
+ltrace_runtest $objdir/$subdir $binfile0
+ltrace_verify_output ${binfile0}.ltrace "filt->func1(" 1
+ltrace_verify_output ${binfile0}.ltrace "libfilt1.so->func2(.*)" 1
+ltrace_verify_output ${binfile0}.ltrace "func1 resumed" 1

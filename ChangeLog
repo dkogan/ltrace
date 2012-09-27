@@ -1,5 +1,9 @@
 2012-09-28  Petr Machata  <pmachata@redhat.com>
 
+	* testsuite/ltrace.main/filters.exp: Add tests.
+
+2012-09-28  Petr Machata  <pmachata@redhat.com>
+
 	* proc.c (activate_latent_in): New function.
 
 2012-09-28  Petr Machata  <pmachata@redhat.com>
