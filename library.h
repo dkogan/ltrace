@@ -39,6 +39,13 @@ enum toplt {
 unsigned int target_address_hash(const void *key);
 int target_address_cmp(const void *key1, const void *key2);
 
+/* For handling -l.  */
+struct library_exported_name {
+	struct library_exported_name *next;
+	const char *name;
+	int own_name : 1;
+};
+
 struct library_symbol {
 	struct library_symbol *next;
 	struct library *lib;
@@ -133,6 +140,12 @@ struct library {
 	/* Symbols associated with the library.  This includes a
 	 * symbols that don't have a breakpoint attached (yet).  */
 	struct library_symbol *symbols;
+
+	/* List of names that this library implements, and that match
+	 * -l filter.  Each time a new library is mapped, its list of
+	 * exports is examined, and corresponding PLT slots are
+	 * enabled.  */
+	struct library_exported_name *exported_names;
 
 	const char *soname;
 	const char *pathname;

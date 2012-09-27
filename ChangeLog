@@ -1,5 +1,13 @@
 2012-09-27  Petr Machata  <pmachata@redhat.com>
 
+	* library.h (struct library_exported_name): New structure.
+	(struct library.exported_names): New field.
+	* library.c (private_library_init): Initialize it.
+	(library_clone): Clone chain of exported names.
+	(library_exported_name_clone): New function.
+
+2012-09-27  Petr Machata  <pmachata@redhat.com>
+
 	* options.h (struct options_t.export_filter): New field.
 	* options.c (parse_filter): Take argument OPERATORS.
 	(recursive_parse_chain): Likewise.

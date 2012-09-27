@@ -231,6 +231,7 @@ private_library_init(struct library *lib, enum library_type type)
 	lib->own_pathname = 0;
 
 	lib->symbols = NULL;
+	lib->exported_names = NULL;
 	lib->type = type;
 }
 
@@ -239,6 +240,18 @@ library_init(struct library *lib, enum library_type type)
 {
 	private_library_init(lib, type);
 	arch_library_init(lib);
+}
+
+static int
+library_exported_name_clone(struct library_exported_name *retp,
+			    struct library_exported_name *exnm)
+{
+	char *name = exnm->own_name ? strdup(exnm->name) : (char *)exnm->name;
+	if (name == NULL)
+		return -1;
+	retp->name = name;
+	retp->own_name = exnm->own_name;
+	return 0;
 }
 
 int
@@ -259,20 +272,41 @@ library_clone(struct library *retp, struct library *lib)
 	library_set_soname(retp, pathname, lib->own_pathname);
 	arch_library_clone(retp, lib);
 
-	struct library_symbol *it;
-	struct library_symbol **nsymp = &retp->symbols;
-	for (it = lib->symbols; it != NULL; it = it->next) {
-		*nsymp = malloc(sizeof(**nsymp));
-		if (*nsymp == NULL
-		    || library_symbol_clone(*nsymp, it) < 0) {
-			/* Release what we managed to allocate.  */
-			library_destroy(retp);
-			return -1;
-		}
+	/* Clone symbols.  */
+	{
+		struct library_symbol *it;
+		struct library_symbol **nsymp = &retp->symbols;
+		for (it = lib->symbols; it != NULL; it = it->next) {
+			*nsymp = malloc(sizeof(**nsymp));
+			if (*nsymp == NULL
+			    || library_symbol_clone(*nsymp, it) < 0) {
+				free(*nsymp);
+			fail:
+				/* Release what we managed to allocate.  */
+				library_destroy(retp);
+				return -1;
+			}
 
-		(*nsymp)->lib = retp;
-		nsymp = &(*nsymp)->next;
+			(*nsymp)->lib = retp;
+			nsymp = &(*nsymp)->next;
+		}
 	}
+
+	/* Clone exported names.  */
+	{
+		struct library_exported_name *it;
+		struct library_exported_name **nnamep = &retp->exported_names;
+		for (it = lib->exported_names; it != NULL; it = it->next) {
+			*nnamep = malloc(sizeof(**nnamep));
+			if (*nnamep == NULL
+			    || library_exported_name_clone(*nnamep, it) < 0) {
+				free(*nnamep);
+				goto fail;
+			}
+			nnamep = &(*nnamep)->next;
+		}
+	}
+
 	return 0;
 }
 
