@@ -1,5 +1,10 @@
 2012-09-27  Petr Machata  <pmachata@redhat.com>
 
+	* library.h (library_symbol_named_cb): New function.
+	* library.c (library_symbol_named_cb): Implemented here.
+
+2012-09-27  Petr Machata  <pmachata@redhat.com>
+
 	* library.h (struct library_symbol.latent): New field.
 	(struct library_symbol.delayed): Likewise.
 	* library.c (private_library_symbol_init): Take arguments to

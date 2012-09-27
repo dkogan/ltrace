@@ -208,6 +208,11 @@ library_symbol_equal_cb(struct library_symbol *libsym, void *u)
 	return library_symbol_cmp(libsym, standard) == 0 ? CBS_STOP : CBS_CONT;
 }
 
+enum callback_status
+library_symbol_named_cb(struct library_symbol *libsym, void *name)
+{
+	return strcmp(libsym->name, name) == 0 ? CBS_STOP : CBS_CONT;
+}
 
 static void
 private_library_init(struct library *lib, enum library_type type)
