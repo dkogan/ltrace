@@ -1,5 +1,9 @@
 2012-09-28  Petr Machata  <pmachata@redhat.com>
 
+	* proc.c (activate_latent_in): New function.
+
+2012-09-28  Petr Machata  <pmachata@redhat.com>
+
 	* ltrace-elf.c (symbol_with_address): New function.
 
 2012-09-28  Petr Machata  <pmachata@redhat.com>

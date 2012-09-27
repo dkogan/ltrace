@@ -719,6 +719,23 @@ proc_activate_delayed_symbol(struct Process *proc,
 	return breakpoint_for_symbol(libsym, proc);
 }
 
+static enum callback_status
+activate_latent_in(struct Process *proc, struct library *lib, void *data)
+{
+	struct library_exported_name *exported;
+	for (exported = data; exported != NULL; exported = exported->next) {
+		struct library_symbol *libsym = NULL;
+		while ((libsym = library_each_symbol(lib, libsym,
+						     library_symbol_named_cb,
+						     (void *)exported->name))
+		       != NULL)
+			if (libsym->latent
+			    && proc_activate_latent_symbol(proc, libsym) < 0)
+				return CBS_FAIL;
+	}
+	return CBS_CONT;
+}
+
 void
 proc_add_library(struct Process *proc, struct library *lib)
 {
@@ -734,6 +751,16 @@ proc_add_library(struct Process *proc, struct library *lib)
 					     cb_breakpoint_for_symbol,
 					     proc)) != NULL)
 		fprintf(stderr, "Couldn't insert breakpoint for %s to %d: %s.",
+			libsym->name, proc->pid, strerror(errno));
+
+	/* Look through export list of the new library and compare it
+	 * with latent symbols of all libraries (including this
+	 * library itself).  */
+	struct library *lib2 = NULL;
+	while ((lib2 = proc_each_library(proc, lib2, activate_latent_in,
+					 lib->exported_names)) != NULL)
+		fprintf(stderr,
+			"Couldn't activate latent symbols for %s in %d: %s.",
 			libsym->name, proc->pid, strerror(errno));
 }
 
