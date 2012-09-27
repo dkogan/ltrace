@@ -147,15 +147,17 @@ filter_matches_library(struct filter *filt, struct library *lib)
 	if (filt == NULL)
 		return 0;
 
-	struct filter_rule *it;
-	for (it = filt->rules; it != NULL; it = it->next)
-		switch (it->type) {
-		case FR_ADD:
-			if (matcher_matches_library(it->lib_matcher, lib))
-				return 1;
-		case FR_SUBTRACT:
-			continue;
-		};
+	for (; filt != NULL; filt = filt->next) {
+		struct filter_rule *it;
+		for (it = filt->rules; it != NULL; it = it->next)
+			switch (it->type) {
+			case FR_ADD:
+				if (matcher_matches_library(it->lib_matcher, lib))
+					return 1;
+			case FR_SUBTRACT:
+				continue;
+			};
+	}
 	return 0;
 }
 
