@@ -543,9 +543,19 @@ arch_get_sym_info(struct ltelf *lte, const char *filename,
 }
 #endif
 
+static void
+mark_chain_latent(struct library_symbol *libsym)
+{
+	for (; libsym != NULL; libsym = libsym->next) {
+		debug(DEBUG_FUNCTION, "marking %s latent", libsym->name);
+		libsym->latent = 1;
+	}
+}
+
 static int
 populate_plt(struct Process *proc, const char *filename,
-	     struct ltelf *lte, struct library *lib)
+	     struct ltelf *lte, struct library *lib,
+	     int latent_plts)
 {
 	size_t i;
 	for (i = 0; i < lte->relplt_count; ++i) {
@@ -557,7 +567,12 @@ populate_plt(struct Process *proc, const char *filename,
 
 		char const *name = lte->dynstr + sym.st_name;
 
-		if (!filter_matches_symbol(options.plt_filter, name, lib))
+		/* If the symbol wasn't matched, reject it, unless we
+		 * need to keep latent PLT breakpoints for tracing
+		 * exports.  */
+		int matched = filter_matches_symbol(options.plt_filter,
+						    name, lib);
+		if (!matched && !latent_plts)
 			continue;
 
 		struct library_symbol *libsym = NULL;
@@ -571,8 +586,14 @@ populate_plt(struct Process *proc, const char *filename,
 				return -1;
 			/* fall-through */
 		case plt_ok:
-			if (libsym != NULL)
+			if (libsym != NULL) {
+				/* If we are adding those symbols just
+				 * for tracing exports, mark them all
+				 * latent.  */
+				if (!matched)
+					mark_chain_latent(libsym);
 				library_add_symbol(lib, libsym);
+			}
 		}
 	}
 	return 0;
@@ -851,7 +872,8 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 
 	int plts = filter_matches_library(options.plt_filter, lib);
 	if ((plts || options.export_filter != NULL)
-	    && populate_plt(proc, filename, &lte, lib) < 0)
+	    && populate_plt(proc, filename, &lte, lib,
+			    options.export_filter != NULL) < 0)
 		goto fail;
 
 	int exports = filter_matches_library(options.export_filter, lib);
