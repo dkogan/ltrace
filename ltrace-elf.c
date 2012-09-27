@@ -601,8 +601,14 @@ unique_symbol_cmp(const void *key, const void *val)
 static int
 populate_this_symtab(struct Process *proc, const char *filename,
 		     struct ltelf *lte, struct library *lib,
-		     Elf_Data *symtab, const char *strtab, size_t size)
+		     Elf_Data *symtab, const char *strtab, size_t size,
+		     struct library_exported_name **names)
 {
+	/* If a valid NAMES is passed, we pass in *NAMES a list of
+	 * symbol names that this library exports.  */
+	if (names != NULL)
+		*names = NULL;
+
 	/* Using sorted array would be arguably better, but this
 	 * should be well enough for the number of symbols that we
 	 * typically deal with.  */
@@ -643,6 +649,7 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		    || sym.st_shndx == STN_UNDEF)
 			continue;
 
+		/* Find symbol name and snip version.  */
 		const char *orig_name = strtab + sym.st_name;
 		const char *version = strchr(orig_name, '@');
 		size_t len = version != NULL ? (assert(version > orig_name),
@@ -652,6 +659,27 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		memcpy(name, orig_name, len);
 		name[len] = 0;
 
+		/* If we are interested in exports, store this name.  */
+		char *name_copy = NULL;
+		if (names != NULL) {
+			struct library_exported_name *export = NULL;
+			name_copy = strdup(name);
+
+			if (name_copy == NULL
+			    || (export = malloc(sizeof(*export))) == NULL) {
+				free(name_copy);
+				fprintf(stderr, "Couldn't store symbol %s.  "
+					"Tracing may be incomplete.\n", name);
+			} else {
+				export->name = name_copy;
+				export->own_name = 1;
+				export->next = *names;
+				*names = export;
+			}
+		}
+
+		/* If the symbol is not matched, skip it.  We already
+		 * stored it to export list above.  */
 		if (!filter_matches_symbol(options.static_filter, name, lib))
 			continue;
 
@@ -673,15 +701,21 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		}
 
 		char *full_name;
+		int own_full_name = 1;
 		if (lib->type != LT_LIBTYPE_MAIN) {
 			full_name = malloc(strlen(name) + 1 + lib_len + 1);
 			if (full_name == NULL)
 				goto fail;
 			sprintf(full_name, "%s@%s", name, lib->soname);
 		} else {
-			full_name = strdup(name);
-			if (full_name == NULL)
-				goto fail;
+			if (name_copy == NULL) {
+				full_name = strdup(name);
+				if (full_name == NULL)
+					goto fail;
+			} else {
+				full_name = name_copy;
+				own_full_name = 0;
+			}
 		}
 
 		/* Look whether we already have a symbol for this
@@ -694,8 +728,9 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		if (unique->libsym == NULL) {
 			struct library_symbol *libsym = malloc(sizeof(*libsym));
 			if (libsym == NULL
-			    || library_symbol_init(libsym, naddr, full_name,
-						   1, LS_TOPLT_NONE) < 0) {
+			    || library_symbol_init(libsym, naddr,
+						   full_name, own_full_name,
+						   LS_TOPLT_NONE) < 0) {
 				--num_symbols;
 				goto fail;
 			}
@@ -703,9 +738,10 @@ populate_this_symtab(struct Process *proc, const char *filename,
 			unique->addr = naddr;
 
 		} else if (strlen(full_name) < strlen(unique->libsym->name)) {
-			library_symbol_set_name(unique->libsym, full_name, 1);
+			library_symbol_set_name(unique->libsym,
+						full_name, own_full_name);
 
-		} else {
+		} else if (own_full_name) {
 			free(full_name);
 		}
 	}
@@ -722,16 +758,27 @@ populate_this_symtab(struct Process *proc, const char *filename,
 
 static int
 populate_symtab(struct Process *proc, const char *filename,
-		struct ltelf *lte, struct library *lib)
+		struct ltelf *lte, struct library *lib,
+		int symtabs, int exports)
 {
-	if (lte->symtab != NULL && lte->strtab != NULL)
-		return populate_this_symtab(proc, filename, lte, lib,
-					    lte->symtab, lte->strtab,
-					    lte->symtab_count);
-	else
-		return populate_this_symtab(proc, filename, lte, lib,
-					    lte->dynsym, lte->dynstr,
-					    lte->dynsym_count);
+	int status;
+	if (symtabs && lte->symtab != NULL && lte->strtab != NULL
+	    && (status = populate_this_symtab(proc, filename, lte, lib,
+					      lte->symtab, lte->strtab,
+					      lte->symtab_count, NULL)) < 0)
+		return status;
+
+	/* Check whether we want to trace symbols implemented by this
+	 * library (-l).  */
+	struct library_exported_name **names = NULL;
+	if (exports) {
+		debug(DEBUG_FUNCTION, "-l matches %s", lib->soname);
+		names = &lib->exported_names;
+	}
+
+	return populate_this_symtab(proc, filename, lte, lib,
+				    lte->dynsym, lte->dynstr,
+				    lte->dynsym_count, names);
 }
 
 int
@@ -791,12 +838,27 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 	 * arch_addr_t becomes integral type.  */
 	lib->dyn_addr = (arch_addr_t)(uintptr_t)lte.dyn_addr;
 
-	if (filter_matches_library(options.plt_filter, lib)
+	/* There are two reasons that we need to inspect symbol tables
+	 * or populate PLT entries.  Either the user requested
+	 * corresponding tracing features (respectively -x and -e), or
+	 * they requested tracing exported symbols (-l).
+	 *
+	 * In the latter case we need to keep even those PLT slots
+	 * that are not requested by -e (but we keep them latent).  We
+	 * also need to inspect .dynsym to find what exports this
+	 * library provide, to turn on existing latent PLT
+	 * entries.  */
+
+	int plts = filter_matches_library(options.plt_filter, lib);
+	if ((plts || options.export_filter != NULL)
 	    && populate_plt(proc, filename, &lte, lib) < 0)
 		goto fail;
 
-	if (filter_matches_library(options.static_filter, lib)
-	    && populate_symtab(proc, filename, &lte, lib) < 0)
+	int exports = filter_matches_library(options.export_filter, lib);
+	int symtabs = filter_matches_library(options.static_filter, lib);
+	if ((symtabs || exports)
+	    && populate_symtab(proc, filename, &lte, lib,
+			       symtabs, exports) < 0)
 		goto fail;
 
 done:

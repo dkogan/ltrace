@@ -1,5 +1,13 @@
 2012-09-27  Petr Machata  <pmachata@redhat.com>
 
+	* ltrace-elf.c (populate_this_symtab): New argument NAMES.
+	List of exports is passed via this argument.
+	(populate_symtab): New arguments SYMTABS, EXPORTS.  Use them to
+	decide whether and how to call populate_this_symtab.
+	(ltelf_read_library): Update calls to populate_symtab.
+
+2012-09-27  Petr Machata  <pmachata@redhat.com>
+
 	* library.h (struct library_exported_name): New structure.
 	(struct library.exported_names): New field.
 	* library.c (private_library_init): Initialize it.
