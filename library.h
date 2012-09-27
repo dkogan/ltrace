@@ -118,8 +118,7 @@ struct library {
 	 * they have the same key.  */
 	arch_addr_t key;
 
-	/* Address where the library is mapped.  Two library objects
-	 * are considered equal, if they have the same base.  */
+	/* Address where the library is mapped.  */
 	arch_addr_t base;
 
 	/* Absolute address of the entry point.  Useful for main
