@@ -456,3 +456,8 @@ func_hfa_d12(struct struct_hfa_d12 e)
 {
 	return e;
 }
+
+void
+func_printf(char *format, ...)
+{
+}

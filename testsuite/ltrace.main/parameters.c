@@ -182,10 +182,11 @@ main ()
 		 15, 16, 'B', 18.0, 19.0, 20.0,
 		 21, 22.0, 23.0, 24.0, 25.0);
 
-  printf("sotnuh %d %ld %g %c\n", 5, 6L, 1.5, 'X');
-  printf("sotnuh1 %d %ld %hd\n", 5, 6L, (short)7);
-  printf("sotnuh2 %s %10s %10s\n", "a string", "a trimmed string", "short");
-  printf("many_args"
+  void func_printf(char *format, ...);
+  func_printf("sotnuh %d %ld %g %c\n", 5, 6L, 1.5, 'X');
+  func_printf("sotnuh1 %d %ld %hd\n", 5, 6L, (short)7);
+  func_printf("sotnuh2 %s %10s %10s\n", "a string", "a trimmed string", "short");
+  func_printf("many_args"
 	 "%d %d %ld %g %c %d %g "
 	 "%c %d %g %d %g %c %d "
 	 "%hd %d %c %g %g %g "
@@ -195,7 +196,7 @@ main ()
 	 (short)15, 16, 'B', 18.0, 19.0, 20.0,
 	 21L, 22.0, 23.0, 24.0, 25.0);
 
-  printf("sotnuh3 %*s\n", 4, "a trimmed string");
+  func_printf("sotnuh3 %*s\n", 4, "a trimmed string");
 
   void func_lens(int, long, short, long);
   func_lens(22, 23, 24, 25);

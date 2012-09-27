@@ -74,7 +74,7 @@ usage(void) {
 		"  -F, --config=FILE   load alternate configuration file (may be repeated).\n"
 		"  -h, --help          display this help and exit.\n"
 		"  -i                  print instruction pointer at time of library call.\n"
-		"  -l, --library=FILE  print library calls from this library only.\n"
+		"  -l, --library=FILE  only trace symbols implemented by this library.\n"
 		"  -L                  do NOT display library calls.\n"
 		"  -n, --indent=NR     indent output by NR spaces for each call level nesting.\n"
 		"  -o, --output=FILE   write the trace output to that file.\n"
@@ -257,7 +257,7 @@ grok_libname_pattern(char **libnamep, char **libendp)
 }
 
 static int
-parse_filter(struct filter *filt, char *expr)
+parse_filter(struct filter *filt, char *expr, int operators)
 {
 	/* Filter is a chain of sym@lib rules separated by '-' or '+'.
 	 * If the filter expression starts with '-', the missing
@@ -266,7 +266,7 @@ parse_filter(struct filter *filt, char *expr)
 	enum filter_rule_type type = FR_ADD;
 
 	while (*expr != 0) {
-		size_t s = strcspn(expr, "@-+");
+		size_t s = strcspn(expr, "-+@" + (operators ? 0 : 2));
 		char *symname = expr;
 		char *libname;
 		char *next = expr + s + 1;
@@ -285,7 +285,7 @@ parse_filter(struct filter *filt, char *expr)
 		} else {
 			assert(expr[s] == '@');
 			expr[s] = 0;
-			s = strcspn(next, "-+");
+			s = strcspn(next, "-+" + (operators ? 0 : 2));
 			if (s == 0) {
 				libname = "*";
 				expr = next;
@@ -357,7 +357,7 @@ parse_filter(struct filter *filt, char *expr)
 }
 
 static struct filter *
-recursive_parse_chain(char *expr)
+recursive_parse_chain(char *expr, int operators)
 {
 	struct filter *filt = malloc(sizeof(*filt));
 	if (filt == NULL) {
@@ -367,13 +367,21 @@ recursive_parse_chain(char *expr)
 	}
 
 	filter_init(filt);
-	if (parse_filter(filt, expr) < 0) {
+	if (parse_filter(filt, expr, operators) < 0) {
 		fprintf(stderr, "Filter '%s' will be ignored.\n", expr);
 		free(filt);
 		filt = NULL;
 	}
 
 	return filt;
+}
+
+static struct filter **
+slist_chase_end(struct filter **begin)
+{
+	for (; *begin != NULL; begin = &(*begin)->next)
+		;
+	return begin;
 }
 
 static void
@@ -389,10 +397,7 @@ parse_filter_chain(const char *expr, struct filter **retp)
 	if (str[0] == '!')
 		str[0] = '-';
 
-	struct filter **tailp;
-	for (tailp = retp; *tailp != NULL; tailp = &(*tailp)->next)
-		;
-	*tailp = recursive_parse_chain(str);
+	*slist_chase_end(retp) = recursive_parse_chain(str, 1);
 }
 
 char **
@@ -499,10 +504,16 @@ process_options(int argc, char **argv)
 		case 'i':
 			opt_i++;
 			break;
-		case 'l':
-			// XXX TODO
-			fprintf(stderr, "-l support not yet implemented\n");
+
+		case 'l': {
+			size_t patlen = strlen(optarg);
+			char buf[patlen + 2];
+			sprintf(buf, "@%s", optarg);
+			*slist_chase_end(&options.export_filter)
+				= recursive_parse_chain(buf, 0);
 			break;
+		}
+
 		case 'L':
 			libcalls = 0;
 			break;
@@ -607,12 +618,20 @@ process_options(int argc, char **argv)
 		opt_F = egg;
 	}
 
-	/* Set default filter.  Use @MAIN for now, as that's what
-	 * ltrace used to have in the past.  XXX Maybe we should make
-	 * this "*" instead.  */
-	if (options.plt_filter == NULL && libcalls) {
+	/* If neither -e, nor -l, nor -L are used, set default -e.
+	 * Use @MAIN for now, as that's what ltrace used to have in
+	 * the past.  XXX Maybe we should make this "*" instead.  */
+	if (libcalls
+	    && options.plt_filter == NULL
+	    && options.export_filter == NULL) {
 		parse_filter_chain("@MAIN", &options.plt_filter);
 		options.hide_caller = 1;
+	}
+	if (!libcalls && options.plt_filter != NULL) {
+		fprintf(stderr,
+			"%s: Option -L can't be used with -e or -l.\n",
+			progname);
+		err_usage();
 	}
 
 	if (!opt_p && argc < 1) {

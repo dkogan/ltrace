@@ -20,7 +20,7 @@ if { [ltrace_compile_shlib $libsrc $lib_sl debug ] != ""
 }
 
 # set options for ltrace.
-ltrace_options "-l" "$objdir/$subdir/libparameters.so" "-F" "$srcdir/$subdir/parameters.conf"
+ltrace_options "-l" "libparameters.so" "-F" "$srcdir/$subdir/parameters.conf"
 
 # Run PUT for ltarce.
 set exec_output [ltrace_runtest $objdir/$subdir $objdir/$subdir/$binfile]
@@ -100,19 +100,19 @@ ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_many_args(1, 2, 3, 4.00*, '5', 6, 7.00*, '8', 9, 10.00*, 11, 12.00*, 'A', 14, 15, 16, 'B', 18.00*, 19.00*, 20.00*, 21, 22.00*, 23.00*, 24.00*, 25.00*)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "printf(\\\"sotnuh %d %ld %g %c.n\\\", 5, 6, 1.500*, 'X')"
+set pattern "func_printf(\\\"sotnuh %d %ld %g %c.n\\\", 5, 6, 1.500*, 'X')"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "printf(\\\"sotnuh1 %d %ld %hd.n\\\", 5, 6, 7)"
+set pattern "func_printf(\\\"sotnuh1 %d %ld %hd.n\\\", 5, 6, 7)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "printf(\\\"sotnuh2 %s %10s %10s.n\\\", \\\"a string\\\", \\\"a trimmed \\\", \\\"short\\\")"
+set pattern "func_printf(\\\"sotnuh2 %s %10s %10s.n\\\", \\\"a string\\\", \\\"a trimmed \\\", \\\"short\\\")"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "printf(\\\"sotnuh3 %.s.n\\\", 4, \\\"a tr\\\")"
+set pattern "func_printf(\\\"sotnuh3 %.s.n\\\", 4, \\\"a tr\\\")"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "printf(\\\"many_args%d %d %ld %g %c %d %g .*, 1, 2, 3, 4.00*, '5', 6, 7.00*, '8', 9, 10.00*, 11, 12.00*, 'A', 14, 15, 16, 'B', 18.00*, 19.00*, 20.00*, 21, 22.00*, 23.00*, 24.00*, 25.00*)"
+set pattern "func_printf(\\\"many_args%d %d %ld %g %c %d %g .*, 1, 2, 3, 4.00*, '5', 6, 7.00*, '8', 9, 10.00*, 11, 12.00*, 'A', 14, 15, 16, 'B', 18.00*, 19.00*, 20.00*, 21, 22.00*, 23.00*, 24.00*, 25.00*)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
 set pattern "func_lens(026, 027, 0x18, 0x19)"

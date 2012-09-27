@@ -19,7 +19,7 @@ if { [ltrace_compile_shlib $libsrc $lib_sl debug ] != ""
 }
 
 # set options for ltrace.
-ltrace_options "-l" "$lib_sl" "-f"
+ltrace_options "-l" "lib$testfile.so" "-f" "-evfork"
 
 # Run PUT for ltarce.
 set exec_output [ltrace_runtest $objdir/$subdir $objdir/$subdir/$binfile]

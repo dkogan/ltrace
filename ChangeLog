@@ -1,5 +1,20 @@
 2012-09-27  Petr Machata  <pmachata@redhat.com>
 
+	* options.h (struct options_t.export_filter): New field.
+	* options.c (parse_filter): Take argument OPERATORS.
+	(recursive_parse_chain): Likewise.
+	(slist_chase_end): New function.
+	(process_options): Handle 'l' option, initialize export_filter.
+	* ltrace.1: Explain -l.
+	* testsuite/ltrace.main/main-vfork.exp: Update use of -l.
+	* testsuite/ltrace.main/main.exp: Likewise.
+	* testsuite/ltrace.main/parameters-lib.c (func_printf): New function.
+	* testsuite/ltrace.main/parameters.c: Call it instead of printf.
+	* testsuite/ltrace.main/parameters.conf: Declare it.
+	* testsuite/ltrace.main/parameters.exp: Update expectations and -l.
+
+2012-09-27  Petr Machata  <pmachata@redhat.com>
+
 	* library.h (library_symbol_named_cb): New function.
 	* library.c (library_symbol_named_cb): Implemented here.
 

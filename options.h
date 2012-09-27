@@ -21,6 +21,11 @@ struct options_t {
 #endif /* defined(HAVE_LIBUNWIND) */
 	struct filter *plt_filter;
 	struct filter *static_filter;
+
+	/* A filter matching library names of libraries, whose
+	 * exported symbols we wish to trace.  */
+	struct filter *export_filter;
+
 	int hide_caller; /* Whether caller library should be hidden.  */
 };
 extern struct options_t options;
