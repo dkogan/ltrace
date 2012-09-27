@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
+#include <assert.h>
 
 #include "backend.h"
 #include "common.h"
@@ -93,6 +94,169 @@ syscall_p(Process *proc, int status, int *sysnum) {
 	}
 	return 0;
 }
+
+/* Based on GDB code.  */
+#define mips32_op(x) (x >> 26)
+#define itype_op(x) (x >> 26)
+#define itype_rs(x) ((x >> 21) & 0x1f)
+#define itype_rt(x) ((x >> 16) & 0x1f)
+#define itype_immediate(x) (x & 0xffff)
+
+#define jtype_op(x) (x >> 26)
+#define jtype_target(x) (x & 0x03ffffff)
+
+#define rtype_op(x) (x >> 26)
+#define rtype_rs(x) ((x >> 21) & 0x1f)
+#define rtype_rt(x) ((x >> 16) & 0x1f)
+#define rtype_rd(x) ((x >> 11) & 0x1f)
+#define rtype_shamt(x) ((x >> 6) & 0x1f)
+#define rtype_funct(x) (x & 0x3f)
+
+static int32_t
+mips32_relative_offset (uint32_t inst)
+{
+  return ((itype_immediate (inst) ^ 0x8000) - 0x8000) << 2;
+}
+
+int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
+{
+	uint32_t inst, rx;
+	int op;
+	int rn;
+	int nr = 0;
+
+	inst = ptrace(PTRACE_PEEKTEXT, proc->pid, pc, 0);
+
+	if ((inst & 0xe0000000) != 0) {
+		/* Check for branches.  */
+		if (itype_op (inst) >> 2 == 5) {
+			/* BEQL, BNEL, BLEZL, BGTZL: bits 0101xx */
+			op = (itype_op (inst) & 0x03);
+			switch (op)
+			{
+			case 0:	/* BEQL */
+			case 1: /* BNEL */
+			case 2:	/* BLEZL */
+			case 3:	/* BGTZL */
+				newpc[nr++] = pc + 8;
+				newpc[nr++] = pc + 4 +
+					mips32_relative_offset (inst);
+				break;
+			default:
+				newpc[nr++] = pc + 4;
+				break;
+			}
+		} else if (itype_op (inst) == 17 && itype_rs (inst) == 8) {
+			/* Step over the branch.  */
+			newpc[nr++] = pc + 8;
+			newpc[nr++] = pc + mips32_relative_offset (inst) + 4;
+		} else {
+			newpc[nr++] = pc + 4;
+		}
+	} else {
+		/* Further subdivide into SPECIAL, REGIMM and other.  */
+		switch (op = itype_op (inst) & 0x07)
+		{
+		case 0:
+			op = rtype_funct (inst);
+			switch (op)
+			{
+			case 8:	/* JR  */
+			case 9:	/* JALR  */
+				rn = rtype_rs (inst);
+
+				rx = ptrace(PTRACE_PEEKUSER,proc->pid, rn, 0);
+				newpc[nr++] = rx;
+				break;
+			default:
+			case 12:	/* SYSCALL  */
+				newpc[nr++] = pc + 4;
+				break;
+			}
+			break;
+		case 1:
+			op = itype_rt (inst);
+			switch (op)
+			{
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+				case 16:
+				case 17:
+				case 18:
+				case 19:
+					newpc[nr++] = pc + 8;
+					newpc[nr++] = pc + 4 +
+						mips32_relative_offset(inst);
+					break;
+				default:
+					newpc[nr++] = pc + 4;
+					break;
+			}
+			break;
+		case 2:	/* J  */
+		case 3:	/* JAL  */
+			rx = jtype_target (inst) << 2;
+			/* Upper four bits get never changed...  */
+			newpc[nr++] = rx + ((pc + 4) & ~0x0fffffff);
+			break;
+		default:
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+			/* Step over the branch.  */
+			newpc[nr++] = pc + 8;
+			newpc[nr++] = pc + mips32_relative_offset (inst) + 4;
+			break;
+		}
+	}
+	if (nr <= 0 || nr > 2)
+		goto fail;
+	if (nr == 2) {
+		if (newpc[1] == 0)
+			goto fail;
+	}
+	if (newpc[0] == 0)
+		goto fail;
+
+	assert(nr == 1 || nr == 2);
+	return nr;
+
+fail:
+	printf("nr=%d pc=%x\n", nr, pc);
+	printf("pc=%x %x\n", newpc[0], newpc[1]);
+	return 0;
+}
+
+int
+arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
+		       int (*add_cb)(void *addr, void *data),
+		       void *add_cb_data)
+{
+	uint32_t pc = (uint32_t) get_instruction_pointer(proc);
+	uint32_t newpcs[2];
+	int nr;
+
+	nr = mips_next_pcs(proc, pc, newpcs);
+
+	while (nr-- > 0) {
+		arch_addr_t baddr = (arch_addr_t) newpcs[nr];
+		/* Not sure what to do here. We've already got a bp?  */
+		if (dict_find_entry(proc->breakpoints, baddr) != NULL) {
+			fprintf(stderr, "skip %p %p\n", baddr, add_cb_data);
+			continue;
+		}
+
+		if (add_cb(baddr, add_cb_data) < 0)
+			return -1;
+	}
+
+	ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
+	return 0;
+}
+
 /**
    \param type Function/syscall call or return.
    \param proc The process that had an event.
