@@ -66,6 +66,11 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 void *
 sym2addr(Process *proc, struct library_symbol *sym) {
     long ret;
+
+    if (sym->plt_type == LS_TOPLT_NONE) {
+        return sym->enter_addr;
+    }
+
     if(!proc->pid){
         return 0;
     }
