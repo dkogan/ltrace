@@ -91,6 +91,7 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		goto fail;
 	}
 
+	libsym->next = *ret;
 	*ret = libsym;
 	return 0;
 }
