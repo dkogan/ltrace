@@ -1,5 +1,9 @@
 2012-09-28  Petr Machata  <pmachata@redhat.com>
 
+	* ltrace-elf.c (symbol_with_address): New function.
+
+2012-09-28  Petr Machata  <pmachata@redhat.com>
+
 	* ltrace-elf.c (mark_chain_latent): New function.
 	(populate_plt): New argument LATENT_PLTS.
 	(ltelf_read_library): Update calls to populate_plt.

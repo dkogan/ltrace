@@ -619,6 +619,13 @@ unique_symbol_cmp(const void *key, const void *val)
 	return sym_key->addr != sym_val->addr;
 }
 
+static enum callback_status
+symbol_with_address(struct library_symbol *sym, void *addrptr)
+{
+	return sym->enter_addr == *(arch_addr_t *)addrptr
+		? CBS_STOP : CBS_CONT;
+}
+
 static int
 populate_this_symtab(struct Process *proc, const char *filename,
 		     struct ltelf *lte, struct library *lib,
@@ -767,13 +774,26 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		}
 	}
 
+	/* Now we do the union of this set of unique symbols with
+	 * what's already in the library.  */
 	for (i = 0; i < num_symbols; ++i) {
-		assert(symbols[i].libsym != NULL);
-		library_add_symbol(lib, symbols[i].libsym);
+		struct library_symbol *this_sym = symbols[i].libsym;
+		assert(this_sym != NULL);
+		struct library_symbol *other
+			= library_each_symbol(lib, NULL, symbol_with_address,
+					      &this_sym->enter_addr);
+		if (other != NULL) {
+			library_symbol_destroy(this_sym);
+			free(this_sym);
+			symbols[i].libsym = NULL;
+		}
 	}
 
-	free(symbols);
+	for (i = 0; i < num_symbols; ++i)
+		if (symbols[i].libsym != NULL)
+			library_add_symbol(lib, symbols[i].libsym);
 
+	free(symbols);
 	return 0;
 }
 
