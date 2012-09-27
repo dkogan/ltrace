@@ -206,6 +206,14 @@ void proc_add_library(struct Process *proc, struct library *lib);
  * was found and unlinked, otherwise returns a negative value.  */
 int proc_remove_library(struct Process *proc, struct library *lib);
 
+/* Clear a delayed flag.  If a symbol is neither latent, nor delayed,
+ * a breakpoint is inserted for it.  Returns 0 if the activation was
+ * successful or a negative value if it failed.  Note that if a symbol
+ * is both latent and delayed, this will not enable the corresponding
+ * breakpoint.  */
+int proc_activate_delayed_symbol(struct Process *proc,
+				 struct library_symbol *libsym);
+
 /* Iterate through the libraries of PROC.  See callback.h for notes on
  * iteration interfaces.  */
 struct library *proc_each_library(struct Process *proc, struct library *start,

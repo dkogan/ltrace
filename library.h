@@ -45,7 +45,21 @@ struct library_symbol {
 	const char *name;
 	arch_addr_t enter_addr;
 	enum toplt plt_type;
-	char own_name;
+	int own_name : 1;
+
+	/* This is relevant for PLT symbols.  Latent PLT symbols are
+	 * those that don't match any of the -e rules, but that might
+	 * potentially become active if a library implementing them
+	 * appears that matches a -l rule.  Ltrace core is responsible
+	 * for clearing latent flag.  */
+	int latent : 1;
+
+	/* Delayed symbols are those for which a breakpoint shouldn't
+	 * be enabled yet.  They are similar to latent symbols, but
+	 * backend is responsible for clearing the delayed flag.  See
+	 * proc_activate_delayed_symbol.  */
+	int delayed : 1;
+
 	struct arch_library_symbol_data arch;
 };
 
@@ -112,7 +126,8 @@ struct library {
 	/* Address of PT_DYNAMIC segment.  */
 	arch_addr_t dyn_addr;
 
-	/* Symbols associated with the library.  */
+	/* Symbols associated with the library.  This includes a
+	 * symbols that don't have a breakpoint attached (yet).  */
 	struct library_symbol *symbols;
 
 	const char *soname;

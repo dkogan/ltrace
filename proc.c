@@ -629,11 +629,10 @@ destroy_event_handler(Process * proc)
 	proc->event_handler = NULL;
 }
 
-static enum callback_status
-breakpoint_for_symbol(struct library_symbol *libsym, void *data)
+static int
+breakpoint_for_symbol(struct library_symbol *libsym, struct Process *proc)
 {
 	arch_addr_t bp_addr;
-	struct Process *proc = data;
 	assert(proc->leader == proc);
 
 	bp_addr = sym2addr(proc, libsym);
@@ -644,11 +643,16 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 	 *
 	 * Allow the backend to add these into the process representation
 	 * but don't put breakpoints at this point. Let the backend fix that
-	 * up later.  */
+	 * up later.
+	 *
+	 * XXX This should be changed to delayed symbols.  */
 	if (bp_addr == 0 && libsym->plt_type == LS_TOPLT_GOTONLY) {
 		/* Don't add breakpoints yet.  */
 		return CBS_CONT;
 	}
+	/* Don't enable latent or delayed symbols.  */
+	if (libsym->latent || libsym->delayed)
+		return 0;
 
 	/* If there is an artificial breakpoint on the same address,
 	 * its libsym will be NULL, and we can smuggle our libsym
@@ -667,7 +671,7 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 	if (bp != NULL) {
 		assert(bp->libsym == NULL);
 		bp->libsym = libsym;
-		return CBS_CONT;
+		return 0;
 	}
 
 	bp = malloc(sizeof(*bp));
@@ -675,7 +679,7 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 	    || breakpoint_init(bp, proc, bp_addr, libsym) < 0) {
 	fail:
 		free(bp);
-		return CBS_FAIL;
+		return -1;
 	}
 	if (proc_add_breakpoint(proc, bp) < 0) {
 		breakpoint_destroy(bp);
@@ -688,7 +692,31 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 		goto fail;
 	}
 
-	return CBS_CONT;
+	return 0;
+}
+
+static enum callback_status
+cb_breakpoint_for_symbol(struct library_symbol *libsym, void *data)
+{
+	return breakpoint_for_symbol(libsym, data) < 0 ? CBS_FAIL : CBS_CONT;
+}
+
+static int
+proc_activate_latent_symbol(struct Process *proc,
+			    struct library_symbol *libsym)
+{
+	assert(libsym->latent);
+	libsym->latent = 0;
+	return breakpoint_for_symbol(libsym, proc);
+}
+
+int
+proc_activate_delayed_symbol(struct Process *proc,
+			     struct library_symbol *libsym)
+{
+	assert(libsym->delayed);
+	libsym->delayed = 0;
+	return breakpoint_for_symbol(libsym, proc);
 }
 
 void
@@ -700,10 +728,12 @@ proc_add_library(struct Process *proc, struct library *lib)
 	debug(DEBUG_PROCESS, "added library %s@%p (%s) to %d",
 	      lib->soname, lib->base, lib->pathname, proc->pid);
 
+	/* Insert breakpoints for all active (non-latent) symbols.  */
 	struct library_symbol *libsym = NULL;
-	while ((libsym = library_each_symbol(lib, libsym, breakpoint_for_symbol,
+	while ((libsym = library_each_symbol(lib, libsym,
+					     cb_breakpoint_for_symbol,
 					     proc)) != NULL)
-		fprintf(stderr, "couldn't insert breakpoint for %s to %d: %s",
+		fprintf(stderr, "Couldn't insert breakpoint for %s to %d: %s.",
 			libsym->name, proc->pid, strerror(errno));
 }
 

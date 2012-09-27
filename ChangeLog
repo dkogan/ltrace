@@ -1,3 +1,11 @@
+2012-09-27  Petr Machata  <pmachata@redhat.com>
+
+	* library.h (struct library_symbol.latent): New field.
+	(struct library_symbol.delayed): Likewise.
+	* library.c (private_library_symbol_init): Take arguments to
+	initialize the two.
+	(library_symbol_init, library_symbol_clone): Update callers.
+
 2012-09-26  Petr Machata  <pmachata@redhat.com>
 
 	* ltrace-elf.h (default_elf_add_plt_entry): Drop.

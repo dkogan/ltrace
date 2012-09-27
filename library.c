@@ -113,13 +113,16 @@ static void
 private_library_symbol_init(struct library_symbol *libsym,
 			    arch_addr_t addr,
 			    const char *name, int own_name,
-			    enum toplt type_of_plt)
+			    enum toplt type_of_plt,
+			    int latent, int delayed)
 {
 	libsym->next = NULL;
 	libsym->lib = NULL;
 	libsym->plt_type = type_of_plt;
 	libsym->name = name;
 	libsym->own_name = own_name;
+	libsym->latent = latent;
+	libsym->delayed = delayed;
 	libsym->enter_addr = (void *)(uintptr_t)addr;
 }
 
@@ -134,7 +137,8 @@ library_symbol_init(struct library_symbol *libsym,
 		    arch_addr_t addr, const char *name, int own_name,
 		    enum toplt type_of_plt)
 {
-	private_library_symbol_init(libsym, addr, name, own_name, type_of_plt);
+	private_library_symbol_init(libsym, addr, name, own_name,
+				    type_of_plt, 0, 0);
 
 	/* If arch init fails, we've already set libsym->name and
 	 * own_name.  But we return failure, and the client code isn't
@@ -159,7 +163,8 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 		return -1;
 
 	private_library_symbol_init(retp, libsym->enter_addr,
-				    name, libsym->own_name, libsym->plt_type);
+				    name, libsym->own_name, libsym->plt_type,
+				    libsym->latent, libsym->delayed);
 
 	if (arch_library_symbol_clone(retp, libsym) < 0) {
 		private_library_symbol_destroy(retp);
