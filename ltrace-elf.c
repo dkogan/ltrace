@@ -510,35 +510,49 @@ do_close_elf(struct ltelf *lte) {
 	close(lte->fd);
 }
 
+#ifndef ARCH_HAVE_GET_SYMINFO
+int
+arch_get_sym_info(struct ltelf *lte, const char *filename,
+		  size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
+{
+	int i = sym_index;
+	GElf_Rel rel;
+	void *ret;
+
+	if (lte->relplt->d_type == ELF_T_REL) {
+		ret = gelf_getrel(lte->relplt, i, &rel);
+		rela->r_offset = rel.r_offset;
+		rela->r_info = rel.r_info;
+		rela->r_addend = 0;
+	} else {
+		ret = gelf_getrela(lte->relplt, i, rela);
+	}
+
+	if (ret == NULL
+	    || ELF64_R_SYM(rela->r_info) >= lte->dynsym_count
+	    || gelf_getsym(lte->dynsym, ELF64_R_SYM(rela->r_info),
+			   sym) == NULL) {
+		fprintf(stderr,
+			"Couldn't get relocation from \"%s\": %s\n",
+			filename, elf_errmsg(-1));
+		exit(EXIT_FAILURE);
+	}
+
+	return 0;
+}
+#endif
+
 static int
 populate_plt(struct Process *proc, const char *filename,
 	     struct ltelf *lte, struct library *lib)
 {
 	size_t i;
 	for (i = 0; i < lte->relplt_count; ++i) {
-		GElf_Rel rel;
 		GElf_Rela rela;
 		GElf_Sym sym;
-		void *ret;
 
-		if (lte->relplt->d_type == ELF_T_REL) {
-			ret = gelf_getrel(lte->relplt, i, &rel);
-			rela.r_offset = rel.r_offset;
-			rela.r_info = rel.r_info;
-			rela.r_addend = 0;
-		} else {
-			ret = gelf_getrela(lte->relplt, i, &rela);
-		}
-
-		if (ret == NULL
-		    || ELF64_R_SYM(rela.r_info) >= lte->dynsym_count
-		    || gelf_getsym(lte->dynsym, ELF64_R_SYM(rela.r_info),
-				   &sym) == NULL) {
-			fprintf(stderr,
-				"Couldn't get relocation from \"%s\": %s\n",
-				filename, elf_errmsg(-1));
-			exit(EXIT_FAILURE);
-		}
+		if (arch_get_sym_info(lte, filename, i, &rela, &sym) < 0)
+			continue; /* Skip this entry.  */
 
 		char const *name = lte->dynstr + sym.st_name;
 

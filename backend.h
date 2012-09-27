@@ -266,6 +266,21 @@ void arch_process_destroy(struct Process *proc);
 int arch_process_clone(struct Process *retp, struct Process *proc);
 int arch_process_exec(struct Process *proc);
 
+/* The following callback has to be implemented in backend if arch.h
+ * defines ARCH_HAVE_GET_SYM_INFO.
+ *
+ * This is called for every PLT relocation R in ELF file LTE, that
+ * ltrace is about to add to it's internal representation of the
+ * program under trace.
+ * The corresponding PLT entry is for SYM_INDEX-th relocation in the file.
+ *
+ * The callback is responsible for initializing RELA and SYM.
+ *
+ * Return 0 if OK.
+ * Return a negative value if this symbol (SYM_INDEX) should be ignored.  */
+int arch_get_sym_info(struct ltelf *lte, const char *filename,
+		      size_t sym_index, GElf_Rela *rela, GElf_Sym *sym);
+
 enum plt_status {
 	plt_fail,
 	plt_ok,
