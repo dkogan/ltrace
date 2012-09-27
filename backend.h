@@ -308,6 +308,10 @@ enum plt_status arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
  * done with the process startup.  */
 void arch_dynlink_done(struct Process *proc);
 
+/* This callback needs to be implemented if arch.h defines
+ * ARCH_HAVE_SYMBOL_RET.  It is called after a traced call returns.  */
+void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym);
+
 /* If arch.h defines ARCH_HAVE_FETCH_ARG, the following callbacks have
  * to be implemented: arch_fetch_arg_init, arch_fetch_arg_clone,
  * arch_fetch_arg_done, arch_fetch_arg_next and arch_fetch_retval.

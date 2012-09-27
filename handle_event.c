@@ -573,6 +573,12 @@ output_right_tos(struct Process *proc)
 		output_right(LT_TOF_FUNCTIONR, proc, elem->c_un.libfunc);
 }
 
+#ifndef ARCH_HAVE_SYMBOL_RET
+void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym)
+{
+}
+#endif
+
 static void
 handle_breakpoint(Event *event)
 {
@@ -606,6 +612,7 @@ handle_breakpoint(Event *event)
 			struct library_symbol *libsym =
 			    event->proc->callstack[i].c_un.libfunc;
 
+			arch_symbol_ret(event->proc, libsym);
 			output_right_tos(event->proc);
 			callstack_pop(event->proc);
 
@@ -614,7 +621,7 @@ handle_breakpoint(Event *event)
 			 * have the same return address, but were made
 			 * for different symbols.  This should only
 			 * happen for entry point tracing, i.e. for -x
-			 * everywhere, or -x and -e on PPC64.  */
+			 * everywhere, or -x and -e on MIPS.  */
 			while (event->proc->callstack_depth > 0) {
 				struct callstack_element *prev;
 				size_t d = event->proc->callstack_depth;
@@ -624,6 +631,8 @@ handle_breakpoint(Event *event)
 				    || prev->return_addr != brk_addr)
 					break;
 
+				arch_symbol_ret(event->proc,
+						prev->c_un.libfunc);
 				output_right_tos(event->proc);
 				callstack_pop(event->proc);
 			}

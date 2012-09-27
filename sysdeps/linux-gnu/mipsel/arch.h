@@ -43,6 +43,7 @@ struct arch_ltelf_data {
 #define ARCH_HAVE_DYNLINK_DONE
 #define ARCH_HAVE_ADD_PLT_ENTRY
 #define ARCH_HAVE_ATOMIC_SINGLESTEP
+#define ARCH_HAVE_SYMBOL_RET
 
 #define ARCH_HAVE_LIBRARY_SYMBOL_DATA
 enum mips_plt_type

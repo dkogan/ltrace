@@ -175,6 +175,51 @@ arch_elf_destroy(struct ltelf *lte)
 {
 }
 
+/* When functions return we check if the symbol needs an updated
+   breakpoint with the resolved address.  */
+void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym)
+{
+	struct breakpoint *bp;
+	arch_addr_t resolved_addr;
+
+	/* Only deal with unresolved symbols.  */
+	if (libsym->arch.type != MIPS_PLT_UNRESOLVED)
+		return;
+
+	resolved_addr = sym2addr(proc, libsym);
+	libsym->arch.resolved_addr = (uintptr_t) resolved_addr;
+	libsym->arch.type = MIPS_PLT_RESOLVED;
+
+	if (libsym->arch.stub_addr == libsym->arch.resolved_addr) {
+		/* Prelinked symbol. No need to add new breakpoint.  */
+		return;
+	}
+
+	bp = malloc(sizeof (*bp));
+	if (bp == NULL) {
+		fprintf(stderr, "Failed to allocate bp for %s\n",
+			libsym->name);
+		return;
+	}
+
+	if (breakpoint_init(bp, proc, resolved_addr, libsym) < 0)
+		goto err;
+
+	if (proc_add_breakpoint(proc, bp) < 0) {
+		breakpoint_destroy(bp);
+		goto err;
+	}
+
+	if (breakpoint_turn_on(bp, proc) < 0) {
+		proc_remove_breakpoint(proc, bp);
+		breakpoint_destroy(bp);
+		goto err;
+	}
+	return;
+err:
+	free(bp);
+}
+
 static enum callback_status
 cb_enable_breakpoint_sym(struct library_symbol *libsym, void *data)
 {
