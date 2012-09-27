@@ -632,9 +632,11 @@ destroy_event_handler(Process * proc)
 static enum callback_status
 breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 {
+	arch_addr_t bp_addr;
 	struct Process *proc = data;
 	assert(proc->leader == proc);
 
+	bp_addr = sym2addr(proc, libsym);
 	/* If there is an artificial breakpoint on the same address,
 	 * its libsym will be NULL, and we can smuggle our libsym
 	 * there.  That artificial breakpoint is there presumably for
@@ -648,7 +650,7 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 	 * the two: delete the one now in the dictionary, swap values
 	 * around, and put the new breakpoint back in.  */
 	struct breakpoint *bp = dict_find_entry(proc->breakpoints,
-						libsym->enter_addr);
+						bp_addr);
 	if (bp != NULL) {
 		assert(bp->libsym == NULL);
 		bp->libsym = libsym;
@@ -657,7 +659,7 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 
 	bp = malloc(sizeof(*bp));
 	if (bp == NULL
-	    || breakpoint_init(bp, proc, libsym->enter_addr, libsym) < 0) {
+	    || breakpoint_init(bp, proc, bp_addr, libsym) < 0) {
 	fail:
 		free(bp);
 		return CBS_FAIL;
