@@ -22,6 +22,7 @@
 #define LTRACE_MIPS_ARCH_H
 
 #include <stddef.h>
+#include <gelf.h>
 
 #define BREAKPOINT_VALUE { 0x0d, 0x00, 0x00, 0x00 }
 #define BREAKPOINT_LENGTH 4
@@ -36,6 +37,23 @@ struct arch_ltelf_data {
 	size_t pltgot_addr;
 	size_t mips_local_gotno;
 	size_t mips_gotsym;
+};
+
+#define ARCH_HAVE_GET_SYMINFO
+#define ARCH_HAVE_DYNLINK_DONE
+#define ARCH_HAVE_ADD_PLT_ENTRY
+
+#define ARCH_HAVE_LIBRARY_SYMBOL_DATA
+enum mips_plt_type
+{
+	MIPS_PLT_UNRESOLVED,
+	MIPS_PLT_RESOLVED,
+};
+
+struct arch_library_symbol_data {
+	enum mips_plt_type type;
+	GElf_Addr resolved_addr;
+	GElf_Addr stub_addr;
 };
 
 #endif /* LTRACE_MIPS_ARCH_H */

@@ -1,4 +1,6 @@
+#include <string.h>
 #include <error.h>
+#include <errno.h>
 #include <gelf.h>
 #include <sys/ptrace.h>
 
@@ -6,6 +8,7 @@
 #include "debug.h"
 #include "proc.h"
 #include "library.h"
+#include "breakpoint.h"
 #include "backend.h"
 
 /**
@@ -81,6 +84,36 @@ sym2addr(Process *proc, struct library_symbol *sym) {
     return (void *)ret;;
 }
 
+/*
+ * MIPS doesn't have traditional got.plt entries with corresponding
+ * relocations.
+ *
+ * sym_index is an offset into the external GOT entries. Filter out
+ * stuff that are not functions.
+ */
+int
+arch_get_sym_info(struct ltelf *lte, const char *filename,
+		  size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
+{
+	const char *name;
+
+	/* Fixup the offset.  */
+	sym_index += lte->arch.mips_gotsym;
+
+	if (gelf_getsym(lte->dynsym, sym_index, sym) == NULL){
+		error(EXIT_FAILURE, 0,
+			"Couldn't get relocation from \"%s\"", filename);
+	}
+
+	name = lte->dynstr + sym->st_name;
+	if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC) {
+		debug(2, "sym %s not a function", name);
+		return -1;
+	}
+
+	return 0;
+}
+
 /**
   MIPS ABI Supplement:
 
@@ -131,12 +164,147 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 		}
 	}
 
+	/* Tell the generic code how many dynamic trace:able symbols
+	 * we've got.  */
+	lte->relplt_count = lte->dynsym_count - lte->arch.mips_gotsym;
 	return 0;
 }
 
 void
 arch_elf_destroy(struct ltelf *lte)
 {
+}
+
+static enum callback_status
+cb_enable_breakpoint_sym(struct library_symbol *libsym, void *data)
+{
+	struct Process *proc = data;
+	struct breakpoint *bp;
+	arch_addr_t bp_addr;
+
+	if (libsym->plt_type != LS_TOPLT_GOTONLY)
+		return CBS_CONT;
+
+	/* Update state.  */
+	bp_addr = sym2addr(proc, libsym);
+	/* XXX The cast to uintptr_t should be removed when
+	 * arch_addr_t becomes integral type.  keywords: double cast.  */
+	libsym->arch.resolved_addr = (uintptr_t) bp_addr;
+
+	if (libsym->arch.resolved_addr == 0)
+		/* FIXME: What does this mean?  */
+		return CBS_CONT;
+
+	libsym->arch.type = MIPS_PLT_RESOLVED;
+
+	/* Add breakpoint.  */
+	bp = malloc(sizeof *bp);
+	if (bp == NULL
+	    || breakpoint_init(bp, proc, bp_addr, libsym) < 0) {
+		goto fail;
+	}
+
+	if (proc_add_breakpoint(proc, bp) < 0) {
+		breakpoint_destroy(bp);
+		goto fail;
+	}
+
+	if (breakpoint_turn_on(bp, proc) < 0) {
+		proc_remove_breakpoint(proc, bp);
+		breakpoint_destroy(bp);
+		goto fail;
+	}
+
+	return CBS_CONT;
+fail:
+	free(bp);
+	fprintf(stderr, "Failed to add breakpoint for %s\n", libsym->name);
+	return CBS_CONT;
+}
+
+static enum callback_status
+cb_enable_breakpoint_lib(struct Process *proc, struct library *lib, void *data)
+{
+	library_each_symbol(lib, NULL, cb_enable_breakpoint_sym, proc);
+	return CBS_CONT;
+}
+
+void arch_dynlink_done(struct Process *proc)
+{
+	proc_each_library(proc, NULL, cb_enable_breakpoint_lib, NULL);
+}
+
+enum plt_status
+arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+                       const char *a_name, GElf_Rela *rela, size_t ndx,
+                       struct library_symbol **ret)
+{
+	char *name = NULL;
+	int sym_index = ndx + lte->arch.mips_gotsym;
+
+	struct library_symbol *libsym = malloc(sizeof(*libsym));
+	if (libsym == NULL)
+		return plt_fail;
+
+	GElf_Addr addr = arch_plt_sym_val(lte, sym_index, 0);
+
+	name = strdup(a_name);
+	if (name == NULL) {
+		fprintf(stderr, "%s: failed %s(%#llx): %s\n", __func__,
+			name, addr, strerror(errno));
+		goto fail;
+	}
+
+	/* XXX The double cast should be removed when
+	 * arch_addr_t becomes integral type.  */
+	if (library_symbol_init(libsym,
+				(arch_addr_t) (uintptr_t) addr,
+				name, 1, LS_TOPLT_EXEC) < 0) {
+		fprintf(stderr, "%s: failed %s : %llx\n", __func__, name, addr);
+		goto fail;
+	}
+
+	arch_addr_t bp_addr = sym2addr(proc, libsym);
+	/* XXX This cast should be removed when
+	 * arch_addr_t becomes integral type.  keywords: double cast. */
+	libsym->arch.stub_addr = (uintptr_t) bp_addr;
+
+	if (bp_addr == 0) {
+		/* Function pointers without PLT entries.  */
+		libsym->plt_type = LS_TOPLT_GOTONLY;
+		libsym->arch.type = MIPS_PLT_UNRESOLVED;
+	}
+
+	*ret = libsym;
+	return plt_ok;
+
+fail:
+	free(name);
+	free(libsym);
+	return plt_fail;
+}
+
+int
+arch_library_symbol_init(struct library_symbol *libsym)
+{
+	libsym->arch.type = MIPS_PLT_UNRESOLVED;
+	if (libsym->plt_type == LS_TOPLT_NONE) {
+		libsym->arch.type = MIPS_PLT_RESOLVED;
+	}
+	return 0;
+}
+
+void
+arch_library_symbol_destroy(struct library_symbol *libsym)
+{
+}
+
+int
+arch_library_symbol_clone(struct library_symbol *retp,
+                          struct library_symbol *libsym)
+{
+	retp->arch = libsym->arch;
+	return 0;
 }
 
 /**@}*/

@@ -637,6 +637,19 @@ breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 	assert(proc->leader == proc);
 
 	bp_addr = sym2addr(proc, libsym);
+
+	/* For external function pointers, MIPS brings in stub-less funcs
+	 * that point to zero at startup. These symbols get resolved by
+	 * the dynamic linker and are ready to use at arch_dynlink_done().
+	 *
+	 * Allow the backend to add these into the process representation
+	 * but don't put breakpoints at this point. Let the backend fix that
+	 * up later.  */
+	if (bp_addr == 0 && libsym->plt_type == LS_TOPLT_GOTONLY) {
+		/* Don't add breakpoints yet.  */
+		return CBS_CONT;
+	}
+
 	/* If there is an artificial breakpoint on the same address,
 	 * its libsym will be NULL, and we can smuggle our libsym
 	 * there.  That artificial breakpoint is there presumably for
