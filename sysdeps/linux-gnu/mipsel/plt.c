@@ -70,7 +70,7 @@ void *
 sym2addr(Process *proc, struct library_symbol *sym) {
     long ret;
 
-    if (sym->plt_type == LS_TOPLT_NONE) {
+    if (!sym->arch.gotonly && sym->plt_type == LS_TOPLT_NONE) {
         return sym->enter_addr;
     }
 
@@ -225,10 +225,9 @@ static enum callback_status
 cb_enable_breakpoint_sym(struct library_symbol *libsym, void *data)
 {
 	struct Process *proc = data;
-	struct breakpoint *bp;
 	arch_addr_t bp_addr;
 
-	if (libsym->plt_type != LS_TOPLT_GOTONLY)
+	if (!libsym->arch.gotonly)
 		return CBS_CONT;
 
 	/* Update state.  */
@@ -243,28 +242,11 @@ cb_enable_breakpoint_sym(struct library_symbol *libsym, void *data)
 
 	libsym->arch.type = MIPS_PLT_RESOLVED;
 
-	/* Add breakpoint.  */
-	bp = malloc(sizeof *bp);
-	if (bp == NULL
-	    || breakpoint_init(bp, proc, bp_addr, libsym) < 0) {
-		goto fail;
+	/* Now, activate the symbol causing a breakpoint to be added.  */
+	if (proc_activate_delayed_symbol(proc, libsym) < 0) {
+		fprintf(stderr, "Failed to activate delayed sym %s\n",
+			libsym->name);
 	}
-
-	if (proc_add_breakpoint(proc, bp) < 0) {
-		breakpoint_destroy(bp);
-		goto fail;
-	}
-
-	if (breakpoint_turn_on(bp, proc) < 0) {
-		proc_remove_breakpoint(proc, bp);
-		breakpoint_destroy(bp);
-		goto fail;
-	}
-
-	return CBS_CONT;
-fail:
-	free(bp);
-	fprintf(stderr, "Failed to add breakpoint for %s\n", libsym->name);
 	return CBS_CONT;
 }
 
@@ -317,8 +299,13 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 
 	if (bp_addr == 0) {
 		/* Function pointers without PLT entries.  */
-		libsym->plt_type = LS_TOPLT_GOTONLY;
+		libsym->plt_type = LS_TOPLT_NONE;
+		libsym->arch.gotonly = 1;
 		libsym->arch.type = MIPS_PLT_UNRESOLVED;
+
+		/* Delay breakpoint activation until the symbol gets
+		 * resolved.  */
+		libsym->delayed = 1;
 	}
 
 	*ret = libsym;
@@ -333,6 +320,7 @@ fail:
 int
 arch_library_symbol_init(struct library_symbol *libsym)
 {
+	libsym->arch.gotonly = 0;
 	libsym->arch.type = MIPS_PLT_UNRESOLVED;
 	if (libsym->plt_type == LS_TOPLT_NONE) {
 		libsym->arch.type = MIPS_PLT_RESOLVED;

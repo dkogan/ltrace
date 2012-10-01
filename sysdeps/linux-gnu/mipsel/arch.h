@@ -56,6 +56,9 @@ struct arch_library_symbol_data {
 	enum mips_plt_type type;
 	GElf_Addr resolved_addr;
 	GElf_Addr stub_addr;
+
+	/* Set for FUNCs that have GOT entries but not PLT entries.  */
+	int gotonly : 1;
 };
 
 #endif /* LTRACE_MIPS_ARCH_H */

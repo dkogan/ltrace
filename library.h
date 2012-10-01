@@ -31,7 +31,6 @@ struct library;
 
 enum toplt {
 	LS_TOPLT_NONE = 0,	/* PLT not used for this symbol. */
-	LS_TOPLT_GOTONLY,	/* Has a GOT entry but no PLT.  */
 	LS_TOPLT_EXEC,		/* PLT for this symbol is executable. */
 };
 
