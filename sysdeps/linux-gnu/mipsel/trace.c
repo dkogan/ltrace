@@ -201,8 +201,16 @@ int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
 			/* Upper four bits get never changed...  */
 			newpc[nr++] = rx + ((pc + 4) & ~0x0fffffff);
 			break;
+		case 4: /* BEQ  */
+			if (itype_rs(inst) == itype_rt(inst)) {
+				/* Compare the same reg for equality, always
+				 * follow the branch.  */
+				newpc[nr++] = pc + 4 +
+					mips32_relative_offset(inst);
+				break;
+			}
+			/* Fall through.  */
 		default:
-		case 4:
 		case 5:
 		case 6:
 		case 7:
