@@ -252,7 +252,7 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 	while (nr-- > 0) {
 		arch_addr_t baddr = (arch_addr_t) newpcs[nr];
 		/* Not sure what to do here. We've already got a bp?  */
-		if (dict_find_entry(proc->breakpoints, baddr) != NULL) {
+		if (dict_find_entry(proc->leader->breakpoints, baddr) != NULL) {
 			fprintf(stderr, "skip %p %p\n", baddr, add_cb_data);
 			continue;
 		}

@@ -181,6 +181,7 @@ void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym)
 {
 	struct breakpoint *bp;
 	arch_addr_t resolved_addr;
+	struct Process *leader = proc->leader;
 
 	/* Only deal with unresolved symbols.  */
 	if (libsym->arch.type != MIPS_PLT_UNRESOLVED)
@@ -202,16 +203,16 @@ void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym)
 		return;
 	}
 
-	if (breakpoint_init(bp, proc, resolved_addr, libsym) < 0)
+	if (breakpoint_init(bp, leader, resolved_addr, libsym) < 0)
 		goto err;
 
-	if (proc_add_breakpoint(proc, bp) < 0) {
+	if (proc_add_breakpoint(leader, bp) < 0) {
 		breakpoint_destroy(bp);
 		goto err;
 	}
 
-	if (breakpoint_turn_on(bp, proc) < 0) {
-		proc_remove_breakpoint(proc, bp);
+	if (breakpoint_turn_on(bp, leader) < 0) {
+		proc_remove_breakpoint(leader, bp);
 		breakpoint_destroy(bp);
 		goto err;
 	}
@@ -276,7 +277,7 @@ cb_enable_breakpoint_lib(struct Process *proc, struct library *lib, void *data)
 
 void arch_dynlink_done(struct Process *proc)
 {
-	proc_each_library(proc, NULL, cb_enable_breakpoint_lib, NULL);
+	proc_each_library(proc->leader, NULL, cb_enable_breakpoint_lib, NULL);
 }
 
 enum plt_status
