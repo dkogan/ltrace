@@ -115,7 +115,7 @@ syscall_p(Process *proc, int status, int *sysnum) {
 static int32_t
 mips32_relative_offset (uint32_t inst)
 {
-  return ((itype_immediate (inst) ^ 0x8000) - 0x8000) << 2;
+  return ((itype_immediate(inst) ^ 0x8000) - 0x8000) << 2;
 }
 
 int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
@@ -129,9 +129,9 @@ int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
 
 	if ((inst & 0xe0000000) != 0) {
 		/* Check for branches.  */
-		if (itype_op (inst) >> 2 == 5) {
+		if (itype_op(inst) >> 2 == 5) {
 			/* BEQL, BNEL, BLEZL, BGTZL: bits 0101xx */
-			op = (itype_op (inst) & 0x03);
+			op = (itype_op(inst) & 0x03);
 			switch (op)
 			{
 			case 0:	/* BEQL */
@@ -140,30 +140,30 @@ int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
 			case 3:	/* BGTZL */
 				newpc[nr++] = pc + 8;
 				newpc[nr++] = pc + 4 +
-					mips32_relative_offset (inst);
+					mips32_relative_offset(inst);
 				break;
 			default:
 				newpc[nr++] = pc + 4;
 				break;
 			}
-		} else if (itype_op (inst) == 17 && itype_rs (inst) == 8) {
+		} else if (itype_op(inst) == 17 && itype_rs(inst) == 8) {
 			/* Step over the branch.  */
 			newpc[nr++] = pc + 8;
-			newpc[nr++] = pc + mips32_relative_offset (inst) + 4;
+			newpc[nr++] = pc + mips32_relative_offset(inst) + 4;
 		} else {
 			newpc[nr++] = pc + 4;
 		}
 	} else {
 		/* Further subdivide into SPECIAL, REGIMM and other.  */
-		switch (op = itype_op (inst) & 0x07)
+		switch (op = itype_op(inst) & 0x07)
 		{
 		case 0:
-			op = rtype_funct (inst);
+			op = rtype_funct(inst);
 			switch (op)
 			{
 			case 8:	/* JR  */
 			case 9:	/* JALR  */
-				rn = rtype_rs (inst);
+				rn = rtype_rs(inst);
 
 				rx = ptrace(PTRACE_PEEKUSER,proc->pid, rn, 0);
 				newpc[nr++] = rx;
@@ -175,7 +175,7 @@ int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
 			}
 			break;
 		case 1:
-			op = itype_rt (inst);
+			op = itype_rt(inst);
 			switch (op)
 			{
 				case 0:
@@ -197,7 +197,7 @@ int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
 			break;
 		case 2:	/* J  */
 		case 3:	/* JAL  */
-			rx = jtype_target (inst) << 2;
+			rx = jtype_target(inst) << 2;
 			/* Upper four bits get never changed...  */
 			newpc[nr++] = rx + ((pc + 4) & ~0x0fffffff);
 			break;
@@ -216,7 +216,7 @@ int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
 		case 7:
 			/* Step over the branch.  */
 			newpc[nr++] = pc + 8;
-			newpc[nr++] = pc + mips32_relative_offset (inst) + 4;
+			newpc[nr++] = pc + mips32_relative_offset(inst) + 4;
 			break;
 		}
 	}
