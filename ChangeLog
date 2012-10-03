@@ -1,5 +1,10 @@
 2012-10-03  Petr Machata  <pmachata@redhat.com>
 
+	* testsuite/ltrace.minor/libdl-simple.exp: Call get_compiler_info
+	before invoking ltrace_compile_shlib.
+
+2012-10-03  Petr Machata  <pmachata@redhat.com>
+
 	* testsuite/lib/ltrace.exp (ltrace_compile): Remove target binary
 	before executing compiler.
 	(ltrace_runtest): Remove target log file before executing ltrace.

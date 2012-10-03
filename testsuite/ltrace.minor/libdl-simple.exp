@@ -6,6 +6,10 @@ set libsrc $srcdir/$subdir/$libfile.c
 set lib_sl $objdir/$subdir/lib$testfile.so
 
 verbose "compiling source file now....."
+if [get_compiler_info $binfile ""] {
+	return -1
+}
+
 # Build the shared libraries this test case needs.
 if  { [ltrace_compile_shlib $libsrc $lib_sl [debug]] != ""
       || [ ltrace_compile "${srcdir}/${subdir}/${testfile}.c" "${objdir}/${subdir}/${binfile}" executable {debug shlib=-ldl} ] != "" } {
