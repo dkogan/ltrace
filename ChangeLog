@@ -1,3 +1,9 @@
+2012-10-03  Petr Machata  <pmachata@redhat.com>
+
+	* testsuite/lib/ltrace.exp (ltrace_compile): Remove target binary
+	before executing compiler.
+	(ltrace_runtest): Remove target log file before executing ltrace.
+
 2012-10-13  Petr Machata  <pmachata@redhat.com>
 
 	* testsuite/ltrace.main/parameters-lib.c (func_arg0): New function.

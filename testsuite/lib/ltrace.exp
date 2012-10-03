@@ -67,7 +67,11 @@ proc ltrace_compile {source dest type options} {
     # dump some information for debug purpose.
     verbose "options are $options"
     verbose "source is $source $dest $type $options"
-    
+
+    # Wipe the DEST file, so that we don't end up running an obsolete
+    # version of the binary.
+    exec rm -f $dest
+
     set result [target_compile $source $dest $type $options];
     verbose "result is $result"
     regsub "\[\r\n\]*$" "$result" "" result;
@@ -255,6 +259,11 @@ proc ltrace_runtest { args } {
 	} else {
 		set file $BIN.ltrace
 	}
+
+	# Remove the file first.  If ltrace fails to overwrite it, we
+	# would be comparing output to an obsolete run.
+	exec rm -f $file
+
 	# append this option to LTRACE_OPTIONS.
 	lappend LTRACE_OPTIONS "-o"
 	lappend LTRACE_OPTIONS "$file"
