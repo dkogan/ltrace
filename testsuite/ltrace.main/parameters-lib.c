@@ -467,3 +467,8 @@ void
 func_printf(char *format, ...)
 {
 }
+
+void
+func_sprintf(char *str, char *format, ...)
+{
+}

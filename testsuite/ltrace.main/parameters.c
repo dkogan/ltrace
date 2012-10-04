@@ -202,6 +202,9 @@ main ()
 
   func_printf("sotnuh3 %*s\n", 4, "a trimmed string");
 
+  void func_sprintf(char *str, char *format, ...);
+  func_sprintf(NULL, "test %d %d %d %d\n", 1, 2, 3, 4);
+
   void func_lens(int, long, short, long);
   func_lens(22, 23, 24, 25);
 
