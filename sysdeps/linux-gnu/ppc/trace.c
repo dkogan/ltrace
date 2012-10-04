@@ -224,9 +224,12 @@ arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
 	case ARGTYPE_STRUCT:
 		/* Use default value.  */
 		return (size_t)-2;
+
+	default:
+		assert(info->type != info->type);
+		abort();
+		break;
 	}
-	assert(info->type != info->type);
-	abort();
 }
 
 size_t
@@ -236,8 +239,9 @@ arch_type_alignof(struct Process *proc, struct arg_type_info *info)
 		return (size_t)-2;
 
 	switch (info->type) {
-	case ARGTYPE_VOID:
-		assert(info->type != ARGTYPE_VOID);
+	default:
+		assert(info->type != info->type);
+		abort();
 		break;
 
 	case ARGTYPE_CHAR:
@@ -259,6 +263,4 @@ arch_type_alignof(struct Process *proc, struct arg_type_info *info)
 		/* Use default value.  */
 		return (size_t)-2;
 	}
-	assert(info->type != info->type);
-	abort();
 }

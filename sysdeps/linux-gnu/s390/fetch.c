@@ -259,6 +259,10 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	case ARGTYPE_USHORT:
 	case ARGTYPE_POINTER:
 		return allocate_gpr(ctx, proc, info, valuep, sz);
+
+	default:
+		assert(info->type != info->type);
+		abort();
 	}
 	return -1;
 }

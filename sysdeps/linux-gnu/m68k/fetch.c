@@ -224,7 +224,7 @@ arch_fetch_retval(struct fetch_context *context, enum tof type,
 		}
 		return 0;
 
-	case ARGTYPE_ARRAY:
+	default:
 		assert(!"Unexpected m68k retval type!");
 		abort();
 	}

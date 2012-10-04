@@ -319,7 +319,8 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 
 	case ARGTYPE_ARRAY:
 		/* Arrays decay into pointers.  XXX Fortran?  */
-		assert(info->type != ARGTYPE_ARRAY);
+	default:
+		assert(info->type != info->type);
 		abort();
 	}
 
@@ -370,11 +371,7 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 	/* Small values need post-processing.  */
 	if (sz < width) {
 		switch (info->type) {
-		case ARGTYPE_LONG:
-		case ARGTYPE_ULONG:
-		case ARGTYPE_POINTER:
-		case ARGTYPE_DOUBLE:
-		case ARGTYPE_VOID:
+		default:
 			abort();
 
 		/* Simple integer types (char, short, int, long, enum)

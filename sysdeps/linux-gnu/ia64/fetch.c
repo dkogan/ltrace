@@ -438,11 +438,10 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 
 	case ARGTYPE_ARRAY:
 		/* Arrays decay into pointers.  XXX Fortran?  */
-		assert(info->type != ARGTYPE_ARRAY);
+	default:
+		assert(info->type != info->type);
 		abort();
 	}
-	assert("unhandled type");
-	abort();
 }
 
 int

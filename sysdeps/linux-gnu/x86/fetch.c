@@ -499,6 +499,11 @@ classify(struct Process *proc, struct fetch_context *context,
 	done:
 		type_destroy(&flattened);
 		return ret;
+
+	default:
+		/* Unsupported type.  */
+		assert(info->type != info->type);
+		abort();
 	}
 	abort();
 }
@@ -619,8 +624,8 @@ arch_fetch_retval_32(struct fetch_context *context, enum tof type,
 		assert(cls == CLASS_X87);
 		return 0;
 
-	case ARGTYPE_ARRAY:
 	case ARGTYPE_STRUCT: /* Handled above.  */
+	default:
 		assert(!"Unexpected i386 retval type!");
 		abort();
 	}
