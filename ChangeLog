@@ -1,5 +1,14 @@
 2012-10-03  Petr Machata  <pmachata@redhat.com>
 
+	* configure.ac (--enable-valgrind): New option.
+	(USE_VALGRIND): New variable bound to that option.
+	* testsuite/Makefile.am (valgrind_cmd): Conditionally turn on when
+	--enable-valgrind.  Pass down via RUNTESTDEFAULTFLAGS.
+	* testsuite/lib/ltrace.exp (LTRACE): Adjust if VALGRIND variable
+	is passed.
+
+2012-10-03  Petr Machata  <pmachata@redhat.com>
+
 	* testsuite/ltrace.minor/libdl-simple.exp: Call get_compiler_info
 	before invoking ltrace_compile_shlib.
 

@@ -260,6 +260,17 @@ if test x$enable_werror = xyes; then
     AM_CFLAGS="${AM_CFLAGS} -Werror"
 fi
 
+AC_ARG_ENABLE([valgrind],
+    AS_HELP_STRING([--enable-valgrind],[run all tests under valgrind]),
+    [use_valgrind=$enableval], [use_valgrind=no])
+if test x$use_valgrind = xyes; then
+    AC_CHECK_PROG(HAVE_VALGRIND, valgrind, yes, no)
+    if test x$HAVE_VALGRIND = xno; then
+        AC_MSG_ERROR([valgrind not found])
+    fi
+fi
+AM_CONDITIONAL(USE_VALGRIND, test "$use_valgrind" = yes)
+
 AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_CFLAGS)
 AC_SUBST(AM_LDFLAGS)

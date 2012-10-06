@@ -13,6 +13,11 @@ if [info exists TOOL_EXECUTABLE] {
 	set LTRACE $objdir/../ltrace
 }
 
+if {[info exists VALGRIND] && ![string equal $VALGRIND {}]} {
+	verbose "Running under valgrind command: `$VALGRIND'"
+	set LTRACE "$VALGRIND $LTRACE"
+}
+
 global LTRACE_OPTIONS
 set LTRACE_OPTIONS "";
 global LTRACE_ARGS

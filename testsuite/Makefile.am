@@ -17,7 +17,11 @@
 
 AUTOMAKE_OPTIONS = dejagnu
 
-RUNTESTDEFAULTFLAGS = --srcdir $(srcdir)
+if USE_VALGRIND
+valgrind_cmd="VALGRIND=valgrind -q --error-exitcode=1"
+endif
+
+RUNTESTDEFAULTFLAGS = --srcdir $(srcdir) $(valgrind_cmd)
 
 SUBDIRS = ltrace.main ltrace.minor ltrace.torture
 
