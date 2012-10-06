@@ -50,38 +50,42 @@ set LTRACE_ARGS "";
 # OPTIONS is option to compiler in this compilation.
 proc ltrace_compile {source dest type options} {
     global LTRACE_TESTCASE_OPTIONS;
-    
-  # Add platform-specific options if a shared library was specified using
-  # "shlib=librarypath" in OPTIONS.
-  set new_options ""
-  set shlib_found 0
 
-  foreach opt $options {
-      if [regexp {^shlib=(.*)} $opt dummy_var shlib_name] {
-	  if [test_compiler_info "xlc*"] {
-	      # IBM xlc compiler doesn't accept shared library named other
-	      # than .so: use "-Wl," to bypass this
-	      lappend source "-Wl,$shlib_name"
-	  } else {
-	      lappend source $shlib_name
-	  }
-	  
-	  if {$shlib_found == 0} {
-	      set shlib_found 1
-	      
-	      if { ([test_compiler_info "gcc-*"]&& ([istarget "powerpc*-*-aix*"]|| [istarget "rs6000*-*-aix*"] ))} {
-		  lappend options "additional_flags=-L${objdir}/${subdir}"
-	      } elseif { [istarget "mips-sgi-irix*"] } {
-		  lappend options "additional_flags=-rpath ${objdir}/${subdir}"
-	      }
-	  }
-	  
-      } else {
-	  lappend new_options $opt
-      }
-  }
-    #end of for loop
-    set options $new_options
+    if {![string equal "object" $type]} {
+	# Add platform-specific options if a shared library was specified using
+	# "shlib=librarypath" in OPTIONS.
+	set new_options ""
+	set shlib_found 0
+
+	foreach opt $options {
+	    if [regexp {^shlib=(.*)} $opt dummy_var shlib_name] {
+		if [test_compiler_info "xlc*"] {
+		    # IBM xlc compiler doesn't accept shared library named other
+		    # than .so: use "-Wl," to bypass this
+		    lappend source "-Wl,$shlib_name"
+		} else {
+		    lappend source $shlib_name
+		}
+
+		if {$shlib_found == 0} {
+		    set shlib_found 1
+
+		    if { ([test_compiler_info "gcc-*"]&& ([istarget "powerpc*-*-aix*"]|| [istarget "rs6000*-*-aix*"] ))} {
+			lappend options "additional_flags=-L${objdir}/${subdir}"
+		    } elseif { [istarget "mips-sgi-irix*"] } {
+			lappend options "additional_flags=-rpath ${objdir}/${subdir}"
+		    }
+		}
+
+	    } else {
+		lappend new_options $opt
+	    }
+	}
+
+	#end of for loop
+	set options $new_options
+    }
+
     # dump some information for debug purpose.
     verbose "options are $options"
     verbose "source is $source $dest $type $options"
