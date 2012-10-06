@@ -172,15 +172,9 @@ proc ltrace_compile_shlib {sources dest options} {
 	    fail "Bad compiler!"
             }
     }
-    
-    set outdir [file dirname $dest]
-    set objects ""
-    foreach source $sources {
-	set sourcebase [file tail $source]
-       if {[ltrace_compile $source "${outdir}/${sourcebase}.o" object $obj_options] != ""} {
-           return -1
-       }
-	lappend objects ${outdir}/${sourcebase}.o
+
+    if {![LtraceCompileObjects $sources $obj_options objects]} {
+	return -1
     }
 
     set link_options $options
@@ -192,6 +186,41 @@ proc ltrace_compile_shlib {sources dest options} {
     if {[ltrace_compile "${objects}" "${dest}" executable $link_options] != ""} {
 	return -1
     }
+}
+
+# LtraceCompileObjects --
+#
+#	Compile each source file into an object file.  ltrace_compile
+#	is called to perform actual compilation.
+#
+# Arguments:
+#	sources	List of source files.
+#
+#	options	Options for ltrace_compile.
+#
+#	retName Variable where the resulting list of object names is
+#		to be placed.
+# Results:
+#	Returns true or false depending on whether there were any
+#	errors.  If it returns true, then variable referenced by
+#	retName contains list of object files, produced by compiling
+#	files in sources list.
+
+proc LtraceCompileObjects {sources options retName} {
+    upvar $retName ret
+    set ret {}
+
+    foreach source $sources {
+	set sourcebase [file tail $source]
+	set dest $source.o
+	verbose "LtraceCompileObjects: $source -> $dest"
+	if {[ltrace_compile $source $dest object $options] != ""} {
+	    return false
+	}
+	lappend ret $dest
+    }
+
+    return true
 }
 
 #
