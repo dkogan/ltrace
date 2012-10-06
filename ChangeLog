@@ -1,5 +1,20 @@
 2012-10-06  Petr Machata  <pmachata@redhat.com>
 
+	* testsuite/ltrace.main/filt.c: Remove.
+	* testsuite/ltrace.main/filt1.c: Remove.
+	* testsuite/ltrace.main/filt2.c: Remove.
+	* testsuite/ltrace.main/filters.exp: Rewrite.
+	* testsuite/ltrace.main/main-internal.c: Remove.
+	* testsuite/ltrace.main/main-internal-1.c: Remove.
+	* testsuite/ltrace.main/main-internal.exp: Rewrite.
+	* testsuite/ltrace.minor/attach-process.c: Remove.
+	* testsuite/ltrace.minor/attach-process.exp: Rewrite.
+	* testsuite/ltrace.minor/trace-exec.c: Remove.
+	* testsuite/ltrace.minor/trace-exec1.c: Remove.
+	* testsuite/ltrace.minor/trace-exec.exp: Rewrite.
+
+2012-10-06  Petr Machata  <pmachata@redhat.com>
+
 	* testsuite/lib/ltrace.exp (LTRACE_TEMP_FILES): New variable.
 	(WipeFiles, LtraceTempFile, Grep): New internal procs.
 	(ltraceSource, ltraceCompile, ltraceRun): New public procs.

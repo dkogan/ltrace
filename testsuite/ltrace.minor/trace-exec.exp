@@ -1,36 +1,37 @@
-set testfile "trace-exec"
-set srcfile ${testfile}.c
-set binfile ${testfile}
+# This file is part of ltrace.
+# Copyright (C) 2012 Petr Machata, Red Hat Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301 USA
 
-verbose "compiling first source file now....."
-if  { [ ltrace_compile "${srcdir}/${subdir}/${testfile}.c" "${objdir}/${subdir}/${binfile}" executable {debug} ] != "" } {
-     send_user "Testcase compile failed, so all tests in this file will automatically fail.\n"
+ltraceMatch [ltraceRun -xmain -- [ltraceCompile {} [ltraceSource c {
+    #include <unistd.h>
+    #include <stdlib.h>
+    int main(int argc, char ** argv) {
+	execl(argv[1], argv[1], NULL);
+	abort();
+    }
+}]] [ltraceCompile {} [ltraceSource c {
+    #include <stdio.h>
+    void main(void) {
+	puts("Hello, World.");
+    }
+}]]] {
+    {{^execl\(} == 1}
+    {{^puts\(.*\) =.*14} == 1}
+    {{^main\(} == 2}
 }
 
-verbose "compiling second source file now....."
-if  { [ ltrace_compile "${srcdir}/${subdir}/${testfile}1.c" "${objdir}/${subdir}/${binfile}1" executable {debug} ] != "" } {
-     send_user "Testcase compile failed, so all tests in this file will automatically fail.\n"
-}
-
-ltrace_args "$objdir/$subdir/${testfile}1"
-set exec_output [ltrace_runtest $objdir/$subdir $objdir/$subdir/$testfile]
-
-#check the output of this program.
-verbose "ltrace runtest output: $exec_output\n"
-if [regexp {ELF from incompatible architecture} $exec_output] {
-	fail "32-bit ltrace can not perform on 64-bit PUTs and rebuild ltrace in 64 bit mode!"
-	return
-} elseif [ regexp {Couldn't get .hash data} $exec_output ] {
-	fail "Couldn't get .hash data!"
-	return
-}
-
-# execl from first binary
-set pattern {^[0-9]* execl}
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-# puts from second binary
-set pattern {^[0-9]* puts}
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-# assume glibc and see we really trace both binaries
-set pattern {^[0-9]* __libc_start_main}
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 2
+ltraceDone
