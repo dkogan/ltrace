@@ -327,23 +327,6 @@ proc ltrace_runtest { args } {
 }
 
 #
-# ltrace_saveoutput OUTPUT FILE
-# Save OUTPUT from ltrace to file FILE.
-# OUTPUT is output from ltrace or return value of ltrace_runtest.
-# FILE is file save output.
-#
-proc ltrace_saveoutput { args } {
-	
-	set output [lindex $args 0]
-	set file [lindex $args 1]
-
-	set fd [open $file w]
-     	puts $fd $output
-	close $fd
-}
-
-
-#
 # ltrace_verify_output FILE_TO_SEARCH PATTERN MAX_LINE
 # Verify the ltrace output by comparing the number of PATTERN in 
 # FILE_TO_SEARCH with INSTANCE_NO.  Do not specify INSTANCE_NO if

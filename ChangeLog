@@ -1,5 +1,9 @@
 2012-10-06  Petr Machata  <pmachata@redhat.com>
 
+	* testsuite/lib/ltrace.exp (ltrace_saveoutput): Remove.
+
+2012-10-06  Petr Machata  <pmachata@redhat.com>
+
 	* testsuite/lib/ltrace.exp (LtraceCompileObjects): New function.
 	(ltrace_compile_shlib): Extracted from here.
 
