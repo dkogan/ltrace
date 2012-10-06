@@ -1,4 +1,5 @@
 # This file is part of ltrace.
+# Copyright (C) 2012 Petr Machata, Red Hat Inc.
 # Copyright (C) 2006 Yao Qi, IBM Corporation
 #
 # This program is free software; you can redistribute it and/or
@@ -33,8 +34,9 @@ if {[info exists VALGRIND] && ![string equal $VALGRIND {}]} {
 	set LTRACE "$VALGRIND $LTRACE"
 }
 
-set LTRACE_OPTIONS "";
-set LTRACE_ARGS "";
+set LTRACE_OPTIONS {}
+set LTRACE_ARGS {}
+set LTRACE_TEMP_FILES {}
 
 # ltrace_compile SOURCE DEST TYPE OPTIONS 
 #
@@ -206,6 +208,66 @@ proc ltrace_compile_shlib {sources dest options} {
     if {[ltrace_compile "${objects}" "${dest}" executable $link_options] != ""} {
 	return -1
     }
+
+    return
+}
+
+# WipeFiles --
+#
+#	Delete each file in the list.
+#
+# Arguments:
+#	files	List of files to delete.
+# Results:
+#	Each of the files is deleted.  Returns nothing.
+
+proc WipeFiles {files} {
+    verbose "WipeFiles: $files\n"
+    foreach f $files {
+	file delete $f
+    }
+}
+
+# LtraceTempFile --
+#
+#	Create a temporary file according to a pattern, and return its
+#	name.
+#
+# Arguments:
+#	pat	Pattern to use.  See mktemp for description of its format.
+#
+# Results:
+#	Creates the temporary file and returns its name.  The name is
+#	also appended to LTRACE_TEMP_FILES.
+
+proc LtraceTempFile {pat} {
+    global LTRACE_TEMP_FILES
+    set ret [exec mktemp --tmpdir $pat]
+    lappend LTRACE_TEMP_FILES $ret
+    return $ret
+}
+
+# ltraceSource --
+#
+#	Create a temporary file with a given suffix and prime it with
+#	contents given in text.
+#
+# Arguments:
+#	suffix	Suffix of the temp file to be created.
+#
+#	text	Contents of the new file.
+#
+# Results:
+#	Returns file name of created file.
+
+proc ltraceSource {suffix text} {
+    set ret [LtraceTempFile "lt-XXXXXXXXXX.$suffix"]
+
+    set chan [open $ret w]
+    puts -nonewline $chan $text
+    close $chan
+
+    return $ret
 }
 
 # LtraceCompileObjects --
@@ -241,6 +303,239 @@ proc LtraceCompileObjects {sources options retName} {
     }
 
     return true
+}
+
+# ltraceCompile --
+#
+#	This attempts to compile a binary from sources given in ARGS.
+#
+# Arguments:
+#	dest	A binary to be produced.  If this is called *.so, then
+#		the resulting binary will be a library, otherwise it
+#		will be an executable.  In theory this could also be
+#		*.o for "object" and *.i for "preprocess" for cases
+#		with one source file, but that is not supported at the
+#		moment.  The binary will be placed in $objdir/$subdir.
+#
+#	args	List of options and source files.
+#
+#		Options are arguments that start with a dash.  Options
+#		(sans the dash) are passed to ltrace_compile.
+#
+#		Source files named lib*.so are libraries.  Those are
+#		passed to ltrace_compile as options shlib=X.  Source
+#		files named *.o are objects.  The remaining source
+#		files are first compiled (by LtraceCompileObjects) and
+#		then together with other objects passed to
+#		ltrace_compile to produce resulting binary.
+#
+#		Any argument that is empty string prompts the function
+#		to fail.  This is done so that errors caused by
+#		ltraceSource (or similar) distribute naturally
+#		upwards.
+#
+# Results:
+#	This compiles given source files into a binary.  Full file name
+#	of that binary is returned.  Empty string is returned in case
+#	of a failure.
+
+proc ltraceCompile {dest args} {
+    global objdir
+    global subdir
+
+    get_compiler_info {} c
+    get_compiler_info {} c++
+
+    if {[string match "lib*.so" $dest]} {
+	set type "library"
+	set extraObjOptions "additional_flags=-fpic"
+	set extraOptions "additional_flags=-shared"
+    } else {
+	set type "executable"
+	set extraObjOptions {}
+	set extraOptions {}
+    }
+
+    set options {}
+    set sources {}
+    set objects {}
+    foreach a $args {
+	if {[string match "-?*" $a]} {
+	    lappend options [string range $a 1 end]
+	} elseif {[string match "*.so" $a]} {
+	    lappend options "shlib=$a"
+	} elseif {[string match "*.o" $a]} {
+	    lappend objects $a
+	} else {
+	    lappend sources $a
+	}
+    }
+
+    if {[string equal $dest {}]} {
+	set dest [LtraceTempFile "exe-XXXXXXXXXX"]
+    } else {
+	set dest $objdir/$subdir/$dest
+    }
+
+    verbose "ltraceCompile: dest $dest"
+    verbose "             : options $options"
+    verbose "             : sources $sources"
+    verbose "             : objects $objects"
+
+    if {![LtraceCompileObjects $sources \
+	      [concat $options $extraObjOptions] newObjects]} {
+	return {}
+    }
+    set objects [concat $objects $newObjects]
+
+    verbose "ltraceCompile: objects $objects"
+
+    if {[ltrace_compile $objects $dest $type \
+	     [concat $options $extraOptions]] != ""} {
+	return {}
+    }
+
+    return $dest
+}
+
+# ltraceRun --
+#
+#	Invoke command identified by LTRACE global variable with given
+#	ARGS.  A logfile redirection is automatically ordered by
+#	passing -o and a temporary file name.
+#
+# Arguments:
+#	args	Arguments to ltrace binary.
+#
+# Results:
+#	Returns name of logfile.  The "exec" command that it uses
+#	under the hood fails loudly if the process exits with a
+#	non-zero exit status, or uses stderr in any way.
+
+proc ltraceRun {args} {
+    global LTRACE
+    global objdir
+    global subdir
+
+    set LdPath [ld_library_path $objdir/$subdir]
+    set logfile [ltraceSource ltrace {}]
+
+    # Run ltrace.  expect will show an error if this doesn't exit with
+    # zero exit status (i.e. ltrace fails, valgrind finds errors,
+    # etc.).
+
+    verbose "env LD_LIBRARY_PATH=$LdPath $LTRACE -o $logfile $args"
+    eval "exec env LD_LIBRARY_PATH=$LdPath $LTRACE -o $logfile $args"
+
+    return $logfile
+}
+
+# ltraceDone --
+#
+#	Wipes or dumps all temporary files after a test suite has
+#	finished.
+#
+# Results:
+#	Doesn't return anything.  Wipes all files gathered in
+#	LTRACE_TEMP_FILES.  If SAVE_TEMPS is defined and true, the
+#	temporary files are not wiped, but their names are dumped
+#	instead.  Contents of LTRACE_TEMP_FILES are deleted in any
+#	case.
+
+proc ltraceDone {} {
+    global SAVE_TEMPS
+    global LTRACE_TEMP_FILES
+
+    if {[info exists SAVE_TEMPS] && $SAVE_TEMPS} {
+	foreach tmp $LTRACE_TEMP_FILES {
+	    send_user "$tmp\n"
+	}
+    } else {
+	WipeFiles $LTRACE_TEMP_FILES
+    }
+
+    set LTRACE_TEMP_FILES {}
+    return
+}
+
+# Grep --
+#
+#	Return number of lines in a given file, matching a given
+#	regular expression.
+#
+# Arguments:
+#	logfile	File to search through.
+#
+#	re	Regular expression to match.
+#
+# Results:
+#	Returns number of matching lines.
+
+proc Grep {logfile re} {
+    set count 0
+    set fp [open $logfile]
+    while {[gets $fp line] >= 0} {
+	if [regexp -- $re $line] {
+	    incr count
+	}
+    }
+    close $fp
+    return $count
+}
+
+# ltraceMatch1 --
+#
+#	Look for a pattern in a given logfile, comparing number of
+#	occurences of the pattern with expectation.
+#
+# Arguments:
+#	logfile	The name of file where to look for patterns.
+#
+#	pattern	Regular expression pattern to look for.
+#
+#	op	Operator to compare number of occurences.
+#
+#	expect	Second operand to op, the first being number of
+#		occurences of pattern.
+#
+# Results:
+#	Doesn't return anything, but calls fail or pass depending on
+#	whether the patterns matches expectation.
+
+proc ltraceMatch1 {logfile pattern {op ==} {expect 1}} {
+    set count [Grep $logfile $pattern]
+    set msgMain "$pattern appears in $logfile $count times"
+    set msgExpect ", expected $op $expect"
+
+    if {[eval expr $count $op $expect]} {
+	pass $msgMain
+    } else {
+	fail $msgMain$msgExpect
+    }
+    return
+}
+
+# ltraceMatch --
+#
+#	Look for series of patterns in a given logfile, comparing
+#	number of occurences of each pattern with expectations.
+#
+# Arguments:
+#	logfile	The name of file where to look for patterns.
+#
+#	patterns List of patterns to look for.  ltraceMatch1 is called
+#		on each of these in turn.
+#
+# Results:
+#
+#	Doesn't return anything, but calls fail or pass depending on
+#	whether each of the patterns holds.
+
+proc ltraceMatch {logfile patterns} {
+    foreach pat $patterns {
+	eval ltraceMatch1 [linsert $pat 0 $logfile]
+    }
+    return
 }
 
 #
