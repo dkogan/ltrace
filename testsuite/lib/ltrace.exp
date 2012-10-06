@@ -6,7 +6,6 @@
 
 source $objdir/env.exp
 
-global LTRACE
 if [info exists TOOL_EXECUTABLE] {
 	set LTRACE $TOOL_EXECUTABLE
 } else {
@@ -18,9 +17,7 @@ if {[info exists VALGRIND] && ![string equal $VALGRIND {}]} {
 	set LTRACE "$VALGRIND $LTRACE"
 }
 
-global LTRACE_OPTIONS
 set LTRACE_OPTIONS "";
-global LTRACE_ARGS
 set LTRACE_ARGS "";
 
 # ltrace_compile SOURCE DEST TYPE OPTIONS 
