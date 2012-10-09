@@ -323,7 +323,7 @@ proc_find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
 {
 	debug(DEBUG_FUNCTION, "find_dynamic_entry()");
 
-	if (ret == NULL || src_addr == 0 || d_tag < 0 || d_tag > DT_NUM)
+	if (ret == NULL || src_addr == 0 || d_tag < 0)
 		return -1;
 
 	int i = 0;
