@@ -312,6 +312,17 @@ void arch_dynlink_done(struct Process *proc);
  * ARCH_HAVE_SYMBOL_RET.  It is called after a traced call returns.  */
 void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym);
 
+
+/* This callback needs to be implemented if arch.h defines
+ * ARCH_HAVE_FIND_DL_DEBUG.
+ * It is called by generic code to find the address of the dynamic
+ * linkers debug structure.
+ * DYN_ADDR holds the address of the dynamic section.
+ * If the debug area is found, return 0 and fill in the address in *RET.
+ * If the debug area is not found, return a negative value.  */
+int arch_find_dl_debug(struct Process *proc, arch_addr_t dyn_addr,
+		       arch_addr_t *ret);
+
 /* If arch.h defines ARCH_HAVE_FETCH_ARG, the following callbacks have
  * to be implemented: arch_fetch_arg_init, arch_fetch_arg_clone,
  * arch_fetch_arg_done, arch_fetch_arg_next and arch_fetch_retval.

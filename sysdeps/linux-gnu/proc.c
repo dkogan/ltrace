@@ -560,6 +560,15 @@ rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 	debug->state = rdbg.r_state;
 }
 
+#ifndef ARCH_HAVE_FIND_DL_DEBUG
+int
+arch_find_dl_debug(struct Process *proc, arch_addr_t dyn_addr,
+		   arch_addr_t *ret)
+{
+	return proc_find_dynamic_entry_addr(proc, dyn_addr, DT_DEBUG, ret);
+}
+#endif
+
 int
 linkmap_init(struct Process *proc, arch_addr_t dyn_addr)
 {
@@ -576,8 +585,7 @@ linkmap_init(struct Process *proc, arch_addr_t dyn_addr)
 	}
 	proc->debug = debug;
 
-	if (find_dynamic_entry_addr(proc, dyn_addr, DT_DEBUG,
-				    &debug->debug_addr) == -1) {
+	if (arch_find_dl_debug(proc, dyn_addr, &debug->debug_addr) == -1) {
 		debug(2, "Couldn't find debug structure!");
 		goto fail;
 	}
