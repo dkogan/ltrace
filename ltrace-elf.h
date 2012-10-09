@@ -56,6 +56,11 @@ int ltelf_read_library(struct library *lib, struct Process *proc,
  * point address is stored to *ENTRYP.  */
 struct library *ltelf_read_main_binary(struct Process *proc, const char *path);
 
+/* The base implementation of backend.h (arch_get_sym_info).
+ * See backend.h for details.  */
+int elf_get_sym_info(struct ltelf *lte, const char *filename,
+		     size_t sym_index, GElf_Rela *rela, GElf_Sym *sym);
+
 Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
 int elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
 			     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);

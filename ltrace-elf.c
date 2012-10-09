@@ -511,10 +511,9 @@ do_close_elf(struct ltelf *lte) {
 	close(lte->fd);
 }
 
-#ifndef ARCH_HAVE_GET_SYMINFO
 int
-arch_get_sym_info(struct ltelf *lte, const char *filename,
-		  size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
+elf_get_sym_info(struct ltelf *lte, const char *filename,
+		 size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
 {
 	int i = sym_index;
 	GElf_Rel rel;
@@ -540,6 +539,14 @@ arch_get_sym_info(struct ltelf *lte, const char *filename,
 	}
 
 	return 0;
+}
+
+#ifndef ARCH_HAVE_GET_SYMINFO
+int
+arch_get_sym_info(struct ltelf *lte, const char *filename,
+		  size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
+{
+	return elf_get_sym_info(lte, filename, sym_index, rela, sym);
 }
 #endif
 
