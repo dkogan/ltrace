@@ -237,4 +237,9 @@ void *proc_each_breakpoint(struct Process *proc, void *start,
 						      void *data),
 			   void *data);
 
+/* Iterate through the dynamic section at src_addr looking for D_TAG.
+ * If tag is found, fill it's value in RET and return 0.
+ * If tag is not found, return a negative value.  */
+int proc_find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
+				 int d_tag, arch_addr_t *ret);
 #endif /* _PROC_H_ */

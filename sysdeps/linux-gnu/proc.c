@@ -317,9 +317,9 @@ dyn_fetcher(struct Process *proc))(struct Process *,
 	return select_32_64(proc, fetch_dyn32, fetch_dyn64);
 }
 
-static int
-find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
-			int d_tag, arch_addr_t *ret)
+int
+proc_find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
+			     int d_tag, arch_addr_t *ret)
 {
 	debug(DEBUG_FUNCTION, "find_dynamic_entry()");
 
