@@ -39,6 +39,7 @@ struct arch_ltelf_data {
 	size_t mips_gotsym;
 };
 
+#define ARCH_HAVE_FIND_DL_DEBUG
 #define ARCH_HAVE_GET_SYMINFO
 #define ARCH_HAVE_DYNLINK_DONE
 #define ARCH_HAVE_ADD_PLT_ENTRY

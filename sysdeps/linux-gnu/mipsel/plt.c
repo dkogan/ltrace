@@ -84,6 +84,29 @@ sym2addr(Process *proc, struct library_symbol *sym) {
     return (void *)ret;;
 }
 
+/* Address of run time loader map, used for debugging.  */
+#define DT_MIPS_RLD_MAP         0x70000016
+int
+arch_find_dl_debug(struct Process *proc, arch_addr_t dyn_addr,
+		   arch_addr_t *ret)
+{
+	arch_addr_t rld_addr;
+	int r;
+
+	/* MIPS puts the address of the r_debug structure into the
+	 * DT_MIPS_RLD_MAP entry instead of into the DT_DEBUG entry.  */
+	r = proc_find_dynamic_entry_addr(proc, dyn_addr,
+					 DT_MIPS_RLD_MAP, &rld_addr);
+	if (r == 0) {
+		if (umovebytes(proc, rld_addr,
+			       ret, sizeof *ret) != sizeof *ret) {
+			r = -1;
+		}
+	}
+	return r;
+}
+
+
 /*
  * MIPS doesn't have traditional got.plt entries with corresponding
  * relocations.
