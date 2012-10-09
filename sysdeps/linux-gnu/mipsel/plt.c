@@ -16,6 +16,13 @@
    @{
  */
 
+/* Are we in pure CPIC mode (the non-PIC ABI extension)?  */
+static inline int
+mips_elf_is_cpic(unsigned int elf_flags)
+{
+	return (elf_flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) == EF_MIPS_CPIC;
+}
+
 /**
    \param lte Structure containing link table entry information
    \param ndx Index into .dynsym
@@ -43,6 +50,13 @@ GElf_Addr
 arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 {
     debug(1,"plt_addr %zx ndx %#zx",lte->arch.pltgot_addr, ndx);
+
+    if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+        /* Return a pointer into the PLT.  */
+        return lte->plt_addr + 16 * 2 + (ndx * 16);
+    }
+
+    /* Return a pointer to a GOT entry.  */
     return lte->arch.pltgot_addr +
 	    sizeof(void *) * (lte->arch.mips_local_gotno
 			      + (ndx - lte->arch.mips_gotsym));
@@ -70,7 +84,8 @@ void *
 sym2addr(Process *proc, struct library_symbol *sym) {
     long ret;
 
-    if (!sym->arch.gotonly && sym->plt_type == LS_TOPLT_NONE) {
+    if (sym->arch.pltalways
+        || (!sym->arch.gotonly && sym->plt_type == LS_TOPLT_NONE)) {
         return sym->enter_addr;
     }
 
@@ -120,6 +135,10 @@ arch_get_sym_info(struct ltelf *lte, const char *filename,
 {
 	const char *name;
 
+	if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+		return elf_get_sym_info(lte, filename, sym_index, rela, sym);
+	}
+
 	/* Fixup the offset.  */
 	sym_index += lte->arch.mips_gotsym;
 
@@ -158,6 +177,15 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 {
 	Elf_Scn *scn;
 	GElf_Shdr shdr;
+
+	/* FIXME: for CPIC we should really scan both GOT tables
+	 * to pick up relocations to external functions.  Right now
+	 * function pointers from the main binary to external functions
+	 * can't be traced in CPIC mode.  */
+	if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+		return 0; /* We are already done.  */
+	}
+
 	if (elf_get_section_type(lte, SHT_DYNAMIC, &scn, &shdr) < 0
 	    || scn == NULL) {
 	fail:
@@ -208,6 +236,10 @@ void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym)
 
 	/* Only deal with unresolved symbols.  */
 	if (libsym->arch.type != MIPS_PLT_UNRESOLVED)
+		return;
+
+	/* Get out if we are always using the PLT.  */
+	if (libsym->arch.pltalways)
 		return;
 
 	resolved_addr = sym2addr(proc, libsym);
@@ -329,6 +361,8 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		/* Delay breakpoint activation until the symbol gets
 		 * resolved.  */
 		libsym->delayed = 1;
+	} else if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+		libsym->arch.pltalways = 1;
 	}
 
 	*ret = libsym;
@@ -343,6 +377,7 @@ fail:
 int
 arch_library_symbol_init(struct library_symbol *libsym)
 {
+	libsym->arch.pltalways = 0;
 	libsym->arch.gotonly = 0;
 	libsym->arch.type = MIPS_PLT_UNRESOLVED;
 	if (libsym->plt_type == LS_TOPLT_NONE) {

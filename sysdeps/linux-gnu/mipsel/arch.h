@@ -60,6 +60,8 @@ struct arch_library_symbol_data {
 
 	/* Set for FUNCs that have GOT entries but not PLT entries.  */
 	int gotonly : 1;
+	/* Set for FUNCs that have PLT entries that are always used.  */
+	int pltalways : 1;
 };
 
 #endif /* LTRACE_MIPS_ARCH_H */
