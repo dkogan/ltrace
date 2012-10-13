@@ -1,3 +1,10 @@
+2012-10-13  Petr Machata  <pmachata@redhat.com>
+
+	* testsuite/ltrace.main/parameters-lib.c (func_arg0): New function.
+	* testsuite/ltrace.main/parameters.c (func_arg0): Call it.
+	* testsuite/ltrace.main/parameters.conf (func_arg0): Describe it.
+	* testsuite/ltrace.main/parameters.exp (func_arg0): Test it.
+
 2012-09-28  Petr Machata  <pmachata@redhat.com>
 
 	* testsuite/ltrace.main/filters.exp: Add tests.

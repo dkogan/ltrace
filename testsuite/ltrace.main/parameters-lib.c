@@ -22,6 +22,12 @@ int func_strlen(char* p)
 	return strlen(p);
 }
 
+int func_arg0(char *p)
+{
+	strcpy(p, "Hello another world!");
+	return strlen(p);
+}
+
 void func_strfixed(char* p)
 {
 	strcpy(p, "Hello world");

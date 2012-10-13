@@ -45,6 +45,8 @@ set pattern "func_intptr_ret(42)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_strlen(\\\"Hello world\\\") *= *11"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+set pattern "func_arg0(\\\"Hello another world!\\\") *= *20"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_strfixed(\\\"Hell\\\")"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_ppp(80)"

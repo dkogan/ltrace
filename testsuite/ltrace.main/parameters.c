@@ -61,6 +61,10 @@ main ()
 
   func_string("zero\0xxxxxxxxxxxxxx");
   func_strlen(buf);
+
+  extern int func_arg0(char *);
+  func_arg0(buf);
+
   printf("%s\n", buf);
 
   func_strfixed(buf);

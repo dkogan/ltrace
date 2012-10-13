@@ -288,8 +288,7 @@ parse_argnum(char **str, int zero)
 			goto fail;
 
 		int is_arg = strncmp(name, "arg", 3) == 0;
-		int is_elt = !is_arg && strncmp(name, "elt", 3) == 0;
-		if (is_arg || is_elt) {
+		if (is_arg || strncmp(name, "elt", 3) == 0) {
 			long l;
 			name += 3;
 			if (parse_int(&name, &l) < 0
@@ -297,7 +296,10 @@ parse_argnum(char **str, int zero)
 				goto fail;
 
 			if (is_arg) {
-				expr_init_argno(expr, l - 1);
+				if (l == 0)
+					expr_init_named(expr, "retval", 0);
+				else
+					expr_init_argno(expr, l - 1);
 			} else {
 				struct expr_node *e_up = malloc(sizeof(*e_up));
 				struct expr_node *e_ix = malloc(sizeof(*e_ix));
