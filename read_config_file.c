@@ -1049,8 +1049,9 @@ process_line(char *buf) {
 		}
 
 		int own;
-		struct arg_type_info *type = parse_lens(&str, &extra_param,
-							fun->num_params, &own);
+		struct arg_type_info *type
+			= parse_lens(&str, &extra_param,
+				     fun->num_params - have_stop, &own);
 		if (type == NULL) {
 			report_error(filename, line_no,
 				     "unknown argument type");
