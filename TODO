@@ -13,7 +13,6 @@
 * Update /etc/ltrace.conf
 * More architectures, cleaner way to port
 * More operating systems (solaris?)
-* Option -I (inter-library calls)
 * Modify ARGTYPE_STRING[0-5] types so that they don't stop displaying chars when '\0' is seen
 * Get rid of EVENT_ARCH_SYSCALL and EVENT_ARCH_SYSRET
 * Cleaner way to use breakpoints:
