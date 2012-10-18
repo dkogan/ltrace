@@ -289,12 +289,14 @@ proc ltraceSource {suffix text} {
 #	files in sources list.
 
 proc LtraceCompileObjects {sources options retName} {
+    global LTRACE_TEMP_FILES
     upvar $retName ret
     set ret {}
 
     foreach source $sources {
 	set sourcebase [file tail $source]
 	set dest $source.o
+	lappend LTRACE_TEMP_FILES $dest
 	verbose "LtraceCompileObjects: $source -> $dest"
 	if {[ltrace_compile $source $dest object $options] != ""} {
 	    return false
