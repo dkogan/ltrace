@@ -823,8 +823,10 @@ read_module(struct library *lib, struct Process *proc,
 				filename);
 			return -1;
 		}
-		lte.entry_addr = (GElf_Addr)entry;
-		lte.bias = (GElf_Addr)entry - lte.ehdr.e_entry;
+		/* XXX The double cast should be removed when
+		 * arch_addr_t becomes integral type.  */
+		lte.entry_addr = (GElf_Addr)(uintptr_t)entry;
+		lte.bias = (GElf_Addr)(uintptr_t)entry - lte.ehdr.e_entry;
 
 	} else {
 		GElf_Phdr phdr;
