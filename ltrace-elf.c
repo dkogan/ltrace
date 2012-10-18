@@ -330,7 +330,7 @@ read_symbol_table(struct ltelf *lte, const char *filename,
 }
 
 static int
-do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
+do_init_elf(struct ltelf *lte, const char *filename)
 {
 	int i;
 	GElf_Addr relplt_addr = 0;
@@ -338,29 +338,6 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 
 	debug(DEBUG_FUNCTION, "do_init_elf(filename=%s)", filename);
 	debug(1, "Reading ELF from %s...", filename);
-
-	if (open_elf(lte, filename) < 0)
-		return -1;
-
-	/* Find out the base address.  */
-	{
-		GElf_Phdr phdr;
-		for (i = 0; gelf_getphdr (lte->elf, i, &phdr) != NULL; ++i) {
-			if (phdr.p_type == PT_LOAD) {
-				lte->base_addr = phdr.p_vaddr + bias;
-				break;
-			}
-		}
-	}
-
-	if (lte->base_addr == 0) {
-		fprintf(stderr, "Couldn't determine base address of %s\n",
-			filename);
-		return -1;
-	}
-
-	lte->bias = bias;
-	lte->entry_addr = lte->ehdr.e_entry + lte->bias;
 
 	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
 		Elf_Scn *scn;
@@ -395,7 +372,7 @@ do_init_elf(struct ltelf *lte, const char *filename, GElf_Addr bias)
 			Elf_Data *data;
 			size_t j;
 
-			lte->dyn_addr = shdr.sh_addr;
+			lte->dyn_addr = shdr.sh_addr + lte->bias;
 			lte->dyn_sz = shdr.sh_size;
 
 			data = elf_getdata(scn, NULL);
@@ -829,13 +806,50 @@ populate_symtab(struct Process *proc, const char *filename,
 				    lte->dynsym_count, names);
 }
 
-int
-ltelf_read_library(struct library *lib, struct Process *proc,
-		   const char *filename, GElf_Addr bias)
+static int
+read_module(struct library *lib, struct Process *proc,
+	    const char *filename, GElf_Addr bias, int main)
 {
 	struct ltelf lte = {};
-	if (do_init_elf(&lte, filename, bias) < 0)
+	if (open_elf(&lte, filename) < 0)
 		return -1;
+
+	/* Find out the base address.  For PIE main binaries we look
+	 * into auxv, otherwise we scan phdrs.  */
+	if (main && lte.ehdr.e_type == ET_DYN) {
+		arch_addr_t entry;
+		if (process_get_entry(proc, &entry, NULL) < 0) {
+			fprintf(stderr, "Couldn't find entry of PIE %s\n",
+				filename);
+			return -1;
+		}
+		lte.entry_addr = (GElf_Addr)entry;
+		lte.bias = (GElf_Addr)entry - lte.ehdr.e_entry;
+
+	} else {
+		GElf_Phdr phdr;
+		size_t i;
+		for (i = 0; gelf_getphdr (lte.elf, i, &phdr) != NULL; ++i) {
+			if (phdr.p_type == PT_LOAD) {
+				lte.base_addr = phdr.p_vaddr + bias;
+				break;
+			}
+		}
+
+		lte.bias = bias;
+		lte.entry_addr = lte.ehdr.e_entry + lte.bias;
+
+		if (lte.base_addr == 0) {
+			fprintf(stderr,
+				"Couldn't determine base address of %s\n",
+				filename);
+			return -1;
+		}
+	}
+
+	if (do_init_elf(&lte, filename) < 0)
+		return -1;
+
 	if (arch_elf_init(&lte, lib) < 0) {
 		fprintf(stderr, "Backend initialization failed.\n");
 		return -1;
@@ -919,6 +933,14 @@ fail:
 	goto done;
 }
 
+int
+ltelf_read_library(struct library *lib, struct Process *proc,
+		   const char *filename, GElf_Addr bias)
+{
+	return read_module(lib, proc, filename, bias, 0);
+}
+
+
 struct library *
 ltelf_read_main_binary(struct Process *proc, const char *path)
 {
@@ -935,7 +957,7 @@ ltelf_read_main_binary(struct Process *proc, const char *path)
 	 * that.  Presumably we could read the DSOs from the process
 	 * memory image, but that's not currently done.  */
 	char *fname = pid2name(proc->pid);
-	if (ltelf_read_library(lib, proc, fname, 0) < 0) {
+	if (read_module(lib, proc, fname, 0, 1) < 0) {
 		library_destroy(lib);
 		free(lib);
 		return NULL;

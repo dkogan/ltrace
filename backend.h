@@ -203,10 +203,8 @@ void process_removed(struct Process *proc);
 /* This should extract entry point address and interpreter (dynamic
  * linker) bias if possible.  Returns 0 if there were no errors, -1
  * otherwise.  Sets *ENTRYP and *INTERP_BIASP to non-zero values if
- * the corresponding value is known.  Unknown values are set to 0.
- *
- * XXX This is not currently used, but it will be necessary for proper
- * support of PIE binaries.  */
+ * the corresponding value is known, or zero otherwise; this is not
+ * done for pointers that are NULL.  */
 int process_get_entry(struct Process *proc,
 		      arch_addr_t *entryp,
 		      arch_addr_t *interp_biasp);
