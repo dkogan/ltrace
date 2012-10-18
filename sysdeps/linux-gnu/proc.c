@@ -442,6 +442,32 @@ rdebug_fetcher(struct Process *proc))(struct Process *,
 	return select_32_64(proc, fetch_rd32, fetch_rd64);
 }
 
+static int
+fetch_auxv64_entry(int fd, Elf64_auxv_t *ret)
+{
+	/* Reaching EOF is as much problem as not reading whole
+	 * entry.  */
+	return read(fd, ret, sizeof(*ret)) == sizeof(*ret) ? 0 : -1;
+}
+
+static int
+fetch_auxv32_entry(int fd, Elf64_auxv_t *ret)
+{
+	Elf32_auxv_t auxv;
+	if (read(fd, &auxv, sizeof(auxv)) != sizeof(auxv))
+		return -1;
+
+	ret->a_type = auxv.a_type;
+	ret->a_un.a_val = auxv.a_un.a_val;
+	return 0;
+}
+
+static int (*
+auxv_fetcher(struct Process *proc))(int, Elf64_auxv_t *)
+{
+	return select_32_64(proc, fetch_auxv32_entry, fetch_auxv64_entry);
+}
+
 static void
 crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 {
@@ -629,4 +655,54 @@ void
 process_removed(struct Process *proc)
 {
 	delete_events_for(proc);
+}
+
+int
+process_get_entry(struct Process *proc,
+		  arch_addr_t *entryp,
+		  arch_addr_t *interp_biasp)
+{
+	PROC_PID_FILE(fn, "/proc/%d/auxv", proc->pid);
+	int fd = open(fn, O_RDONLY);
+	if (fd == -1) {
+	fail:
+		fprintf(stderr, "couldn't read %s: %s", fn, strerror(errno));
+	done:
+		if (fd != -1)
+			close(fd);
+		return fd == -1 ? -1 : 0;
+	}
+
+	arch_addr_t at_entry = 0;
+	arch_addr_t at_bias = 0;
+	while (1) {
+		Elf64_auxv_t entry;
+		if (auxv_fetcher(proc)(fd, &entry) < 0)
+			goto fail;
+
+		switch (entry.a_type) {
+		case AT_BASE:
+			/* XXX The double cast should be removed when
+			 * arch_addr_t becomes integral type.  */
+			at_bias = (arch_addr_t)(uintptr_t)entry.a_un.a_val;
+			continue;
+
+		case AT_ENTRY:
+			/* XXX The double cast should be removed when
+			 * arch_addr_t becomes integral type.  */
+			at_entry = (arch_addr_t)(uintptr_t)entry.a_un.a_val;
+		default:
+			continue;
+
+		case AT_NULL:
+			break;
+		}
+		break;
+	}
+
+	if (entryp != NULL)
+		*entryp = at_entry;
+	if (interp_biasp != NULL)
+		*interp_biasp = at_bias;
+	goto done;
 }
