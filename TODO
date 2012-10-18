@@ -6,8 +6,6 @@
   + Read debugging info from executables/libraries
 * Automatically update list of syscalls?
 * Improve documentation
-* Improve -e/-x options (regexp?)
-* Improve -l option
 * Improve C++ name demangling
 * Display different argument types
 * Update /etc/ltrace.conf
