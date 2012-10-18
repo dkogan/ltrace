@@ -1,3 +1,7 @@
+2012-10-19  Petr Machata  <pmachata@redhat.com>
+
+	* NEWS: New file.
+
 2012-10-06  Petr Machata  <pmachata@redhat.com>
 
 	* testsuite/ltrace.main/filt.c: Remove.
