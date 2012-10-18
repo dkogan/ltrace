@@ -312,12 +312,13 @@ proc LtraceCompileObjects {sources options retName} {
 #	This attempts to compile a binary from sources given in ARGS.
 #
 # Arguments:
-#	dest	A binary to be produced.  If this is called *.so, then
-#		the resulting binary will be a library, otherwise it
-#		will be an executable.  In theory this could also be
-#		*.o for "object" and *.i for "preprocess" for cases
-#		with one source file, but that is not supported at the
-#		moment.  The binary will be placed in $objdir/$subdir.
+#	dest	A binary to be produced.  If this is called lib*.so, then
+#		the resulting binary will be a library, if *.pie, it
+#		will be a PIE, otherwise it will be an executable.  In
+#		theory this could also be *.o for "object" and *.i for
+#		"preprocess" for cases with one source file, but that
+#		is not supported at the moment.  The binary will be
+#		placed in $objdir/$subdir.
 #
 #	args	List of options and source files.
 #
@@ -352,6 +353,10 @@ proc ltraceCompile {dest args} {
 	set type "library"
 	set extraObjOptions "additional_flags=-fpic"
 	set extraOptions "additional_flags=-shared"
+    } elseif {[string match "*.pie" $dest]} {
+	set type "executable"
+	set extraObjOptions "additional_flags=-fpic"
+	set extraOptions "additional_flags=-pie"
     } else {
 	set type "executable"
 	set extraObjOptions {}
@@ -375,6 +380,8 @@ proc ltraceCompile {dest args} {
 
     if {[string equal $dest {}]} {
 	set dest [LtraceTempFile "exe-XXXXXXXXXX"]
+    } elseif {[string equal $dest ".pie"]} {
+	set dest [LtraceTempFile "pie-XXXXXXXXXX"]
     } else {
 	set dest $objdir/$subdir/$dest
     }
