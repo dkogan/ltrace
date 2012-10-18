@@ -30,6 +30,7 @@
 *** [ppc] Support both BSS and secure PLTs for 32-bit processes
 *** [mips] Implement software singlestepping
 *** [mips] Add support for CPIC main programs
+*** Support tracing PIE binaries
 ** Configuration Files
 *** New abstraction: parameter pack
     Parameter packs make it much simpler to add specialized decoding
