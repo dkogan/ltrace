@@ -598,7 +598,7 @@ arch_find_dl_debug(struct Process *proc, arch_addr_t dyn_addr,
 int
 linkmap_init(struct Process *proc, arch_addr_t dyn_addr)
 {
-	debug(DEBUG_FUNCTION, "linkmap_init()");
+	debug(DEBUG_FUNCTION, "linkmap_init(%d, dyn_addr=%p)", proc->pid, dyn_addr);
 
 	struct debug_struct *debug = malloc(sizeof(*debug));
 	if (debug == NULL) {
