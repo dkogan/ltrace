@@ -1,21 +1,26 @@
-* BFD:
-  + Read debugging info from executables/libraries
-* Automatically update list of syscalls?
-* Improve documentation
-* Display different argument types
-* Update /etc/ltrace.conf
-* More operating systems (solaris?)
-* Get rid of EVENT_ARCH_SYSCALL and EVENT_ARCH_SYSRET
-* Cleaner way to use breakpoints:
-  + BP is placed in the PLT
-  + When control hits there:
-    - write down return address
-    - change return address with another one (handled by ltrace)
-    - get arguments...
-    - change the process' PC to be in the correct place,
-      without removing breakpoint
-  + When control hits one of our return addresses:
-    - get return value...
-    - change PC to the right place
-* Create different ltrace processes to trace different children
-* After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
+-*-org-*-
+* TODO
+** Automatic prototype discovery:
+*** Use debuginfo if available
+    Alternatively, use debuginfo to generate configure file.
+*** Demangled identifiers contain partial prototypes themselves
+** Automatically update list of syscalls?
+** Improve documentation
+*** Describe syntax of config files
+** Update /etc/ltrace.conf
+   In particular, we could use a config directory, where packages
+   would install their ltrace config scripts.  The config file could
+   be named after SONAME, and automatically read when corresponding
+   library is mapped.
+** More operating systems (solaris?)
+** Get rid of EVENT_ARCH_SYSCALL and EVENT_ARCH_SYSRET
+** Implement displaced tracing
+   A technique used in GDB (and in uprobes, I believe), whereby the
+   instruction under breakpoint is moved somewhere else, and followed
+   by a jump back to original place.  When the breakpoint hits, the IP
+   is moved to the displaced instruction, and the process is
+   continued.  We avoid all the fuss with singlestepping and
+   reenablement.
+** Create different ltrace processes to trace different children
+* BUGS
+** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
