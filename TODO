@@ -1,17 +1,10 @@
 * BFD:
-  + New executable formats
-  + Read list of libraries needed
-  + Read list of undefined symbols in executables
-  + Read list of exported symbols in libraries
   + Read debugging info from executables/libraries
 * Automatically update list of syscalls?
 * Improve documentation
-* Improve C++ name demangling
 * Display different argument types
 * Update /etc/ltrace.conf
-* More architectures, cleaner way to port
 * More operating systems (solaris?)
-* Modify ARGTYPE_STRING[0-5] types so that they don't stop displaying chars when '\0' is seen
 * Get rid of EVENT_ARCH_SYSCALL and EVENT_ARCH_SYSRET
 * Cleaner way to use breakpoints:
   + BP is placed in the PLT
@@ -24,6 +17,5 @@
   + When control hits one of our return addresses:
     - get return value...
     - change PC to the right place
-* List source dependencies in Makefile
 * Create different ltrace processes to trace different children
 * After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
