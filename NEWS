@@ -1,73 +1,100 @@
 -*-org-*-
 * Version 0.7
-** General Features
+** Tracing Features
 *** Full support for tracing multi-threaded processes
+    Ltrace now understands thread groups, and it stops all threads
+    before manipulating breakpoints.  The downside is that performance
+    of multi-threaded processes is rather bad, because handling any
+    event implies stopping the whole job.  The upside is that
+    individual threads don't get random SIGILL's and SIGSEGV's and
+    events are not missed.
 *** Support for tracing inter-library calls
     -e and -x were extended to allow library selectors.  See the man
     page for details.
 *** Better support for parameter passing ("fetch backend")
     This version brings a more complete support for parameter passing,
     including passing structures in registers, passing double on i386,
-    and other edge cases that were unsupported before.  Several
-    architectures now support fetch backend, see below.
-*** Fix detaching from a process
-    Earlier, a process that ltrace detached from would sometimes die
-    of SIGSEGV, SIGTRAP, or SIGILL.  These were caused by ltrace
-    detaching from the process just after that process hit a
-    breakpoint.  Program counter would thus be left pointing
-    mid-instruction, or signals would be left pending.
-*** Fix tracing across vfork
-*** Fix tracing across exec in a stripped binary
-*** Be aware of deny_ptrace SELinux boolean
+    and other edge cases that were unsupported before.  The following
+    architectures now have implementation of fetch backend: x86, ppc,
+    ia64, s390, m68k.
+*** Awareness of deny_ptrace SELinux boolean
+    The deny_ptrace boolean denies all processes from being able to
+    use ptrace to manipulate other processes.  Ltrace now understands
+    that this boolean exists, and recommends turning it off, if it is
+    on and ltrace fails to attach to a process.
 *** Limited support for tracing returns from tail call functions
 *** -e, -x and -l selectors now allow using globs and regular expressions
-*** Argument to -n is now checked for validity
+    See the man page for details of the selector syntax.
 *** Test suite can now be run under valgrind
     Use --enable-valgrind to turn this on.
-** Config Files
+*** [ppc] Support both BSS and secure PLTs for 32-bit processes
+*** [mips] Implement software singlestepping
+*** [mips] Add support for CPIC main programs
+** Configuration Files
 *** New abstraction: parameter pack
     Parameter packs make it much simpler to add specialized decoding
-    logic.  The only parameter pack currently implemented is "format",
-    which used to be a special type.  It should be relatively
+    logic.  The only parameter pack currently implemented is "format"
+    for decoding printf-style format strings.  It should be relatively
     straightforward to add more parameter packs for functions like
     execl, strftime, and others.
 *** New expression: zero
     When used in array length expressions, it means "this array ends
     at the first element with zero value".  C strigs are essentially
     array(char, zero)*.
-*** Lenses
-    Lenses are used to change a way that underlying type is rendered.
+*** Lenses: change the way that underlying type is rendered
+    Lenses are used similarly to parametrized types, e.g.:
+    | void func(lens(int)); |
 **** octal
      "octal", which used to be a separate type, is now lens, which can
-     be used as octal(short) or octal(long) to render any underlying
-     type in base 8.  (Plain "octal" is still valid and means
-     "octal(int)".)
+     be used to render any underlying type in base 8.  Plain "octal"
+     is still valid and means the same as "octal(int)".
 **** hex, hide, bool
      Similarly, "hex" lens was introduced to format as base 16.
      "hide" was introduced to conceal given argument.  "bool" lens was
-     added to format objects as booleans.
+     added to format objects as either true, or false.
 **** enum
-     "enum" became lens as well.  The underlying type is selected by
-     square brackets: "enum[short](RED,GREEN,BLUE)".
-*** Pointers now allow spaces between *'s
-** Architecture-specific Changes
+     "enum" became lens as well.  Because enum already uses
+     parentheses to denote the list of enumeration values, the
+     underlying type is selected by square brackets:
+     | void func(enum[short](RED,GREEN,BLUE)); |
+**** string
+     "string" was also turned to lens.  The argument can be either a
+     char*, or pointer to array of char, or array of char.  The latter
+     is useful in cases like the following:
+     | void func_struct_2(struct(string(array(char, 6)))); |
+*** Using void as sole argument to a function now obsolete
+    Functions that take no arguments shouldn't pretend to take one
+    parameter of void type.  That use is now obsolete (but still
+    accepted):
+    | void func(void); |
+    Instead, such functions should be declared like this:
+    | void func(); |
+*** Using void to hide one argument is no longer supported
+    Instead use "hide" lens (see above).  ltrace needs to know the
+    exact underlying type to decide what the calling convention is.
+    In the following two declarations, how the second argument is
+    passed may depend on the exact type of the hidden argument:
+    | void func(hide(int), int);                 |
+    | void func(hide(struct(float,float)), int); |
+** Bugfixes
+*** Fix detaching from a process
+    Earlier, a process that ltrace detached from would sometimes die
+    of SIGSEGV, SIGTRAP, or SIGILL.  These were caused by ltrace
+    detaching from the process just after that process hit a
+    breakpoint.  Program counter would thus be left pointing
+    mid-instruction, or signals would be left pending.
+*** Argument to -n is now checked for validity
+*** Fix tracing across exec in a stripped binary
 *** [x86] ORIG_RAX/ORIG_EAX may not contain original syscall number
     In cases where the system call shouldn't be restarted, these are
     set to -1.  In that case assume that the return is from the
     topmost syscall.  This gets rid of some "unexpected breakpoint"
     messages on x86_64 and i386.
-*** [x86] New fetch backend implemented
-*** [ppc] Allow stepping over lwarx instruction
-*** [ppc] Support both BSS and secure PLTs for 32-bit processes
 *** [ppc] Fix races in tracing -e events in 64-bit processes
     As a side effect, events requested via -e now only hit when a PLT
     call is made, which is consistent with other architectures.
-*** [ppc] New fetch backend implemented
-*** [mips] Implement software singlestepping
-*** [mips] Add support for CPIC main programs
-*** [ia64] New fetch backend implemented
-*** [s390] New fetch backend implemented
-*** [m68k] New fetch backend implemented
+*** [ppc] Allow stepping over lwarx instruction
+** Known bugs
 *** [arm] Tracing is not supported at all on ARM
     ltrace might work on older kernels, but no attempt was made to
     fully support it.  Newer kernels don't support PTRACE_SINGLESTEP,
