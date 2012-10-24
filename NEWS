@@ -1,5 +1,5 @@
 -*-org-*-
-* Version 0.7
+* Version 0.7.0
 ** Tracing Features
 *** Full support for tracing multi-threaded processes
     Ltrace now understands thread groups, and it stops all threads
@@ -102,7 +102,7 @@
     which ltrace depends on.  Before singlestepping is implemented in
     software, ARM is considered unsupported.
 
-* Version 0.6
+* Version 0.6.0
 ** General Features
 *** Use autotools for building
 *** New option -b: disables output of signals received by the tracee
