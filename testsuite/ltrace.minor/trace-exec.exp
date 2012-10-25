@@ -30,7 +30,7 @@ ltraceMatch [ltraceRun -xmain -- [ltraceCompile {} [ltraceSource c {
     }
 }]]] {
     {{^execl\(} == 1}
-    {{^puts\(.*\) =.*14} == 1}
+    {{^puts\(.*\) .*= 14} == 1}
     {{^main\(} == 2}
 }
 
