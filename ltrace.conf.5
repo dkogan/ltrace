@@ -177,7 +177,36 @@ type.
 
 .SH EXPRESSIONS
 
-XXX TODO
+Ltrace has support for some elementary expressions.  Each expression
+can be either of the following:
+
+.TP
+.I NUM
+An integer number.
+
+.TP
+.B arg\fINUM
+Value of \fINUM\fR-th argument.  The expression has the same value as
+the corresponding argument.  \fBarg1\fR refers to the first argument,
+\fBarg0\fR to the return value of the given function.
+
+.TP
+.B emt\fINUM
+Value of \fINUM\fR-th element of the surrounding structure type.  E.g.
+\fBstruct(ulong,array(int,elt1))\fR describes a structure whose first
+element is a length, and second element an array of ints of that
+length.
+
+.PP
+.B zero
+.br
+.B zero(\fIEXPR\fB)
+.RS
+Describes array which extends until the first element, whose each byte
+is 0.  If and expression is given, that is the maximum length of that
+array.  If NUL terminator is not found earlier, that's where the array
+ends.
+.RE
 
 .SH PARAMETER PACKS
 
