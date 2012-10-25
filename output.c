@@ -3,7 +3,7 @@
  * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1997,1998,1999,2001,2002,2003,2004,2007,2008,2009 Juan Cespedes
- * Copyright (C) 2006 Paul Gilliam
+ * Copyright (C) 2006 Paul Gilliam, IBM Corporation
  * Copyright (C) 2006 Ian Wienand
  *
  * This program is free software; you can redistribute it and/or
