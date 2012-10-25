@@ -85,6 +85,7 @@ D: Tracing inter-library calls
 D: Tracing PIE binaries
 D: Fetch backend, ABI fixes for various arches
 D: PowerPC fixes
+D: Manual pages
 D: Release 0.7
 
 N: Santiago Romero
