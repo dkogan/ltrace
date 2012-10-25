@@ -22,5 +22,8 @@
    continued.  We avoid all the fuss with singlestepping and
    reenablement.
 ** Create different ltrace processes to trace different children
+** Config file syntax
+*** typedef should be able to assign a lens to a name
+*** format should take arguments like string does
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
