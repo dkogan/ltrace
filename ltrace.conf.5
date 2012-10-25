@@ -43,8 +43,15 @@ function.  The syntax is as follows:
 .RE
 
 \fINAME\fR is the (mangled) name of a symbol.  In the elementary case,
-\fILENS\fR is simply a type.  For description of both lenses and
-types, see below.
+\fILENS\fR is simply a type.  Both lenses and types are described
+below.  For example, a simple function prototype might look like this:
+
+.RS
+.B int\fR kill\fB(int,int);
+.RE
+
+Despite the apparent similarity with C, \fBltrace.conf\fR is really
+its own language that's only somewhat inspired by C.
 
 .SH TYPES
 
@@ -78,27 +85,35 @@ floating point number with single precision
 .B double
 floating point number with double precision
 .PP
+
 Besides primitive types, the following composed types are possible:
 
 .TP
-\fBstruct(\fR[\fILENS\fR{,\fILENS\fR}]\fB)\fR
-Describes a structure with given types as fields.  Alignment is computed
-as customary on the architecture.  Custom alignment (e.g. packed
-structs) and bit-fields are not supported.  It's also not possible to
-differentiate between structs and non-POD C++ classes, for arches
-where it makes a difference.
+.B struct(\fR[\fILENS\fR{,\fILENS\fR}]\fB)\fR
+Describes a structure with given types as fields,
+e.g. \fBstruct(int,int,float)\fR.
+
+Alignment is computed as customary on the architecture.  Custom
+alignment (e.g. packed structs) and bit-fields are not supported.
+It's also not possible to differentiate between structs and non-POD
+C++ classes, for arches where it makes a difference.
 
 .TP
-\fBarray(\fR\fILENS\fR\fB,\fIEXPR\fR\fB)\fR
+.B array(\fR\fILENS\fR\fB,\fIEXPR\fR\fB)
 Describes array of length \fIEXPR\fR, which is composed of types
-described by \fILENS\fR.  Note that in C, arrays in role of function
-argument decay into pointers.  Ltrace currently handles this
-automatically, but for full formal correctness, any such arguments
-should be described as pointers to arrays.
+described by \fILENS\fR, e.g. \fBarray(int, \fR6\fB)\fR.
+
+Note that in C, arrays in role of function argument decay into
+pointers.  Ltrace currently handles this automatically, but for full
+formal correctness, any such arguments should be described as pointers
+to arrays.
 
 .TP
-\fILENS\fR\fB*\fR
-Describes a pointer to a given type.
+.I LENS\fR\fB*
+Describes a pointer to a given type, e.g. \fBchar*\fR or \fBint***\fR.
+Note that the former example actually describes a pointer to a
+character, not a string.  See below for \fBstring\fR lens, which is
+applicable to these cases.
 
 .SH LENSES
 
@@ -138,24 +153,23 @@ e.g. in C structs, in cases like \fBstruct(string(array(char,
 Because simple C-like strings are pretty common, plain \fBstring\fR
 (without an argument) is taken to mean the same as \fBstring(char*)\fR
 (which is itself taken to mean the same as
-\fBstring(array(char,zero))\fR).  Note that \fBchar*\fR describes a
-pointer to a char.  Ltrace will dereference the pointer, and read and
-display the single character that it points to.
+\fBstring(array(char,zero))\fR).  Note that \fBchar*\fR by itself
+describes a pointer to a char.  Ltrace will dereference the pointer,
+and read and display the single character that it points to.
 
 .PP
 .B enum(\fINAME\fR[\fB=\fIVALUE\fR]{,\fINAME\fR[\fB=\fIVALUE\fR]}\fB)
 .br
 .B enum[\fITYPE\fB]\fB(\fINAME\fR[\fB=\fIVALUE\fR]{,\fINAME\fR[\fB=\fIVALUE\fR]}\fB)
 .RS
-This describes an enumeration type--which is itself just a
-sophisticated lens.  If an argument has any of the given values, it is
-instead shown as the corresponding \fINAME\fR.  If a \fIVALUE\fR is
-omitted, the next consecutive value following after the previous
-\fIVALUE\fR is taken instead.  If the first \fIVALUE\fR is omitted,
-it's \fB0\fR by default.
+This describes an enumeration lens.  If an argument has any of the
+given values, it is instead shown as the corresponding \fINAME\fR.  If
+a \fIVALUE\fR is omitted, the next consecutive value following after
+the previous \fIVALUE\fR is taken instead.  If the first \fIVALUE\fR
+is omitted, it's \fB0\fR by default.
 
 \fITYPE\fR, if given, is the underlying type.  It is thus possible to
-create enums over shorts or longs--arguments that are themselves
+create enums over shorts or longs\(emarguments that are themselves
 plain, non-enum types in C, but whose value can be meaningfully
 described as enumerations.  If omitted, \fITYPE\fR is taken to be
 \fBint\fR.
