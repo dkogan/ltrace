@@ -114,6 +114,12 @@
 
     | void func(hide(int), int);                 |
     | void func(hide(struct(float,float)), int); |
+
+** Documentation
+
+*** New manual page ltrace.conf(5)
+*** README, INSTALL brought up to date
+*** New file CREDITS with a list of contributors
 ** Bugfixes
 
 *** Fix detaching from a process
