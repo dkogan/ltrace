@@ -180,10 +180,28 @@ destroy_breakpoint_cb(struct Process *proc, struct breakpoint *bp, void *data)
 	return CBS_CONT;
 }
 
+// XXX see comment in handle_event.c
+void callstack_pop(struct Process *proc);
+
 static void
-private_process_destroy(struct Process *proc, int keep_filename)
+private_process_destroy(struct Process *proc, int was_exec)
 {
-	if (!keep_filename)
+	/* Pop remaining stack elements.  */
+	while (proc->callstack_depth > 0) {
+		/* When this is called just before a process is
+		 * destroyed, the breakpoints should either have been
+		 * retracted by now, or were killed by exec.  In any
+		 * case, it's safe to pretend that there are no
+		 * breakpoints associated with the stack elements, so
+		 * that stack_pop doesn't attempt to destroy them.  */
+		size_t i = proc->callstack_depth - 1;
+		if (!proc->callstack[i].is_syscall)
+			proc->callstack[i].return_addr = 0;
+
+		callstack_pop(proc);
+	}
+
+	if (!was_exec)
 		free(proc->filename);
 
 	/* Libraries and symbols.  This is only relevant in
