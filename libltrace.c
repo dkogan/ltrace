@@ -127,7 +127,12 @@ ltrace_init(int argc, char **argv) {
 		} else {
 			read_config_file(opt_F->filename);
 		}
-		opt_F = opt_F->next;
+
+		struct opt_F_t *next = opt_F->next;
+		if (opt_F->own_filename)
+			free(opt_F->filename);
+		free(opt_F);
+		opt_F = next;
 	}
 	if (command) {
 		/* Check that the binary ABI is supported before

@@ -63,9 +63,11 @@ struct opt_p_t {
 	struct opt_p_t *next;
 };
 
-struct opt_F_t {
-	char *filename;
+struct opt_F_t
+{
 	struct opt_F_t *next;
+	char *filename;
+	int own_filename : 1;
 };
 
 extern struct opt_p_t *opt_p;	/* attach to process with a given pid */

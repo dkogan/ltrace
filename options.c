@@ -513,12 +513,18 @@ process_options(int argc, char **argv)
 			break;
 		case 'F':
 			{
-				struct opt_F_t *tmp = malloc(sizeof(struct opt_F_t));
-				if (!tmp) {
-					perror("ltrace: malloc");
+				struct opt_F_t *tmp = malloc(sizeof(*tmp));
+				if (tmp == NULL) {
+				fail:
+					fprintf(stderr, "%s\n",
+						strerror(errno));
+					free(tmp);
 					exit(1);
 				}
 				tmp->filename = strdup(optarg);
+				if (tmp->filename == NULL)
+					goto fail;
+				tmp->own_filename = 1;
 				tmp->next = opt_F;
 				opt_F = tmp;
 				break;
@@ -625,7 +631,9 @@ process_options(int argc, char **argv)
 		opt_F->next = malloc(sizeof(struct opt_F_t));
 		opt_F->next->next = NULL;
 		opt_F->filename = USER_CONFIG_FILE;
+		opt_F->own_filename = 0;
 		opt_F->next->filename = SYSTEM_CONFIG_FILE;
+		opt_F->next->own_filename = 0;
 	}
 	/* Reverse the config file list since it was built by
 	 * prepending, and it would make more sense to process the
