@@ -423,6 +423,7 @@ parse_filter_chain(const char *expr, struct filter **retp)
 		str[0] = '-';
 
 	*slist_chase_end(retp) = recursive_parse_chain(str, 1);
+	free(str);
 }
 
 char **
