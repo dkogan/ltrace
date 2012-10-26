@@ -171,7 +171,7 @@ continue_after_signal(pid_t pid, int signum)
 }
 
 static enum ecb_status
-event_for_pid(Event * event, void * data)
+event_for_pid(Event *event, void *data)
 {
 	if (event->proc != NULL && event->proc->pid == (pid_t)(uintptr_t)data)
 		return ecb_yield;
@@ -202,7 +202,7 @@ continue_process(pid_t pid)
 }
 
 static struct pid_task *
-get_task_info(struct pid_set * pids, pid_t pid)
+get_task_info(struct pid_set *pids, pid_t pid)
 {
 	assert(pid != 0);
 	size_t i;
@@ -214,12 +214,12 @@ get_task_info(struct pid_set * pids, pid_t pid)
 }
 
 static struct pid_task *
-add_task_info(struct pid_set * pids, pid_t pid)
+add_task_info(struct pid_set *pids, pid_t pid)
 {
 	if (pids->count == pids->alloc) {
 		size_t ns = (2 * pids->alloc) ?: 4;
-		struct pid_task * n = realloc(pids->tasks,
-					      sizeof(*pids->tasks) * ns);
+		struct pid_task *n = realloc(pids->tasks,
+					     sizeof(*pids->tasks) * ns);
 		if (n == NULL)
 			return NULL;
 		pids->tasks = n;
@@ -260,8 +260,8 @@ task_stopped(struct Process *task, void *data)
 static enum callback_status
 task_blocked(struct Process *task, void *data)
 {
-	struct pid_set * pids = data;
-	struct pid_task * task_info = get_task_info(pids, task->pid);
+	struct pid_set *pids = data;
+	struct pid_task *task_info = get_task_info(pids, task->pid);
 	if (task_info != NULL
 	    && task_info->vforked)
 		return CBS_CONT;
@@ -289,11 +289,11 @@ is_vfork_parent(struct Process *task)
 static enum callback_status
 send_sigstop(struct Process *task, void *data)
 {
-	Process * leader = task->leader;
-	struct pid_set * pids = data;
+	struct Process *leader = task->leader;
+	struct pid_set *pids = data;
 
 	/* Look for pre-existing task record, or add new.  */
-	struct pid_task * task_info = get_task_info(pids, task->pid);
+	struct pid_task *task_info = get_task_info(pids, task->pid);
 	if (task_info == NULL)
 		task_info = add_task_info(pids, task->pid);
 	if (task_info == NULL) {
@@ -347,9 +347,9 @@ send_sigstop(struct Process *task, void *data)
    breakpoint where IP points and let the process continue.  After
    this the breakpoint can be retracted and the process detached.  */
 static void
-ugly_workaround(Process * proc)
+ugly_workaround(struct Process *proc)
 {
-	void * ip = get_instruction_pointer(proc);
+	void *ip = get_instruction_pointer(proc);
 	struct breakpoint *sbp = dict_find_entry(proc->leader->breakpoints, ip);
 	if (sbp != NULL)
 		enable_breakpoint(proc, sbp);
@@ -359,7 +359,8 @@ ugly_workaround(Process * proc)
 }
 
 static void
-process_stopping_done(struct process_stopping_handler * self, Process * leader)
+process_stopping_done(struct process_stopping_handler *self,
+		      struct Process *leader)
 {
 	debug(DEBUG_PROCESS, "process stopping done %d",
 	      self->task_enabling_breakpoint->pid);
@@ -396,7 +397,7 @@ process_stopping_done(struct process_stopping_handler * self, Process * leader)
  * in the queue, we adjust the instruction pointer, just like
  * continue_after_breakpoint does.  */
 static enum ecb_status
-undo_breakpoint(Event * event, void * data)
+undo_breakpoint(Event *event, void *data)
 {
 	if (event != NULL
 	    && event->proc->leader == data
@@ -430,16 +431,16 @@ retract_breakpoint_cb(struct Process *proc, struct breakpoint *bp, void *data)
 }
 
 static void
-detach_process(Process * leader)
+detach_process(struct Process *leader)
 {
 	each_qd_event(&undo_breakpoint, leader);
 	disable_all_breakpoints(leader);
 	proc_each_breakpoint(leader, NULL, retract_breakpoint_cb, NULL);
 
 	/* Now untrace the process, if it was attached to by -p.  */
-	struct opt_p_t * it;
+	struct opt_p_t *it;
 	for (it = opt_p; it != NULL; it = it->next) {
-		Process * proc = pid2proc(it->pid);
+		struct Process *proc = pid2proc(it->pid);
 		if (proc == NULL)
 			continue;
 		if (proc->leader == leader) {
@@ -453,13 +454,13 @@ detach_process(Process * leader)
 }
 
 static void
-handle_stopping_event(struct pid_task * task_info, Event ** eventp)
+handle_stopping_event(struct pid_task *task_info, Event **eventp)
 {
 	/* Mark all events, so that we know whom to SIGCONT later.  */
 	if (task_info != NULL)
 		task_info->got_event = 1;
 
-	Event * event = *eventp;
+	Event *event = *eventp;
 
 	/* In every state, sink SIGSTOP events for tasks that it was
 	 * sent to.  */
@@ -487,7 +488,7 @@ handle_stopping_event(struct pid_task * task_info, Event ** eventp)
  * because the signal will be delivered without the process actually
  * starting.  */
 static void
-continue_for_sigstop_delivery(struct pid_set * pids)
+continue_for_sigstop_delivery(struct pid_set *pids)
 {
 	size_t i;
 	for (i = 0; i < pids->count; ++i) {
@@ -503,22 +504,22 @@ continue_for_sigstop_delivery(struct pid_set * pids)
 }
 
 static int
-event_exit_p(Event * event)
+event_exit_p(Event *event)
 {
 	return event != NULL && (event->type == EVENT_EXIT
 				 || event->type == EVENT_EXIT_SIGNAL);
 }
 
 static int
-event_exit_or_none_p(Event * event)
+event_exit_or_none_p(Event *event)
 {
 	return event == NULL || event_exit_p(event)
 		|| event->type == EVENT_NONE;
 }
 
 static int
-await_sigstop_delivery(struct pid_set * pids, struct pid_task * task_info,
-		       Event * event)
+await_sigstop_delivery(struct pid_set *pids, struct pid_task *task_info,
+		       Event *event)
 {
 	/* If we still didn't get our SIGSTOP, continue the process
 	 * and carry on.  */
@@ -554,7 +555,7 @@ await_sigstop_delivery(struct pid_set * pids, struct pid_task * task_info,
 }
 
 static int
-all_stops_accountable(struct pid_set * pids)
+all_stops_accountable(struct pid_set *pids)
 {
 	size_t i;
 	for (i = 0; i < pids->count; ++i)
@@ -729,16 +730,16 @@ linux_ptrace_disable_and_continue(struct process_stopping_handler *self)
 static Event *
 process_stopping_on_event(struct event_handler *super, Event *event)
 {
-	struct process_stopping_handler * self = (void *)super;
-	Process * task = event->proc;
-	Process * leader = task->leader;
-	Process * teb = self->task_enabling_breakpoint;
+	struct process_stopping_handler *self = (void *)super;
+	struct Process *task = event->proc;
+	struct Process *leader = task->leader;
+	struct Process *teb = self->task_enabling_breakpoint;
 
 	debug(DEBUG_PROCESS,
 	      "process_stopping_on_event: pid %d; event type %d; state %d",
 	      task->pid, event->type, self->state);
 
-	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
+	struct pid_task *task_info = get_task_info(&self->pids, task->pid);
 	if (task_info == NULL)
 		fprintf(stderr, "new task??? %d\n", task->pid);
 	handle_stopping_event(task_info, &event);
@@ -859,7 +860,7 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 static void
 process_stopping_destroy(struct event_handler *super)
 {
-	struct process_stopping_handler * self = (void *)super;
+	struct process_stopping_handler *self = (void *)super;
 	free(self->pids.tasks);
 }
 
@@ -961,15 +962,15 @@ struct ltrace_exiting_handler
 static Event *
 ltrace_exiting_on_event(struct event_handler *super, Event *event)
 {
-	struct ltrace_exiting_handler * self = (void *)super;
-	Process * task = event->proc;
-	Process * leader = task->leader;
+	struct ltrace_exiting_handler *self = (void *)super;
+	struct Process *task = event->proc;
+	struct Process *leader = task->leader;
 
 	debug(DEBUG_PROCESS,
 	      "ltrace_exiting_on_event: pid %d; event type %d",
 	      task->pid, event->type);
 
-	struct pid_task * task_info = get_task_info(&self->pids, task->pid);
+	struct pid_task *task_info = get_task_info(&self->pids, task->pid);
 	handle_stopping_event(task_info, &event);
 
 	if (event != NULL && event->type == EVENT_BREAKPOINT)
@@ -990,12 +991,12 @@ ltrace_exiting_on_event(struct event_handler *super, Event *event)
 static void
 ltrace_exiting_destroy(struct event_handler *super)
 {
-	struct ltrace_exiting_handler * self = (void *)super;
+	struct ltrace_exiting_handler *self = (void *)super;
 	free(self->pids.tasks);
 }
 
 static int
-ltrace_exiting_install_handler(Process * proc)
+ltrace_exiting_install_handler(struct Process *proc)
 {
 	/* Only install to leader.  */
 	if (proc->leader != proc)
@@ -1012,13 +1013,13 @@ ltrace_exiting_install_handler(Process * proc)
 	if (proc->event_handler != NULL) {
 		assert(proc->event_handler->on_event
 		       == &process_stopping_on_event);
-		struct process_stopping_handler * other
+		struct process_stopping_handler *other
 			= (void *)proc->event_handler;
 		other->exiting = 1;
 		return 0;
 	}
 
-	struct ltrace_exiting_handler * handler
+	struct ltrace_exiting_handler *handler
 		= calloc(sizeof(*handler), 1);
 	if (handler == NULL) {
 		perror("malloc exiting handler");
@@ -1060,7 +1061,7 @@ ltrace_exiting_install_handler(Process * proc)
 struct process_vfork_handler
 {
 	struct event_handler super;
-	void * bp_addr;
+	void *bp_addr;
 };
 
 static Event *
@@ -1070,7 +1071,7 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 	      "process_vfork_on_event: pid %d; event type %d",
 	      event->proc->pid, event->type);
 
-	struct process_vfork_handler * self = (void *)super;
+	struct process_vfork_handler *self = (void *)super;
 	struct breakpoint *sbp;
 	assert(self != NULL);
 
@@ -1112,10 +1113,10 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 }
 
 void
-continue_after_vfork(Process * proc)
+continue_after_vfork(struct Process *proc)
 {
 	debug(DEBUG_PROCESS, "continue_after_vfork: pid=%d", proc->pid);
-	struct process_vfork_handler * handler = calloc(sizeof(*handler), 1);
+	struct process_vfork_handler *handler = calloc(sizeof(*handler), 1);
 	if (handler == NULL) {
 		perror("malloc vfork handler");
 		/* Carry on not bothering to treat the process as
@@ -1149,7 +1150,7 @@ is_mid_stopping(Process *proc)
 }
 
 void
-continue_after_syscall(Process * proc, int sysnum, int ret_p)
+continue_after_syscall(struct Process *proc, int sysnum, int ret_p)
 {
 	/* Don't continue if we are mid-stopping.  */
 	if (ret_p && (is_mid_stopping(proc) || is_mid_stopping(proc->leader))) {
@@ -1175,9 +1176,9 @@ continue_after_syscall(Process * proc, int sysnum, int ret_p)
 void
 os_ltrace_exiting(void)
 {
-	struct opt_p_t * it;
+	struct opt_p_t *it;
 	for (it = opt_p; it != NULL; it = it->next) {
-		Process * proc = pid2proc(it->pid);
+		struct Process *proc = pid2proc(it->pid);
 		if (proc == NULL || proc->leader == NULL)
 			continue;
 		if (ltrace_exiting_install_handler(proc->leader) < 0)
