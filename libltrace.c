@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -134,6 +134,7 @@ ltrace_init(int argc, char **argv) {
 		 * calling execute_program.  */
 		struct ltelf lte = {};
 		open_elf(&lte, command);
+		do_close_elf(&lte);
 
 		pid_t pid = execute_program(command, argv);
 		struct Process *proc = open_program(command, pid);

@@ -68,6 +68,7 @@ struct ltelf {
 };
 
 int open_elf(struct ltelf *lte, const char *filename);
+void do_close_elf(struct ltelf *lte);
 
 /* XXX is it possible to put breakpoints in VDSO and VSYSCALL
  * pseudo-libraries?  For now we assume that all libraries can be
