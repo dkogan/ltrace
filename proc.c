@@ -66,6 +66,31 @@ arch_process_exec(struct Process *proc)
 }
 #endif
 
+#ifndef OS_HAVE_PROCESS_DATA
+int
+os_process_init(struct Process *proc)
+{
+	return 0;
+}
+
+void
+os_process_destroy(struct Process *proc)
+{
+}
+
+int
+os_process_clone(struct Process *retp, struct Process *proc)
+{
+	return 0;
+}
+
+int
+os_process_exec(struct Process *proc)
+{
+	return 0;
+}
+#endif
+
 #ifndef ARCH_HAVE_DYNLINK_DONE
 void
 arch_dynlink_done(struct Process *proc)
@@ -158,7 +183,13 @@ process_init(struct Process *proc, const char *filename, pid_t pid)
 		return -1;
 	}
 
+	if (os_process_init(proc) < 0) {
+		process_bare_destroy(proc, 0);
+		goto fail;
+	}
+
 	if (arch_process_init(proc) < 0) {
+		os_process_destroy(proc);
 		process_bare_destroy(proc, 0);
 		goto fail;
 	}
@@ -229,15 +260,17 @@ void
 process_destroy(struct Process *proc)
 {
 	arch_process_destroy(proc);
+	os_process_destroy(proc);
 	private_process_destroy(proc, 0);
 }
 
 int
 process_exec(struct Process *proc)
 {
-	/* Call exec handler first, before we destroy the main
+	/* Call exec handlers first, before we destroy the main
 	 * state.  */
-	if (arch_process_exec(proc) < 0)
+	if (arch_process_exec(proc) < 0
+	    || os_process_exec(proc) < 0)
 		return -1;
 
 	private_process_destroy(proc, 1);
@@ -389,7 +422,8 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 		}
 	}
 
-	if (arch_process_clone(retp, proc) < 0)
+	if (os_process_clone(retp, proc) < 0
+	    || arch_process_clone(retp, proc) < 0)
 		goto fail4;
 
 	return 0;

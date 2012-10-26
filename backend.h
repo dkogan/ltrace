@@ -264,6 +264,15 @@ void arch_process_destroy(struct Process *proc);
 int arch_process_clone(struct Process *retp, struct Process *proc);
 int arch_process_exec(struct Process *proc);
 
+/* The following callbacks have to be implemented in OS backend if
+ * os.h defines OS_HAVE_PROCESS_DATA.  The protocol is same as for,
+ * respectively, arch_process_init, arch_process_destroy,
+ * arch_process_clone and arch_process_exec.  */
+int os_process_init(struct Process *proc);
+void os_process_destroy(struct Process *proc);
+int os_process_clone(struct Process *retp, struct Process *proc);
+int os_process_exec(struct Process *proc);
+
 /* The following callback has to be implemented in backend if arch.h
  * defines ARCH_HAVE_GET_SYM_INFO.
  *

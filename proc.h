@@ -147,6 +147,7 @@ struct Process {
 	   that case this process is waiting to be collected.  */
 	Process * leader;
 
+	struct os_process_data os;
 	struct arch_process_data arch;
 };
 
