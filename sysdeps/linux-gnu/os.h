@@ -17,3 +17,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
+
+#define OS_HAVE_PROCESS_DATA
+struct os_process_data {
+	arch_addr_t debug_addr;
+	int debug_state;
+};

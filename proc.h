@@ -106,8 +106,6 @@ struct Process {
 	struct library *libraries;
 
 	/* Arch-dependent: */
-	void *debug;	/* arch-dep process debug struct XXX move to
-			 * os_process_data after it's invented.  */
 	void * instruction_pointer;
 	void * stack_pointer;      /* To get return addr, args... */
 	void * return_addr;

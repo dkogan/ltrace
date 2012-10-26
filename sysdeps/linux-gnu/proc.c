@@ -535,21 +535,12 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 	return;
 }
 
-/* A struct stored at proc->debug.  */
-struct debug_struct
-{
-	arch_addr_t debug_addr;
-	int state;
-};
-
 static int
 load_debug_struct(struct Process *proc, struct lt_r_debug_64 *ret)
 {
 	debug(DEBUG_FUNCTION, "load_debug_struct");
 
-	struct debug_struct *debug = proc->debug;
-
-	if (rdebug_fetcher(proc)(proc, debug->debug_addr, ret) < 0) {
+	if (rdebug_fetcher(proc)(proc, proc->os.debug_addr, ret) < 0) {
 		debug(2, "This process does not have a debug structure!\n");
 		return -1;
 	}
@@ -568,22 +559,23 @@ rdebug_bp_on_hit(struct breakpoint *bp, struct Process *proc)
 		return;
 	}
 
-	struct debug_struct *debug = proc->debug;
 	if (rdbg.r_state == RT_CONSISTENT) {
 		debug(2, "Linkmap is now consistent");
-		if (debug->state == RT_ADD) {
+		switch (proc->os.debug_state) {
+		case RT_ADD:
 			debug(2, "Adding DSO to linkmap");
-			//data.proc = proc;
 			crawl_linkmap(proc, &rdbg);
-			//&data);
-		} else if (debug->state == RT_DELETE) {
+			break;
+		case RT_DELETE:
 			debug(2, "Removing DSO from linkmap");
-		} else {
+			// XXX unload that library
+			break;
+		default:
 			debug(2, "Unexpected debug state!");
 		}
 	}
 
-	debug->state = rdbg.r_state;
+	proc->os.debug_state = rdbg.r_state;
 }
 
 #ifndef ARCH_HAVE_FIND_DL_DEBUG
@@ -600,20 +592,9 @@ linkmap_init(struct Process *proc, arch_addr_t dyn_addr)
 {
 	debug(DEBUG_FUNCTION, "linkmap_init(%d, dyn_addr=%p)", proc->pid, dyn_addr);
 
-	struct debug_struct *debug = malloc(sizeof(*debug));
-	if (debug == NULL) {
-		fprintf(stderr, "couldn't allocate debug struct: %s\n",
-			strerror(errno));
-	fail:
-		proc->debug = NULL;
-		free(debug);
-		return -1;
-	}
-	proc->debug = debug;
-
-	if (arch_find_dl_debug(proc, dyn_addr, &debug->debug_addr) == -1) {
+	if (arch_find_dl_debug(proc, dyn_addr, &proc->os.debug_addr) == -1) {
 		debug(2, "Couldn't find debug structure!");
-		goto fail;
+		return -1;
 	}
 
 	int status;
@@ -627,7 +608,7 @@ linkmap_init(struct Process *proc, arch_addr_t dyn_addr)
 	 * arch_addr_t becomes integral type.  */
 	arch_addr_t addr = (arch_addr_t)(uintptr_t)rdbg.r_brk;
 	if (arch_translate_address_dyn(proc, addr, &addr) < 0)
-		goto fail;
+		return -1;
 
 	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);
 	static struct bp_callbacks rdebug_callbacks = {
@@ -705,4 +686,30 @@ process_get_entry(struct Process *proc,
 	if (interp_biasp != NULL)
 		*interp_biasp = at_bias;
 	goto done;
+}
+
+int
+os_process_init(struct Process *proc)
+{
+	proc->os.debug_addr = 0;
+	proc->os.debug_state = 0;
+	return 0;
+}
+
+void
+os_process_destroy(struct Process *proc)
+{
+}
+
+int
+os_process_clone(struct Process *retp, struct Process *proc)
+{
+	retp->os = proc->os;
+	return 0;
+}
+
+int
+os_process_exec(struct Process *proc)
+{
+	return 0;
 }
