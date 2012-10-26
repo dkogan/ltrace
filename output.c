@@ -622,7 +622,7 @@ do_report(const char *filename, unsigned line_no, const char *severity,
 }
 
 void
-report_error(const char *filename, unsigned line_no, char *fmt, ...)
+report_error(const char *filename, unsigned line_no, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -631,7 +631,7 @@ report_error(const char *filename, unsigned line_no, char *fmt, ...)
 }
 
 void
-report_warning(const char *filename, unsigned line_no, char *fmt, ...)
+report_warning(const char *filename, unsigned line_no, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -640,7 +640,7 @@ report_warning(const char *filename, unsigned line_no, char *fmt, ...)
 }
 
 void
-report_global_error(char *fmt, ...)
+report_global_error(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);

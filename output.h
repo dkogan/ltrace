@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011, 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,6 @@ void output_left(enum tof type, struct Process *proc,
 void output_right(enum tof type, struct Process *proc,
 		  struct library_symbol *libsym);
 
-void report_error(char const *file, unsigned line_no, char *fmt, ...);
-void report_warning(char const *file, unsigned line_no, char *fmt, ...);
-void report_global_error(char *fmt, ...);
+void report_error(char const *file, unsigned line_no, const char *fmt, ...);
+void report_warning(char const *file, unsigned line_no, const char *fmt, ...);
+void report_global_error(const char *fmt, ...);
