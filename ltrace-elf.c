@@ -959,11 +959,14 @@ ltelf_read_main_binary(struct Process *proc, const char *path)
 	 * that.  Presumably we could read the DSOs from the process
 	 * memory image, but that's not currently done.  */
 	char *fname = pid2name(proc->pid);
+	if (fname == NULL)
+		return NULL;
 	if (read_module(lib, proc, fname, 0, 1) < 0) {
 		library_destroy(lib);
 		free(lib);
 		return NULL;
 	}
+	free(fname);
 
 	return lib;
 }

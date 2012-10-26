@@ -440,13 +440,15 @@ open_one_pid(pid_t pid)
 	 * easily free it, untracing is more work.  */
 	if ((filename = pid2name(pid)) == NULL
 	    || trace_pid(pid) < 0) {
+	fail:
 		free(filename);
 		return -1;
 	}
 
 	proc = open_program(filename, pid);
 	if (proc == NULL)
-		return -1;
+		goto fail;
+	free(filename);
 	trace_set_options(proc);
 
 	return 0;
