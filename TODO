@@ -25,5 +25,34 @@
 ** Config file syntax
 *** typedef should be able to assign a lens to a name
 *** format should take arguments like string does
+** More fine-tuned control of right arguments
+   Combination of named arguments and some extensions could take care
+   of that:
+
+   | void func(X=hide(int*), long*, +pack(X)); |
+
+   This would show long* as input argument (i.e. the function could
+   mangle it), and later show the pre-fetched X.  The "pack" syntax is
+   utterly undeveloped as of now.  The general idea is to produce
+   arguments that expand to some mix of types and values.  But maybe
+   all we need is something like
+
+   | void func(out int*, long*); |
+
+   ltrace would know that out/inout/in arguments are given in the
+   right order, but left pass should display in and inout arguments
+   only, and right pass then out and inout.  + would be
+   backward-compatible syntactic sugar, expanded like so:
+
+   | void func(int*, int*, +long*, long*);              |
+   | void func(in int*, in int*, out long*, out long*); |
+
+   But sometimes we may want to see a different type on the way in and
+   on the way out.  E.g. in asprintf, what's interesting on the way in
+   is the address, but on the way out we want to see buffer contents.
+   Does something like the following make sense?
+
+   | void func(X=void*, long*, out string(X)); |
+
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())

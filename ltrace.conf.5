@@ -239,6 +239,41 @@ determine what the following actual arguments are.  E.g. if the format
 string is "%s %d\\n", it's as if the \fBformat\fR was replaced by
 \fBstring, string, int\fR.
 
+.SH RETURN ARGUMENTS
+
+C functions often use one or more arguments for returning values back
+to the caller.  The caller provides a pointer to storage, which the
+called function initializes.  Ltrace has some support for this idiom.
+
+When a traced binary hits a function call, ltrace first fetches all
+arguments.  It then displays \fIleft\fR portion of the argument list.
+Only when the function returns does ltrace display \fIright\fR portion
+as well.  Typically, left portion takes up all the arguments, and
+right portion only contains return value.  But ltrace allows you to
+configure where exactly to put the dividing line by means of a \fB+\fR
+operator placed in front of an argument:
+
+.RS
+.B int\fR asprintf\fB(+string*, format);
+.RE
+
+Here, the first argument to asprintf is denoted as return argument,
+which means that displaying the whole argument list is delayed until
+the function returns:
+
+.RS
+a.out->asprintf( <unfinished ...>
+.br
+libc.so.6->malloc(100)                   = 0x245b010
+.br
+[... more calls here ...]
+.br
+<... asprintf resumed> "X=1", "X=%d", 1) = 5
+.RE
+
+It is currently not possible to have an "inout" argument that passes
+information in both directions.
+
 .SH EXAMPLES
 
 In the following, the first is the C prototype, and following that is
