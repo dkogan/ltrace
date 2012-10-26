@@ -228,18 +228,20 @@ private_process_destroy(struct Process *proc, int was_exec)
 void
 process_destroy(struct Process *proc)
 {
-	private_process_destroy(proc, 0);
 	arch_process_destroy(proc);
+	private_process_destroy(proc, 0);
 }
 
 int
 process_exec(struct Process *proc)
 {
-	/* Call exec first, before we destroy the main state.  */
+	/* Call exec handler first, before we destroy the main
+	 * state.  */
 	if (arch_process_exec(proc) < 0)
 		return -1;
 
 	private_process_destroy(proc, 1);
+
 	if (process_bare_init(proc, NULL, proc->pid, 1) < 0)
 		return -1;
 	if (process_init_main(proc) < 0) {
