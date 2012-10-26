@@ -204,29 +204,29 @@ name2func(char const *name) {
 }
 
 void
-output_line(Process *proc, char *fmt, ...) {
-	va_list args;
+output_line(struct Process *proc, const char *fmt, ...)
+{
+	if (options.summary)
+		return;
 
-	if (options.summary) {
-		return;
-	}
-	if (current_proc) {
-		if (current_proc->callstack[current_depth].return_addr) {
+	if (current_proc != NULL) {
+		if (current_proc->callstack[current_depth].return_addr)
 			fprintf(options.output, " <unfinished ...>\n");
-		} else {
+		else
 			fprintf(options.output, " <no return ...>\n");
-		}
 	}
-	current_proc = 0;
-	if (!fmt) {
+	current_proc = NULL;
+	if (fmt == NULL)
 		return;
-	}
+
 	begin_of_line(proc, 0, 0);
 
+	va_list args;
 	va_start(args, fmt);
 	vfprintf(options.output, fmt, args);
 	fprintf(options.output, "\n");
 	va_end(args);
+
 	current_column = 0;
 }
 

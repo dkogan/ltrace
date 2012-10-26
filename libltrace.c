@@ -87,8 +87,9 @@ signal_exit(int sig)
 }
 
 static void
-normal_exit(void) {
-	output_line(0, 0);
+normal_exit(void)
+{
+	output_line(NULL, NULL);
 	if (options.summary) {
 		show_summary();
 	}
