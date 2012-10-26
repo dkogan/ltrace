@@ -76,6 +76,15 @@ arch_dynlink_done(struct Process *proc)
 static void add_process(struct Process *proc, int was_exec);
 static void unlist_process(struct Process *proc);
 
+static void
+destroy_unwind(struct Process *proc)
+{
+#if defined(HAVE_LIBUNWIND)
+	_UPT_destroy(proc->unwind_priv);
+	unw_destroy_addr_space(proc->unwind_as);
+#endif /* defined(HAVE_LIBUNWIND) */
+}
+
 static int
 process_bare_init(struct Process *proc, const char *filename,
 		  pid_t pid, int was_exec)
@@ -123,6 +132,7 @@ process_bare_destroy(struct Process *proc, int was_exec)
 	if (!was_exec) {
 		free(proc->filename);
 		unlist_process(proc);
+		destroy_unwind(proc);
 	}
 }
 
@@ -193,6 +203,8 @@ private_process_destroy(struct Process *proc, int keep_filename)
 		dict_clear(proc->breakpoints);
 		proc->breakpoints = NULL;
 	}
+
+	destroy_unwind(proc);
 }
 
 void
