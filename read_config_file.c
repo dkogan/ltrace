@@ -975,6 +975,13 @@ add_param(Function *fun, size_t *allocdp)
 	return 0;
 }
 
+static int
+param_is_void(struct param *param)
+{
+	return param->flavor == PARAM_FLAVOR_TYPE
+		&& param->u.type.type->type == ARGTYPE_VOID;
+}
+
 static Function *
 process_line(char *buf) {
 	char *str = buf;
@@ -1058,23 +1065,6 @@ process_line(char *buf) {
 			goto err;
 		}
 
-		/* XXX We used to allow void parameter as a synonym to
-		 * an argument that shouldn't be displayed.  We may
-		 * wish to re-introduce this when lenses are
-		 * implemented, as a synonym, but backends generally
-		 * need to know the type, so disallow bare void for
-		 * now.  */
-		if (type->type == ARGTYPE_VOID) {
-			report_warning(filename, line_no,
-				       "void parameter assumed to be 'int'");
-			if (own) {
-				type_destroy(type);
-				free(type);
-			}
-			type = type_get_simple(ARGTYPE_INT);
-			own = 0;
-		}
-
 		param_init_type(&fun->params[fun->num_params++], type, own);
 
 		eat_spaces(&str);
@@ -1089,6 +1079,35 @@ process_line(char *buf) {
 			report_error(filename, line_no,
 				     "syntax error around \"%s\"", str);
 			goto err;
+		}
+	}
+
+	/* We used to allow void parameter as a synonym to an argument
+	 * that shouldn't be displayed.  But backends really need to
+	 * know the exact type that they are dealing with.  The proper
+	 * way to do this these days is to use the hide lens.
+	 *
+	 * So if there are any voids in the parameter list, show a
+	 * warning and assume that they are ints.  If there's a sole
+	 * void, show a warning and assume the function doesn't take
+	 * any arguments.  The latter is conservative, we can drop the
+	 * argument altogether, instead of fetching and then not
+	 * showing it, without breaking any observable behavior.  */
+	if (fun->num_params == 1 && param_is_void(&fun->params[0])) {
+		report_warning(filename, line_no,
+			       "sole void parameter ignored");
+	} else {
+		size_t i;
+		struct arg_type_info *type = type_get_simple(ARGTYPE_INT);
+		for (i = 0; i < fun->num_params; ++i) {
+			if (param_is_void(&fun->params[i])) {
+				report_warning
+					(filename, line_no,
+					 "void parameter assumed to be 'int'");
+
+				param_destroy(&fun->params[i]);
+				param_init_type(&fun->params[i], type, 0);
+			}
 		}
 	}
 
