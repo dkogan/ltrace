@@ -575,13 +575,6 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 	if (own_retval)
 		value_destroy(&retval);
 
-	if (stel->arguments != NULL) {
-		val_dict_destroy(stel->arguments);
-		free(stel->arguments);
-	}
-	if (context != NULL)
-		fetch_arg_done(context);
-
 	if (opt_T) {
 		fprintf(options.output, " <%lu.%06d>",
 			current_time_spent.tv_sec,

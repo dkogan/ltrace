@@ -57,7 +57,10 @@ static void handle_new(Event *event);
 static void callstack_push_syscall(Process *proc, int sysnum);
 static void callstack_push_symfunc(Process *proc,
 				   struct library_symbol *sym);
-static void callstack_pop(Process *proc);
+/* XXX Stack maintenance should be moved to a dedicated module, or to
+ * proc.c, and push/pop should be visible outside this module.  For
+ * now, because we need this in proc.c, this is non-static.  */
+void callstack_pop(struct Process *proc);
 
 static char * shortsignal(Process *proc, int signum);
 static char * sysname(Process *proc, int sysnum);
@@ -730,16 +733,24 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 	}
 }
 
-static void
-callstack_pop(Process *proc) {
+void
+callstack_pop(struct Process *proc)
+{
 	struct callstack_element *elem;
 	assert(proc->callstack_depth > 0);
 
 	debug(DEBUG_FUNCTION, "callstack_pop(pid=%d)", proc->pid);
 	elem = &proc->callstack[proc->callstack_depth - 1];
-	if (!elem->is_syscall && elem->return_addr) {
-		assert(proc->leader != NULL);
+	if (!elem->is_syscall && elem->return_addr)
 		delete_breakpoint(proc, elem->return_addr);
+
+	if (elem->fetch_context != NULL)
+		fetch_arg_done(elem->fetch_context);
+
+	if (elem->arguments != NULL) {
+		val_dict_destroy(elem->arguments);
+		free(elem->arguments);
 	}
+
 	proc->callstack_depth--;
 }
