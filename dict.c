@@ -142,7 +142,9 @@ dict_remove(Dict *d, void *key)
 			continue;
 		if (d->key_cmp(key, entry->key) == 0) {
 			*entryp = entry->next;
-			return entry->value;
+			void *value = entry->value;
+			free(entry);
+			return value;
 		}
 	}
 	return NULL;
