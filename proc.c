@@ -308,7 +308,10 @@ clone_single_bp(void *key, void *value, void *u)
 	struct breakpoint *bp = value;
 	struct clone_single_bp_data *data = u;
 
-	data->error = 0;
+	/* Don't bother if there were errors anyway.  */
+	if (data->error != 0)
+		return;
+
 	struct breakpoint *clone = malloc(sizeof(*clone));
 	if (clone == NULL
 	    || breakpoint_clone(clone, data->new_proc,
