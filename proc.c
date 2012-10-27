@@ -407,7 +407,6 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 			if (nargs == NULL
 			    || val_dict_clone(nargs, args) < 0) {
 				size_t j;
-			fail4:
 				for (j = 0; j < i; ++j) {
 					nargs = retp->callstack[i].arguments;
 					val_dict_destroy(nargs);
@@ -435,9 +434,17 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 		}
 	}
 
-	if (os_process_clone(retp, proc) < 0
-	    || arch_process_clone(retp, proc) < 0)
-		goto fail4;
+	/* At this point, retp is fully initialized, except for OS and
+	 * arch parts, and we can call private_process_destroy.  */
+	if (os_process_clone(retp, proc) < 0) {
+		private_process_destroy(retp, 0);
+		return -1;
+	}
+	if (arch_process_clone(retp, proc) < 0) {
+		os_process_destroy(retp);
+		private_process_destroy(retp, 0);
+		return -1;
+	}
 
 	return 0;
 }
