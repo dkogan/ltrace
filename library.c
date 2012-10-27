@@ -327,6 +327,16 @@ library_destroy(struct library *lib)
 		free(sym);
 		sym = next;
 	}
+
+	/* Release exported names.  */
+	struct library_exported_name *it;
+	for (it = lib->exported_names; it != NULL; ) {
+		struct library_exported_name *next = it->next;
+		if (it->own_name)
+			free((char *)it->name);
+		free(it);
+		it = next;
+	}
 }
 
 void
