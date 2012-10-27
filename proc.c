@@ -380,38 +380,42 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 		goto fail2;
 
 	/* And finally the call stack.  */
+	/* XXX clearly the callstack handling should be moved to a
+	 * separate module and this whole business extracted to
+	 * callstack_clone, or callstack_element_clone.  */
 	memcpy(retp->callstack, proc->callstack, sizeof(retp->callstack));
 	retp->callstack_depth = proc->callstack_depth;
 
 	size_t i;
 	for (i = 0; i < retp->callstack_depth; ++i) {
-		struct fetch_context *ctx = retp->callstack[i].fetch_context;
+		struct callstack_element *elem = &retp->callstack[i];
+		struct fetch_context *ctx = elem->fetch_context;
 		if (ctx != NULL) {
 			struct fetch_context *nctx = fetch_arg_clone(retp, ctx);
 			if (nctx == NULL) {
 				size_t j;
 			fail3:
 				for (j = 0; j < i; ++j) {
-					nctx = retp->callstack[i].fetch_context;
+					nctx = elem->fetch_context;
 					fetch_arg_done(nctx);
-					retp->callstack[i].fetch_context = NULL;
+					elem->fetch_context = NULL;
 				}
 				goto fail2;
 			}
-			retp->callstack[i].fetch_context = nctx;
+			elem->fetch_context = nctx;
 		}
 
-		struct value_dict *args = retp->callstack[i].arguments;
+		struct value_dict *args = elem->arguments;
 		if (args != NULL) {
 			struct value_dict *nargs = malloc(sizeof(*nargs));
 			if (nargs == NULL
 			    || val_dict_clone(nargs, args) < 0) {
 				size_t j;
 				for (j = 0; j < i; ++j) {
-					nargs = retp->callstack[i].arguments;
+					nargs = elem->arguments;
 					val_dict_destroy(nargs);
 					free(nargs);
-					retp->callstack[i].arguments = NULL;
+					elem->arguments = NULL;
 				}
 
 				/* Pretend that this round went well,
@@ -420,7 +424,7 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 				++i;
 				goto fail3;
 			}
-			retp->callstack[i].arguments = nargs;
+			elem->arguments = nargs;
 		}
 
 		/* If it's not a syscall, we need to find the
