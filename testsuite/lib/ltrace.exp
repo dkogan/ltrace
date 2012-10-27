@@ -435,8 +435,9 @@ proc ltraceRun {args} {
 
     set command "exec env LD_LIBRARY_PATH=$LdPath $LTRACE -o $logfile $args"
     verbose $command
-    if { [catch {eval $command}] } {
+    if {[catch {eval $command}] } {
 	fail "test case execution failed"
+	send_error -- $command
 	send_error -- $::errorInfo
     }
 
@@ -627,10 +628,12 @@ proc ltrace_runtest { args } {
 	lappend LTRACE_OPTIONS "-o"
 	lappend LTRACE_OPTIONS "$file"
 	verbose "LTRACE_OPTIONS = $LTRACE_OPTIONS"
+	set command "exec sh -c {export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_; \
+		$LTRACE $LTRACE_OPTIONS $BIN $LTRACE_ARGS;exit}"
 	#ltrace the PUT.
-	if { [catch "exec sh -c {export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_; \
-		$LTRACE $LTRACE_OPTIONS $BIN $LTRACE_ARGS;exit}" output] } {
+	if {[catch $command output]} {
 	    fail "test case execution failed"
+	    send_error -- $command
 	    send_error -- $::errorInfo
 	}
 
