@@ -5,7 +5,7 @@
 
 int main() {
         int r = vfork();
-        fprintf(stderr, "vfork():%d\n", r);
+        fprintf(stdout, "vfork():%d\n", r);
         _exit(0);
 }
 

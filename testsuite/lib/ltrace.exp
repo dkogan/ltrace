@@ -433,8 +433,12 @@ proc ltraceRun {args} {
     # zero exit status (i.e. ltrace fails, valgrind finds errors,
     # etc.).
 
-    verbose "env LD_LIBRARY_PATH=$LdPath $LTRACE -o $logfile $args"
-    eval "exec env LD_LIBRARY_PATH=$LdPath $LTRACE -o $logfile $args"
+    set command "exec env LD_LIBRARY_PATH=$LdPath $LTRACE -o $logfile $args"
+    verbose $command
+    if { [catch {eval $command}] } {
+	fail "test case execution failed"
+	send_error -- $::errorInfo
+    }
 
     return $logfile
 }
@@ -624,8 +628,12 @@ proc ltrace_runtest { args } {
 	lappend LTRACE_OPTIONS "$file"
 	verbose "LTRACE_OPTIONS = $LTRACE_OPTIONS"
 	#ltrace the PUT.
-	catch "exec sh -c {export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_; $LTRACE $LTRACE_OPTIONS $BIN $LTRACE_ARGS;exit}" output
-	
+	if { [catch "exec sh -c {export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_; \
+		$LTRACE $LTRACE_OPTIONS $BIN $LTRACE_ARGS;exit}" output] } {
+	    fail "test case execution failed"
+	    send_error -- $::errorInfo
+	}
+
 	# return output from ltrace.
 	return $output
 }
