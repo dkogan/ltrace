@@ -348,7 +348,7 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 	 * breakpoints.  */
 	struct library *lib;
 	struct library **nlibp = &retp->libraries;
-	for (lib = proc->libraries; lib != NULL; lib = lib->next) {
+	for (lib = proc->leader->libraries; lib != NULL; lib = lib->next) {
 		*nlibp = malloc(sizeof(**nlibp));
 		if (*nlibp == NULL
 		    || library_clone(*nlibp, lib) < 0) {
@@ -375,7 +375,7 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 		.new_proc = retp,
 		.error = 0,
 	};
-	dict_apply_to_all(proc->breakpoints, &clone_single_bp, &data);
+	dict_apply_to_all(proc->leader->breakpoints, &clone_single_bp, &data);
 	if (data.error < 0)
 		goto fail2;
 
