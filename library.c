@@ -305,6 +305,7 @@ library_clone(struct library *retp, struct library *lib)
 			}
 			nnamep = &(*nnamep)->next;
 		}
+		*nnamep = NULL;
 	}
 
 	return 0;
