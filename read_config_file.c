@@ -83,6 +83,10 @@ parse_arg_type(char **name, enum arg_type *ret)
 	KEYWORD("array", ARGTYPE_ARRAY);
 	KEYWORD("struct", ARGTYPE_STRUCT);
 
+	/* Misspelling of int used in ltrace.conf that we used to
+	 * ship.  */
+	KEYWORD("itn", ARGTYPE_INT);
+
 	assert(rest == NULL);
 	return -1;
 
@@ -982,6 +986,19 @@ param_is_void(struct param *param)
 		&& param->u.type.type->type == ARGTYPE_VOID;
 }
 
+static struct arg_type_info *
+get_hidden_int(void)
+{
+	char *str = strdup("hide(int)");
+	char *ptr = str;
+	assert(str != NULL);
+	int own;
+	struct arg_type_info *info = parse_lens(&ptr, NULL, 0, &own);
+	assert(info != NULL);
+	free(str);
+	return info;
+}
+
 static Function *
 process_line(char *buf) {
 	char *str = buf;
@@ -1089,22 +1106,32 @@ process_line(char *buf) {
 	 *
 	 * So if there are any voids in the parameter list, show a
 	 * warning and assume that they are ints.  If there's a sole
-	 * void, show a warning and assume the function doesn't take
-	 * any arguments.  The latter is conservative, we can drop the
-	 * argument altogether, instead of fetching and then not
-	 * showing it, without breaking any observable behavior.  */
+	 * void, assume the function doesn't take any arguments.  The
+	 * latter is conservative, we can drop the argument
+	 * altogether, instead of fetching and then not showing it,
+	 * without breaking any observable behavior.  */
 	if (fun->num_params == 1 && param_is_void(&fun->params[0])) {
-		report_warning(filename, line_no,
-			       "sole void parameter ignored");
+		if (0)
+			/* Don't show this warning.  Pre-0.7.0
+			 * ltrace.conf often used this idiom.  This
+			 * should be postponed until much later, when
+			 * extant uses are likely gone.  */
+			report_warning(filename, line_no,
+				       "sole void parameter ignored");
+		param_destroy(&fun->params[0]);
+		fun->num_params = 0;
 	} else {
 		size_t i;
-		struct arg_type_info *type = type_get_simple(ARGTYPE_INT);
 		for (i = 0; i < fun->num_params; ++i) {
 			if (param_is_void(&fun->params[i])) {
 				report_warning
 					(filename, line_no,
-					 "void parameter assumed to be 'int'");
+					 "void parameter assumed to be "
+					 "'hide(int)'");
 
+				static struct arg_type_info *type = NULL;
+				if (type == NULL)
+					type = get_hidden_int();
 				param_destroy(&fun->params[i]);
 				param_init_type(&fun->params[i], type, 0);
 			}

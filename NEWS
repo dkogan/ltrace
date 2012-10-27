@@ -92,27 +92,49 @@
      is useful in cases like the following:
      | void func_struct_2(struct(string(array(char, 6)))); |
 
-*** Using void as sole argument to a function now obsolete
+*** Misspelling of "int" as "itn" temporarily accepted, but deprecated
+
+    Pre-0.7 ltrace shipped a buggy version of ltrace.conf that
+    contained the following prototype:
+
+    | itn acl_valid(addr); |
+
+    To support extant versions of ltrace.conf, that use is now
+    considered valid, and "itn" is a synonym of "int".  It is however
+    deprecated, and will produce a warning in future.
+
+*** Using void as top-level function argument now deprecated
 
     Functions that take no arguments shouldn't pretend to take one
-    parameter of void type.  That use is now obsolete (but still
-    accepted):
+    parameter of void type.  For example the following:
 
-    | void func(void); |
+    | int fork(void); |
 
-    Instead, such functions should be declared like this:
+    ... should be declared like this:
 
-    | void func(); |
+    | int fork(); |
 
-*** Using void to hide one argument is no longer supported
+    To support extant versions of ltrace.conf, that use is now
+    considered valid.  It is however deprecated, and will produce a
+    warning in future.
 
-    Instead use "hide" lens (see above).  ltrace needs to know the
-    exact underlying type to decide what the calling convention is.
-    In the following two declarations, how the second argument is
-    passed may depend on the exact type of the hidden argument:
+*** Using void to hide one argument is now obsolete
 
-    | void func(hide(int), int);                 |
-    | void func(hide(struct(float,float)), int); |
+    Ltrace needs to know the exact underlying type to decide what the
+    calling convention is.  The use of void to mean "hide this
+    argument", such as the following example, is therefore obsolete:
+
+    | void func(void, array(int, arg1)); |
+
+    Instead, rewrite the prototype depending on the exact underlying
+    type:
+
+    | void func(hide(int), int);  |
+    | void func(hide(long), int); |
+
+    To support extant versions of ltrace.conf, this use is still
+    accepted, and "void" is taken to mean "hide(int)".  It is however
+    obsolete, produces a warning, and will be removed in future.
 
 ** Documentation
 
