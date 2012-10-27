@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "library.h"
 #include "callback.h"
@@ -269,8 +270,10 @@ library_clone(struct library *retp, struct library *lib)
 
 	private_library_init(retp, lib->type);
 	library_set_soname(retp, soname, lib->own_soname);
-	library_set_soname(retp, pathname, lib->own_pathname);
+	library_set_pathname(retp, pathname, lib->own_pathname);
 	arch_library_clone(retp, lib);
+
+	retp->key = lib->key;
 
 	/* Clone symbols.  */
 	{
@@ -290,6 +293,7 @@ library_clone(struct library *retp, struct library *lib)
 			(*nsymp)->lib = retp;
 			nsymp = &(*nsymp)->next;
 		}
+		*nsymp = NULL;
 	}
 
 	/* Clone exported names.  */
