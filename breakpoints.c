@@ -155,41 +155,16 @@ breakpoint_destroy(struct breakpoint *bp)
 	arch_breakpoint_destroy(bp);
 }
 
-struct find_symbol_data {
-	struct library_symbol *old_libsym;
-	struct library_symbol *found_libsym;
-};
-
-static enum callback_status
-find_sym_in_lib(struct Process *proc, struct library *lib, void *u)
-{
-	struct find_symbol_data *fs = u;
-	fs->found_libsym
-		= library_each_symbol(lib, NULL, library_symbol_equal_cb,
-				      fs->old_libsym);
-	return fs->found_libsym != NULL ? CBS_STOP : CBS_CONT;
-}
-
 int
 breakpoint_clone(struct breakpoint *retp, struct Process *new_proc,
 		 struct breakpoint *bp, struct Process *old_proc)
 {
-	/* Find library and symbol that this breakpoint was linked to.  */
-	struct library_symbol *libsym = bp->libsym;
-	struct library *lib = NULL;
-	if (libsym != NULL) {
-		struct find_symbol_data f_data = {
-			.old_libsym = libsym,
-		};
-		lib = proc_each_library(old_proc, NULL,
-					find_sym_in_lib, &f_data);
-		assert(lib != NULL);
-		libsym = f_data.found_libsym;
+	struct library_symbol *libsym = NULL;
+	if (bp->libsym != NULL) {
+		int rc = proc_find_symbol(new_proc, bp->libsym, NULL, &libsym);
+		assert(rc == 0);
 	}
 
-	/* LIB and LIBSYM now hold the new library and symbol that
-	 * correspond to the original breakpoint.  Now we can do the
-	 * clone itself.  */
 	breakpoint_init_base(retp, new_proc, bp->addr, libsym);
 	memcpy(retp->orig_value, bp->orig_value, sizeof(bp->orig_value));
 	retp->enabled = bp->enabled;

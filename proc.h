@@ -241,4 +241,12 @@ void *proc_each_breakpoint(struct Process *proc, void *start,
  * If tag is not found, return a negative value.  */
 int proc_find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
 				 int d_tag, arch_addr_t *ret);
+
+/* Finds a symbol corresponding to LIBSYM in a process PROC.  Returns
+ * 0 and sets *RETLIB and *RETSYM if the corresponding pointer is
+ * non-NULL.  Returns a negative value when the symbols couldn't be
+ * found.  */
+int proc_find_symbol(struct Process *proc, struct library_symbol *sym,
+		     struct library **retlib, struct library_symbol **retsym);
+
 #endif /* _PROC_H_ */

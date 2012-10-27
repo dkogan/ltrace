@@ -420,6 +420,16 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 			}
 			retp->callstack[i].arguments = nargs;
 		}
+
+		/* If it's not a syscall, we need to find the
+		 * corresponding library symbol in the cloned
+		 * library.  */
+		if (!elem->is_syscall && elem->c_un.libfunc != NULL) {
+			struct library_symbol *libfunc = elem->c_un.libfunc;
+			int rc = proc_find_symbol(retp, libfunc,
+						  NULL, &elem->c_un.libfunc);
+			assert(rc == 0);
+		}
 	}
 
 	if (os_process_clone(retp, proc) < 0
@@ -948,4 +958,30 @@ proc_each_breakpoint(struct Process *proc, void *start,
 	};
 	dict_apply_to_all(proc->breakpoints, &each_breakpoint_cb, &dd);
 	return dd.end;
+}
+
+int
+proc_find_symbol(struct Process *proc, struct library_symbol *sym,
+		 struct library **retlib, struct library_symbol **retsym)
+{
+	struct library *lib = sym->lib;
+	assert(lib != NULL);
+
+	struct library *flib
+		= proc_each_library(proc, NULL, library_with_key_cb, &lib->key);
+	if (flib == NULL)
+		return -1;
+
+	struct library_symbol *fsym
+		= library_each_symbol(flib, NULL, library_symbol_named_cb,
+				      (char *)sym->name);
+	if (fsym == NULL)
+		return -1;
+
+	if (retlib != NULL)
+		*retlib = flib;
+	if (retsym != NULL)
+		*retsym = fsym;
+
+	return 0;
 }
