@@ -74,7 +74,6 @@ signal_alarm(int sig) {
 static void
 signal_exit(int sig)
 {
-	debug(1, "Received interrupt signal; exiting...");
 	if (exiting != 0)
 		return;
 
