@@ -129,8 +129,8 @@
     Instead, rewrite the prototype depending on the exact underlying
     type:
 
-    | void func(hide(int), int);  |
-    | void func(hide(long), int); |
+    | void func(hide(int), array(int, arg1));  |
+    | void func(hide(long), array(int, arg1)); |
 
     To support extant versions of ltrace.conf, this use is still
     accepted, and "void" is taken to mean "hide(int)".  It is however
