@@ -121,6 +121,10 @@ form_next_param(struct param_enum *self,
 
 
 	if (format_type == ARGTYPE_ARRAY) {
+		struct arg_type_info *array = malloc(sizeof(*array));
+		if (array == NULL)
+			return -1;
+
 		struct expr_node *node = NULL;
 		int own_node;
 		if (len_buf_len != 0
@@ -133,6 +137,7 @@ form_next_param(struct param_enum *self,
 			if (len == NULL) {
 			fail:
 				free(len);
+				free(array);
 				return -1;
 			}
 
@@ -157,10 +162,11 @@ form_next_param(struct param_enum *self,
 			node = expr_node_zero();
 			own_node = 0;
 		}
-
 		assert(node != NULL);
 
-		type_init_array(infop, elt_info, 0, node, own_node);
+		type_init_array(array, elt_info, 0, node, own_node);
+		type_init_pointer(infop, array, 1);
+
 	} else if (format_type == ARGTYPE_POINTER) {
 		type_init_pointer(infop, elt_info, 1);
 
