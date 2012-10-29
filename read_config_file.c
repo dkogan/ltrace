@@ -287,17 +287,19 @@ parse_argnum(char **str, int zero)
 		return expr;
 
 	} else {
-		char *name = parse_ident(str);
-		if (name == NULL)
+		char *const name = parse_ident(str);
+		if (name == NULL) {
+		fail_ident:
+			free(name);
 			goto fail;
+		}
 
 		int is_arg = strncmp(name, "arg", 3) == 0;
 		if (is_arg || strncmp(name, "elt", 3) == 0) {
 			long l;
-			name += 3;
-			if (parse_int(&name, &l) < 0
-			    || check_int(l) < 0)
-				goto fail;
+			char *num = name + 3;
+			if (parse_int(&num, &l) < 0 || check_int(l) < 0)
+				goto fail_ident;
 
 			if (is_arg) {
 				if (l == 0)
@@ -310,7 +312,7 @@ parse_argnum(char **str, int zero)
 				if (e_up == NULL || e_ix == NULL) {
 					free(e_up);
 					free(e_ix);
-					goto fail;
+					goto fail_ident;
 				}
 
 				expr_init_up(e_up, expr_self(), 0);
@@ -326,18 +328,19 @@ parse_argnum(char **str, int zero)
 		} else if (strcmp(name, "zero") == 0) {
 			struct expr_node *ret = parse_zero(str, expr);
 			if (ret == NULL)
-				goto fail;
+				goto fail_ident;
 			return ret;
 
 		} else {
 			report_error(filename, line_no,
 				     "Unknown length specifier: '%s'", name);
-			goto fail;
+			goto fail_ident;
 		}
 
 		if (zero && wrap_in_zero(&expr) < 0)
-			goto fail;
+			goto fail_ident;
 
+		free(name);
 		return expr;
 	}
 
