@@ -220,15 +220,16 @@ parse_char(char **str, char expected)
 	return 0;
 }
 
-static struct expr_node *parse_argnum(char **str, int zero);
+static struct expr_node *parse_argnum(char **str, int *ownp, int zero);
 
 static struct expr_node *
-parse_zero(char **str, struct expr_node *ret)
+parse_zero(char **str, struct expr_node *ret, int *ownp)
 {
 	eat_spaces(str);
 	if (**str == '(') {
 		++*str;
-		struct expr_node *arg = parse_argnum(str, 0);
+		int own;
+		struct expr_node *arg = parse_argnum(str, &own, 0);
 		if (arg == NULL)
 			return NULL;
 		if (parse_char(str, ')') < 0) {
@@ -238,12 +239,15 @@ parse_zero(char **str, struct expr_node *ret)
 			return NULL;
 		}
 
-		struct expr_node *ret = build_zero_w_arg(arg, 1);
+		struct expr_node *ret = build_zero_w_arg(arg, own);
 		if (ret == NULL)
 			goto fail;
+		*ownp = 1;
 		return ret;
 
 	} else {
+		free(ret);
+		*ownp = 0;
 		return expr_node_zero();
 	}
 }
@@ -266,7 +270,7 @@ wrap_in_zero(struct expr_node **nodep)
  *  N      : The numeric value N
  */
 static struct expr_node *
-parse_argnum(char **str, int zero)
+parse_argnum(char **str, int *ownp, int zero)
 {
 	struct expr_node *expr = malloc(sizeof(*expr));
 	if (expr == NULL)
@@ -284,6 +288,7 @@ parse_argnum(char **str, int zero)
 		if (zero && wrap_in_zero(&expr) < 0)
 			goto fail;
 
+		*ownp = 1;
 		return expr;
 
 	} else {
@@ -326,7 +331,7 @@ parse_argnum(char **str, int zero)
 			expr_init_named(expr, "retval", 0);
 
 		} else if (strcmp(name, "zero") == 0) {
-			struct expr_node *ret = parse_zero(str, expr);
+			struct expr_node *ret = parse_zero(str, expr, ownp);
 			if (ret == NULL)
 				goto fail_ident;
 			return ret;
@@ -341,6 +346,7 @@ parse_argnum(char **str, int zero)
 			goto fail_ident;
 
 		free(name);
+		*ownp = 1;
 		return expr;
 	}
 
@@ -504,10 +510,9 @@ parse_string(char **str, struct arg_type_info **retp, int *ownp)
 			(*str)++;
 			eat_spaces(str);
 
-			length = parse_argnum(str, 1);
+			length = parse_argnum(str, &own_length, 1);
 			if (length == NULL)
 				goto fail;
-			own_length = 1;
 
 			eat_spaces(str);
 			parse_char(str, ']');
@@ -672,7 +677,8 @@ parse_array(char **str, struct arg_type_info *info)
 	parse_char(str, ',');
 
 	eat_spaces(str);
-	struct expr_node *length = parse_argnum(str, 0);
+	int own_length;
+	struct expr_node *length = parse_argnum(str, &own_length, 0);
 	if (length == NULL) {
 		if (own) {
 			type_destroy(elt_info);
@@ -681,7 +687,7 @@ parse_array(char **str, struct arg_type_info *info)
 		return -1;
 	}
 
-	type_init_array(info, elt_info, own, length, 1);
+	type_init_array(info, elt_info, own, length, own_length);
 
 	eat_spaces(str);
 	parse_char(str, ')');

@@ -122,6 +122,7 @@ form_next_param(struct param_enum *self,
 
 	if (format_type == ARGTYPE_ARRAY) {
 		struct expr_node *node = NULL;
+		int own_node;
 		if (len_buf_len != 0
 		    || self->future_length != NULL) {
 			struct tmp {
@@ -150,14 +151,16 @@ form_next_param(struct param_enum *self,
 			node = build_zero_w_arg(&len->node, 1);
 			if (node == NULL)
 				goto fail;
+			own_node = 1;
 
 		} else {
 			node = expr_node_zero();
+			own_node = 0;
 		}
 
 		assert(node != NULL);
-		type_init_array(infop, elt_info, 0, node, 1);
 
+		type_init_array(infop, elt_info, 0, node, own_node);
 	} else if (format_type == ARGTYPE_POINTER) {
 		type_init_pointer(infop, elt_info, 1);
 
