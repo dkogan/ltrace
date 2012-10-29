@@ -88,7 +88,7 @@ int vect_empty(struct vect *vec);
 	 ((ELT_TYPE *)(VECP)->data) + (ELT_NUM))
 
 #define VECT_BACK(VECP, ELT_TYPE)		\
-	VECT_ELEMENT(VECP, ELT_TYPE, (VECP)->size)
+	VECT_ELEMENT(VECP, ELT_TYPE, (VECP)->size - 1)
 
 /* Copy element referenced by ELTP to the end of VEC.  The object
  * referenced by ELTP is now owned by VECT.  Returns 0 if the
