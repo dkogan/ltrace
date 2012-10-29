@@ -34,7 +34,19 @@
 *** Limited support for tracing returns from tail call functions
 *** -e, -x and -l selectors now allow using globs and regular expressions
 
-    See the man page for details of the selector syntax.
+    See the man page for details of the selector syntax.  This changes
+    the way -x and -l behave with respect to tracing libraries opened
+    by dlopen:
+
+    - In 0.6.0, only those -x symbols that were unmatched in main
+      binary were used to search through symbol table of libraries
+      opened with dlopen.  In 0.7.0, -x and -e are applied uniformly
+      to each mapped binary: the main binary, dependent DSO's, and any
+      dlopened libraries.
+
+    - In 0.6.0, -l argument was a filename to open and inspect.  In
+      0.7.0, -l is a glob expression matched against each mapped
+      binary.
 
 *** Test suite can now be run under valgrind
 
