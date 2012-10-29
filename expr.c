@@ -126,10 +126,12 @@ expr_init_cb2(struct expr_node *node,
 }
 
 static void
-release_lhs(struct expr_node *node)
+release_expr(struct expr_node *node, int own)
 {
-	if (node->own_lhs)
-		expr_destroy(node->lhs);
+	if (own) {
+		expr_destroy(node);
+		free(node);
+	}
 }
 
 void
@@ -153,17 +155,16 @@ expr_destroy(struct expr_node *node)
 		return;
 
 	case EXPR_OP_INDEX:
-		release_lhs(node);
-		if (node->u.node.own)
-			expr_destroy(node->u.node.n);
+		release_expr(node->lhs, node->own_lhs);
+		release_expr(node->u.node.n, node->u.node.own);
 		return;
 
 	case EXPR_OP_CALL2:
-		if (node->u.call.own_rhs)
-			expr_destroy(node->u.call.rhs);
+		release_expr(node->u.call.rhs, node->u.call.own_rhs);
+		/* Fall through.  */
 	case EXPR_OP_UP:
 	case EXPR_OP_CALL1:
-		release_lhs(node);
+		release_expr(node->lhs, node->own_lhs);
 		return;
 	}
 
