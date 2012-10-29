@@ -60,8 +60,10 @@ value_init_detached(struct value *valp, struct value *parent,
 void
 value_set_type(struct value *value, struct arg_type_info *type, int own_type)
 {
-	if (value->own_type)
+	if (value->own_type) {
 		type_destroy(value->type);
+		free(value->type);
+	}
 	value->type = type;
 	value->own_type = own_type;
 }
