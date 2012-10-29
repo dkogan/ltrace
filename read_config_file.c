@@ -1145,6 +1145,7 @@ process_line(char *buf) {
 		assert(fun->num_params < allocd);
 		memcpy(&fun->params[fun->num_params++], extra_param,
 		       sizeof(*extra_param));
+		free(extra_param);
 	}
 
 	return fun;
