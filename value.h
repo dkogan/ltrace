@@ -22,6 +22,7 @@
 #define VALUE_H
 
 #include "forward.h"
+#include "sysdep.h"
 
 /* Values are objects that capture data fetched from an inferior.
  * Typically a value is attached to a single inferior where it was
@@ -49,8 +50,8 @@ struct value {
 	struct value *parent;
 	size_t size;
 	union {
-		void *address;  /* VAL_LOC_CLIENT, VAL_LOC_COPY,
-				   VAL_LOC_SHARED */
+		void *address;  /* VAL_LOC_COPY, VAL_LOC_SHARED */
+		arch_addr_t inf_address;  /* VAL_LOC_INFERIOR */
 		long value;     /* VAL_LOC_WORD */
 		unsigned char buf[0];
 	} u;

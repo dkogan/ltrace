@@ -133,7 +133,7 @@ value_reify(struct value *val, struct value_dict *arguments)
 		nloc = VAL_LOC_COPY;
 	}
 
-	if (umovebytes(val->inferior, val->u.address, data, size) < size) {
+	if (umovebytes(val->inferior, val->u.inf_address, data, size) < size) {
 		if (nloc == VAL_LOC_COPY)
 			free(data);
 		return -1;
@@ -248,7 +248,7 @@ value_init_element(struct value *ret_val, struct value *val, size_t element)
 		return 0;
 
 	case VAL_LOC_INFERIOR:
-		ret_val->u.address = val->u.address + off;
+		ret_val->u.inf_address = val->u.inf_address + off;
 		ret_val->where = VAL_LOC_INFERIOR;
 		return 0;
 
