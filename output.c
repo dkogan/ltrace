@@ -254,17 +254,17 @@ output_error(void)
 
 static int
 fetch_simple_param(enum tof type, Process *proc, struct fetch_context *context,
-		   struct value_dict *arguments, struct arg_type_info *info,
+		   struct value_dict *arguments,
+		   struct arg_type_info *info, int own,
 		   struct value *valuep)
 {
 	/* Arrays decay into pointers per C standard.  We check for
 	 * this here, because here we also capture arrays that come
 	 * from parameter packs.  */
-	int own = 0;
 	if (info->type == ARGTYPE_ARRAY) {
 		struct arg_type_info *tmp = malloc(sizeof(*tmp));
 		if (tmp != NULL) {
-			type_init_pointer(tmp, info, 0);
+			type_init_pointer(tmp, info, own);
 			tmp->lens = info->lens;
 			info = tmp;
 			own = 1;
@@ -318,12 +318,15 @@ fetch_param_pack(enum tof type, Process *proc, struct fetch_context *context,
 		if (insert_stop)
 			fetch_param_stop(arguments, params_leftp);
 
-		if (info->type == ARGTYPE_VOID)
+		if (info->type == ARGTYPE_VOID) {
+			type_destroy(info);
+			free(info);
 			break;
+		}
 
 		struct value val;
 		if (fetch_simple_param(type, proc, context, arguments,
-				       info, &val) < 0)
+				       info, 1, &val) < 0)
 			goto fail;
 
 		int stop = 0;
@@ -353,7 +356,7 @@ fetch_one_param(enum tof type, Process *proc, struct fetch_context *context,
 		int rc;
 	case PARAM_FLAVOR_TYPE:
 		return fetch_simple_param(type, proc, context, arguments,
-					  param->u.type.type, NULL);
+					  param->u.type.type, 0, NULL);
 
 	case PARAM_FLAVOR_PACK:
 		if (fetch_param_pack_start(context,
