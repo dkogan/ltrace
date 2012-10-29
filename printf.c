@@ -67,12 +67,16 @@ param_printf_init(struct value *cb_args, size_t nargs,
 	assert(self->array.type->type == ARGTYPE_ARRAY);
 
 	self->format = (char *)value_get_data(&self->array, arguments);
-	if (self->format == NULL)
+	if (self->format == NULL) {
+		value_destroy(&self->array);
 		goto fail;
+	}
 
 	size_t size = value_size(&self->array, arguments);
-	if (size == (size_t)-1)
+	if (size == (size_t)-1) {
+		value_destroy(&self->array);
 		goto fail;
+	}
 
 	self->percent = 0;
 	self->ptr = self->format;
@@ -339,6 +343,7 @@ param_printf_stop(struct param_enum *self, struct value *value)
 static void
 param_printf_done(struct param_enum *context)
 {
+	value_destroy(&context->array);
 	free(context);
 }
 
