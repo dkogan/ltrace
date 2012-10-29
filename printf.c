@@ -135,7 +135,7 @@ form_next_param(struct param_enum *self,
 				return -1;
 			}
 
-			len->type.type = ARGTYPE_LONG;
+			len->type = *type_get_simple(ARGTYPE_LONG);
 
 			long l;
 			if (self->future_length != NULL) {
@@ -326,7 +326,7 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 		return 0;
 	}
 
-	infop->type = ARGTYPE_VOID;
+	*infop = *type_get_simple(ARGTYPE_VOID);
 	return 0;
 }
 
