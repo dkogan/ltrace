@@ -135,9 +135,7 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 	}
 
 	size_t off = sz < a ? a - sz : 0;
-
-	valuep->where = VAL_LOC_INFERIOR;
-	valuep->u.address = ctx->stack_pointer + off;
+	value_in_inferior(valuep, ctx->stack_pointer + off);
 
 	ctx->stack_pointer += sz > a ? sz : a;
 	return 0;

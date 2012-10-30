@@ -164,11 +164,8 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 	uintptr_t tmp = align((uint64_t)(uintptr_t)ctx->stack_pointer, a);
 	ctx->stack_pointer = (arch_addr_t)tmp;
 
-	if (valuep != NULL) {
-		valuep->where = VAL_LOC_INFERIOR;
-		valuep->u.address = ctx->stack_pointer + off;
-	}
-
+	if (valuep != NULL)
+		value_in_inferior(valuep, ctx->stack_pointer + off);
 	ctx->stack_pointer += sz;
 
 	return 0;

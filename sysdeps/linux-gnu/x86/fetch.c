@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "backend.h"
 #include "expr.h"
@@ -142,10 +143,8 @@ allocate_stack_slot(struct fetch_context *context,
 	context->stack_pointer
 		= (void *)align((unsigned long)context->stack_pointer, a);
 
-	if (valuep != NULL) {
-		valuep->where = VAL_LOC_INFERIOR;
-		valuep->u.address = context->stack_pointer;
-	}
+	if (valuep != NULL)
+		value_in_inferior(valuep, context->stack_pointer);
 	context->stack_pointer += sz;
 }
 

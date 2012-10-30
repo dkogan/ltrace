@@ -134,8 +134,7 @@ arch_fetch_arg_next(struct fetch_context *context, enum tof type,
 		if (sz < 4)
 			context->stack_pointer += 4 - sz;
 
-		valuep->where = VAL_LOC_INFERIOR;
-		valuep->u.address = context->stack_pointer;
+		value_in_inferior(valuep, context->stack_pointer);
 		context->stack_pointer += sz;
 	}
 
