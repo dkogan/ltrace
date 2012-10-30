@@ -100,6 +100,8 @@ value_destroy(struct value *val)
 unsigned char *
 value_reserve(struct value *valp, size_t size)
 {
+	value_release(valp);
+
 	if (size <= sizeof(valp->u.value)) {
 		valp->where = VAL_LOC_WORD;
 		valp->u.value = 0;
