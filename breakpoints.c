@@ -346,8 +346,9 @@ entry_breakpoint_init(struct Process *proc,
 		      struct entry_breakpoint *bp, arch_addr_t addr,
 		      struct library *lib)
 {
-	int err;
-	if ((err = breakpoint_init(&bp->super, proc, addr, NULL)) < 0)
+	assert(addr != 0);
+	int err = breakpoint_init(&bp->super, proc, addr, NULL);
+	if (err < 0)
 		return err;
 
 	static struct bp_callbacks entry_callbacks = {

@@ -814,6 +814,20 @@ read_module(struct library *lib, struct Process *proc,
 	if (open_elf(&lte, filename) < 0)
 		return -1;
 
+	/* XXX When we abstract ABI into a module, this should instead
+	 * become something like
+	 *
+	 *    proc->abi = arch_get_abi(lte.ehdr);
+	 *
+	 * The code in open_elf needs to be replaced by this logic.
+	 * Be warned that libltrace.c calls open_elf as well to
+	 * determine whether ABI is supported.  This is to get
+	 * reasonable error messages when trying to run 64-bit binary
+	 * with 32-bit ltrace.  It is desirable to preserve this.  */
+	proc->e_machine = lte.ehdr.e_machine;
+	proc->e_class = lte.ehdr.e_ident[EI_CLASS];
+	get_arch_dep(proc);
+
 	/* Find out the base address.  For PIE main binaries we look
 	 * into auxv, otherwise we scan phdrs.  */
 	if (main && lte.ehdr.e_type == ET_DYN) {
@@ -856,9 +870,6 @@ read_module(struct library *lib, struct Process *proc,
 		fprintf(stderr, "Backend initialization failed.\n");
 		return -1;
 	}
-
-	proc->e_machine = lte.ehdr.e_machine;
-	proc->e_class = lte.ehdr.e_ident[EI_CLASS];
 
 	int status = 0;
 	if (lib == NULL)
