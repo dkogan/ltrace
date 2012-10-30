@@ -222,6 +222,7 @@ format_struct(FILE *stream, struct value *value, struct value_dict *arguments)
 		if (value_init_element(&element, value, i) < 0)
 			return -1;
 		int o = format_argument(stream, &element, arguments);
+		value_destroy(&element);
 		if (o < 0)
 			return -1;
 		written += o;
@@ -237,7 +238,9 @@ format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 	struct value element;
 	if (value_init_deref(&element, value) < 0)
 		return -1;
-	return format_argument(stream, &element, arguments);
+	int o = format_argument(stream, &element, arguments);
+	value_destroy(&element);
+	return o;
 }
 
 /*
@@ -284,6 +287,7 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 		if (value_init_element(&element, value, i) < 0)
 			return -1;
 		int o = format_argument(stream, &element, arguments);
+		value_destroy(&element);
 		if (o < 0)
 			return -1;
 		written += o;
