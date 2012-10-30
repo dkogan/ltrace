@@ -18,7 +18,7 @@
 AUTOMAKE_OPTIONS = dejagnu
 
 if USE_VALGRIND
-valgrind_cmd="VALGRIND=valgrind -q --error-exitcode=1"
+valgrind_cmd="VALGRIND=valgrind -q --error-exitcode=1 --leak-check=full"
 endif
 
 RUNTESTDEFAULTFLAGS = --srcdir $(srcdir) $(valgrind_cmd)
