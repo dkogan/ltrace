@@ -96,7 +96,7 @@ syscall_p(struct Process *proc, int status, int *sysnum)
 		}
 
 		*sysnum = ret;
-		debug(DEBUG_FUNCTION, "sysnum=%ld %p %d\n", ret,
+		debug(DEBUG_FUNCTION, "sysnum=%ld %p %d", ret,
 		      get_instruction_pointer(proc), errno);
 		if (elem != NULL && elem->is_syscall
 		    && elem->c_un.syscall == *sysnum)

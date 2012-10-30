@@ -541,7 +541,7 @@ load_debug_struct(struct Process *proc, struct lt_r_debug_64 *ret)
 	debug(DEBUG_FUNCTION, "load_debug_struct");
 
 	if (rdebug_fetcher(proc)(proc, proc->os.debug_addr, ret) < 0) {
-		debug(2, "This process does not have a debug structure!\n");
+		debug(2, "This process does not have a debug structure!");
 		return -1;
 	}
 

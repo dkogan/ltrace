@@ -59,7 +59,7 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela) {
 	unsigned long addr =
 	    lte->plt_addr + (4 * BUNDLE_SIZE) + (BUNDLE_SIZE * entries) +
 	    (2 * ndx * BUNDLE_SIZE);
-	debug(3, "Found PLT %zd entry at %lx\n", ndx, addr);
+	debug(3, "Found PLT %zd entry at %lx", ndx, addr);
 
 	return addr;
 }
