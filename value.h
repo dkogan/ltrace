@@ -88,6 +88,9 @@ void value_take_type(struct value *value,
 /* Release the data held by VALP, if any, but not the type.  */
 void value_release(struct value *valp);
 
+/* Value resides in inferior, on given ADDRESS.  */
+void value_in_inferior(struct value *valp, arch_addr_t address);
+
 /* Destroy the value.  This is like value_release, but it additionally
  * frees the value type, if it's own_type.  It doesn't free the VAL
  * pointer itself.  */

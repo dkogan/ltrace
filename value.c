@@ -114,6 +114,14 @@ value_reserve(struct value *valp, size_t size)
 	return value_get_raw_data(valp);
 }
 
+void
+value_in_inferior(struct value *valp, arch_addr_t address)
+{
+	value_release(valp);
+	valp->where = VAL_LOC_INFERIOR;
+	valp->u.address = address;
+}
+
 int
 value_reify(struct value *val, struct value_dict *arguments)
 {
