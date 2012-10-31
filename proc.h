@@ -247,4 +247,11 @@ int proc_find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
 int proc_find_symbol(struct Process *proc, struct library_symbol *sym,
 		     struct library **retlib, struct library_symbol **retsym);
 
+/* Iterate through all symbols in all libraries of PROC.  See
+ * callback.h for notes on this interface.  */
+struct library_symbol *proc_each_symbol
+	(struct Process *proc, struct library_symbol *start_after,
+	 enum callback_status (*cb)(struct library_symbol *, void *),
+	 void *data);
+
 #endif /* _PROC_H_ */

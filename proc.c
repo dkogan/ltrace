@@ -999,3 +999,24 @@ proc_find_symbol(struct Process *proc, struct library_symbol *sym,
 
 	return 0;
 }
+
+struct library_symbol *
+proc_each_symbol(struct Process *proc, struct library_symbol *start_after,
+		 enum callback_status (*cb)(struct library_symbol *, void *),
+		 void *data)
+{
+	struct library *lib;
+	if (start_after != NULL)
+		lib = start_after->lib;
+	else
+		lib = proc->libraries;
+
+	for (lib = start_after != NULL ? start_after->lib : proc->libraries;
+	     lib != NULL; lib = lib->next) {
+		start_after = library_each_symbol(lib, start_after, cb, data);
+		if (start_after != NULL)
+			return start_after;
+	}
+
+	return NULL;
+}
