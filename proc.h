@@ -35,9 +35,7 @@
 #include "dict.h"
 #include "sysdep.h"
 #include "callback.h"
-
-struct library;
-struct breakpoint;
+#include "forward.h"
 
 struct event_handler {
 	/* Event handler that overrides the default one.  Should
