@@ -171,53 +171,30 @@ read_target_long(struct Process *proc, arch_addr_t addr, uint64_t *lp)
 }
 
 static enum callback_status
-reenable_breakpoint(struct Process *proc, struct breakpoint *bp, void *data)
+activate_delayed(struct library_symbol *libsym, void *data)
 {
-	/* We don't need to re-enable non-PLT breakpoints and
-	 * breakpoints that are not PPC32 BSS unprelinked.  */
-	if (bp->libsym == NULL
-	    || bp->libsym->plt_type == LS_TOPLT_NONE
-	    || bp->libsym->lib->arch.bss_plt_prelinked != 0)
-		return CBS_CONT;
+	struct Process *proc = data;
+	if (libsym->delayed) {
+		if (read_target_8(proc, libsym->enter_addr,
+				  &libsym->arch.resolved_value) < 0) {
+			error(0, errno, "couldn't read PLT value for %s(%p)",
+			      libsym->name, libsym->enter_addr);
+			return CBS_FAIL;
+		}
 
-	debug(DEBUG_PROCESS, "pid=%d reenable_breakpoint %s",
-	      proc->pid, breakpoint_name(bp));
-
-	assert(proc->e_machine == EM_PPC);
-	uint64_t l;
-	if (read_target_8(proc, bp->addr, &l) < 0) {
-		error(0, errno, "couldn't read PLT value for %s(%p)",
-		      breakpoint_name(bp), bp->addr);
-		return CBS_CONT;
+		if (proc_activate_delayed_symbol(proc, libsym) < 0)
+			return CBS_FAIL;
+		/* XXX double cast  */
+		libsym->arch.plt_slot_addr
+			= (GElf_Addr)(uintptr_t)libsym->enter_addr;
 	}
-
-	/* XXX double cast  */
-	bp->libsym->arch.plt_slot_addr = (GElf_Addr)(uintptr_t)bp->addr;
-
-	/* If necessary, re-enable the breakpoint if it was
-	 * overwritten by the dynamic linker.  */
-	union {
-		uint32_t insn;
-		char buf[4];
-	} u = { .buf = BREAKPOINT_VALUE };
-	if (l >> 32 == u.insn)
-		debug(DEBUG_PROCESS, "pid=%d, breakpoint still present"
-		      " at %p, avoiding reenable", proc->pid, bp->addr);
-	else
-		enable_breakpoint(proc, bp);
-
-	bp->libsym->arch.resolved_value = l;
-
 	return CBS_CONT;
 }
 
 void
 arch_dynlink_done(struct Process *proc)
 {
-	/* On PPC32, .plt of objects that use BSS PLT are overwritten
-	 * by the dynamic linker (unless that object was prelinked).
-	 * We need to re-enable breakpoints in those objects.  */
-	proc_each_breakpoint(proc, NULL, reenable_breakpoint, NULL);
+	proc_each_symbol(proc, NULL, activate_delayed, proc);
 }
 
 GElf_Addr
@@ -590,8 +567,23 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
 		       struct library_symbol **ret)
 {
-	if (lte->ehdr.e_machine == EM_PPC)
-		return plt_default;
+	if (lte->ehdr.e_machine == EM_PPC) {
+		if (lte->arch.secure_plt)
+			return plt_default;
+
+		struct library_symbol *libsym = NULL;
+		if (default_elf_add_plt_entry(proc, lte, a_name, rela, ndx,
+					      &libsym) < 0)
+			return plt_fail;
+
+		/* On PPC32 with BSS PLT, delay the symbol until
+		 * dynamic linker is done.  */
+		assert(!libsym->delayed);
+		libsym->delayed = 1;
+
+		*ret = libsym;
+		return plt_ok;
+	}
 
 	/* PPC64.  If we have stubs, we return a chain of breakpoint
 	 * sites, one for each stub that corresponds to this PLT
@@ -825,7 +817,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 		assert(proc->e_machine == EM_PPC);
 		assert(bp->libsym != NULL);
 		assert(bp->libsym->lib->arch.bss_plt_prelinked == 0);
-		/* fall-through */
+		/* Fall through.  */
 
 	case PPC_PLT_UNRESOLVED:
 		on_all_stopped = NULL;
