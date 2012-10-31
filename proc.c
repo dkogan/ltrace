@@ -728,8 +728,12 @@ breakpoint_for_symbol(struct library_symbol *libsym, struct Process *proc)
 	assert(proc->leader == proc);
 
 	/* Don't enable latent or delayed symbols.  */
-	if (libsym->latent || libsym->delayed)
+	if (libsym->latent || libsym->delayed) {
+		debug(DEBUG_FUNCTION,
+		      "delayed and/or latent breakpoint pid=%d, %s@%p",
+		      proc->pid, libsym->name, libsym->enter_addr);
 		return 0;
+	}
 
 	bp_addr = sym2addr(proc, libsym);
 
@@ -786,6 +790,7 @@ proc_activate_latent_symbol(struct Process *proc,
 {
 	assert(libsym->latent);
 	libsym->latent = 0;
+	debug(DEBUG_FUNCTION, "activated latent symbol");
 	return breakpoint_for_symbol(libsym, proc);
 }
 
@@ -795,6 +800,7 @@ proc_activate_delayed_symbol(struct Process *proc,
 {
 	assert(libsym->delayed);
 	libsym->delayed = 0;
+	debug(DEBUG_FUNCTION, "activated delayed symbol");
 	return breakpoint_for_symbol(libsym, proc);
 }
 
