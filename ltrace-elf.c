@@ -63,13 +63,16 @@ arch_elf_destroy(struct ltelf *lte)
 }
 #endif
 
-static int
+int
 default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 			  const char *a_name, GElf_Rela *rela, size_t ndx,
 			  struct library_symbol **ret)
 {
 	char *name = strdup(a_name);
 	if (name == NULL) {
+	fail_message:
+		fprintf(stderr, "Couldn't create symbol for PLT entry: %s\n",
+			strerror(errno));
 	fail:
 		free(name);
 		return -1;
@@ -79,7 +82,7 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
 	if (libsym == NULL)
-		goto fail;
+		goto fail_message;
 
 	/* XXX The double cast should be removed when
 	 * arch_addr_t becomes integral type.  */

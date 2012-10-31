@@ -80,6 +80,17 @@ int ltelf_read_library(struct library *lib, struct Process *proc,
  * point address is stored to *ENTRYP.  */
 struct library *ltelf_read_main_binary(struct Process *proc, const char *path);
 
+/* Create a default PLT entry.  This can be used instead (or in
+ * addition to) returning plt_default from arch_elf_add_plt_entry.
+ * RET shall be initialized, the created symbol will be added to the
+ * beginning of the linked list at *RET.  This function doesn't add
+ * the symbol to LTE.  arch_elf_add_plt_entry has the chance to adjust
+ * symbol internals to its liking, and then return either plt_default
+ * or plt_ok.  */
+int default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+			      const char *a_name, GElf_Rela *rela, size_t ndx,
+			      struct library_symbol **ret);
+
 /* The base implementation of backend.h (arch_get_sym_info).
  * See backend.h for details.  */
 int elf_get_sym_info(struct ltelf *lte, const char *filename,
