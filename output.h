@@ -18,8 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
-#include "fetch.h"
+#ifndef _OUTPUT_H_
+#define _OUTPUT_H_
 
+#include "fetch.h"
 #include "forward.h"
 
 void output_line(struct Process *proc, const char *fmt, ...);
@@ -53,3 +55,5 @@ int account_output(int *countp, int c);
 void report_error(char const *file, unsigned line_no, const char *fmt, ...);
 void report_warning(char const *file, unsigned line_no, const char *fmt, ...);
 void report_global_error(const char *fmt, ...);
+
+#endif /* _OUTPUT_H_ */
