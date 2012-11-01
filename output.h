@@ -28,6 +28,9 @@ void output_left(enum tof type, struct Process *proc,
 void output_right(enum tof type, struct Process *proc,
 		  struct library_symbol *libsym);
 
+/* If C is positive, add it to *COUNTP.  Returns C.  */
+int account_output(int *countp, int c);
+
 void report_error(char const *file, unsigned line_no, const char *fmt, ...);
 void report_warning(char const *file, unsigned line_no, const char *fmt, ...);
 void report_global_error(const char *fmt, ...);

@@ -238,18 +238,9 @@ tabto(int col) {
 }
 
 static int
-account_output(int o)
-{
-	if (o < 0)
-		return -1;
-	current_column += o;
-	return 0;
-}
-
-static int
 output_error(void)
 {
-	return account_output(fprintf(options.output, "?"));
+	return account_output(&current_column, fprintf(options.output, "?"));
 }
 
 static int
@@ -396,7 +387,7 @@ static int
 output_one(struct value *val, struct value_dict *arguments)
 {
 	int o = format_argument(options.output, val, arguments);
-	if (account_output(o) < 0) {
+	if (account_output(&current_column, o) < 0) {
 		if (output_error() < 0)
 			return -1;
 		o = 1;
@@ -412,7 +403,8 @@ output_params(struct value_dict *arguments, size_t start, size_t end,
 	int need_delim = *need_delimp;
 	for (i = start; i < end; ++i) {
 		if (need_delim
-		    && account_output(fprintf(options.output, ", ")) < 0)
+		    && account_output(&current_column,
+				      fprintf(options.output, ", ")) < 0)
 			return -1;
 		struct value *value = val_dict_get_num(arguments, i);
 		if (value == NULL)
@@ -452,7 +444,8 @@ output_left(enum tof type, struct Process *proc,
 	if (options.demangle)
 		name = my_demangle(function_name);
 #endif
-	if (account_output(fprintf(options.output, "%s(", name)) < 0)
+	if (account_output(&current_column,
+			   fprintf(options.output, "%s(", name)) < 0)
 		return;
 
 	func = name2func(function_name);
@@ -608,6 +601,14 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 
 	current_proc = 0;
 	current_column = 0;
+}
+
+int
+account_output(int *countp, int c)
+{
+	if (c > 0)
+		*countp += c;
+	return c;
 }
 
 static void
