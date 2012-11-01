@@ -238,9 +238,9 @@ tabto(int col) {
 }
 
 static int
-output_error(void)
+output_error(FILE *stream)
 {
-	return account_output(&current_column, fprintf(options.output, "?"));
+	return fprintf(stream, "?");
 }
 
 static int
@@ -383,15 +383,19 @@ fetch_params(enum tof type, Process *proc, struct fetch_context *context,
 	return 0;
 }
 
-static int
-output_one(struct value *val, struct value_dict *arguments)
+struct format_argument_data
 {
-	int o = format_argument(options.output, val, arguments);
-	if (account_output(&current_column, o) < 0) {
-		if (output_error() < 0)
-			return -1;
-		o = 1;
-	}
+	struct value *value;
+	struct value_dict *arguments;
+};
+
+static int
+format_argument_cb(FILE *stream, void *ptr)
+{
+	struct format_argument_data *data = ptr;
+	int o = format_argument(stream, data->value, data->arguments);
+	if (o < 0)
+		o = output_error(stream);
 	return o;
 }
 
@@ -400,20 +404,18 @@ output_params(struct value_dict *arguments, size_t start, size_t end,
 	      int *need_delimp)
 {
 	size_t i;
-	int need_delim = *need_delimp;
 	for (i = start; i < end; ++i) {
-		if (need_delim
-		    && account_output(&current_column,
-				      fprintf(options.output, ", ")) < 0)
-			return -1;
 		struct value *value = val_dict_get_num(arguments, i);
 		if (value == NULL)
 			return -1;
-		need_delim = output_one(value, arguments);
-		if (need_delim < 0)
+
+		struct format_argument_data data = { value, arguments };
+		int o = delim_output(options.output, need_delimp,
+				     format_argument_cb, &data);
+		if (o < 0)
 			return -1;
+		current_column += o;
 	}
-	*need_delimp = need_delim;
 	return 0;
 }
 
@@ -565,8 +567,10 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 	tabto(options.align - 1);
 	fprintf(options.output, "= ");
 
-	if (context != NULL && retval.type != NULL)
-		output_one(&retval, stel->arguments);
+	if (context != NULL && retval.type != NULL) {
+		struct format_argument_data data = { &retval, stel->arguments };
+		format_argument_cb(options.output, &data);
+	}
 
 	if (own_retval)
 		value_destroy(&retval);

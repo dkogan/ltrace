@@ -200,24 +200,40 @@ format_floating(FILE *stream, struct value *value, struct value_dict *arguments)
 	}
 }
 
+struct format_argument_data
+{
+	struct value *value;
+	struct value_dict *arguments;
+};
+
+static int
+format_argument_cb(FILE *stream, void *ptr)
+{
+	struct format_argument_data *data = ptr;
+	return format_argument(stream, data->value, data->arguments);
+}
+
 static int
 format_struct(FILE *stream, struct value *value, struct value_dict *arguments)
 {
 	int written = 0;
 	if (acc_fprintf(&written, stream, "{ ") < 0)
 		return -1;
+
+	int need_delim = 0;
 	size_t i;
 	for (i = 0; i < type_struct_size(value->type); ++i) {
-		if (i > 0 && acc_fprintf(&written, stream, ", ") < 0)
-			return -1;
-
 		struct value element;
 		if (value_init_element(&element, value, i) < 0)
 			return -1;
-		int o = format_argument(stream, &element, arguments);
+
+		struct format_argument_data data = { &element, arguments };
+		int o = delim_output(stream, &need_delim,
+				     format_argument_cb, &data);
 		value_destroy(&element);
 		if (o < 0)
 			return -1;
+
 		written += o;
 	}
 	if (acc_fprintf(&written, stream, " }") < 0)
