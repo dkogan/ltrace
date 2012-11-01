@@ -123,10 +123,6 @@ enum_lens_format_cb(struct lens *lens, FILE *stream,
 {
 	struct enum_lens *self = (void *)lens;
 
-	long l;
-	if (value_extract_word(value, &l, arguments) < 0)
-		return -1;
-
 	const char *name = enum_get(self, value, arguments);
 	if (name != NULL)
 		return fprintf(stream, "%s", name);
