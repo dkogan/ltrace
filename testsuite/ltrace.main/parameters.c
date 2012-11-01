@@ -212,8 +212,14 @@ main ()
   func_bool(1, 10);
   func_bool(2, 0);
 
-  void func_hide(int a, int b, int c, int d, int e, int f);
-  func_hide(1, 2, 3, 4, 5, 6);
+  void func_hide(int a, int b, int c, int d, int e, int f, int g, int h);
+  func_hide(1, 2, 3, 4, 5, 6, 7, 8);
+
+  struct func_hide_struct {
+	  int a; int b; int c; int d; int e; int f; int g; int h;
+  };
+  void func_hide_struct(struct func_hide_struct hs);
+  func_hide_struct((struct func_hide_struct){1, 2, 3, 4, 5, 6, 7, 8});
 
   enum ab { A, B };
   long *func_short_enums(short abs[]);

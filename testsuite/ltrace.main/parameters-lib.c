@@ -225,6 +225,15 @@ func_hide(int a, int b, int c, int d, int e, int f)
 {
 }
 
+struct func_hide_struct {
+	int a; int b; int c; int d; int e; int f; int g; int h;
+};
+
+void
+func_hide_struct(struct func_hide_struct s)
+{
+}
+
 long *
 func_short_enums(short values[])
 {
