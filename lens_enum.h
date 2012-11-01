@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011, 2012 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -27,7 +27,6 @@
 struct enum_lens {
 	struct lens super;
 	struct vect entries;
-	int own;
 };
 
 /* Init enumeration LENS.  */
