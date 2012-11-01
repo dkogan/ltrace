@@ -28,6 +28,25 @@ void output_left(enum tof type, struct Process *proc,
 void output_right(enum tof type, struct Process *proc,
 		  struct library_symbol *libsym);
 
+/* This function is for emitting lists of comma-separated strings.
+ *
+ * STREAM is where the output should be eventually sent.
+ *
+ * WRITER is the function to do the output.  It returns number of
+ * characters written, or a negative value if there were errors (like
+ * what fprintf does).  If WRITER returns 0, it means nothing was
+ * written, and separator shouldn't therefore be emitted as a
+ * separator either.
+ *
+ * NEED_DELIMP serves for keeping state between calls.  It should
+ * point to a variable that is initialized to 0.  DATA is passed
+ * verbatim to the WRITER.
+ *
+ * Returns number of characters written to STREAM (including any
+ * separators), or a negative value if there were errors.  */
+int delim_output(FILE *stream, int *need_delimp,
+		 int (*writer)(FILE *stream, void *data), void *data);
+
 /* If C is positive, add it to *COUNTP.  Returns C.  */
 int account_output(int *countp, int c);
 

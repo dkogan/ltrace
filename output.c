@@ -604,6 +604,41 @@ output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
 }
 
 int
+delim_output(FILE *stream, int *need_delimp,
+	     int (*writer)(FILE *stream, void *data),
+	     void *data)
+{
+	int o;
+
+	/* If we don't need a delimiter, then we don't need to go
+	 * through a temporary stream.  It's all the same whether
+	 * WRITER emits anything or not.  */
+	if (!*need_delimp) {
+		o = writer(stream, data);
+
+	} else {
+		char *buf;
+		size_t bufsz;
+		FILE *tmp = open_memstream(&buf, &bufsz);
+		o = writer(tmp, data);
+		fclose(tmp);
+
+		if (o > 0 && ((*need_delimp
+			       && account_output(&o, fprintf(stream, ", ")) < 0)
+			      || fwrite(buf, 1, bufsz, stream) != bufsz))
+			o = -1;
+
+		free(buf);
+	}
+
+	if (o < 0)
+		return -1;
+
+	*need_delimp = *need_delimp || o > 0;
+	return o;
+}
+
+int
 account_output(int *countp, int c)
 {
 	if (c > 0)
