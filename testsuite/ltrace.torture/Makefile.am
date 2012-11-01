@@ -1,4 +1,4 @@
-# Copyright (C) 1992 - 2001 Free Software Foundation, Inc.
+# Copyright (C) 1992 - 2001, 2012 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,8 +16,14 @@
 #
 
 EXTRA_DIST = \
+	ia64-sigill.exp \
+	ia64-sigill.s \
+	ppc-lwarx.c \
+	ppc-lwarx.exp \
 	signals.c \
-	signals.exp
+	signals.exp \
+	vfork-thread.c \
+	vfork-thread.exp
 
 CLEANFILES = *.o *.so *.log *.sum *.ltrace setval.tmp \
 	signals

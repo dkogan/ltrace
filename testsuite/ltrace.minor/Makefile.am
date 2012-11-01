@@ -1,4 +1,4 @@
-# Copyright (C) 1992 - 2001 Free Software Foundation, Inc.
+# Copyright (C) 1992 - 2001, 2012 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,17 +16,16 @@
 #
 
 EXTRA_DIST = \
-	attach-process.c \
 	attach-process.exp \
 	count-record.c \
 	count-record.exp \
-	demangle-lib.cpp \
 	demangle.cpp \
 	demangle.exp \
 	demangle.h \
-	libdl-simple-lib.c \
+	demangle-lib.cpp \
 	libdl-simple.c \
 	libdl-simple.exp \
+	libdl-simple-lib.c \
 	print-instruction-pointer.c \
 	print-instruction-pointer.exp \
 	time-record.c \
@@ -35,9 +34,7 @@ EXTRA_DIST = \
 	time-record-ttt.exp \
 	trace-clone.c \
 	trace-clone.exp \
-	trace-exec.c \
 	trace-exec.exp \
-	trace-exec1.c \
 	trace-fork.c \
 	trace-fork.exp
 
