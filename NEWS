@@ -48,6 +48,11 @@
       0.7.0, -l is a glob expression matched against each mapped
       binary.
 
+*** -g command line option dropped
+
+    This option was introduced in 0.6.0 with the meaning identical to
+    -L, which should be used instead.
+
 *** Test suite can now be run under valgrind
 
     Use --enable-valgrind to turn this on.

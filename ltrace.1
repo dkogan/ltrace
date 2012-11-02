@@ -94,11 +94,6 @@ currently traced processes as a result of the fork(2)
 or clone(2) system calls.
 The new process is attached immediately.
 .TP
-.I \-g
-Do not place breakpoints on PLT entries. This option reduces
-the output of ltrace. This is commonly used to avoid tracing
-libc functions.
-.TP
 .I \-F
 Load an alternate config file. Normally, /etc/ltrace.conf and
 ~/.ltrace.conf will be read (the latter only if it exists).
