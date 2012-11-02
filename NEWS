@@ -18,11 +18,11 @@
 
 *** Better support for parameter passing ("fetch backend")
 
-    This version brings a more complete support for parameter passing,
+    This version brings more complete support for parameter passing,
     including passing structures in registers, passing double on i386,
-    and other edge cases that were unsupported before.  The following
-    architectures now have implementation of fetch backend: x86, ppc,
-    ia64, s390, m68k.
+    and other edge cases that were not handled correctly before.  The
+    following architectures now have implementation of fetch backend:
+    i386, x86_64, ppc, ppc64, ia64, s390, s390x, m68k.
 
 *** Awareness of deny_ptrace SELinux boolean
 
@@ -68,9 +68,10 @@
 
     Parameter packs make it much simpler to add specialized decoding
     logic.  The only parameter pack currently implemented is "format"
-    for decoding printf-style format strings.  It should be relatively
-    straightforward to add more parameter packs for functions like
-    execl, strftime, and others.
+    for decoding printf-style format strings.
+
+    In future, it should be relatively straightforward to add more
+    parameter packs for functions like execl, strftime, and others.
 
 *** New expression: zero
 
@@ -87,7 +88,7 @@
 
      "octal", which used to be a separate type, is now lens, which can
      be used to render any underlying type in base 8.  Plain "octal"
-     is still valid and means the same as "octal(int)".
+     is still valid and means the same thing as "octal(int)".
 
 **** hex, hide, bool
 
@@ -100,6 +101,7 @@
      "enum" became lens as well.  Because enum already uses
      parentheses to denote the list of enumeration values, the
      underlying type is selected by square brackets:
+
      | void func(enum[short](RED,GREEN,BLUE)); |
 
 **** string
@@ -107,6 +109,7 @@
      "string" was also turned to lens.  The argument can be either a
      char*, or pointer to array of char, or array of char.  The latter
      is useful in cases like the following:
+
      | void func_struct_2(struct(string(array(char, 6)))); |
 
 *** Misspelling of "int" as "itn" temporarily accepted, but deprecated
@@ -158,6 +161,7 @@
 *** New manual page ltrace.conf(5)
 *** README, INSTALL brought up to date
 *** New file CREDITS with a list of contributors
+
 ** Bugfixes
 
 *** Fix detaching from a process
