@@ -22,6 +22,10 @@
  * 02110-1301 USA
  */
 
+/* glibc before 2.10, eglibc and uClibc all need _GNU_SOURCE defined
+ * for open_memstream to become visible.  */
+#define _GNU_SOURCE
+
 #include "config.h"
 
 #include <stdio.h>
