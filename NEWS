@@ -1,7 +1,6 @@
 -*-org-*-
 * Version 0.7.0
 ** Tracing
-
 *** Full support for tracing multi-threaded processes
 
     Ltrace now understands thread groups, and it stops all threads
@@ -182,6 +181,13 @@
     messages on x86_64 and i386.
 
 *** [ppc] Fix races in tracing -e events in 64-bit processes
+
+    On ppc, the contents of PLT table change after the first call.
+    Ltrace used to handle this by reinserting the (now overwritten)
+    breakpoint after the function returns.  This introduced a window
+    where calls to the same function from the same binary (either a
+    recursive calls, or calls from another thread) weren't traced.
+    This is fixed as of 0.7.0.
 
     As a side effect, events requested via -e now only hit when a PLT
     call is made, which is consistent with other architectures.
