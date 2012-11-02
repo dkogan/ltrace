@@ -112,6 +112,12 @@ Display only calls to functions implemented by libraries that match
 Multiple library patters can be specified with several instances of
 this option.  Syntax of library_pattern is described in section
 \fBFILTER EXPRESSIONS\fR.
+
+Note that while this option selects calls that might be directed to
+the selected libraries, there's no actual guarantee that the call
+won't be directed elsewhere due to e.g. LD_PRELOAD or simply
+dependency ordering.  If you want to make sure that symbols in given
+library are actually called, use \fB-x @\fIlibrary_pattern\fR instead.
 .TP
 .I \-L
 When no -e option is given, don't assume the default action of
