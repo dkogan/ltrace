@@ -54,5 +54,12 @@
 
    | void func(X=void*, long*, out string(X)); |
 
+** Support for functions that never return
+   This would be useful for __cxa_throw, presumably also for longjmp
+   (do we handle that at all?) and perhaps a handful of others.
+
+** Support flag fields
+   enum-like syntax, except disjunction of several values is assumed.
+
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
