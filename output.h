@@ -37,8 +37,7 @@ void output_right(enum tof type, struct Process *proc,
  * WRITER is the function to do the output.  It returns number of
  * characters written, or a negative value if there were errors (like
  * what fprintf does).  If WRITER returns 0, it means nothing was
- * written, and separator shouldn't therefore be emitted as a
- * separator either.
+ * written, and separator shouldn't therefore be emitted either.
  *
  * NEED_DELIMP serves for keeping state between calls.  It should
  * point to a variable that is initialized to 0.  DATA is passed
