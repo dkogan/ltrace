@@ -1012,11 +1012,6 @@ proc_each_symbol(struct Process *proc, struct library_symbol *start_after,
 		 void *data)
 {
 	struct library *lib;
-	if (start_after != NULL)
-		lib = start_after->lib;
-	else
-		lib = proc->libraries;
-
 	for (lib = start_after != NULL ? start_after->lib : proc->libraries;
 	     lib != NULL; lib = lib->next) {
 		start_after = library_each_symbol(lib, start_after, cb, data);
