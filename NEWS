@@ -65,17 +65,18 @@
 
 *** New abstraction: parameter pack
 
-    Parameter packs make it much simpler to add specialized decoding
-    logic.  The only parameter pack currently implemented is "format"
-    for decoding printf-style format strings.
+    Parameter packs describe zero or more of actual arguments, whose
+    type can be determined in runtime.  The only parameter pack
+    currently implemented is "format" for decoding printf-style format
+    strings.
 
     In future, it should be relatively straightforward to add more
-    parameter packs for functions like execl, strftime, and others.
+    parameter packs for functions like execl, and others.
 
 *** New expression: zero
 
     When used in array length expressions, it means "this array ends
-    at the first element with zero value".  C strigs are essentially
+    at the first element with zero value".  C strings are essentially
     array(char, zero)*.
 
 *** Lenses: change the way that underlying type is rendered
