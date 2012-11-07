@@ -38,6 +38,7 @@
 #include "debug.h"
 #include "events.h"
 #include "proc.h"
+#include "linux-gnu/trace-defs.h"
 
 static Event event;
 

@@ -34,7 +34,7 @@ ___libos_la_LIBADD = \
 	libcpu.la
 
 noinst_HEADERS = arch_syscallent.h signalent1.h syscallent1.h trace.h	\
-	events.h os.h
+	trace-defs.h events.h os.h
 
 EXTRA_DIST = \
 	arch_mksyscallent \
