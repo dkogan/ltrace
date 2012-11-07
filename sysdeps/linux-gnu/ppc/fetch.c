@@ -19,17 +19,15 @@
  */
 
 #include <assert.h>
-#include <ptrace.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ucontext.h>
 
-#include <stdio.h>
-
 #include "backend.h"
 #include "fetch.h"
 #include "type.h"
+#include "ptrace.h"
 #include "proc.h"
 #include "value.h"
 
