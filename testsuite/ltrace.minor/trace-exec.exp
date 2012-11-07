@@ -25,8 +25,8 @@ ltraceMatch [ltraceRun -xmain -- [ltraceCompile {} [ltraceSource c {
     }
 }]] [ltraceCompile {} [ltraceSource c {
     #include <stdio.h>
-    void main(void) {
-	puts("Hello, World.");
+    int main(void) {
+	return puts("Hello, World.");
     }
 }]]] {
     {{^execl\(} == 1}
