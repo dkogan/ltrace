@@ -108,6 +108,11 @@ enum callback_status library_symbol_equal_cb(struct library_symbol *libsym,
 enum callback_status library_symbol_named_cb(struct library_symbol *libsym,
 					     void *name);
 
+/* A function that can be used as library_each_symbol callback.  Looks
+ * for a delayed symbol.  */
+enum callback_status library_symbol_delayed_cb(struct library_symbol *libsym,
+					       void *unused);
+
 enum library_type {
 	LT_LIBTYPE_MAIN,
 	LT_LIBTYPE_DSO,
