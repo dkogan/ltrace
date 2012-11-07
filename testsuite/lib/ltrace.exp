@@ -331,7 +331,7 @@ proc ltraceSource {suffix text} {
     set ret [LtraceTempFile "lt-XXXXXXXXXX.$suffix"]
 
     set chan [open $ret w]
-    puts -nonewline $chan $text
+    puts $chan $text
     close $chan
 
     return $ret
