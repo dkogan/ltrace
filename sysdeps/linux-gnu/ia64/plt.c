@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -19,7 +20,11 @@
  * 02110-1301 USA
  */
 
+#include <errno.h>
 #include <gelf.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/ptrace.h>
 
 #include "proc.h"
 #include "common.h"
@@ -65,4 +70,30 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela)
 void *
 sym2addr(Process *proc, struct library_symbol *sym) {
 	return sym->enter_addr;
+}
+
+int
+arch_translate_address_dyn(struct Process *proc,
+			   arch_addr_t addr, arch_addr_t *ret)
+{
+	errno = 0;
+	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
+	if (l == -1UL && errno) {
+		fprintf(stderr,	"dynamic .opd translation of %p: %s\n",
+			addr, strerror(errno));
+		return -1;
+	}
+
+	/* XXX The double cast should be removed when
+	 * arch_addr_t becomes integral type.  */
+	*ret = (arch_addr_t)(uintptr_t)l;
+	return 0;
+}
+
+int
+arch_translate_address(struct ltelf *lte,
+		       arch_addr_t addr, arch_addr_t *ret)
+{
+	*ret = addr;
+	return 0;
 }

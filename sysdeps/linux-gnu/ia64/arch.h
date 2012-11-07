@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2006,2011 Petr Machata
+ * Copyright (C) 2006,2011,2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2006 Ian Wienand
  *
  * This program is free software; you can redistribute it and/or
@@ -28,6 +28,7 @@
 #define BREAKPOINT_VALUE {0}
 #define DECR_PC_AFTER_BREAK 0
 #define ARCH_ENDIAN_LITTLE
+#define ARCH_HAVE_TRANSLATE_ADDRESS
 
 #define LT_ELFCLASS   ELFCLASS64
 #define LT_ELF_MACHINE EM_IA_64
