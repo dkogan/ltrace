@@ -29,6 +29,7 @@
 
 #include "proc.h"
 #include "common.h"
+#include "insn.h"
 #include "library.h"
 #include "breakpoint.h"
 #include "linux-gnu/trace.h"
@@ -192,8 +193,41 @@ arch_dynlink_done(struct Process *proc)
 			return;
 		}
 
+		/* arch_dynlink_done is called on attach as well.  In
+		 * that case some slots will have been resolved
+		 * already.  Unresolved PLT looks like this:
+		 *
+		 *    <sleep@plt>:	li      r11,0
+		 *    <sleep@plt+4>:	b       "resolve"
+		 *
+		 * "resolve" is another address in PLTGOT (the same
+		 * block that all the PLT slots are it).  When
+		 * resolved, it looks either this way:
+		 *
+		 *    <sleep@plt>:	b       0xfea88d0 <sleep>
+		 *
+		 * Which is easy to detect.  It can also look this
+		 * way:
+		 *
+		 *    <sleep@plt>:	li      r11,0
+		 *    <sleep@plt+4>:	b       "dispatch"
+		 *
+		 * The "dispatch" address lies in PLTGOT as well.  In
+		 * current GNU toolchain, "dispatch" address is the
+		 * same as PLTGOT address.  We rely on this to figure
+		 * out whether the address is resolved or not.  */
+		uint32_t insn1 = libsym->arch.resolved_value >> 32;
+		uint32_t insn2 = (uint32_t)libsym->arch.resolved_value;
+		if ((insn1 & BRANCH_MASK) == B_INSN
+		    || ((insn2 & BRANCH_MASK) == B_INSN
+			/* XXX double cast  */
+			&& (ppc_branch_dest(libsym->enter_addr + 4, insn2)
+			    == (void*)(long)libsym->lib->arch.pltgot_addr)))
+			mark_as_resolved(libsym, libsym->arch.resolved_value);
+
 		if (proc_activate_delayed_symbol(proc, libsym) < 0)
 			return;
+
 		/* XXX double cast  */
 		libsym->arch.plt_slot_addr
 			= (GElf_Addr)(uintptr_t)libsym->enter_addr;
@@ -434,6 +468,14 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 		/* The first glink stub starts at offset 32.  */
 		lte->arch.plt_stub_vma = glink_vma + 32;
+
+	} else {
+		/* By exhaustion--PPC32 BSS.  */
+		if (load_dynamic_entry(lte, DT_PLTGOT,
+				       &lib->arch.pltgot_addr) < 0) {
+			fprintf(stderr, "couldn't find DT_PLTGOT\n");
+			return -1;
+		}
 	}
 
 	/* On PPC64, look for stub symbols in symbol table.  These are

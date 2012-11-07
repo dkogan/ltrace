@@ -60,6 +60,7 @@ struct arch_ltelf_data {
 
 #define ARCH_HAVE_LIBRARY_DATA
 struct arch_library_data {
+	GElf_Addr pltgot_addr;
 	int bss_plt_prelinked;
 };
 
