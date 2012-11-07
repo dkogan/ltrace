@@ -371,18 +371,6 @@ load_dynamic_entry(struct ltelf *lte, int tag, GElf_Addr *valuep)
 }
 
 static int
-load_ppcgot(struct ltelf *lte, GElf_Addr *ppcgotp)
-{
-	return load_dynamic_entry(lte, DT_PPC_GOT, ppcgotp);
-}
-
-static int
-load_ppc64_glink(struct ltelf *lte, GElf_Addr *glinkp)
-{
-	return load_dynamic_entry(lte, DT_PPC64_GLINK, glinkp);
-}
-
-static int
 nonzero_data(Elf_Data *data)
 {
 	/* We are not supposed to get here if there's no PLT.  */
@@ -421,7 +409,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
 		GElf_Addr ppcgot;
-		if (load_ppcgot(lte, &ppcgot) < 0) {
+		if (load_dynamic_entry(lte, DT_PPC_GOT, &ppcgot) < 0) {
 			error(0, 0, "couldn't find DT_PPC_GOT");
 			return -1;
 		}
@@ -435,7 +423,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 	} else if (lte->ehdr.e_machine == EM_PPC64) {
 		GElf_Addr glink_vma;
-		if (load_ppc64_glink(lte, &glink_vma) < 0) {
+		if (load_dynamic_entry(lte, DT_PPC64_GLINK, &glink_vma) < 0) {
 			error(0, 0, "couldn't find DT_PPC64_GLINK");
 			return -1;
 		}
