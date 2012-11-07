@@ -170,6 +170,13 @@ read_target_long(struct Process *proc, arch_addr_t addr, uint64_t *lp)
 	}
 }
 
+static void
+mark_as_resolved(struct library_symbol *libsym, GElf_Addr value)
+{
+	libsym->arch.type = PPC_PLT_RESOLVED;
+	libsym->arch.resolved_value = value;
+}
+
 void
 arch_dynlink_done(struct Process *proc)
 {
@@ -548,13 +555,6 @@ unresolve_plt_slot(struct Process *proc, GElf_Addr addr, GElf_Addr value)
 		return -1;
 	}
 	return 0;
-}
-
-static void
-mark_as_resolved(struct library_symbol *libsym, GElf_Addr value)
-{
-	libsym->arch.type = PPC_PLT_RESOLVED;
-	libsym->arch.resolved_value = value;
 }
 
 enum plt_status
