@@ -170,31 +170,26 @@ read_target_long(struct Process *proc, arch_addr_t addr, uint64_t *lp)
 	}
 }
 
-static enum callback_status
-activate_delayed(struct library_symbol *libsym, void *data)
+void
+arch_dynlink_done(struct Process *proc)
 {
-	struct Process *proc = data;
-	if (libsym->delayed) {
+	/* On PPC32 with BSS PLT, we need to enable delayed symbols.  */
+	struct library_symbol *libsym = NULL;
+	while ((libsym = proc_each_symbol(proc, libsym,
+					  library_symbol_delayed_cb, NULL))) {
 		if (read_target_8(proc, libsym->enter_addr,
 				  &libsym->arch.resolved_value) < 0) {
 			error(0, errno, "couldn't read PLT value for %s(%p)",
 			      libsym->name, libsym->enter_addr);
-			return CBS_FAIL;
+			return;
 		}
 
 		if (proc_activate_delayed_symbol(proc, libsym) < 0)
-			return CBS_FAIL;
+			return;
 		/* XXX double cast  */
 		libsym->arch.plt_slot_addr
 			= (GElf_Addr)(uintptr_t)libsym->enter_addr;
 	}
-	return CBS_CONT;
-}
-
-void
-arch_dynlink_done(struct Process *proc)
-{
-	proc_each_symbol(proc, NULL, activate_delayed, proc);
 }
 
 GElf_Addr
