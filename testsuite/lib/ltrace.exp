@@ -228,10 +228,38 @@ proc WipeFiles {files} {
     }
 }
 
+# LtraceTmpDir --
+#
+#	Guess what directory to use for temporary files.
+#	This was adapted from http://wiki.tcl.tk/772
+#
+# Results:
+#	A temporary directory to use.  The current directory if no
+#	other seems to be available.
+
+proc LtraceTmpDir {} {
+    set tmpdir [pwd]
+
+    if {[file exists "/tmp"]} {
+	set tmpdir "/tmp"
+    }
+
+    catch {set tmpdir $::env(TMP)}
+    catch {set tmpdir $::env(TEMP)}
+    catch {set tmpdir $::env(TMPDIR)}
+
+    return $tmpdir
+}
+
+set LTRACE_TEMP_DIR [LtraceTmpDir]
+
 # LtraceTempFile --
 #
 #	Create a temporary file according to a pattern, and return its
-#	name.
+#	name.  This behaves similar to mktemp.  We don't use mktemp
+#	directly, because on older systems, mktemp requires that the
+#	array of X's be at the very end of the string, while ltrace
+#	temporary files need to have suffixes.
 #
 # Arguments:
 #	pat	Pattern to use.  See mktemp for description of its format.
@@ -242,9 +270,48 @@ proc WipeFiles {files} {
 
 proc LtraceTempFile {pat} {
     global LTRACE_TEMP_FILES
-    set ret [exec mktemp --tmpdir $pat]
-    lappend LTRACE_TEMP_FILES $ret
-    return $ret
+    global LTRACE_TEMP_DIR
+
+    set letters "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    set numLetters [string length $letters]
+
+    if {![regexp -indices {(X{3,})} $pat m]} {
+	send_error -- "Pattern $pat contains insufficient number of X's."
+	return {}
+    }
+
+    set start [lindex $m 0]
+    set end [lindex $m 1]
+    set len [expr {$end - $start + 1}]
+
+    for {set j 0} {$j < 10} {incr j} {
+
+	# First, generate a random name.
+
+	set randstr {}
+	for {set i 0} {$i < $len} {incr i} {
+	    set r [expr {int(rand() * $numLetters)}]
+	    append randstr [string index $letters $r]
+	}
+	set prefix [string range $pat 0 [expr {$start - 1}]]
+	set suffix [string range $pat [expr {$end + 1}] end]
+	set name [file join $LTRACE_TEMP_DIR "$prefix$randstr$suffix"]
+
+	# Now check that it's free.  This is of course racy, but this
+	# is a test suite, not anything used in actual production.
+
+	if {[file exists $name]} {
+	    continue
+	}
+
+	# We don't bother attempting to open the file.  Downstream
+	# code can do it itself.
+
+	return $name
+    }
+
+    send_error -- "Couldn't create a temporary file for pattern $pat."
+    return
 }
 
 # ltraceSource --
