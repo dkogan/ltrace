@@ -23,7 +23,6 @@
 #include <gelf.h>
 #include <sys/ptrace.h>
 #include <errno.h>
-#include <error.h>
 #include <inttypes.h>
 #include <assert.h>
 #include <string.h>
@@ -186,8 +185,10 @@ arch_dynlink_done(struct Process *proc)
 					  library_symbol_delayed_cb, NULL))) {
 		if (read_target_8(proc, libsym->enter_addr,
 				  &libsym->arch.resolved_value) < 0) {
-			error(0, errno, "couldn't read PLT value for %s(%p)",
-			      libsym->name, libsym->enter_addr);
+			fprintf(stderr,
+				"couldn't read PLT value for %s(%p): %s\n",
+				libsym->name, libsym->enter_addr,
+				strerror(errno));
 			return;
 		}
 
@@ -229,7 +230,9 @@ arch_translate_address_dyn(struct Process *proc,
 	if (proc->e_machine == EM_PPC64) {
 		uint64_t value;
 		if (read_target_8(proc, addr, &value) < 0) {
-			error(0, errno, "dynamic .opd translation of %p", addr);
+			fprintf(stderr,
+				"dynamic .opd translation of %p: %s\n",
+				addr, strerror(errno));
 			return -1;
 		}
 		/* XXX The double cast should be removed when
@@ -253,8 +256,8 @@ arch_translate_address(struct ltelf *lte,
 			= (GElf_Addr)(uintptr_t)addr - lte->arch.opd_base;
 		uint64_t value;
 		if (elf_read_u64(lte->arch.opd_data, offset, &value) < 0) {
-			error(0, 0, "static .opd translation of %p: %s", addr,
-			      elf_errmsg(-1));
+			fprintf(stderr, "static .opd translation of %p: %s\n",
+				addr, elf_errmsg(-1));
 			return -1;
 		}
 		*ret = (arch_addr_t)(uintptr_t)(value + lte->bias);
@@ -300,21 +303,22 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 	if (ppcgot != 0
 	    && elf_get_section_covering(lte, ppcgot,
 					&ppcgot_sec, &ppcgot_shdr) < 0)
-		error(0, 0, "DT_PPC_GOT=%#"PRIx64", but no such section found",
-		      ppcgot);
+		fprintf(stderr,
+			"DT_PPC_GOT=%#"PRIx64", but no such section found\n",
+			ppcgot);
 
 	if (ppcgot_sec != NULL) {
 		Elf_Data *data = elf_loaddata(ppcgot_sec, &ppcgot_shdr);
 		if (data == NULL || data->d_size < 8 ) {
-			error(0, 0, "couldn't read GOT data");
+			fprintf(stderr, "couldn't read GOT data\n");
 		} else {
 			// where PPCGOT begins in .got
 			size_t offset = ppcgot - ppcgot_shdr.sh_addr;
 			assert(offset % 4 == 0);
 			uint32_t glink_vma;
 			if (elf_read_u32(data, offset + 4, &glink_vma) < 0) {
-				error(0, 0, "couldn't read glink VMA address"
-				      " at %zd@GOT", offset);
+				fprintf(stderr, "couldn't read glink VMA"
+					" address at %zd@GOT\n", offset);
 				return 0;
 			}
 			if (glink_vma != 0) {
@@ -328,7 +332,7 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 	if (plt_data != NULL) {
 		uint32_t glink_vma;
 		if (elf_read_u32(plt_data, 0, &glink_vma) < 0) {
-			error(0, 0, "couldn't read glink VMA address");
+			fprintf(stderr, "couldn't read glink VMA address\n");
 			return 0;
 		}
 		debug(1, ".plt glink_vma address: %#" PRIx32, glink_vma);
@@ -346,8 +350,8 @@ load_dynamic_entry(struct ltelf *lte, int tag, GElf_Addr *valuep)
 	if (elf_get_section_type(lte, SHT_DYNAMIC, &scn, &shdr) < 0
 	    || scn == NULL) {
 	fail:
-		error(0, 0, "Couldn't get SHT_DYNAMIC: %s",
-		      elf_errmsg(-1));
+		fprintf(stderr, "Couldn't get SHT_DYNAMIC: %s\n",
+			elf_errmsg(-1));
 		return -1;
 	}
 
@@ -410,12 +414,12 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
 		GElf_Addr ppcgot;
 		if (load_dynamic_entry(lte, DT_PPC_GOT, &ppcgot) < 0) {
-			error(0, 0, "couldn't find DT_PPC_GOT");
+			fprintf(stderr, "couldn't find DT_PPC_GOT\n");
 			return -1;
 		}
 		GElf_Addr glink_vma = get_glink_vma(lte, ppcgot, lte->plt_data);
 
-		assert (lte->relplt_size % 12 == 0);
+		assert(lte->relplt_size % 12 == 0);
 		size_t count = lte->relplt_size / 12; // size of RELA entry
 		lte->arch.plt_stub_vma = glink_vma
 			- (GElf_Addr)count * PPC_PLT_STUB_SIZE;
@@ -424,7 +428,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 	} else if (lte->ehdr.e_machine == EM_PPC64) {
 		GElf_Addr glink_vma;
 		if (load_dynamic_entry(lte, DT_PPC64_GLINK, &glink_vma) < 0) {
-			error(0, 0, "couldn't find DT_PPC64_GLINK");
+			fprintf(stderr, "couldn't find DT_PPC64_GLINK\n");
 			return -1;
 		}
 
@@ -523,7 +527,8 @@ read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
 	uint64_t l;
 	/* XXX double cast.  */
 	if (read_target_8(proc, (arch_addr_t)(uintptr_t)addr, &l) < 0) {
-		error(0, errno, "ptrace .plt slot value @%#" PRIx64, addr);
+		fprintf(stderr, "ptrace .plt slot value @%#" PRIx64": %s\n",
+			addr, strerror(errno));
 		return -1;
 	}
 
@@ -539,7 +544,8 @@ unresolve_plt_slot(struct Process *proc, GElf_Addr addr, GElf_Addr value)
 	 * pointers intact.  Hence the only adjustment that we need to
 	 * do is to IP.  */
 	if (ptrace(PTRACE_POKETEXT, proc->pid, addr, value) < 0) {
-		error(0, errno, "unresolve .plt slot");
+		fprintf(stderr, "failed to unresolve .plt slot: %s\n",
+			strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -610,7 +616,8 @@ arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 	char *name = strdup(a_name);
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
 	if (name == NULL || libsym == NULL) {
-		error(0, errno, "allocation for .plt slot");
+		fprintf(stderr, "allocation for .plt slot: %s\n",
+			strerror(errno));
 	fail:
 		free(name);
 		free(libsym);
@@ -816,8 +823,8 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
 
 		if (process_install_stopping_handler
 		    (proc, bp, on_all_stopped, keep_stepping_p, NULL) < 0) {
-			error(0, 0, "ppc_plt_bp_continue: couldn't install"
-			      " event handler");
+			fprintf(stderr,	"ppc_plt_bp_continue: "
+				"couldn't install event handler\n");
 			continue_after_breakpoint(proc, bp);
 		}
 		return;
