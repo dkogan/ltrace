@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2010 Marc Kleine-Budde, Pengutronix
+# Copyright (C) 2010,2012 Marc Kleine-Budde, Pengutronix
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -16,16 +16,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-DIST_SUBDIRS = \
-	alpha \
-	arm \
-	ia64 \
-	m68k \
-	mipsel \
-	ppc \
-	s390 \
-	sparc \
-	x86
+DIST_SUBDIRS = alpha arm cris ia64 m68k mipsel ppc s390 sparc x86
 
 SUBDIRS = \
 	$(HOST_CPU)
