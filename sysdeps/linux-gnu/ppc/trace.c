@@ -33,6 +33,7 @@
 #include "backend.h"
 #include "breakpoint.h"
 #include "common.h"
+#include "insn.h"
 #include "proc.h"
 #include "ptrace.h"
 #include "type.h"
@@ -80,18 +81,6 @@ syscall_p(Process *proc, int status, int *sysnum) {
 }
 
 /* The atomic skip code is mostly taken from GDB.  */
-
-/* Instruction masks used during single-stepping of atomic
- * sequences.  This was lifted from GDB.  */
-#define LWARX_MASK 0xfc0007fe
-#define LWARX_INSTRUCTION 0x7c000028
-#define LDARX_INSTRUCTION 0x7c0000A8
-#define STWCX_MASK 0xfc0007ff
-#define STWCX_INSTRUCTION 0x7c00012d
-#define STDCX_INSTRUCTION 0x7c0001ad
-#define BC_MASK 0xfc000000
-#define BC_INSN 0x40000000
-#define BRANCH_MASK 0xfc000000
 
 /* In plt.h.  XXX make this official interface.  */
 int read_target_4(struct Process *proc, arch_addr_t addr, uint32_t *lp);
@@ -145,16 +134,7 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 		/* If a conditional branch is found, put a breakpoint
 		 * in its destination address.  */
 		if ((insn & BRANCH_MASK) == BC_INSN) {
-			int immediate = ((insn & 0xfffc) ^ 0x8000) - 0x8000;
-			int absolute = insn & 2;
-
-			/* XXX drop the following casts.  */
-			arch_addr_t branch_addr;
-			if (absolute)
-				branch_addr = (void *)(uintptr_t)immediate;
-			else
-				branch_addr = addr + (uintptr_t)immediate;
-
+			arch_addr_t branch_addr = ppc_branch_dest(addr, insn);
 			debug(1, "pid=%d, branch in atomic block from %p to %p",
 			      proc->pid, addr, branch_addr);
 			if (add_cb(branch_addr, add_cb_data) < 0)
