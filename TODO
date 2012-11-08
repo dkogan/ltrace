@@ -5,8 +5,6 @@
     Alternatively, use debuginfo to generate configure file.
 *** Demangled identifiers contain partial prototypes themselves
 ** Automatically update list of syscalls?
-** Improve documentation
-*** Describe syntax of config files
 ** Update /etc/ltrace.conf
    In particular, we could use a config directory, where packages
    would install their ltrace config scripts.  The config file could
