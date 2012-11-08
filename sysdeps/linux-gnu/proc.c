@@ -645,13 +645,15 @@ process_get_entry(struct Process *proc,
 {
 	PROC_PID_FILE(fn, "/proc/%d/auxv", proc->pid);
 	int fd = open(fn, O_RDONLY);
+	int ret = 0;
 	if (fd == -1) {
 	fail:
 		fprintf(stderr, "couldn't read %s: %s", fn, strerror(errno));
+		ret = -1;
 	done:
 		if (fd != -1)
 			close(fd);
-		return fd == -1 ? -1 : 0;
+		return ret;
 	}
 
 	arch_addr_t at_entry = 0;
