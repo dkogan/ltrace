@@ -657,7 +657,7 @@ process_get_entry(struct Process *proc,
 	arch_addr_t at_entry = 0;
 	arch_addr_t at_bias = 0;
 	while (1) {
-		Elf64_auxv_t entry;
+		Elf64_auxv_t entry = {};
 		if (auxv_fetcher(proc)(fd, &entry) < 0)
 			goto fail;
 
