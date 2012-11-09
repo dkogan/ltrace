@@ -204,7 +204,7 @@ compile_libname(const char *expr, const char *a_lib, int lib_re_p,
 
 		regex_t lib_re;
 		int status = (lib_re_p ? regcomp : globcomp)(&lib_re, lib, 0);
-		if (status != 0) {
+		if (status != REG_NOERROR) {
 			char buf[100];
 			regerror(status, &lib_re, buf, sizeof buf);
 			fprintf(stderr, "Rule near '%s' will be ignored: %s.\n",
