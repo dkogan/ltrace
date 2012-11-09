@@ -140,8 +140,10 @@ glob_to_regex(const char *glob, char **retp)
 			else if (c == '[') {
 				int exclm;
 				ssize_t j = match_brack(glob, length, i, &exclm);
-				if (j < 0)
+				if (j < 0) {
+					free(buf);
 					return REG_EBRACK;
+				}
 				if (exclm
 				    && append(&buf, "[^", 2,
 					      &size, &allocd) < 0)
@@ -262,6 +264,7 @@ main(void)
         translate("[^", REG_EBRACK, NULL);
         translate("[\\", REG_EBRACK, NULL);
         translate("[", REG_EBRACK, NULL);
+        translate("abc[", REG_EBRACK, NULL);
 
 	try_match("abc*def", "abc012def", 0);
 	try_match("abc*def", "ab012def", REG_NOMATCH);
