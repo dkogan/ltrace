@@ -61,17 +61,19 @@ READER(read_double, double)
 		if (value_extract_word(value, &l, arguments) < 0)	\
 			return -1;					\
 		int##BITS##_t i = l;					\
+		uint64_t v = (uint64_t)(uint##BITS##_t)i;		\
 		switch (format) {					\
 		case INT_FMT_unknown:					\
 			if (l < -10000 || l > 10000)			\
 		case INT_FMT_x:						\
-			return fprintf(stream, "%#"PRIx##BITS, i);	\
+			return fprintf(stream, "%#"PRIx64, v);		\
 		case INT_FMT_i:						\
+		case INT_FMT_default:					\
 			return fprintf(stream, "%"PRIi##BITS, i);	\
 		case INT_FMT_u:						\
-			return fprintf(stream, "%"PRIu##BITS, i);	\
+			return fprintf(stream, "%"PRIu64, v);		\
 		case INT_FMT_o:						\
-			return fprintf(stream, "0%"PRIo##BITS, i);	\
+			return fprintf(stream, "0%"PRIo64, v);		\
 		}							\
 	} while (0)
 
@@ -82,6 +84,7 @@ enum int_fmt_t
 	INT_FMT_o,
 	INT_FMT_x,
 	INT_FMT_unknown,
+	INT_FMT_default,
 };
 
 static int
@@ -326,12 +329,14 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 	case ARGTYPE_USHORT:
 	case ARGTYPE_UINT:
 	case ARGTYPE_ULONG:
-		if (int_fmt == INT_FMT_i)
+		if (int_fmt == INT_FMT_i || int_fmt == INT_FMT_default)
 			int_fmt = INT_FMT_u;
 		return format_integer(stream, value, int_fmt, arguments);
 
 	case ARGTYPE_CHAR:
-		return format_naked_char(stream, value, arguments);
+		if (int_fmt == INT_FMT_default)
+			return format_naked_char(stream, value, arguments);
+		return format_integer(stream, value, int_fmt, arguments);
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
@@ -357,7 +362,8 @@ static int
 default_lens_format_cb(struct lens *lens, FILE *stream,
 		       struct value *value, struct value_dict *arguments)
 {
-	return toplevel_format_lens(lens, stream, value, arguments, INT_FMT_i);
+	return toplevel_format_lens(lens, stream, value, arguments,
+				    INT_FMT_default);
 }
 
 struct lens default_lens = {
@@ -426,7 +432,7 @@ bool_lens_format_cb(struct lens *lens, FILE *stream,
 	case ARGTYPE_POINTER:
 	case ARGTYPE_ARRAY:
 		return toplevel_format_lens(lens, stream, value,
-					    arguments, INT_FMT_i);
+					    arguments, INT_FMT_default);
 
 		int zero;
 	case ARGTYPE_SHORT:
@@ -494,7 +500,7 @@ string_lens_format_cb(struct lens *lens, FILE *stream,
 	case ARGTYPE_UINT:
 	case ARGTYPE_ULONG:
 		return toplevel_format_lens(lens, stream, value,
-					    arguments, INT_FMT_i);
+					    arguments, INT_FMT_default);
 
 	case ARGTYPE_CHAR:
 		return format_char(stream, value, arguments);
