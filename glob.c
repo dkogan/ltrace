@@ -22,6 +22,7 @@
 #include <regex.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 static ssize_t
 match_character_class(const char *glob, size_t length, size_t from)
@@ -185,17 +186,17 @@ glob_to_regex(const char *glob, char **retp)
 int
 globcomp(regex_t *preg, const char *glob, int cflags)
 {
-	char *regex;
+	char *regex = NULL;
 	int status = glob_to_regex(glob, &regex);
 	if (status != REG_NOERROR)
 		return status;
+	assert(regex != NULL);
 	status = regcomp(preg, regex, cflags);
 	free(regex);
 	return status;
 }
 
 #ifdef TEST
-#include <assert.h>
 #include <stdio.h>
 
 static void
