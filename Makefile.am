@@ -116,7 +116,8 @@ noinst_HEADERS = \
 	lens_default.h \
 	lens_enum.h
 
-dist_man1_MANS = ltrace.1 ltrace.conf.5
+dist_man1_MANS = ltrace.1
+dist_man5_MANS = ltrace.conf.5
 
 dist_doc_DATA = COPYING CREDITS INSTALL README TODO
 
