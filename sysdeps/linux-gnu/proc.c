@@ -504,12 +504,25 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 		umovebytes(proc, (arch_addr_t)(uintptr_t)rlm.l_name,
 			   lib_name, sizeof(lib_name));
 
-		if (*lib_name == '\0') {
-			/* VDSO.  No associated file, XXX but we might
-			 * load it from the address space of the
-			 * process.  */
+		/* Library name can be an empty string, in which case
+		 * the entry represents either the main binary, or a
+		 * VDSO.  Unfortunately we can't rely on that, as in
+		 * recent glibc, that entry is initialized to VDSO
+		 * SONAME.
+		 *
+		 * It's not clear how to detect VDSO in this case.  We
+		 * can't assume that l_name of real DSOs will be
+		 * either absolute or relative (for LD_LIBRARY_PATH=:
+		 * it will be neither).  We can't compare l_addr with
+		 * AT_SYSINFO_EHDR either, as l_addr is bias (which
+		 * also means it's not unique, and therefore useless
+		 * for this).  We could load VDSO from process image
+		 * and at least compare actual SONAMEs.  For now, this
+		 * kludge is about the best that we can do.  */
+		if (*lib_name == 0
+		    || strcmp(lib_name, "linux-vdso.so.1") == 0
+		    || strcmp(lib_name, "linux-gate.so.1") == 0)
 			continue;
-		}
 
 		/* Do we have that library already?  */
 		if (proc_each_library(proc, NULL, library_with_key_cb, &key))
