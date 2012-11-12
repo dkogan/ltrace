@@ -752,8 +752,22 @@ breakpoint_for_symbol(struct library_symbol *libsym, struct Process *proc)
 	struct breakpoint *bp = dict_find_entry(proc->breakpoints,
 						bp_addr);
 	if (bp != NULL) {
+		/* MIPS backend makes duplicate requests.  This is
+		 * likely a bug in the backend.  Currently there's no
+		 * point assigning more than one symbol to a
+		 * breakpoint, because when it hits, we won't know
+		 * what to print out.  But it's easier to fix it here
+		 * before someone who understands MIPS has the time to
+		 * look into it.  So turn the sanity check off on
+		 * MIPS.  References:
+		 *
+		 *   http://lists.alioth.debian.org/pipermail/ltrace-devel/2012-November/000764.html
+		 *   http://lists.alioth.debian.org/pipermail/ltrace-devel/2012-November/000770.html
+		 */
+#ifndef __mips__
 		assert(bp->libsym == NULL);
 		bp->libsym = libsym;
+#endif
 		return 0;
 	}
 
