@@ -119,5 +119,18 @@
    We currently can't define time_t on 32bit machines.  That mean we
    can't describe a range of time-related functions.
 
+** Support signed char, unsigned char, char
+   Also, don't format it as characted by default, string lens can do
+   it.  Perhaps introduce byte and ubyte and leave 'char' as alias of
+   one of those with string lens applied by default.
+
+** Support fixed-width types
+   Really we should keep everything as {u,}int{8,16,32,64} internally,
+   and have long, short and others be translated to one of those
+   according to architecture rules.  Maybe this could be achieved by a
+   per-arch config file with typedefs such as:
+
+   | typedef ulong = uint8_t |
+
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())

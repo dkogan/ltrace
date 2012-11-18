@@ -1,4 +1,31 @@
 -*-org-*-
+* Version 0.7.1
+** Bugfixes
+*** A header file for compilation on PowerPC is now shipped
+*** ltrace.conf.5 is now installed to man5 as it should be
+*** Work around MIPS duplicate symbol request bug
+    This fixes the ltrace abort:
+    | ./ltrace: proc.c: 755: breakpoint_for_symbol: Assertion `bp->libsym == ((void *)0)' failed.
+
+*** Detect VDSO entry in r_debug linkmap with non-empty name
+    This bug caused messages like:
+    | Couldn't determine base address of linux-vdso32.so.1
+    | Couldn't load ELF object linux-vdso32.so.1: No such file or directory
+
+*** Temporary files are wiped properly after the test suite has been run
+*** Parsing typedefs with common prefix now works as it should
+    More exactly, if there were typedefs X and XY (in this order), and
+    a reference was made to X, ltrace would match XY instead.
+
+** Cofiguration Files
+*** The following prototypes in ltrace.conf were added or updated
+    a64l, l64a, abort, abs, labs, addmntent, __endmntent, __setmntent,
+    getmntent_r, __getmntent_r, hasmntopt, setlocale,
+    __ctype_get_mb_cur_max, inet_aton, inet_addr, inet_network,
+    inet_ntoa, inet_makeaddr, inet_lnaof, inet_netof, memcpy, memmove
+
+*** Duplicate typedefs are now guarded against
+
 * Version 0.7.0
 ** Tracing
 *** Full support for tracing multi-threaded processes
