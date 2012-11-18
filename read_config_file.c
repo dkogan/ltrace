@@ -363,8 +363,18 @@ struct typedef_node_t {
 } *typedefs = NULL;
 
 static struct arg_type_info *
-lookup_typedef(char **str) {
+lookup_typedef(const char *name)
+{
 	struct typedef_node_t *node;
+	for (node = typedefs; node != NULL; node = node->next)
+		if (strcmp(name, node->name) == 0)
+			return node->info;
+	return NULL;
+}
+
+static struct arg_type_info *
+parse_typedef_name(char **str)
+{
 	char *end = *str;
 	while (*end && (isalnum(*end) || *end == '_'))
 		++end;
@@ -372,15 +382,12 @@ lookup_typedef(char **str) {
 		return NULL;
 
 	size_t len = end - *str;
-	for (node = typedefs; node != NULL; node = node->next) {
-		if (strncmp(*str, node->name, len) == 0
-		    && node->name[len] == 0) {
-			(*str) += strlen(node->name);
-			return node->info;
-		}
-	}
+	char buf[len + 1];
+	memcpy(buf, *str, len);
+	*str += len;
+	buf[len] = 0;
 
-	return NULL;
+	return lookup_typedef(buf);
 }
 
 static struct typedef_node_t *
@@ -396,15 +403,11 @@ insert_typedef(char *name, struct arg_type_info *info, int own_type)
 }
 
 static void
-parse_typedef(char **str) {
-	char *name;
-	struct arg_type_info *info;
-
+parse_typedef(char **str)
+{
 	(*str) += strlen("typedef");
 	eat_spaces(str);
-
-	// Grab out the name of the type
-	name = parse_ident(str);
+	char *name = parse_ident(str);
 
 	// Skip = sign
 	eat_spaces(str);
@@ -807,7 +810,7 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 		if (parse_alias(str, &simple, ownp, extra_param, param_num) < 0)
 			return NULL;
 		if (simple == NULL)
-			simple = lookup_typedef(str);
+			simple = parse_typedef_name(str);
 		if (simple != NULL) {
 			*ownp = 0;
 			return simple;
