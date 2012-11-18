@@ -27,4 +27,69 @@ ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef aa = int;
 }] -- true] "error" != 0
 
+ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
+    typedef aa = struct;
+    typedef aa = int;
+}] -- true] "error" != 0
+
+ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
+    typedef aa = struct;
+    typedef aa = struct(int);
+    typedef aa = struct(int);
+}] -- true] "error" != 0
+
+ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
+    typedef aa = struct;
+    typedef aa = struct();
+    typedef aa = struct();
+}] -- true] "error" != 0
+
+ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
+    typedef aa = struct(int, struct;);
+}] -- true] "error" != 0
+
+set libll [ltraceCompile libll.so [ltraceSource c {
+    struct xxx;
+    void ll(struct xxx *xxx) {}
+}]]
+
+set bin [ltraceCompile ll $libll [ltraceSource c {
+    struct xxx {
+	int i;
+	struct xxx *next;
+    };
+
+    void ll (struct xxx *xxx);
+    int main (int argc, char *argv[])
+    {
+	struct xxx a = { 1, 0 };
+	struct xxx b = { 2, &a };
+	struct xxx c = { 3, &b };
+	struct xxx d = { 4, &c };
+	ll (&d);
+
+	struct xxx e = { 1, 0 };
+	struct xxx f = { 2, &e };
+	e.next = &f;
+	ll (&f);
+
+	struct xxx g = { 1, &g };
+	ll (&g);
+
+	return 0;
+    }
+}]]
+
+set conf [ltraceSource conf {
+    typedef xxx = struct;
+    typedef xxx = struct(int, xxx*);
+    void ll(xxx*);
+}]
+
+ltraceMatch [ltraceRun -F $conf -e ll -- $bin] {
+    {{ll->ll\({ 4, { 3, { 2, { 1, nil } } } }\) *= <void>} == 1}
+    {{ll->ll\({ 2, { 1, recurse\^ } }\) *= <void>} == 1}
+    {{ll->ll\({ 1, recurse }\) *= <void>} == 1}
+}
+
 ltraceDone

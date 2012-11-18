@@ -43,14 +43,18 @@
 
 static int line_no;
 static char *filename;
+struct typedef_node_t;
 
 static struct arg_type_info *parse_nonpointer_type(char **str,
 						   struct param **extra_param,
-						   size_t param_num, int *ownp);
+						   size_t param_num, int *ownp,
+						   struct typedef_node_t *td);
 static struct arg_type_info *parse_type(char **str, struct param **extra_param,
-					size_t param_num, int *ownp);
+					size_t param_num, int *ownp,
+					struct typedef_node_t *in_typedef);
 static struct arg_type_info *parse_lens(char **str, struct param **extra_param,
-					size_t param_num, int *ownp);
+					size_t param_num, int *ownp,
+					struct typedef_node_t *in_typedef);
 static int parse_enum(char **str, struct arg_type_info **retp, int *ownp);
 
 Function *list_of_functions = NULL;
@@ -359,16 +363,17 @@ struct typedef_node_t {
 	char *name;
 	struct arg_type_info *info;
 	int own_type;
+	int forward : 1;
 	struct typedef_node_t *next;
 } *typedefs = NULL;
 
-static struct arg_type_info *
+static struct typedef_node_t *
 lookup_typedef(const char *name)
 {
 	struct typedef_node_t *node;
 	for (node = typedefs; node != NULL; node = node->next)
 		if (strcmp(name, node->name) == 0)
-			return node->info;
+			return node;
 	return NULL;
 }
 
@@ -387,18 +392,30 @@ parse_typedef_name(char **str)
 	*str += len;
 	buf[len] = 0;
 
-	return lookup_typedef(buf);
+	struct typedef_node_t *td = lookup_typedef(buf);
+	if (td == NULL)
+		return NULL;
+	return td->info;
+}
+
+static void
+insert_typedef(struct typedef_node_t *td)
+{
+	if (td == NULL)
+		return;
+	td->next = typedefs;
+	typedefs = td;
 }
 
 static struct typedef_node_t *
-insert_typedef(char *name, struct arg_type_info *info, int own_type)
+new_typedef(char *name, struct arg_type_info *info, int own_type)
 {
 	struct typedef_node_t *binding = malloc(sizeof(*binding));
 	binding->name = name;
 	binding->info = info;
 	binding->own_type = own_type;
-	binding->next = typedefs;
-	typedefs = binding;
+	binding->forward = 0;
+	binding->next = NULL;
 	return binding;
 }
 
@@ -409,10 +426,15 @@ parse_typedef(char **str)
 	eat_spaces(str);
 	char *name = parse_ident(str);
 
-	struct arg_type_info *info = lookup_typedef(name);
-	if (info != NULL) {
+	/* Look through the typedef list whether we already have a
+	 * forward of this type.  If we do, it must be forward
+	 * structure.  */
+	struct typedef_node_t *forward = lookup_typedef(name);
+	if (forward != NULL
+	    && (forward->info->type != ARGTYPE_STRUCT
+		|| !forward->forward)) {
 		report_error(filename, line_no,
-			     "Redefinition of typedef '%s'\n", name);
+			     "Redefinition of typedef '%s'", name);
 		return;
 	}
 
@@ -422,11 +444,42 @@ parse_typedef(char **str)
 		return;
 	eat_spaces(str);
 
-	// Parse the type
-	int own;
-	info = parse_type(str, NULL, 0, &own);
+	struct typedef_node_t *this_td = new_typedef(name, NULL, 0);
+	this_td->info = parse_type(str, NULL, 0, &this_td->own_type, this_td);
 
-	insert_typedef(name, info, own);
+	if (this_td->info == NULL) {
+		free(this_td);
+		return;
+	}
+
+	if (forward == NULL) {
+		insert_typedef(this_td);
+		return;
+	}
+
+	/* If we are defining a forward, make sure the definition is a
+	 * structure as well.  */
+	if (this_td->info->type != ARGTYPE_STRUCT) {
+		report_error(filename, line_no,
+			     "Definition of forward '%s' must be a structure.",
+			     name);
+		if (this_td->own_type) {
+			type_destroy(this_td->info);
+			free(this_td->info);
+		}
+		return;
+	}
+
+	/* Now move guts of the actual type over to the
+	 * forward type.  We can't just move pointers around,
+	 * because references to forward must stay intact.  */
+	assert(this_td->own_type);
+	type_destroy(forward->info);
+	*forward->info = *this_td->info;
+	forward->forward = 0;
+	free(this_td->info);
+	free(name);
+	free(this_td);
 }
 
 static void
@@ -446,9 +499,26 @@ destroy_fun(Function *fun)
 
 /* Syntax: struct ( type,type,type,... ) */
 static int
-parse_struct(char **str, struct arg_type_info *info)
+parse_struct(char **str, struct arg_type_info *info,
+	     struct typedef_node_t *in_typedef)
 {
 	eat_spaces(str);
+
+	if (**str == ';') {
+		if (in_typedef == NULL) {
+			report_error(filename, line_no,
+				     "Forward struct can be declared only "
+				     "directly after a typedef.");
+			return -1;
+		}
+
+		/* Forward declaration is currently handled as an
+		 * empty struct.  */
+		type_init_struct(info);
+		in_typedef->forward = 1;
+		return 0;
+	}
+
 	if (parse_char(str, '(') < 0)
 		return -1;
 
@@ -469,7 +539,8 @@ parse_struct(char **str, struct arg_type_info *info)
 
 		eat_spaces(str);
 		int own;
-		struct arg_type_info *field = parse_lens(str, NULL, 0, &own);
+		struct arg_type_info *field = parse_lens(str, NULL, 0, &own,
+							 NULL);
 		if (field == NULL || type_struct_add(info, field, own)) {
 			type_destroy(info);
 			return -1;
@@ -536,7 +607,7 @@ parse_string(char **str, struct arg_type_info **retp, int *ownp)
 			free(info);
 
 			eat_spaces(str);
-			info = parse_type(str, NULL, 0, ownp);
+			info = parse_type(str, NULL, 0, ownp, NULL);
 			if (info == NULL)
 				goto fail;
 
@@ -681,7 +752,7 @@ parse_array(char **str, struct arg_type_info *info)
 
 	eat_spaces(str);
 	int own;
-	struct arg_type_info *elt_info = parse_lens(str, NULL, 0, &own);
+	struct arg_type_info *elt_info = parse_lens(str, NULL, 0, &own, NULL);
 	if (elt_info == NULL)
 		return -1;
 
@@ -718,7 +789,7 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 	if (**str == '[') {
 		parse_char(str, '[');
 		eat_spaces(str);
-		*retp = parse_nonpointer_type(str, NULL, 0, ownp);
+		*retp = parse_nonpointer_type(str, NULL, 0, ownp, 0);
 		if (*retp == NULL)
 			return -1;
 
@@ -809,7 +880,7 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 
 static struct arg_type_info *
 parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
-		      int *ownp)
+		      int *ownp, struct typedef_node_t *in_typedef)
 {
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
@@ -828,8 +899,6 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 		return NULL;
 	}
 
-	int (*parser) (char **, struct arg_type_info *) = NULL;
-
 	/* For some types that's all we need.  */
 	switch (type) {
 	case ARGTYPE_VOID:
@@ -846,11 +915,7 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 		return type_get_simple(type);
 
 	case ARGTYPE_ARRAY:
-		parser = parse_array;
-		break;
-
 	case ARGTYPE_STRUCT:
-		parser = parse_struct;
 		break;
 
 	case ARGTYPE_POINTER:
@@ -868,9 +933,16 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 	}
 	*ownp = 1;
 
-	if (parser(str, info) < 0) {
-		free(info);
-		return NULL;
+	if (type == ARGTYPE_ARRAY) {
+		if (parse_array(str, info) < 0) {
+		fail:
+			free(info);
+			return NULL;
+		}
+	} else {
+		assert(type == ARGTYPE_STRUCT);
+		if (parse_struct(str, info, in_typedef) < 0)
+			goto fail;
 	}
 
 	return info;
@@ -901,10 +973,12 @@ name2lens(char **str, int *own_lensp)
 }
 
 static struct arg_type_info *
-parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp)
+parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp,
+	   struct typedef_node_t *in_typedef)
 {
 	struct arg_type_info *info
-		= parse_nonpointer_type(str, extra_param, param_num, ownp);
+		= parse_nonpointer_type(str, extra_param,
+					param_num, ownp, in_typedef);
 	if (info == NULL)
 		return NULL;
 
@@ -932,7 +1006,8 @@ parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp)
 }
 
 static struct arg_type_info *
-parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp)
+parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp,
+	   struct typedef_node_t *in_typedef)
 {
 	int own_lens;
 	struct lens *lens = name2lens(str, &own_lens);
@@ -956,7 +1031,8 @@ parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp)
 
 	if (has_args) {
 		eat_spaces(str);
-		info = parse_type(str, extra_param, param_num, ownp);
+		info = parse_type(str, extra_param, param_num, ownp,
+				  in_typedef);
 		if (info == NULL) {
 		fail:
 			if (own_lens && lens != NULL)
@@ -1014,7 +1090,7 @@ get_hidden_int(void)
 	char *ptr = str;
 	assert(str != NULL);
 	int own;
-	struct arg_type_info *info = parse_lens(&ptr, NULL, 0, &own);
+	struct arg_type_info *info = parse_lens(&ptr, NULL, 0, &own, NULL);
 	assert(info != NULL);
 	free(str);
 	return info;
@@ -1045,7 +1121,8 @@ process_line(char *buf) {
 		return NULL;
 	}
 
-	fun->return_info = parse_lens(&str, NULL, 0, &fun->own_return_info);
+	fun->return_info = parse_lens(&str, NULL, 0,
+				      &fun->own_return_info, NULL);
 	if (fun->return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", line_no);
@@ -1096,7 +1173,7 @@ process_line(char *buf) {
 		int own;
 		struct arg_type_info *type
 			= parse_lens(&str, &extra_param,
-				     fun->num_params - have_stop, &own);
+				     fun->num_params - have_stop, &own, NULL);
 		if (type == NULL) {
 			report_error(filename, line_no,
 				     "unknown argument type");
@@ -1181,8 +1258,8 @@ init_global_config(void)
 	info[0].u.ptr_info.info = &info[1];
 	info[1].type = ARGTYPE_VOID;
 
-	insert_typedef(strdup("addr"), info, 0);
-	insert_typedef(strdup("file"), info, 1);
+	insert_typedef(new_typedef(strdup("addr"), info, 0));
+	insert_typedef(new_typedef(strdup("file"), info, 1));
 }
 
 void

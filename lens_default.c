@@ -27,6 +27,7 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "proc.h"
 #include "lens_default.h"
@@ -250,6 +251,36 @@ format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 	if (value_is_zero(value, arguments))
 		return fprintf(stream, "nil");
 
+	/* The following is for detecting recursion.  We keep track of
+	 * the values that were already displayed.  Each time a
+	 * pointer should be dereferenced, we compare its value to the
+	 * value of each of the pointers dereferenced so far.  If one
+	 * of them matches, instead of recursing, we just printf which
+	 * superstructure this pointer recurses to.  */
+	static struct vect pointers = {};
+	if (pointers.elt_size == 0)
+		VECT_INIT(&pointers, struct value *);
+
+	size_t len = vect_size(&pointers);
+	size_t i;
+	for (i = len; i-- > 0 ;) {
+		struct value **old = VECT_ELEMENT(&pointers, struct value *, i);
+		int rc = value_equal(value, *old, arguments);
+		if (rc < 0)
+			return -1;
+		if (rc > 0) {
+			size_t reclevel = len - i - 1;
+			char buf[reclevel + 1];
+			memset(buf, '^', sizeof buf);
+			buf[reclevel] = 0;
+			return fprintf(stream, "recurse%s", buf);
+		}
+	}
+
+	/* OK, not a recursion.  Remember this value for tracking.  */
+	if (VECT_PUSHBACK(&pointers, &value) < 0)
+		return -1;
+
 	struct value element;
 	int o;
 	if (value_init_deref(&element, value) < 0) {
@@ -260,6 +291,7 @@ format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 	value_destroy(&element);
 
 done:
+	vect_popback(&pointers);
 	return o;
 }
 
