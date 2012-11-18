@@ -409,6 +409,13 @@ parse_typedef(char **str)
 	eat_spaces(str);
 	char *name = parse_ident(str);
 
+	struct arg_type_info *info = lookup_typedef(name);
+	if (info != NULL) {
+		report_error(filename, line_no,
+			     "Redefinition of typedef '%s'\n", name);
+		return;
+	}
+
 	// Skip = sign
 	eat_spaces(str);
 	if (parse_char(str, '=') < 0)

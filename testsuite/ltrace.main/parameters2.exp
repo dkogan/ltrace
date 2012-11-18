@@ -22,4 +22,9 @@ ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef bbb = struct(aa);
 }] -- true] "error" == 0
 
+ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
+    typedef aa = int;
+    typedef aa = int;
+}] -- true] "error" != 0
+
 ltraceDone
