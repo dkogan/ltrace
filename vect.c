@@ -121,6 +121,12 @@ vect_pushback(struct vect *vec, void *eltp)
 }
 
 void
+vect_popback(struct vect *vec)
+{
+	vec->size--;
+}
+
+void
 vect_destroy(struct vect *vec, void (*dtor)(void *emt, void *data), void *data)
 {
 	if (vec == NULL)

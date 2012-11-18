@@ -95,6 +95,9 @@ int vect_empty(struct vect *vec);
  * operation was successful, or negative value on error.  */
 int vect_pushback(struct vect *vec, void *eltp);
 
+/* Drop last element of VECP.  */
+void vect_popback(struct vect *vec);
+
 /* Copy element referenced by ELTP to the end of VEC.  See
  * vect_pushback for details.  In addition, make a check whether VECP
  * holds elements of the right size.  */
