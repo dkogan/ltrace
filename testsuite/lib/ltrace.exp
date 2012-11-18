@@ -307,6 +307,7 @@ proc LtraceTempFile {pat} {
 	# We don't bother attempting to open the file.  Downstream
 	# code can do it itself.
 
+	lappend LTRACE_TEMP_FILES $name
 	return $name
     }
 
