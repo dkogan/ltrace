@@ -117,7 +117,7 @@ ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_printf(\\\"many_args%d %d %ld %g %c %d %g .*, 1, 2, 3, 4.00*, '5', 6, 7.00*, '8', 9, 10.00*, 11, 12.00*, 'A', 14, 15, 16, 'B', 18.00*, 19.00*, 20.00*, 21, 22.00*, 23.00*, 24.00*, 25.00*)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "func_sprintf(\\\"\\\", \\\"test %d %d %d %d.n\\\", 1, 2, 3, 4)"
+set pattern "func_sprintf(nil, \\\"test %d %d %d %d.n\\\", 1, 2, 3, 4)"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
 set pattern "func_lens(026, 027, 0x18, 0x19)"

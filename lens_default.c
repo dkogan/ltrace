@@ -247,11 +247,19 @@ format_struct(FILE *stream, struct value *value, struct value_dict *arguments)
 int
 format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 {
+	if (value_is_zero(value, arguments))
+		return fprintf(stream, "nil");
+
 	struct value element;
-	if (value_init_deref(&element, value) < 0)
-		return -1;
-	int o = format_argument(stream, &element, arguments);
+	int o;
+	if (value_init_deref(&element, value) < 0) {
+		o = -1;
+		goto done;
+	}
+	o = format_argument(stream, &element, arguments);
 	value_destroy(&element);
+
+done:
 	return o;
 }
 
