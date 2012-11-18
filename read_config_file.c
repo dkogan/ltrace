@@ -371,8 +371,10 @@ lookup_typedef(char **str) {
 	if (end == *str)
 		return NULL;
 
+	size_t len = end - *str;
 	for (node = typedefs; node != NULL; node = node->next) {
-		if (strncmp(*str, node->name, end - *str) == 0) {
+		if (strncmp(*str, node->name, len) == 0
+		    && node->name[len] == 0) {
 			(*str) += strlen(node->name);
 			return node->info;
 		}
