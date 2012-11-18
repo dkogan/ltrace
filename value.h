@@ -153,6 +153,11 @@ struct value *value_get_parental_struct(struct value *val);
  * if it isn't, <0 on error.  */
 int value_is_zero(struct value *val, struct value_dict *arguments);
 
+/* Compare two values for byte-by-byte equality.  Returns >0 if they
+ * are equal, ==0 if they are not, and <0 on error.  */
+int value_equal(struct value *val1, struct value *val2,
+		struct value_dict *arguments);
+
 /* Convert a structure type to pointer to that structure type.  */
 int value_pass_by_reference(struct value *value);
 

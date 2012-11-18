@@ -447,6 +447,24 @@ value_is_zero(struct value *val, struct value_dict *arguments)
 }
 
 int
+value_equal(struct value *val1, struct value *val2,
+	    struct value_dict *arguments)
+{
+	size_t sz1 = type_sizeof(val1->inferior, val1->type);
+	size_t sz2 = type_sizeof(val2->inferior, val2->type);
+	if (sz1 == (size_t)-1 || sz2 == (size_t)-1)
+		return -1;
+	if (sz1 != sz2)
+		return 0;
+
+	unsigned char *data1 = value_get_data(val1, arguments);
+	unsigned char *data2 = value_get_data(val2, arguments);
+	if (data1 == NULL || data2 == NULL)
+		return -1;
+	return memcmp(data1, data2, sz1) == 0 ? 1 : 0;
+}
+
+int
 value_pass_by_reference(struct value *value)
 {
 	assert(value != NULL);
