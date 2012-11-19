@@ -21,7 +21,6 @@
    reenablement.
 ** Create different ltrace processes to trace different children
 ** Config file syntax
-*** typedef should be able to assign a lens to a name
 *** named arguments
     This would be useful for replacing the arg1, emt2 etc.
 

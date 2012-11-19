@@ -445,7 +445,7 @@ parse_typedef(char **str)
 	eat_spaces(str);
 
 	struct typedef_node_t *this_td = new_typedef(name, NULL, 0);
-	this_td->info = parse_type(str, NULL, 0, &this_td->own_type, this_td);
+	this_td->info = parse_lens(str, NULL, 0, &this_td->own_type, this_td);
 
 	if (this_td->info == NULL) {
 		free(this_td);

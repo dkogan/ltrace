@@ -115,5 +115,28 @@ ltraceMatch1 [ltraceRun -F $conf -e ll -A 5 \
     }
 }]]] {->ll\({ 9, { 8, { 7, { 6, { 5, \.\.\. } } } } }\) *= <void>} == 1
 
+proc ltraceParamTest {conf cdecl libcode maincode match} {
+    set conffile [ltraceSource conf $conf]
+    set lib [ltraceCompile liblib.so [ltraceSource c [concat $cdecl $libcode]]]
+    set bin [ltraceCompile {} $lib \
+		 [ltraceSource c \
+		      [concat $cdecl "int main(void) {" $maincode "}"]]]
+
+    return [ltraceMatch [ltraceRun -F $conffile -- $bin] $match]
+}
+
+ltraceParamTest {
+    typedef hexptr = hex(uint);
+    void fun(hexptr);
+} {
+    void fun(unsigned *arg);
+} {
+    void fun(unsigned *arg) {}
+} {
+    unsigned u = 0x123;
+    fun(&u);
+} {
+    {{fun\(0x123\) *= <void>} == 1}
+}
 
 ltraceDone
