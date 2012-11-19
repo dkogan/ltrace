@@ -25,6 +25,9 @@
     inet_ntoa, inet_makeaddr, inet_lnaof, inet_netof, memcpy, memmove
 
 *** Duplicate typedefs are now guarded against
+*** It's now possible to define recursive structures
+    Please read ltrace.conf(5) man page, chapter "recursive
+    structures", to learn about this new feature.
 
 * Version 0.7.0
 ** Tracing

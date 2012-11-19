@@ -198,6 +198,66 @@ such type, and later just use that name:
 Note that \fITYPE\fR currently cannot be a lens, but must really be a
 type.
 
+.SH RECURSIVE STRUCTURES
+
+Ltrace allows you to express recursive structures.  Such structures
+are expanded to the depth described by the parameter -A.  To declare a
+recursive type, you first have to introduce the type to ltrace by
+using forward declaration.  Then you can use the type in other type
+definitions in the usual way:
+
+.RS
+.B typedef \fINAME\fB = struct;
+.br
+.B typedef \fINAME\fB = struct(\fINAME\fR can be used here\fB)
+.RE
+
+For example, consider the following singy-linked structure and a
+function that takes such list as an argument:
+
+.RS
+.B typedef\fR int_list \fB= struct;
+.br
+.B typedef\fR int_list \fB= struct(int,\fR int_list\fB*);
+.br
+.B void\fR ll\fB(\fRint_list\fB*);
+.RE
+
+Such declarations might lead to an output like the following:
+
+.RS
+ll({ 9, { 8, { 7, { 6, ... } } } }) = <void>
+.RE
+
+Ltrace detects recursion and will not expand already-expanded
+structures.  Thus a doubly-linked list would look like the following:
+
+.RS
+.B typedef\fR int_list \fB= struct;
+.br
+.B typedef\fR int_list \fB= struct(int,\fR int_list\fB*,\fR int_list\fB*);
+.RE
+
+With output e.g. like:
+
+.RS
+ll({ 9, { 8, { 7, { 6, ..., ... }, recurse^ }, recurse^ }, nil })
+.RE
+
+The "recurse^" tokens mean that given pointer points to a structure
+that was expanded in the previous layer.  Simple "recurse" would mean
+that it points back to this object.  E.g. "recurse^^^" means it points
+to a structure three layers up.  For doubly-linked list, the pointer
+to the previous element is of course the one that has been just
+expanded in the previous round, and therefore all of them are either
+recurse^, or nil.  If the next and previous pointers are swapped, the
+output adjusts correspondingly:
+
+.RS
+ll({ 9, nil, { 8, recurse^, { 7, recurse^, { 6, ..., ... } } } })
+.RE
+
+
 .SH EXPRESSIONS
 
 Ltrace has support for some elementary expressions.  Each expression
