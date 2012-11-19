@@ -53,7 +53,13 @@ set libll [ltraceCompile libll.so [ltraceSource c {
     void ll(struct xxx *xxx) {}
 }]]
 
-set bin [ltraceCompile ll $libll [ltraceSource c {
+set conf [ltraceSource conf {
+    typedef xxx = struct;
+    typedef xxx = struct(int, xxx*);
+    void ll(xxx*);
+}]
+
+ltraceMatch [ltraceRun -F $conf -e ll [ltraceCompile {} $libll [ltraceSource c {
     struct xxx {
 	int i;
 	struct xxx *next;
@@ -78,18 +84,36 @@ set bin [ltraceCompile ll $libll [ltraceSource c {
 
 	return 0;
     }
-}]]
-
-set conf [ltraceSource conf {
-    typedef xxx = struct;
-    typedef xxx = struct(int, xxx*);
-    void ll(xxx*);
-}]
-
-ltraceMatch [ltraceRun -F $conf -e ll -- $bin] {
-    {{ll->ll\({ 4, { 3, { 2, { 1, nil } } } }\) *= <void>} == 1}
-    {{ll->ll\({ 2, { 1, recurse\^ } }\) *= <void>} == 1}
-    {{ll->ll\({ 1, recurse }\) *= <void>} == 1}
+}]]] {
+    {{->ll\({ 4, { 3, { 2, { 1, nil } } } }\) *= <void>} == 1}
+    {{->ll\({ 2, { 1, recurse\^ } }\) *= <void>} == 1}
+    {{->ll\({ 1, recurse }\) *= <void>} == 1}
 }
+
+ltraceMatch1 [ltraceRun -F $conf -e ll -A 5 \
+-- [ltraceCompile ll $libll [ltraceSource c {
+    #include <stdlib.h>
+    struct ble {
+	int i;
+	struct ble *next;
+    };
+
+    void ll (struct ble *ble);
+    int main (int argc, char *argv[])
+    {
+	struct ble *b = NULL;
+	int i;
+	for (i = 0; i < 10; ++i) {
+	    struct ble *n = malloc(sizeof(*n));
+	    n->i = i;
+	    n->next = b;
+	    b = n;
+	}
+	ll (b);
+
+	return 0;
+    }
+}]]] {->ll\({ 9, { 8, { 7, { 6, { 5, \.\.\. } } } } }\) *= <void>} == 1
+
 
 ltraceDone

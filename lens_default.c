@@ -261,8 +261,28 @@ format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 	if (pointers.elt_size == 0)
 		VECT_INIT(&pointers, struct value *);
 
-	size_t len = vect_size(&pointers);
+	/* Trim number of expanded structures of the same type.  Even
+	 * for non-recursive structure, we don't want to expand all of
+	 * it if it's huge.  */
 	size_t i;
+	size_t len = vect_size(&pointers);
+	assert(value->type->type == ARGTYPE_POINTER);
+	struct arg_type_info *pointee = value->type->u.ptr_info.info;
+	if (pointee->type == ARGTYPE_STRUCT) {
+		size_t depth = 0;
+		for (i = 0; i < len; ++i) {
+			struct value *old
+				= *VECT_ELEMENT(&pointers, struct value *, i);
+			assert(old->type->type == ARGTYPE_POINTER);
+			struct arg_type_info *old_pointee
+				= old->type->u.ptr_info.info;
+			if (old_pointee == pointee)
+				depth++;
+		}
+		if (depth >= options.arraylen)
+			return fprintf(stream, "...");
+	}
+
 	for (i = len; i-- > 0 ;) {
 		struct value **old = VECT_ELEMENT(&pointers, struct value *, i);
 		int rc = value_equal(value, *old, arguments);
