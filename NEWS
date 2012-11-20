@@ -33,6 +33,10 @@
     This allows displaying various data types as bit vectors.  Please
     read ltrace.conf(5) to learn more.
 
+*** Octal lens renamed to "oct"
+    For reasons of consistency with "hex".  "octal" is still valid and
+    will be for forseeable future.
+
 * Version 0.7.0
 ** Tracing
 *** Full support for tracing multi-threaded processes
