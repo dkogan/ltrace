@@ -468,6 +468,18 @@ struct lens hex_lens = {
 
 
 static int
+dec_lens_format_cb(struct lens *lens, FILE *stream,
+		   struct value *value, struct value_dict *arguments)
+{
+	return toplevel_format_lens(lens, stream, value, arguments, INT_FMT_u);
+}
+
+struct lens dec_lens = {
+	.format_cb = dec_lens_format_cb,
+};
+
+
+static int
 guess_lens_format_cb(struct lens *lens, FILE *stream,
 		     struct value *value, struct value_dict *arguments)
 {
@@ -575,4 +587,118 @@ string_lens_format_cb(struct lens *lens, FILE *stream,
 
 struct lens string_lens = {
 	.format_cb = string_lens_format_cb,
+};
+
+static int
+out_bits(FILE *stream, size_t low, size_t high)
+{
+	if (low == high)
+		return fprintf(stream, "%zd", low);
+	else
+		return fprintf(stream, "%zd-%zd", low, high);
+}
+
+static unsigned
+bitcount(unsigned u)
+{
+	int c = 0;
+	for (; u > 0; u &= u - 1)
+		c++;
+	return c;
+}
+
+static int
+bitvect_lens_format_cb(struct lens *lens, FILE *stream,
+		       struct value *value, struct value_dict *arguments)
+{
+	unsigned char *data = value_get_data(value, arguments);
+	if (data == NULL)
+		return -1;
+	size_t sz = type_sizeof(value->inferior, value->type);
+	if (sz == (size_t)-1)
+		return -1;
+
+	size_t i;
+	unsigned char buf[sz];
+	switch ((int)value->type->type) {
+		union bitvect_integral_64
+		{
+			uint8_t u8;
+			uint16_t u16;
+			uint32_t u32;
+			uint64_t u64;
+			unsigned char buf[0];
+		} bv;
+
+	case ARGTYPE_POINTER:
+		return format_pointer(stream, value, arguments);
+
+	case ARGTYPE_STRUCT:
+	case ARGTYPE_ARRAY:
+		break;
+
+	default:
+		assert(sz <= sizeof(bv));
+		memmove(bv.buf, data, sz);
+
+		if (sz == 1)
+			bv.u64 = bv.u8;
+		else if (sz == 2)
+			bv.u64 = bv.u16;
+		else if (sz == 4)
+			bv.u64 = bv.u32;
+
+		for (i = 0; i < sz; ++i) {
+			buf[i] = bv.u64 & 0xff;
+			bv.u64 >>= 8;
+		}
+		data = buf;
+	}
+
+	size_t bits = 0;
+	for (i = 0; i < sz; ++i)
+		bits += bitcount(data[i]);
+
+	/* If there's more 1's than 0's, show inverse.  */
+	unsigned neg = bits > sz * 4 ? 0xff : 0x00;
+
+	int o = 0;
+	if (acc_fprintf(&o, stream, "%s<", "~" + (neg == 0x00)) < 0)
+		return -1;
+
+	size_t bitno = 0;
+	ssize_t low = -1;
+	for (i = 0; i < sz; ++i) {
+		unsigned char m;
+		unsigned char d = data[i] ^ neg;
+		for (m = 0x01; m != 0; m <<= 1) {
+			int bit = !!(m & d);
+			if (low < 0) {
+				if (bit) {
+					if (low == -2
+					    && acc_fprintf(&o, stream, ",") < 0)
+						return -1;
+					low = bitno;
+				}
+			} else if (!bit) {
+				if (account_output(&o, out_bits(stream, low,
+								bitno-1)) < 0)
+					return -1;
+				low = -2;
+			}
+			bitno++;
+		}
+	}
+	if (low >= 0 && account_output(&o, out_bits(stream, low, bitno-1)) < 0)
+		return -1;
+
+	if (fputc('>', stream) < 0)
+		return -1;
+	o += 1;
+
+	return o;
+}
+
+struct lens bitvect_lens = {
+	.format_cb = bitvect_lens_format_cb,
 };

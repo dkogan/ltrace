@@ -139,6 +139,28 @@ The argument is not shown in argument list.
 Arguments with zero value are shown as "false", other are shown as
 "true".
 
+.TP
+.B bitvec(\fITYPE\fB)
+Underlying argument is interpreted as a bit vector and a summary of
+bits set in the vector is displayed.  For example if bits 3,4,5 and 7
+of the bit vector are set, ltrace shows <3-5,7>.  Empty bit vector is
+displayed as <>.  If there are more bits set than unset, inverse is
+shown instead: e.g. ~<0> when a number 0xfffffffe is displayed.  Full
+set is thus displayed ~<>.
+
+If the underlying type is integral, then bits are shown in their
+natural little-endian order, with LSB being bit 0.
+E.g. \fBbitvec(ushort)\fR with value 0x0102 would be displayed as
+<1,8>, irrespective of underlying byte order.
+
+For other data types (notably structures and arrays), the underlying
+data is interpreted byte after byte.  Bit 0 of first byte has number
+0, bit 0 of second byte number 8, and so on.  Thus
+\fBbitvec(struct(int))\fR is endian sensitive, and will show bytes
+comprising the integer in their memory order.  Pointers are first
+dereferenced, thus \fBbitvec(array(char, \fR32\fB)*)\fR is actually a
+pointer to 256-bit bit vector.
+
 .PP
 .B string(\fITYPE\fB)
 .br

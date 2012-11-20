@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011, 2012 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -45,5 +45,8 @@ extern struct lens guess_lens;
 
 /* A lens for strings.  */
 extern struct lens string_lens;
+
+/* A lens for bit vector.  */
+extern struct lens bitvect_lens;
 
 #endif /* LENS_DEFAULT_H */

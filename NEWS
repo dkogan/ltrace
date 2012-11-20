@@ -29,6 +29,10 @@
     Please read ltrace.conf(5) man page, chapter "recursive
     structures", to learn about this new feature.
 
+*** New lens "bitvec" is available
+    This allows displaying various data types as bit vectors.  Please
+    read ltrace.conf(5) to learn more.
+
 * Version 0.7.0
 ** Tracing
 *** Full support for tracing multi-threaded processes

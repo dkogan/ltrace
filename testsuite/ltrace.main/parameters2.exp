@@ -126,7 +126,7 @@ proc ltraceParamTest {conf cdecl libcode maincode match} {
 }
 
 ltraceParamTest {
-    typedef hexptr = hex(uint);
+    typedef hexptr = hex(uint*);
     void fun(hexptr);
 } {
     void fun(unsigned *arg);
@@ -137,6 +137,33 @@ ltraceParamTest {
     fun(&u);
 } {
     {{fun\(0x123\) *= <void>} == 1}
+}
+
+ltraceParamTest {
+    void fun(bitvec(uint));
+    void fun2(bitvec(array(char, 32)*));
+} {
+    void fun(unsigned i);
+    void fun2(unsigned char *arr);
+} {
+    void fun(unsigned i) {}
+    void fun2(unsigned char *arr) {}
+} {
+    fun(0);
+    fun(0x123);
+    fun(0xfffffffe);
+    fun(0xffffffff);
+
+    unsigned char bytes[32] = {0x00};
+    bytes[1] = 0xff;
+    bytes[31] = 0x80;
+    fun2(bytes);
+} {
+    {{fun\(<>\) *= <void>} == 1}
+    {{fun\(<0-1,5,8>\) *= <void>} == 1}
+    {{fun\(~<0>\) *= <void>} == 1}
+    {{fun\(~<>\) *= <void>} == 1}
+    {{fun2\(<8-15,255>\) *= <void>} == 1}
 }
 
 ltraceDone
