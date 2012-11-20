@@ -19,10 +19,13 @@
 
 ** Cofiguration Files
 *** The following prototypes in ltrace.conf were added or updated
-    a64l, l64a, abort, abs, labs, addmntent, __endmntent, __setmntent,
-    getmntent_r, __getmntent_r, hasmntopt, setlocale,
-    __ctype_get_mb_cur_max, inet_aton, inet_addr, inet_network,
-    inet_ntoa, inet_makeaddr, inet_lnaof, inet_netof, memcpy, memmove
+    __ctype_get_mb_cur_max, __endmntent, __getmntent_r, __setmntent,
+    a64l, abort, abs, addmntent, getmntent_r, hasmntopt, inet_addr,
+    inet_aton, inet_lnaof, inet_makeaddr, inet_netof, inet_network,
+    inet_ntoa, kill, l64a, labs, memcpy, memmove, setlocale,
+    sigaction, sigaddset, sigandset, sigdelset, sigemptyset,
+    sigfillset, sigisemptyset, sigismember, signal, sigorset,
+    sigpending, sigprocmask, sigsuspend.
 
 *** Duplicate typedefs are now guarded against
 *** It's now possible to define recursive structures
