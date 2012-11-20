@@ -131,5 +131,12 @@
 
    | typedef ulong = uint8_t |
 
+** Formatting floats, doubles in hex etc.
+   hex(float) should show the floating point number in hex mode.
+   bitvec(float) should show it in binary mode.  (Or perhaps it's
+   desirable to have a separate "bin" lens for this.)  Not sure if
+   there's anything like octal way of showing floats, but oct should
+   be made consistent with hex.
+
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())

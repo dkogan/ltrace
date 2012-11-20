@@ -1,9 +1,9 @@
 -*-org-*-
 * Version 0.7.1
 ** Bugfixes
-*** A header file for compilation on PowerPC is now shipped
 *** ltrace.conf.5 is now installed to man5 as it should be
-*** Work around MIPS duplicate symbol request bug
+*** [PowerPC] A header file necessary for building is now shipped
+*** [MIPS] Work around duplicate symbol request bug
     This fixes the ltrace abort:
     | ./ltrace: proc.c: 755: breakpoint_for_symbol: Assertion `bp->libsym == ((void *)0)' failed.
 
