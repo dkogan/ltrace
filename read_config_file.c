@@ -69,7 +69,7 @@ static struct arg_type_info *parse_lens(char **str, struct param **extra_param,
 					struct typedef_node_t *in_typedef);
 static int parse_enum(char **str, struct arg_type_info **retp, int *ownp);
 
-Function *list_of_functions = NULL;
+struct prototype *list_of_functions = NULL;
 
 static int
 parse_arg_type(char **name, enum arg_type *ret)
@@ -501,7 +501,7 @@ parse_typedef(char **str)
 }
 
 static void
-destroy_fun(Function *fun)
+destroy_fun(struct prototype *fun)
 {
 	size_t i;
 	if (fun == NULL)
@@ -1080,7 +1080,7 @@ parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp,
 }
 
 static int
-add_param(Function *fun, size_t *allocdp)
+add_param(struct prototype *fun, size_t *allocdp)
 {
 	size_t allocd = *allocdp;
 	/* XXX +1 is for the extra_param handling hack.  */
@@ -1116,8 +1116,9 @@ get_hidden_int(void)
 	return info;
 }
 
-static Function *
-process_line(char *buf) {
+static struct prototype *
+process_line(char *buf)
+{
 	char *str = buf;
 	char *tmp;
 
@@ -1134,7 +1135,7 @@ process_line(char *buf) {
 		return NULL;
 	}
 
-	Function *fun = calloc(1, sizeof(*fun));
+	struct prototype *fun = calloc(1, sizeof(*fun));
 	if (fun == NULL) {
 		report_error(filename, line_no,
 			     "alloc function: %s", strerror(errno));
@@ -1300,11 +1301,8 @@ read_config_file(char *file) {
 
 	line_no = 0;
 	while (fgets(buf, 1024, stream)) {
-		Function *tmp;
-
-		tmp = process_line(buf);
-
-		if (tmp) {
+		struct prototype *tmp = process_line(buf);
+		if (tmp != NULL) {
 			debug(2, "New function: `%s'", tmp->name);
 			tmp->next = list_of_functions;
 			list_of_functions = tmp;

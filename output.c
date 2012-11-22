@@ -150,10 +150,10 @@ get_unknown_type(void)
 }
 
 /* The default prototype is: long X(long, long, long, long).  */
-static Function *
+static struct prototype *
 build_default_prototype(void)
 {
-	Function *ret = malloc(sizeof(*ret));
+	struct prototype *ret = malloc(sizeof(*ret));
 	size_t i = 0;
 	if (ret == NULL)
 		goto err;
@@ -187,9 +187,10 @@ err:
 	return NULL;
 }
 
-static Function *
-name2func(char const *name) {
-	Function *tmp;
+static struct prototype *
+name2func(char const *name)
+{
+	struct prototype *tmp;
 	const char *str1, *str2;
 
 	for (tmp = list_of_functions; tmp != NULL; tmp = tmp->next) {
@@ -199,7 +200,7 @@ name2func(char const *name) {
 			return tmp;
 	}
 
-	static Function *def = NULL;
+	static struct prototype *def = NULL;
 	if (def == NULL)
 		def = build_default_prototype();
 
@@ -376,7 +377,8 @@ fetch_one_param(enum tof type, struct process *proc,
 static int
 fetch_params(enum tof type, struct process *proc,
 	     struct fetch_context *context,
-	     struct value_dict *arguments, Function *func, ssize_t *params_leftp)
+	     struct value_dict *arguments, struct prototype *func,
+	     ssize_t *params_leftp)
 {
 	size_t i;
 	for (i = 0; i < func->num_params; ++i)
@@ -431,7 +433,7 @@ output_left(enum tof type, struct process *proc,
 	    struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
-	Function *func;
+	struct prototype *func;
 
 	if (options.summary) {
 		return;
@@ -511,7 +513,7 @@ void
 output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
-	Function *func = name2func(function_name);
+	struct prototype *func = name2func(function_name);
 	if (func == NULL)
 		return;
 

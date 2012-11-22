@@ -50,17 +50,16 @@ extern char * command;
 
 extern int exiting;  /* =1 if we have to exit ASAP */
 
-typedef struct Function Function;
-struct Function {
-	const char * name;
+struct prototype {
+	const char *name;
 	struct param *params;
 	struct arg_type_info *return_info;
 	int own_return_info;
 	size_t num_params;
-	Function * next;
+	struct prototype *next;
 };
 
-extern Function * list_of_functions;
+extern struct prototype *list_of_functions;
 extern char *PLTs_initialized_by_here;
 
 struct opt_c_struct {
