@@ -35,17 +35,17 @@
 #include <assert.h>
 
 #include "common.h"
-#include "proc.h"
 #include "demangle.h"
+#include "fetch.h"
+#include "lens_default.h"
 #include "library.h"
+#include "memstream.h"
 #include "options.h"
+#include "param.h"
+#include "proc.h"
 #include "type.h"
 #include "value.h"
 #include "value_dict.h"
-#include "param.h"
-#include "fetch.h"
-#include "lens_default.h"
-#include "memstream.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
@@ -432,7 +432,6 @@ output_left(enum tof type, struct process *proc,
 	    struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
-	struct prototype *func;
 
 	if (options.summary) {
 		return;
@@ -471,7 +470,7 @@ output_left(enum tof type, struct process *proc,
 
 	account_output(&current_column, fprintf(options.output, "("));
 
-	func = name2func(function_name);
+	struct prototype *func = name2func(function_name);
 	if (func == NULL) {
 		account_output(&current_column, fprintf(options.output, "???"));
 		return;
