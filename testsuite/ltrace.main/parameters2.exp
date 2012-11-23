@@ -194,6 +194,21 @@ ltraceParamTest {
     {{hex_double\(0x1.8p\+0\) *= 0x1.4p\+1} == 1}
 }
 
+# Test that "addr" is recognized.
+
+ltraceParamTest {
+    void fun(addr);
+} {
+    #include <stdint.h>
+    void fun(uintptr_t u);
+} {
+    void fun(uintptr_t u) {}
+} {
+    fun(0x1234);
+} {
+    {{fun\(0x1234\) *= <void>} == 1}
+}
+
 # Test that -x fun can find "fun" prototype even if "fun" is in a
 # library.
 
