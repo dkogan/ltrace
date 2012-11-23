@@ -108,9 +108,18 @@ prototype_each_param(struct prototype *proto, struct param *start_after,
 }
 
 void
+named_type_init(struct named_type *named,
+		struct arg_type_info *info, int own_type)
+{
+	named->info = info;
+	named->own_type = own_type;
+	named->forward = 0;
+}
+
+void
 named_type_destroy(struct named_type *named)
 {
-	if (named->owned) {
+	if (named->own_type) {
 		type_destroy(named->info);
 		free(named->info);
 	}
@@ -229,18 +238,32 @@ protolib_add_named_type(struct protolib *plib, const char *name, int own_name,
 struct lookup {
 	const char *name;
 	void *result;
+	struct dict *(*getter)(struct protolib *plib);
 };
 
+static struct dict *
+get_prototypes(struct protolib *plib)
+{
+	return plib->prototypes;
+}
+
+static struct dict *
+get_named_types(struct protolib *plib)
+{
+	return plib->named_types;
+}
+
 static enum callback_status
-lookup_prototype_rec(struct protolib **plibp, void *data)
+protolib_lookup_rec(struct protolib **plibp, void *data)
 {
 	struct lookup *lookup = data;
+	struct dict *dict = (*lookup->getter)(*plibp);
 
-	lookup->result = dict_find_entry((*plibp)->prototypes, lookup->name);
+	lookup->result = dict_find_entry(dict, lookup->name);
 	if (lookup->result != NULL)
 		return CBS_STOP;
 
-	if (each_import(*plibp, NULL, &lookup_prototype_rec, lookup) != NULL) {
+	if (each_import(*plibp, NULL, &protolib_lookup_rec, lookup) != NULL) {
 		assert(lookup->result != NULL);
 		return CBS_STOP;
 	}
@@ -248,16 +271,26 @@ lookup_prototype_rec(struct protolib **plibp, void *data)
 	return CBS_CONT;
 }
 
-struct prototype *
-protolib_lookup_prototype(struct protolib *plib, const char *name)
+static void *
+protolib_lookup(struct protolib *plib, const char *name,
+		struct dict *(*getter)(struct protolib *))
 {
-	struct lookup lookup = { name, NULL };
-	if (lookup_prototype_rec(&plib, &lookup) == CBS_STOP)
+	struct lookup lookup = { name, NULL, getter };
+	if (protolib_lookup_rec(&plib, &lookup) == CBS_STOP)
 		assert(lookup.result != NULL);
 	else
 		assert(lookup.result == NULL);
 	return lookup.result;
 }
 
+struct prototype *
+protolib_lookup_prototype(struct protolib *plib, const char *name)
+{
+	return protolib_lookup(plib, name, &get_prototypes);
+}
+
 struct named_type *
-protolib_lookup_type(struct protolib *plib, const char *name);
+protolib_lookup_type(struct protolib *plib, const char *name)
+{
+	return protolib_lookup(plib, name, &get_named_types);
+}
