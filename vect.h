@@ -96,8 +96,32 @@ int vect_empty(const struct vect *vec);
  * operation was successful, or negative value on error.  */
 int vect_pushback(struct vect *vec, void *eltp);
 
-/* Drop last element of VECP.  */
-void vect_popback(struct vect *vec);
+/* Drop last element of VECP.  This is like calling
+ * vect_erase(VEC, vect_size(VEC)-1, vect_size(VEC), DTOR, DATA);  */
+void vect_popback(struct vect *vec,
+		  void (*dtor)(void *emt, void *data), void *data);
+
+#define VECT_POPBACK(VECP, ELT_TYPE, DTOR, DATA)			\
+	do								\
+		VECT_ERASE((VECP), ELT_TYPE,				\
+			   vect_size(VECP) - 1, vect_size(VECP),	\
+			   DTOR, DATA);					\
+	while (0)
+
+/* Drop elements START (inclusive) to END (non-inclusive) of VECP.  If
+ * DTOR is non-NULL, it is called on each of the removed elements.
+ * DATA is passed verbatim to DTOR.  */
+void vect_erase(struct vect *vec, size_t start, size_t end,
+		void (*dtor)(void *emt, void *data), void *data);
+
+#define VECT_ERASE(VECP, ELT_TYPE, START, END, DTOR, DATA)		\
+	do {								\
+		assert((VECP)->elt_size == sizeof(ELT_TYPE));		\
+		/* Check that DTOR is typed properly.  */		\
+		void (*_dtor_callback)(ELT_TYPE *, void *) = DTOR;	\
+		vect_erase((VECP), (START), (END),			\
+			   (void (*)(void *, void *))_dtor_callback, DATA); \
+	} while (0)
 
 /* Copy element referenced by ELTP to the end of VEC.  See
  * vect_pushback for details.  In addition, make a check whether VECP

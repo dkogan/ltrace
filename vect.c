@@ -129,9 +129,30 @@ vect_pushback(struct vect *vec, void *eltp)
 }
 
 void
-vect_popback(struct vect *vec)
+vect_erase(struct vect *vec, size_t start, size_t end,
+	   void (*dtor)(void *emt, void *data), void *data)
 {
-	vec->size--;
+	assert(start < vect_size(vec) || start == 0);
+	assert(end <= vect_size(vec));
+
+	/* First, destroy the elements that are to be erased.  */
+	if (dtor != NULL) {
+		size_t i;
+		for (i = start; i < end; ++i)
+			dtor(slot(vec, i), data);
+	}
+
+	/* Now move the tail forward and adjust size.  */
+	memmove(slot(vec, start), slot(vec, end), vec->size - end);
+	vec->size -= end - start;
+}
+
+void
+vect_popback(struct vect *vec,
+	     void (*dtor)(void *emt, void *data), void *data)
+{
+	assert(vect_size(vec) > 0);
+	vect_erase(vec, vect_size(vec)-1, vect_size(vec), dtor, data);
 }
 
 void
@@ -140,12 +161,8 @@ vect_destroy(struct vect *vec, void (*dtor)(void *emt, void *data), void *data)
 	if (vec == NULL)
 		return;
 
-	if (dtor != NULL) {
-		size_t i;
-		size_t sz = vect_size(vec);
-		for (i = 0; i < sz; ++i)
-			dtor(slot(vec, i), data);
-	}
+	vect_erase(vec, 0, vect_size(vec), dtor, data);
+	assert(vect_size(vec) == 0);
 	free(vec->data);
 }
 

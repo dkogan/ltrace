@@ -321,7 +321,7 @@ format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 	value_destroy(&element);
 
 done:
-	vect_popback(&pointers);
+	VECT_POPBACK(&pointers, struct value *, NULL, NULL);
 	return o;
 }
 
