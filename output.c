@@ -77,11 +77,10 @@ begin_of_line(struct process *proc, int is_func, int indent)
 	}
 	if (opt_r) {
 		struct timeval tv;
-		struct timezone tz;
 		static struct timeval old_tv = { 0, 0 };
 		struct timeval diff;
 
-		gettimeofday(&tv, &tz);
+		gettimeofday(&tv, NULL);
 
 		if (old_tv.tv_sec == 0 && old_tv.tv_usec == 0) {
 			old_tv.tv_sec = tv.tv_sec;
@@ -102,9 +101,7 @@ begin_of_line(struct process *proc, int is_func, int indent)
 	}
 	if (opt_t) {
 		struct timeval tv;
-		struct timezone tz;
-
-		gettimeofday(&tv, &tz);
+		gettimeofday(&tv, NULL);
 		if (opt_t > 2) {
 			current_column += fprintf(options.output, "%lu.%06d ",
 						  (unsigned long)tv.tv_sec,
