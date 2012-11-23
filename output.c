@@ -38,6 +38,7 @@
 #include "proc.h"
 #include "demangle.h"
 #include "library.h"
+#include "options.h"
 #include "type.h"
 #include "value.h"
 #include "value_dict.h"

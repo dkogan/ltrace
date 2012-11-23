@@ -55,15 +55,8 @@ struct prototype {
 extern struct prototype *list_of_functions;
 extern char *PLTs_initialized_by_here;
 
-struct opt_c_struct {
-	int count;
-	struct timeval tv;
-};
-
 #include "options.h"
 #include "output.h"
-
-extern struct dict *dict_opt_c;
 
 /* Events  */
 extern Event * next_event(void);

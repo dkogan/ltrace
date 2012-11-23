@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009,2010 Joe Damato
  * Copyright (C) 1998,2002,2008 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -74,5 +75,11 @@ struct opt_F_t
 extern struct opt_p_t *opt_p;	/* attach to process with a given pid */
 
 extern struct opt_F_t *opt_F;	/* alternate configuration file(s) */
+
+struct opt_c_struct {
+	int count;
+	struct timeval tv;
+};
+extern struct dict *dict_opt_c;
 
 extern char **process_options(int argc, char **argv);
