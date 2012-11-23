@@ -211,7 +211,8 @@ int proc_activate_delayed_symbol(struct process *proc,
 
 /* Iterate through the libraries of PROC.  See callback.h for notes on
  * iteration interfaces.  */
-struct library *proc_each_library(struct process *proc, struct library *start,
+struct library *proc_each_library(struct process *proc,
+				  struct library *start_after,
 				  enum callback_status (*cb)(struct process *p,
 							     struct library *l,
 							     void *data),
