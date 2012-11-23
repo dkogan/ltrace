@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2006 Ian Wienand
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +20,13 @@
  */
 
 #include "config.h"
+
+#if defined HAVE_LIBSUPC__ || defined HAVE_LIBSTDC__
+# define USE_CXA_DEMANGLE
+#endif
+#if defined HAVE_LIBIBERTY || defined USE_CXA_DEMANGLE
+# define USE_DEMANGLE
+#endif
 
 extern char *cplus_demangle(const char *mangled, int options);
 

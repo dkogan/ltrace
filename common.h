@@ -39,13 +39,6 @@
 #include "proc.h"
 #include "forward.h"
 
-#if defined HAVE_LIBSUPC__ || defined HAVE_LIBSTDC__
-# define USE_CXA_DEMANGLE
-#endif
-#if defined HAVE_LIBIBERTY || defined USE_CXA_DEMANGLE
-# define USE_DEMANGLE
-#endif
-
 extern char * command;
 
 extern int exiting;  /* =1 if we have to exit ASAP */
@@ -69,9 +62,6 @@ struct opt_c_struct {
 
 #include "options.h"
 #include "output.h"
-#ifdef USE_DEMANGLE
-#include "demangle.h"
-#endif
 
 extern struct dict *dict_opt_c;
 

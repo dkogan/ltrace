@@ -26,7 +26,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "common.h"
+#include "demangle.h"
+#include "dict.h"
+#include "debug.h"
 
 #ifdef USE_DEMANGLE
 

@@ -39,6 +39,7 @@
 #include "common.h"
 #include "filter.h"
 #include "glob.h"
+#include "demangle.h"
 
 #ifndef SYSCONFDIR
 #define SYSCONFDIR "/etc"

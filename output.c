@@ -36,6 +36,7 @@
 
 #include "common.h"
 #include "proc.h"
+#include "demangle.h"
 #include "library.h"
 #include "type.h"
 #include "value.h"
