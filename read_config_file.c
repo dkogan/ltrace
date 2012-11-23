@@ -1256,6 +1256,28 @@ process_line(char *buf, struct protolib *plib)
 }
 
 void
+read_config_file(char *file)
+{
+	FILE *stream;
+
+	filename = file;
+	stream = fopen(filename, "r");
+	if (!stream) {
+		return;
+	}
+
+	debug(1, "Reading config file `%s'...", filename);
+
+	line_no = 0;
+	char *line = NULL;
+	size_t len = 0;
+	while (getline(&line, &len, stream) >= 0)
+		process_line(line, &g_prototypes);
+	free(line);
+	fclose(stream);
+}
+
+void
 init_global_config(void)
 {
 	protolib_init(&g_prototypes);
@@ -1280,26 +1302,4 @@ void
 destroy_global_config(void)
 {
 	protolib_destroy(&g_prototypes);
-}
-
-void
-read_config_file(char *file)
-{
-	FILE *stream;
-
-	filename = file;
-	stream = fopen(filename, "r");
-	if (!stream) {
-		return;
-	}
-
-	debug(1, "Reading config file `%s'...", filename);
-
-	line_no = 0;
-	char *line = NULL;
-	size_t len = 0;
-	while (getline(&line, &len, stream) >= 0)
-		process_line(line, &g_prototypes);
-	free(line);
-	fclose(stream);
 }
