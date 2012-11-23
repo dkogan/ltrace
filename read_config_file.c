@@ -350,6 +350,7 @@ parse_argnum(char **str, int *ownp, int zero)
 			struct expr_node *ret = parse_zero(str, expr, ownp);
 			if (ret == NULL)
 				goto fail_ident;
+			free(name);
 			return ret;
 
 		} else {
@@ -456,10 +457,8 @@ parse_typedef(char **str)
 
 	// Skip = sign
 	eat_spaces(str);
-	if (parse_char(str, '=') < 0) {
-		free(name);
-		return;
-	}
+	if (parse_char(str, '=') < 0)
+		goto err;
 	eat_spaces(str);
 
 	struct typedef_node_t *this_td = new_typedef(name, NULL, 0);
@@ -469,8 +468,7 @@ parse_typedef(char **str)
 	this_td->info = parse_lens(str, NULL, 0, &this_td->own_type, this_td);
 	if (this_td->info == NULL) {
 		free(this_td);
-		free(name);
-		return;
+		goto err;
 	}
 
 	if (forward == NULL) {
