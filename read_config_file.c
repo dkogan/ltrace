@@ -1290,7 +1290,13 @@ init_global_config(void)
 }
 
 void
-read_config_file(char *file) {
+destroy_global_config(void)
+{
+}
+
+void
+read_config_file(char *file)
+{
 	FILE *stream;
 	char buf[1024];
 

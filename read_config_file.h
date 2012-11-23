@@ -19,5 +19,6 @@
  * 02110-1301 USA
  */
 
-extern void read_config_file(char *);
-extern void init_global_config(void);
+void read_config_file(char *);
+void init_global_config(void);
+void destroy_global_config(void);

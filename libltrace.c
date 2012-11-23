@@ -91,6 +91,7 @@ normal_exit(void)
 {
 	if (options.summary) {
 		show_summary();
+		destroy_global_config();
 	}
 	if (options.output) {
 		fclose(options.output);
