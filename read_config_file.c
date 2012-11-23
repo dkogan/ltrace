@@ -1306,20 +1306,12 @@ init_global_config(void)
 {
 	protolib_init(&g_prototypes);
 
-	struct arg_type_info *info = malloc(2 * sizeof(*info));
-	if (info == NULL) {
-		fprintf(stderr, "Couldn't allocate memory for aliases: %s.\n",
-			strerror(errno));
-		exit(1);
-	}
+	struct arg_type_info *void_info = type_get_simple(ARGTYPE_VOID);
+	static struct arg_type_info ptr_info;
+	type_init_pointer(&ptr_info, void_info, 0);
 
-	memset(info, 0, 2 * sizeof(*info));
-	info[0].type = ARGTYPE_POINTER;
-	info[0].u.ptr_info.info = &info[1];
-	info[1].type = ARGTYPE_VOID;
-
-	insert_typedef(new_typedef(strdup("addr"), info, 0));
-	insert_typedef(new_typedef(strdup("file"), info, 1));
+	insert_typedef(new_typedef(strdup("addr"), &ptr_info, 0));
+	insert_typedef(new_typedef(strdup("file"), &ptr_info, 0));
 }
 
 void
