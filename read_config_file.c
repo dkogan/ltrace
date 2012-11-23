@@ -65,21 +65,19 @@ struct locus
 	int line_no;
 };
 
-struct typedef_node_t;
-
 static struct arg_type_info *parse_nonpointer_type(struct locus *loc,
 						   char **str,
 						   struct param **extra_param,
-						   size_t param_num, int *ownp,
-						   struct typedef_node_t *td);
+						   size_t param_num,
+						   int *ownp, int *forwardp);
 static struct arg_type_info *parse_type(struct locus *loc,
 					char **str, struct param **extra_param,
 					size_t param_num, int *ownp,
-					struct typedef_node_t *in_typedef);
+					int *forwardp);
 static struct arg_type_info *parse_lens(struct locus *loc,
 					char **str, struct param **extra_param,
 					size_t param_num, int *ownp,
-					struct typedef_node_t *in_typedef);
+					int *forwardp);
 static int parse_enum(struct locus *loc,
 		      char **str, struct arg_type_info **retp, int *ownp);
 
@@ -390,24 +388,6 @@ fail:
 	return NULL;
 }
 
-struct typedef_node_t {
-	char *name;
-	struct arg_type_info *info;
-	int own_type;
-	int forward : 1;
-	struct typedef_node_t *next;
-} *typedefs = NULL;
-
-static struct typedef_node_t *
-lookup_typedef(const char *name)
-{
-	struct typedef_node_t *node;
-	for (node = typedefs; node != NULL; node = node->next)
-		if (strcmp(name, node->name) == 0)
-			return node;
-	return NULL;
-}
-
 static struct arg_type_info *
 parse_typedef_name(char **str)
 {
@@ -423,36 +403,13 @@ parse_typedef_name(char **str)
 	*str += len;
 	buf[len] = 0;
 
-	struct typedef_node_t *td = lookup_typedef(buf);
-	if (td == NULL)
+	struct named_type *nt = protolib_lookup_type(&g_prototypes, buf);
+	if (nt == NULL)
 		return NULL;
-	return td->info;
+	return nt->info;
 }
 
-static void
-insert_typedef(struct typedef_node_t *td)
-{
-	if (td == NULL)
-		return;
-	td->next = typedefs;
-	typedefs = td;
-}
-
-static struct typedef_node_t *
-new_typedef(char *name, struct arg_type_info *info, int own_type)
-{
-	struct typedef_node_t *binding = malloc(sizeof(*binding));
-	if (binding == NULL)
-		return NULL;
-	binding->name = name;
-	binding->info = info;
-	binding->own_type = own_type;
-	binding->forward = 0;
-	binding->next = NULL;
-	return binding;
-}
-
-static void
+static int
 parse_typedef(struct locus *loc, char **str)
 {
 	(*str) += strlen("typedef");
@@ -462,7 +419,7 @@ parse_typedef(struct locus *loc, char **str)
 	/* Look through the typedef list whether we already have a
 	 * forward of this type.  If we do, it must be forward
 	 * structure.  */
-	struct typedef_node_t *forward = lookup_typedef(name);
+	struct named_type *forward = protolib_lookup_type(&g_prototypes, name);
 	if (forward != NULL
 	    && (forward->info->type != ARGTYPE_STRUCT
 		|| !forward->forward)) {
@@ -470,7 +427,7 @@ parse_typedef(struct locus *loc, char **str)
 			     "Redefinition of typedef '%s'", name);
 	err:
 		free(name);
-		return;
+		return -1;
 	}
 
 	// Skip = sign
@@ -479,58 +436,64 @@ parse_typedef(struct locus *loc, char **str)
 		goto err;
 	eat_spaces(str);
 
-	struct typedef_node_t *this_td = new_typedef(name, NULL, 0);
-	if (this_td == NULL)
-		goto err;
-
-	this_td->info = parse_lens(loc, str, NULL, 0,
-				   &this_td->own_type, this_td);
-	if (this_td->info == NULL) {
-		free(this_td);
+	struct named_type *this_nt = malloc(sizeof(*this_nt));
+	if (this_nt == NULL) {
+		free(this_nt);
 		goto err;
 	}
 
+	int fwd = 0;
+	int own = 0;
+	struct arg_type_info *info = parse_lens(loc, str, NULL, 0, &own, &fwd);
+	if (info == NULL) {
+		free(this_nt);
+		goto err;
+	}
+	named_type_init(this_nt, info, own);
+	this_nt->forward = fwd;
+
 	if (forward == NULL) {
-		insert_typedef(this_td);
-		return;
+		if (protolib_add_named_type(&g_prototypes, name,
+					    1, this_nt) < 0) {
+		err2:
+			named_type_destroy(this_nt);
+			free(this_nt);
+			return -1;
+		}
+		return 0;
 	}
 
 	/* If we are defining a forward, make sure the definition is a
 	 * structure as well.  */
-	if (this_td->info->type != ARGTYPE_STRUCT) {
+	if (this_nt->info->type != ARGTYPE_STRUCT) {
 		report_error(loc->filename, loc->line_no,
 			     "Definition of forward '%s' must be a structure.",
 			     name);
-		if (this_td->own_type) {
-			type_destroy(this_td->info);
-			free(this_td->info);
-		}
-		free(this_td);
-		free(name);
-		return;
+		goto err2;
 	}
 
-	/* Now move guts of the actual type over to the
-	 * forward type.  We can't just move pointers around,
-	 * because references to forward must stay intact.  */
-	assert(this_td->own_type);
+	/* Now move guts of the actual type over to the forward type.
+	 * We can't just move pointers around, because references to
+	 * forward must stay intact.  */
+	assert(this_nt->own_type);
 	type_destroy(forward->info);
-	*forward->info = *this_td->info;
+	*forward->info = *this_nt->info;
 	forward->forward = 0;
-	free(this_td->info);
+	free(this_nt->info);
 	free(name);
-	free(this_td);
+	free(this_nt);
+	return 0;
 }
 
 /* Syntax: struct ( type,type,type,... ) */
 static int
 parse_struct(struct locus *loc, char **str, struct arg_type_info *info,
-	     struct typedef_node_t *in_typedef)
+	     int *forwardp)
 {
 	eat_spaces(str);
 
 	if (**str == ';') {
-		if (in_typedef == NULL) {
+		if (forwardp == NULL) {
 			report_error(loc->filename, loc->line_no,
 				     "Forward struct can be declared only "
 				     "directly after a typedef.");
@@ -540,7 +503,7 @@ parse_struct(struct locus *loc, char **str, struct arg_type_info *info,
 		/* Forward declaration is currently handled as an
 		 * empty struct.  */
 		type_init_struct(info);
-		in_typedef->forward = 1;
+		*forwardp = 1;
 		return 0;
 	}
 
@@ -910,7 +873,7 @@ parse_enum(struct locus *loc, char **str,
 static struct arg_type_info *
 parse_nonpointer_type(struct locus *loc,
 		      char **str, struct param **extra_param, size_t param_num,
-		      int *ownp, struct typedef_node_t *in_typedef)
+		      int *ownp, int *forwardp)
 {
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
@@ -972,7 +935,7 @@ parse_nonpointer_type(struct locus *loc,
 		}
 	} else {
 		assert(type == ARGTYPE_STRUCT);
-		if (parse_struct(loc, str, info, in_typedef) < 0)
+		if (parse_struct(loc, str, info, forwardp) < 0)
 			goto fail;
 	}
 
@@ -1007,11 +970,11 @@ name2lens(char **str, int *own_lensp)
 
 static struct arg_type_info *
 parse_type(struct locus *loc, char **str, struct param **extra_param,
-	   size_t param_num, int *ownp, struct typedef_node_t *in_typedef)
+	   size_t param_num, int *ownp, int *forwardp)
 {
 	struct arg_type_info *info
 		= parse_nonpointer_type(loc, str, extra_param,
-					param_num, ownp, in_typedef);
+					param_num, ownp, forwardp);
 	if (info == NULL)
 		return NULL;
 
@@ -1040,7 +1003,7 @@ parse_type(struct locus *loc, char **str, struct param **extra_param,
 
 static struct arg_type_info *
 parse_lens(struct locus *loc, char **str, struct param **extra_param,
-	   size_t param_num, int *ownp, struct typedef_node_t *in_typedef)
+	   size_t param_num, int *ownp, int *forwardp)
 {
 	int own_lens;
 	struct lens *lens = name2lens(str, &own_lens);
@@ -1064,8 +1027,8 @@ parse_lens(struct locus *loc, char **str, struct param **extra_param,
 
 	if (has_args) {
 		eat_spaces(str);
-		info = parse_type(loc, str, extra_param, param_num, ownp,
-				  in_typedef);
+		info = parse_type(loc, str, extra_param, param_num,
+				  ownp, forwardp);
 		if (info == NULL) {
 		fail:
 			if (own_lens && lens != NULL)
@@ -1310,8 +1273,17 @@ init_global_config(void)
 	static struct arg_type_info ptr_info;
 	type_init_pointer(&ptr_info, void_info, 0);
 
-	insert_typedef(new_typedef(strdup("addr"), &ptr_info, 0));
-	insert_typedef(new_typedef(strdup("file"), &ptr_info, 0));
+	static struct named_type voidptr_type;
+	named_type_init(&voidptr_type, &ptr_info, 0);
+
+	if (protolib_add_named_type(&g_prototypes, "addr", 0,
+				    &voidptr_type) < 0
+	    || protolib_add_named_type(&g_prototypes, "file", 0,
+				       &voidptr_type) < 0) {
+		fprintf(stderr,
+			"Couldn't initialize aliases `addr' and `file'.\n");
+		exit(1);
+	}
 }
 
 void
