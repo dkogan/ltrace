@@ -35,6 +35,7 @@
 #include "proc.h"
 #include "read_config_file.h"
 #include "backend.h"
+#include "prototype.h"
 
 char *command = NULL;
 
@@ -123,10 +124,10 @@ ltrace_init(int argc, char **argv) {
 				path[PATH_MAX - 1] = '\0';
 				strncat(path, opt_F->filename + 1,
 						PATH_MAX - strlen(path) - 1);
-				read_config_file(path);
+				read_config_file(&g_prototypes, path);
 			}
 		} else {
-			read_config_file(opt_F->filename);
+			read_config_file(&g_prototypes, opt_F->filename);
 		}
 
 		struct opt_F_t *next = opt_F->next;

@@ -30,6 +30,8 @@ struct library_symbol;
 struct ltelf;
 struct param;
 struct param_enum;
+struct protolib;
+struct prototype;
 struct value;
 struct value_dict;
 struct filter;

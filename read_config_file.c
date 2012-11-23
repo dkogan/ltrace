@@ -59,21 +59,29 @@
 #define CTYPE_CONV(CH) \
   (sizeof(CH) == sizeof(unsigned char) ? (int)(unsigned char)(CH) : (int)(CH))
 
-static int line_no;
-static char *filename;
+struct locus
+{
+	const char *filename;
+	int line_no;
+};
+
 struct typedef_node_t;
 
-static struct arg_type_info *parse_nonpointer_type(char **str,
+static struct arg_type_info *parse_nonpointer_type(struct locus *loc,
+						   char **str,
 						   struct param **extra_param,
 						   size_t param_num, int *ownp,
 						   struct typedef_node_t *td);
-static struct arg_type_info *parse_type(char **str, struct param **extra_param,
+static struct arg_type_info *parse_type(struct locus *loc,
+					char **str, struct param **extra_param,
 					size_t param_num, int *ownp,
 					struct typedef_node_t *in_typedef);
-static struct arg_type_info *parse_lens(char **str, struct param **extra_param,
+static struct arg_type_info *parse_lens(struct locus *loc,
+					char **str, struct param **extra_param,
 					size_t param_num, int *ownp,
 					struct typedef_node_t *in_typedef);
-static int parse_enum(char **str, struct arg_type_info **retp, int *ownp);
+static int parse_enum(struct locus *loc,
+		      char **str, struct arg_type_info **retp, int *ownp);
 
 struct prototype *list_of_functions = NULL;
 
@@ -143,11 +151,12 @@ xstrndup(char *str, size_t len) {
 }
 
 static char *
-parse_ident(char **str) {
+parse_ident(struct locus *loc, char **str)
+{
 	char *ident = *str;
 
 	if (!isalpha(CTYPE_CONV(**str)) && **str != '_') {
-		report_error(filename, line_no, "bad identifier");
+		report_error(loc->filename, loc->line_no, "bad identifier");
 		return NULL;
 	}
 
@@ -191,12 +200,12 @@ start_of_arg_sig(char *str) {
 }
 
 static int
-parse_int(char **str, long *ret)
+parse_int(struct locus *loc, char **str, long *ret)
 {
 	char *end;
 	long n = strtol(*str, &end, 0);
 	if (end == *str) {
-		report_error(filename, line_no, "bad number");
+		report_error(loc->filename, loc->line_no, "bad number");
 		return -1;
 	}
 
@@ -207,10 +216,10 @@ parse_int(char **str, long *ret)
 }
 
 static int
-check_nonnegative(long l)
+check_nonnegative(struct locus *loc, long l)
 {
 	if (l < 0) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "expected non-negative value, got %ld", l);
 		return -1;
 	}
@@ -218,11 +227,11 @@ check_nonnegative(long l)
 }
 
 static int
-check_int(long l)
+check_int(struct locus *loc, long l)
 {
 	int i = l;
 	if ((long)i != l) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "Number too large: %ld", l);
 		return -1;
 	}
@@ -230,10 +239,10 @@ check_int(long l)
 }
 
 static int
-parse_char(char **str, char expected)
+parse_char(struct locus *loc, char **str, char expected)
 {
 	if (**str != expected) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "expected '%c', got '%c'", expected, **str);
 		return -1;
 	}
@@ -242,19 +251,20 @@ parse_char(char **str, char expected)
 	return 0;
 }
 
-static struct expr_node *parse_argnum(char **str, int *ownp, int zero);
+static struct expr_node *parse_argnum(struct locus *loc,
+				      char **str, int *ownp, int zero);
 
 static struct expr_node *
-parse_zero(char **str, struct expr_node *ret, int *ownp)
+parse_zero(struct locus *loc, char **str, struct expr_node *ret, int *ownp)
 {
 	eat_spaces(str);
 	if (**str == '(') {
 		++*str;
 		int own;
-		struct expr_node *arg = parse_argnum(str, &own, 0);
+		struct expr_node *arg = parse_argnum(loc, str, &own, 0);
 		if (arg == NULL)
 			return NULL;
-		if (parse_char(str, ')') < 0) {
+		if (parse_char(loc, str, ')') < 0) {
 		fail:
 			expr_destroy(arg);
 			free(arg);
@@ -292,7 +302,7 @@ wrap_in_zero(struct expr_node **nodep)
  *  N      : The numeric value N
  */
 static struct expr_node *
-parse_argnum(char **str, int *ownp, int zero)
+parse_argnum(struct locus *loc, char **str, int *ownp, int zero)
 {
 	struct expr_node *expr = malloc(sizeof(*expr));
 	if (expr == NULL)
@@ -300,9 +310,9 @@ parse_argnum(char **str, int *ownp, int zero)
 
 	if (isdigit(CTYPE_CONV(**str))) {
 		long l;
-		if (parse_int(str, &l) < 0
-		    || check_nonnegative(l) < 0
-		    || check_int(l) < 0)
+		if (parse_int(loc, str, &l) < 0
+		    || check_nonnegative(loc, l) < 0
+		    || check_int(loc, l) < 0)
 			goto fail;
 
 		expr_init_const_word(expr, l, type_get_simple(ARGTYPE_LONG), 0);
@@ -314,7 +324,7 @@ parse_argnum(char **str, int *ownp, int zero)
 		return expr;
 
 	} else {
-		char *const name = parse_ident(str);
+		char *const name = parse_ident(loc, str);
 		if (name == NULL) {
 		fail_ident:
 			free(name);
@@ -325,7 +335,8 @@ parse_argnum(char **str, int *ownp, int zero)
 		if (is_arg || strncmp(name, "elt", 3) == 0) {
 			long l;
 			char *num = name + 3;
-			if (parse_int(&num, &l) < 0 || check_int(l) < 0)
+			if (parse_int(loc, &num, &l) < 0
+			    || check_int(loc, l) < 0)
 				goto fail_ident;
 
 			if (is_arg) {
@@ -353,14 +364,15 @@ parse_argnum(char **str, int *ownp, int zero)
 			expr_init_named(expr, "retval", 0);
 
 		} else if (strcmp(name, "zero") == 0) {
-			struct expr_node *ret = parse_zero(str, expr, ownp);
+			struct expr_node *ret
+				= parse_zero(loc, str, expr, ownp);
 			if (ret == NULL)
 				goto fail_ident;
 			free(name);
 			return ret;
 
 		} else {
-			report_error(filename, line_no,
+			report_error(loc->filename, loc->line_no,
 				     "Unknown length specifier: '%s'", name);
 			goto fail_ident;
 		}
@@ -441,11 +453,11 @@ new_typedef(char *name, struct arg_type_info *info, int own_type)
 }
 
 static void
-parse_typedef(char **str)
+parse_typedef(struct locus *loc, char **str)
 {
 	(*str) += strlen("typedef");
 	eat_spaces(str);
-	char *name = parse_ident(str);
+	char *name = parse_ident(loc, str);
 
 	/* Look through the typedef list whether we already have a
 	 * forward of this type.  If we do, it must be forward
@@ -454,7 +466,7 @@ parse_typedef(char **str)
 	if (forward != NULL
 	    && (forward->info->type != ARGTYPE_STRUCT
 		|| !forward->forward)) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "Redefinition of typedef '%s'", name);
 	err:
 		free(name);
@@ -463,7 +475,7 @@ parse_typedef(char **str)
 
 	// Skip = sign
 	eat_spaces(str);
-	if (parse_char(str, '=') < 0)
+	if (parse_char(loc, str, '=') < 0)
 		goto err;
 	eat_spaces(str);
 
@@ -471,7 +483,8 @@ parse_typedef(char **str)
 	if (this_td == NULL)
 		goto err;
 
-	this_td->info = parse_lens(str, NULL, 0, &this_td->own_type, this_td);
+	this_td->info = parse_lens(loc, str, NULL, 0,
+				   &this_td->own_type, this_td);
 	if (this_td->info == NULL) {
 		free(this_td);
 		goto err;
@@ -485,7 +498,7 @@ parse_typedef(char **str)
 	/* If we are defining a forward, make sure the definition is a
 	 * structure as well.  */
 	if (this_td->info->type != ARGTYPE_STRUCT) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "Definition of forward '%s' must be a structure.",
 			     name);
 		if (this_td->own_type) {
@@ -511,14 +524,14 @@ parse_typedef(char **str)
 
 /* Syntax: struct ( type,type,type,... ) */
 static int
-parse_struct(char **str, struct arg_type_info *info,
+parse_struct(struct locus *loc, char **str, struct arg_type_info *info,
 	     struct typedef_node_t *in_typedef)
 {
 	eat_spaces(str);
 
 	if (**str == ';') {
 		if (in_typedef == NULL) {
-			report_error(filename, line_no,
+			report_error(loc->filename, loc->line_no,
 				     "Forward struct can be declared only "
 				     "directly after a typedef.");
 			return -1;
@@ -531,7 +544,7 @@ parse_struct(char **str, struct arg_type_info *info,
 		return 0;
 	}
 
-	if (parse_char(str, '(') < 0)
+	if (parse_char(loc, str, '(') < 0)
 		return -1;
 
 	eat_spaces(str); // Empty arg list with whitespace inside
@@ -541,18 +554,18 @@ parse_struct(char **str, struct arg_type_info *info,
 	while (1) {
 		eat_spaces(str);
 		if (**str == 0 || **str == ')') {
-			parse_char(str, ')');
+			parse_char(loc, str, ')');
 			return 0;
 		}
 
 		/* Field delimiter.  */
 		if (type_struct_size(info) > 0)
-			parse_char(str, ',');
+			parse_char(loc, str, ',');
 
 		eat_spaces(str);
 		int own;
-		struct arg_type_info *field = parse_lens(str, NULL, 0, &own,
-							 NULL);
+		struct arg_type_info *field
+			= parse_lens(loc, str, NULL, 0, &own, NULL);
 		if (field == NULL || type_struct_add(info, field, own)) {
 			type_destroy(info);
 			return -1;
@@ -561,7 +574,8 @@ parse_struct(char **str, struct arg_type_info *info,
 }
 
 static int
-parse_string(char **str, struct arg_type_info **retp, int *ownp)
+parse_string(struct locus *loc,
+	     char **str, struct arg_type_info **retp, int *ownp)
 {
 	struct arg_type_info *info = malloc(sizeof(*info) * 2);
 	if (info == NULL) {
@@ -578,8 +592,8 @@ parse_string(char **str, struct arg_type_info **retp, int *ownp)
 		/* string0 is string[retval], length is zero(retval)
 		 * stringN is string[argN], length is zero(argN) */
 		long l;
-		if (parse_int(str, &l) < 0
-		    || check_int(l) < 0)
+		if (parse_int(loc, str, &l) < 0
+		    || check_int(loc, l) < 0)
 			goto fail;
 
 		struct expr_node *length_arg = malloc(sizeof(*length_arg));
@@ -605,12 +619,12 @@ parse_string(char **str, struct arg_type_info **retp, int *ownp)
 			(*str)++;
 			eat_spaces(str);
 
-			length = parse_argnum(str, &own_length, 1);
+			length = parse_argnum(loc, str, &own_length, 1);
 			if (length == NULL)
 				goto fail;
 
 			eat_spaces(str);
-			parse_char(str, ']');
+			parse_char(loc, str, ']');
 
 		} else if (**str == '(') {
 			/* Usage of "string" as lens.  */
@@ -619,12 +633,12 @@ parse_string(char **str, struct arg_type_info **retp, int *ownp)
 			free(info);
 
 			eat_spaces(str);
-			info = parse_type(str, NULL, 0, ownp, NULL);
+			info = parse_type(loc, str, NULL, 0, ownp, NULL);
 			if (info == NULL)
 				goto fail;
 
 			eat_spaces(str);
-			parse_char(str, ')');
+			parse_char(loc, str, ')');
 
 			with_arg = 1;
 
@@ -652,15 +666,15 @@ parse_string(char **str, struct arg_type_info **retp, int *ownp)
 }
 
 static int
-build_printf_pack(struct param **packp, size_t param_num)
+build_printf_pack(struct locus *loc, struct param **packp, size_t param_num)
 {
 	if (packp == NULL) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "'format' type in unexpected context");
 		return -1;
 	}
 	if (*packp != NULL) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "only one 'format' type per function supported");
 		return -1;
 	}
@@ -699,14 +713,14 @@ try_parse_kwd(char **str, const char *kwd)
 /* Make a copy of INFO and set the *OWN bit if it's not already
  * owned.  */
 static int
-unshare_type_info(struct arg_type_info **infop, int *ownp)
+unshare_type_info(struct locus *loc, struct arg_type_info **infop, int *ownp)
 {
 	if (*ownp)
 		return 0;
 
 	struct arg_type_info *ninfo = malloc(sizeof(*ninfo));
 	if (ninfo == NULL) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "malloc: %s", strerror(errno));
 		return -1;
 	}
@@ -721,7 +735,8 @@ unshare_type_info(struct arg_type_info **infop, int *ownp)
  * latter is only valid if the former is non-NULL, which is only in
  * top-level context.  */
 static int
-parse_alias(char **str, struct arg_type_info **retp, int *ownp,
+parse_alias(struct locus *loc,
+	    char **str, struct arg_type_info **retp, int *ownp,
 	    struct param **extra_param, size_t param_num)
 {
 	/* For backward compatibility, we need to support things like
@@ -731,7 +746,7 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp,
 	 * "string" is syntax.  */
 	if (strncmp(*str, "string", 6) == 0) {
 		(*str) += 6;
-		return parse_string(str, retp, ownp);
+		return parse_string(loc, str, retp, ownp);
 
 	} else if (try_parse_kwd(str, "format") >= 0
 		   && extra_param != NULL) {
@@ -739,14 +754,14 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp,
 		 * "string", but it smuggles to the parameter list of
 		 * a function a "printf" argument pack with this
 		 * parameter as argument.  */
-		if (parse_string(str, retp, ownp) < 0)
+		if (parse_string(loc, str, retp, ownp) < 0)
 			return -1;
 
-		return build_printf_pack(extra_param, param_num);
+		return build_printf_pack(loc, extra_param, param_num);
 
 	} else if (try_parse_kwd(str, "enum") >=0) {
 
-		return parse_enum(str, retp, ownp);
+		return parse_enum(loc, str, retp, ownp);
 
 	} else {
 		*retp = NULL;
@@ -756,24 +771,25 @@ parse_alias(char **str, struct arg_type_info **retp, int *ownp,
 
 /* Syntax: array ( type, N|argN ) */
 static int
-parse_array(char **str, struct arg_type_info *info)
+parse_array(struct locus *loc, char **str, struct arg_type_info *info)
 {
 	eat_spaces(str);
-	if (parse_char(str, '(') < 0)
+	if (parse_char(loc, str, '(') < 0)
 		return -1;
 
 	eat_spaces(str);
 	int own;
-	struct arg_type_info *elt_info = parse_lens(str, NULL, 0, &own, NULL);
+	struct arg_type_info *elt_info
+		= parse_lens(loc, str, NULL, 0, &own, NULL);
 	if (elt_info == NULL)
 		return -1;
 
 	eat_spaces(str);
-	parse_char(str, ',');
+	parse_char(loc, str, ',');
 
 	eat_spaces(str);
 	int own_length;
-	struct expr_node *length = parse_argnum(str, &own_length, 0);
+	struct expr_node *length = parse_argnum(loc, str, &own_length, 0);
 	if (length == NULL) {
 		if (own) {
 			type_destroy(elt_info);
@@ -785,7 +801,7 @@ parse_array(char **str, struct arg_type_info *info)
 	type_init_array(info, elt_info, own, length, own_length);
 
 	eat_spaces(str);
-	parse_char(str, ')');
+	parse_char(loc, str, ')');
 	return 0;
 }
 
@@ -794,19 +810,20 @@ parse_array(char **str, struct arg_type_info *info)
  *   enum<type> (keyname[=value],keyname[=value],... )
  */
 static int
-parse_enum(char **str, struct arg_type_info **retp, int *ownp)
+parse_enum(struct locus *loc, char **str,
+	   struct arg_type_info **retp, int *ownp)
 {
 	/* Optional type argument.  */
 	eat_spaces(str);
 	if (**str == '[') {
-		parse_char(str, '[');
+		parse_char(loc, str, '[');
 		eat_spaces(str);
-		*retp = parse_nonpointer_type(str, NULL, 0, ownp, 0);
+		*retp = parse_nonpointer_type(loc, str, NULL, 0, ownp, 0);
 		if (*retp == NULL)
 			return -1;
 
 		if (!type_is_integral((*retp)->type)) {
-			report_error(filename, line_no,
+			report_error(loc->filename, loc->line_no,
 				     "integral type required as enum argument");
 		fail:
 			if (*ownp) {
@@ -819,7 +836,7 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 		}
 
 		eat_spaces(str);
-		if (parse_char(str, ']') < 0)
+		if (parse_char(loc, str, ']') < 0)
 			goto fail;
 
 	} else {
@@ -828,16 +845,16 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 	}
 
 	/* We'll need to set the lens, so unshare.  */
-	if (unshare_type_info(retp, ownp) < 0)
+	if (unshare_type_info(loc, retp, ownp) < 0)
 		goto fail;
 
 	eat_spaces(str);
-	if (parse_char(str, '(') < 0)
+	if (parse_char(loc, str, '(') < 0)
 		goto fail;
 
 	struct enum_lens *lens = malloc(sizeof(*lens));
 	if (lens == NULL) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "malloc enum lens: %s", strerror(errno));
 		return -1;
 	}
@@ -850,7 +867,7 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 	while (1) {
 		eat_spaces(str);
 		if (**str == 0 || **str == ')') {
-			parse_char(str, ')');
+			parse_char(loc, str, ')');
 			return 0;
 		}
 
@@ -858,10 +875,10 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 		 * syntax, where the enumeration can end in pending
 		 * comma?  */
 		if (lens_enum_size(lens) > 0)
-			parse_char(str, ',');
+			parse_char(loc, str, ',');
 
 		eat_spaces(str);
-		char *key = parse_ident(str);
+		char *key = parse_ident(loc, str);
 		if (key == NULL) {
 		err:
 			free(key);
@@ -871,7 +888,7 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 		if (**str == '=') {
 			++*str;
 			eat_spaces(str);
-			if (parse_int(str, &last_val) < 0)
+			if (parse_int(loc, str, &last_val) < 0)
 				goto err;
 		}
 
@@ -891,13 +908,15 @@ parse_enum(char **str, struct arg_type_info **retp, int *ownp)
 }
 
 static struct arg_type_info *
-parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
+parse_nonpointer_type(struct locus *loc,
+		      char **str, struct param **extra_param, size_t param_num,
 		      int *ownp, struct typedef_node_t *in_typedef)
 {
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
 		struct arg_type_info *simple;
-		if (parse_alias(str, &simple, ownp, extra_param, param_num) < 0)
+		if (parse_alias(loc, str, &simple,
+				ownp, extra_param, param_num) < 0)
 			return NULL;
 		if (simple == NULL)
 			simple = parse_typedef_name(str);
@@ -906,7 +925,7 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 			return simple;
 		}
 
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "unknown type around '%s'", *str);
 		return NULL;
 	}
@@ -939,21 +958,21 @@ parse_nonpointer_type(char **str, struct param **extra_param, size_t param_num,
 
 	struct arg_type_info *info = malloc(sizeof(*info));
 	if (info == NULL) {
-		report_error(filename, line_no,
+		report_error(loc->filename, loc->line_no,
 			     "malloc: %s", strerror(errno));
 		return NULL;
 	}
 	*ownp = 1;
 
 	if (type == ARGTYPE_ARRAY) {
-		if (parse_array(str, info) < 0) {
+		if (parse_array(loc, str, info) < 0) {
 		fail:
 			free(info);
 			return NULL;
 		}
 	} else {
 		assert(type == ARGTYPE_STRUCT);
-		if (parse_struct(str, info, in_typedef) < 0)
+		if (parse_struct(loc, str, info, in_typedef) < 0)
 			goto fail;
 	}
 
@@ -987,11 +1006,11 @@ name2lens(char **str, int *own_lensp)
 }
 
 static struct arg_type_info *
-parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp,
-	   struct typedef_node_t *in_typedef)
+parse_type(struct locus *loc, char **str, struct param **extra_param,
+	   size_t param_num, int *ownp, struct typedef_node_t *in_typedef)
 {
 	struct arg_type_info *info
-		= parse_nonpointer_type(str, extra_param,
+		= parse_nonpointer_type(loc, str, extra_param,
 					param_num, ownp, in_typedef);
 	if (info == NULL)
 		return NULL;
@@ -1005,7 +1024,7 @@ parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp,
 					type_destroy(info);
 					free(info);
 				}
-				report_error(filename, line_no,
+				report_error(loc->filename, loc->line_no,
 					     "malloc: %s", strerror(errno));
 				return NULL;
 			}
@@ -1020,8 +1039,8 @@ parse_type(char **str, struct param **extra_param, size_t param_num, int *ownp,
 }
 
 static struct arg_type_info *
-parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp,
-	   struct typedef_node_t *in_typedef)
+parse_lens(struct locus *loc, char **str, struct param **extra_param,
+	   size_t param_num, int *ownp, struct typedef_node_t *in_typedef)
 {
 	int own_lens;
 	struct lens *lens = name2lens(str, &own_lens);
@@ -1036,8 +1055,8 @@ parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp,
 			has_args = 0;
 			info = type_get_simple(ARGTYPE_INT);
 			*ownp = 0;
-		} else if (parse_char(str, '(') < 0) {
-			report_error(filename, line_no,
+		} else if (parse_char(loc, str, '(') < 0) {
+			report_error(loc->filename, loc->line_no,
 				     "expected type argument after the lens");
 			return NULL;
 		}
@@ -1045,7 +1064,7 @@ parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp,
 
 	if (has_args) {
 		eat_spaces(str);
-		info = parse_type(str, extra_param, param_num, ownp,
+		info = parse_type(loc, str, extra_param, param_num, ownp,
 				  in_typedef);
 		if (info == NULL) {
 		fail:
@@ -1057,12 +1076,12 @@ parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp,
 
 	if (lens != NULL && has_args) {
 		eat_spaces(str);
-		parse_char(str, ')');
+		parse_char(loc, str, ')');
 	}
 
 	/* We can't modify shared types.  Make a copy if we have a
 	 * lens.  */
-	if (lens != NULL && unshare_type_info(&info, ownp) < 0)
+	if (lens != NULL && unshare_type_info(loc, &info, ownp) < 0)
 		goto fail;
 
 	if (lens != NULL) {
@@ -1087,7 +1106,9 @@ get_hidden_int(void)
 	char *ptr = str;
 	assert(str != NULL);
 	int own;
-	struct arg_type_info *info = parse_lens(&ptr, NULL, 0, &own, NULL);
+	struct locus loc = { NULL, 0 };
+	struct arg_type_info *info
+		= parse_lens(&loc, &ptr, NULL, 0, &own, NULL);
 	assert(info != NULL);
 	free(str);
 	return info;
@@ -1096,8 +1117,9 @@ get_hidden_int(void)
 static enum callback_status
 void_to_hidden_int(struct prototype *proto, struct param *param, void *data)
 {
+	struct locus *loc = data;
 	if (param_is_void(param)) {
-		report_warning(filename, line_no,
+		report_warning(loc->filename, loc->line_no,
 			       "void parameter assumed to be 'hide(int)'");
 
 		static struct arg_type_info *type = NULL;
@@ -1110,13 +1132,12 @@ void_to_hidden_int(struct prototype *proto, struct param *param, void *data)
 }
 
 static int
-process_line(char *buf, struct protolib *plib)
+process_line(struct locus *loc, struct protolib *plib, char *buf)
 {
 	char *str = buf;
 	char *tmp;
 
-	line_no++;
-	debug(3, "Reading line %d of `%s'", line_no, filename);
+	debug(3, "Reading line %d of `%s'", loc->line_no, loc->filename);
 	eat_spaces(&str);
 
 	/* A comment or empty line.  */
@@ -1124,23 +1145,24 @@ process_line(char *buf, struct protolib *plib)
 		return 0;
 
 	if (strncmp(str, "typedef", 7) == 0) {
-		parse_typedef(&str);
+		parse_typedef(loc, &str);
 		return 0;
 	}
 
 	struct prototype *fun = calloc(1, sizeof(*fun));
 	if (fun == NULL) {
-		report_error(filename, line_no, "%s", strerror(errno));
+		report_error(loc->filename, loc->line_no,
+			     "%s", strerror(errno));
 		return -1;
 	}
 	prototype_init(fun);
 
 	char *proto_name = NULL;
 	int own;
-	fun->return_info = parse_lens(&str, NULL, 0, &own, NULL);
+	fun->return_info = parse_lens(loc, &str, NULL, 0, &own, NULL);
 	if (fun->return_info == NULL) {
 	err:
-		debug(3, " Skipping line %d", line_no);
+		debug(3, " Skipping line %d", loc->line_no);
 		prototype_destroy(fun);
 		free(fun);
 		free(proto_name);
@@ -1152,7 +1174,7 @@ process_line(char *buf, struct protolib *plib)
 	eat_spaces(&str);
 	tmp = start_of_arg_sig(str);
 	if (tmp == NULL) {
-		report_error(filename, line_no, "syntax error");
+		report_error(loc->filename, loc->line_no, "syntax error");
 		goto err;
 	}
 	*tmp = '\0';
@@ -1160,7 +1182,8 @@ process_line(char *buf, struct protolib *plib)
 	proto_name = strdup(str);
 	if (proto_name == NULL) {
 	oom:
-		report_error(filename, line_no, "%s", strerror(errno));
+		report_error(loc->filename, loc->line_no,
+			     "%s", strerror(errno));
 		goto err;
 	}
 
@@ -1188,10 +1211,10 @@ process_line(char *buf, struct protolib *plib)
 
 		int own;
 		size_t param_num = prototype_num_params(fun) - have_stop;
-		struct arg_type_info *type
-			= parse_lens(&str, &extra_param, param_num, &own, NULL);
+		struct arg_type_info *type = parse_lens(loc, &str, &extra_param,
+							param_num, &own, NULL);
 		if (type == NULL) {
-			report_error(filename, line_no,
+			report_error(loc->filename, loc->line_no,
 				     "unknown argument type");
 			goto err;
 		}
@@ -1210,7 +1233,7 @@ process_line(char *buf, struct protolib *plib)
 		} else {
 			if (str[strlen(str) - 1] == '\n')
 				str[strlen(str) - 1] = '\0';
-			report_error(filename, line_no,
+			report_error(loc->filename, loc->line_no,
 				     "syntax error around \"%s\"", str);
 			goto err;
 		}
@@ -1234,11 +1257,11 @@ process_line(char *buf, struct protolib *plib)
 			 * ltrace.conf often used this idiom.  This
 			 * should be postponed until much later, when
 			 * extant uses are likely gone.  */
-			report_warning(filename, line_no,
+			report_warning(loc->filename, loc->line_no,
 				       "sole void parameter ignored");
 		prototype_destroy_nth_param(fun, 0);
 	} else {
-		prototype_each_param(fun, NULL, void_to_hidden_int, NULL);
+		prototype_each_param(fun, NULL, void_to_hidden_int, loc);
 	}
 
 	if (extra_param != NULL) {
@@ -1247,7 +1270,8 @@ process_line(char *buf, struct protolib *plib)
 	}
 
 	if (protolib_add_prototype(plib, proto_name, 1, fun) < 0) {
-		report_error(filename, line_no, "couldn't add prototype: %s",
+		report_error(loc->filename, loc->line_no,
+			     "couldn't add prototype: %s",
 			     strerror(errno));
 		goto err;
 	}
@@ -1255,26 +1279,26 @@ process_line(char *buf, struct protolib *plib)
 	return 0;
 }
 
-void
-read_config_file(char *file)
+int
+read_config_file(struct protolib *plib, const char *path)
 {
-	FILE *stream;
+	FILE *stream = fopen(path, "r");
+	if (stream == NULL)
+		return -1;
 
-	filename = file;
-	stream = fopen(filename, "r");
-	if (!stream) {
-		return;
-	}
+	debug(DEBUG_FUNCTION, "Reading config file `%s'...", path);
 
-	debug(1, "Reading config file `%s'...", filename);
-
-	line_no = 0;
+	struct locus loc = { path, 0 };
 	char *line = NULL;
 	size_t len = 0;
-	while (getline(&line, &len, stream) >= 0)
-		process_line(line, &g_prototypes);
+	while (getline(&line, &len, stream) >= 0) {
+		loc.line_no++;
+		process_line(&loc, &g_prototypes, line);
+	}
+
 	free(line);
 	fclose(stream);
+	return 0;
 }
 
 void
