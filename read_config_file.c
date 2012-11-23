@@ -21,6 +21,11 @@
  * 02110-1301 USA
  */
 
+/* getline is POSIX.1-2008.  It was originally a GNU extension, and
+ * chances are uClibc still needs _GNU_SOURCE, but for now try it this
+ * way.  */
+#define _POSIX_C_SOURCE 200809L
+
 #include "config.h"
 
 #include <string.h>
@@ -1119,7 +1124,7 @@ get_hidden_int(void)
 	return info;
 }
 
-static struct prototype *
+static int
 process_line(char *buf)
 {
 	char *str = buf;
@@ -1131,28 +1136,29 @@ process_line(char *buf)
 
 	/* A comment or empty line.  */
 	if (*str == ';' || *str == 0 || *str == '\n')
-		return NULL;
+		return 0;
 
 	if (strncmp(str, "typedef", 7) == 0) {
 		parse_typedef(&str);
-		return NULL;
+		return 0;
 	}
 
 	struct prototype *fun = calloc(1, sizeof(*fun));
 	if (fun == NULL) {
 		report_error(filename, line_no,
 			     "alloc function: %s", strerror(errno));
-		return NULL;
+		return -1;
 	}
 
-	fun->return_info = parse_lens(&str, NULL, 0,
-				      &fun->own_return_info, NULL);
+	int own;
+	fun->return_info = parse_lens(&str, NULL, 0, &own, NULL);
 	if (fun->return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", line_no);
 		destroy_fun(fun);
-		return NULL;
+		return -1;
 	}
+	fun->own_return_info = own;
 	debug(4, " return_type = %d", fun->return_info->type);
 
 	eat_spaces(&str);
@@ -1267,7 +1273,10 @@ process_line(char *buf)
 		free(extra_param);
 	}
 
-	return fun;
+	fun->next = list_of_functions;
+	list_of_functions = fun;
+
+	return 0;
 }
 
 void
@@ -1298,7 +1307,6 @@ void
 read_config_file(char *file)
 {
 	FILE *stream;
-	char buf[1024];
 
 	filename = file;
 	stream = fopen(filename, "r");
@@ -1309,13 +1317,10 @@ read_config_file(char *file)
 	debug(1, "Reading config file `%s'...", filename);
 
 	line_no = 0;
-	while (fgets(buf, 1024, stream)) {
-		struct prototype *tmp = process_line(buf);
-		if (tmp != NULL) {
-			debug(2, "New function: `%s'", tmp->name);
-			tmp->next = list_of_functions;
-			list_of_functions = tmp;
-		}
-	}
+	char *line = NULL;
+	size_t len = 0;
+	while (getline(&line, &len, stream) >= 0)
+		process_line(line);
+	free(line);
 	fclose(stream);
 }
