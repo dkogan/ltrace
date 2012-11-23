@@ -423,6 +423,8 @@ static struct typedef_node_t *
 new_typedef(char *name, struct arg_type_info *info, int own_type)
 {
 	struct typedef_node_t *binding = malloc(sizeof(*binding));
+	if (binding == NULL)
+		return NULL;
 	binding->name = name;
 	binding->info = info;
 	binding->own_type = own_type;
@@ -447,6 +449,7 @@ parse_typedef(char **str)
 		|| !forward->forward)) {
 		report_error(filename, line_no,
 			     "Redefinition of typedef '%s'", name);
+	err:
 		free(name);
 		return;
 	}
@@ -460,8 +463,10 @@ parse_typedef(char **str)
 	eat_spaces(str);
 
 	struct typedef_node_t *this_td = new_typedef(name, NULL, 0);
-	this_td->info = parse_lens(str, NULL, 0, &this_td->own_type, this_td);
+	if (this_td == NULL)
+		goto err;
 
+	this_td->info = parse_lens(str, NULL, 0, &this_td->own_type, this_td);
 	if (this_td->info == NULL) {
 		free(this_td);
 		free(name);
