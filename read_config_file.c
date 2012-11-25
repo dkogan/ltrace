@@ -65,20 +65,23 @@ struct locus
 	int line_no;
 };
 
-static struct arg_type_info *parse_nonpointer_type(struct locus *loc,
+static struct arg_type_info *parse_nonpointer_type(struct protolib *plib,
+						   struct locus *loc,
 						   char **str,
 						   struct param **extra_param,
 						   size_t param_num,
 						   int *ownp, int *forwardp);
-static struct arg_type_info *parse_type(struct locus *loc,
+static struct arg_type_info *parse_type(struct protolib *plib,
+					struct locus *loc,
 					char **str, struct param **extra_param,
 					size_t param_num, int *ownp,
 					int *forwardp);
-static struct arg_type_info *parse_lens(struct locus *loc,
+static struct arg_type_info *parse_lens(struct protolib *plib,
+					struct locus *loc,
 					char **str, struct param **extra_param,
 					size_t param_num, int *ownp,
 					int *forwardp);
-static int parse_enum(struct locus *loc,
+static int parse_enum(struct protolib *plib, struct locus *loc,
 		      char **str, struct arg_type_info **retp, int *ownp);
 
 struct prototype *list_of_functions = NULL;
@@ -389,7 +392,7 @@ fail:
 }
 
 static struct arg_type_info *
-parse_typedef_name(char **str)
+parse_typedef_name(struct protolib *plib, char **str)
 {
 	char *end = *str;
 	while (*end && (isalnum(CTYPE_CONV(*end)) || *end == '_'))
@@ -403,14 +406,14 @@ parse_typedef_name(char **str)
 	*str += len;
 	buf[len] = 0;
 
-	struct named_type *nt = protolib_lookup_type(&g_prototypes, buf);
+	struct named_type *nt = protolib_lookup_type(plib, buf);
 	if (nt == NULL)
 		return NULL;
 	return nt->info;
 }
 
 static int
-parse_typedef(struct locus *loc, char **str)
+parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 {
 	(*str) += strlen("typedef");
 	eat_spaces(str);
@@ -444,7 +447,8 @@ parse_typedef(struct locus *loc, char **str)
 
 	int fwd = 0;
 	int own = 0;
-	struct arg_type_info *info = parse_lens(loc, str, NULL, 0, &own, &fwd);
+	struct arg_type_info *info
+		= parse_lens(plib, loc, str, NULL, 0, &own, &fwd);
 	if (info == NULL) {
 		free(this_nt);
 		goto err;
@@ -487,7 +491,8 @@ parse_typedef(struct locus *loc, char **str)
 
 /* Syntax: struct ( type,type,type,... ) */
 static int
-parse_struct(struct locus *loc, char **str, struct arg_type_info *info,
+parse_struct(struct protolib *plib, struct locus *loc,
+	     char **str, struct arg_type_info *info,
 	     int *forwardp)
 {
 	eat_spaces(str);
@@ -528,7 +533,7 @@ parse_struct(struct locus *loc, char **str, struct arg_type_info *info,
 		eat_spaces(str);
 		int own;
 		struct arg_type_info *field
-			= parse_lens(loc, str, NULL, 0, &own, NULL);
+			= parse_lens(plib, loc, str, NULL, 0, &own, NULL);
 		if (field == NULL || type_struct_add(info, field, own)) {
 			type_destroy(info);
 			return -1;
@@ -537,7 +542,7 @@ parse_struct(struct locus *loc, char **str, struct arg_type_info *info,
 }
 
 static int
-parse_string(struct locus *loc,
+parse_string(struct protolib *plib, struct locus *loc,
 	     char **str, struct arg_type_info **retp, int *ownp)
 {
 	struct arg_type_info *info = malloc(sizeof(*info) * 2);
@@ -596,7 +601,7 @@ parse_string(struct locus *loc,
 			free(info);
 
 			eat_spaces(str);
-			info = parse_type(loc, str, NULL, 0, ownp, NULL);
+			info = parse_type(plib, loc, str, NULL, 0, ownp, NULL);
 			if (info == NULL)
 				goto fail;
 
@@ -698,7 +703,7 @@ unshare_type_info(struct locus *loc, struct arg_type_info **infop, int *ownp)
  * latter is only valid if the former is non-NULL, which is only in
  * top-level context.  */
 static int
-parse_alias(struct locus *loc,
+parse_alias(struct protolib *plib, struct locus *loc,
 	    char **str, struct arg_type_info **retp, int *ownp,
 	    struct param **extra_param, size_t param_num)
 {
@@ -709,7 +714,7 @@ parse_alias(struct locus *loc,
 	 * "string" is syntax.  */
 	if (strncmp(*str, "string", 6) == 0) {
 		(*str) += 6;
-		return parse_string(loc, str, retp, ownp);
+		return parse_string(plib, loc, str, retp, ownp);
 
 	} else if (try_parse_kwd(str, "format") >= 0
 		   && extra_param != NULL) {
@@ -717,14 +722,14 @@ parse_alias(struct locus *loc,
 		 * "string", but it smuggles to the parameter list of
 		 * a function a "printf" argument pack with this
 		 * parameter as argument.  */
-		if (parse_string(loc, str, retp, ownp) < 0)
+		if (parse_string(plib, loc, str, retp, ownp) < 0)
 			return -1;
 
 		return build_printf_pack(loc, extra_param, param_num);
 
 	} else if (try_parse_kwd(str, "enum") >=0) {
 
-		return parse_enum(loc, str, retp, ownp);
+		return parse_enum(plib, loc, str, retp, ownp);
 
 	} else {
 		*retp = NULL;
@@ -734,7 +739,8 @@ parse_alias(struct locus *loc,
 
 /* Syntax: array ( type, N|argN ) */
 static int
-parse_array(struct locus *loc, char **str, struct arg_type_info *info)
+parse_array(struct protolib *plib, struct locus *loc,
+	    char **str, struct arg_type_info *info)
 {
 	eat_spaces(str);
 	if (parse_char(loc, str, '(') < 0)
@@ -743,7 +749,7 @@ parse_array(struct locus *loc, char **str, struct arg_type_info *info)
 	eat_spaces(str);
 	int own;
 	struct arg_type_info *elt_info
-		= parse_lens(loc, str, NULL, 0, &own, NULL);
+		= parse_lens(plib, loc, str, NULL, 0, &own, NULL);
 	if (elt_info == NULL)
 		return -1;
 
@@ -773,7 +779,7 @@ parse_array(struct locus *loc, char **str, struct arg_type_info *info)
  *   enum<type> (keyname[=value],keyname[=value],... )
  */
 static int
-parse_enum(struct locus *loc, char **str,
+parse_enum(struct protolib *plib, struct locus *loc, char **str,
 	   struct arg_type_info **retp, int *ownp)
 {
 	/* Optional type argument.  */
@@ -781,7 +787,7 @@ parse_enum(struct locus *loc, char **str,
 	if (**str == '[') {
 		parse_char(loc, str, '[');
 		eat_spaces(str);
-		*retp = parse_nonpointer_type(loc, str, NULL, 0, ownp, 0);
+		*retp = parse_nonpointer_type(plib, loc, str, NULL, 0, ownp, 0);
 		if (*retp == NULL)
 			return -1;
 
@@ -871,18 +877,18 @@ parse_enum(struct locus *loc, char **str,
 }
 
 static struct arg_type_info *
-parse_nonpointer_type(struct locus *loc,
+parse_nonpointer_type(struct protolib *plib, struct locus *loc,
 		      char **str, struct param **extra_param, size_t param_num,
 		      int *ownp, int *forwardp)
 {
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
 		struct arg_type_info *simple;
-		if (parse_alias(loc, str, &simple,
+		if (parse_alias(plib, loc, str, &simple,
 				ownp, extra_param, param_num) < 0)
 			return NULL;
 		if (simple == NULL)
-			simple = parse_typedef_name(str);
+			simple = parse_typedef_name(plib, str);
 		if (simple != NULL) {
 			*ownp = 0;
 			return simple;
@@ -928,14 +934,14 @@ parse_nonpointer_type(struct locus *loc,
 	*ownp = 1;
 
 	if (type == ARGTYPE_ARRAY) {
-		if (parse_array(loc, str, info) < 0) {
+		if (parse_array(plib, loc, str, info) < 0) {
 		fail:
 			free(info);
 			return NULL;
 		}
 	} else {
 		assert(type == ARGTYPE_STRUCT);
-		if (parse_struct(loc, str, info, forwardp) < 0)
+		if (parse_struct(plib, loc, str, info, forwardp) < 0)
 			goto fail;
 	}
 
@@ -969,11 +975,12 @@ name2lens(char **str, int *own_lensp)
 }
 
 static struct arg_type_info *
-parse_type(struct locus *loc, char **str, struct param **extra_param,
-	   size_t param_num, int *ownp, int *forwardp)
+parse_type(struct protolib *plib, struct locus *loc, char **str,
+	   struct param **extra_param, size_t param_num,
+	   int *ownp, int *forwardp)
 {
 	struct arg_type_info *info
-		= parse_nonpointer_type(loc, str, extra_param,
+		= parse_nonpointer_type(plib, loc, str, extra_param,
 					param_num, ownp, forwardp);
 	if (info == NULL)
 		return NULL;
@@ -1002,7 +1009,8 @@ parse_type(struct locus *loc, char **str, struct param **extra_param,
 }
 
 static struct arg_type_info *
-parse_lens(struct locus *loc, char **str, struct param **extra_param,
+parse_lens(struct protolib *plib, struct locus *loc,
+	   char **str, struct param **extra_param,
 	   size_t param_num, int *ownp, int *forwardp)
 {
 	int own_lens;
@@ -1027,7 +1035,7 @@ parse_lens(struct locus *loc, char **str, struct param **extra_param,
 
 	if (has_args) {
 		eat_spaces(str);
-		info = parse_type(loc, str, extra_param, param_num,
+		info = parse_type(plib, loc, str, extra_param, param_num,
 				  ownp, forwardp);
 		if (info == NULL) {
 		fail:
@@ -1065,15 +1073,25 @@ param_is_void(struct param *param)
 static struct arg_type_info *
 get_hidden_int(void)
 {
+	static struct arg_type_info *info = NULL;
+	if (info != NULL)
+		return info;
+
 	char *str = strdup("hide(int)");
 	char *ptr = str;
 	assert(str != NULL);
 	int own;
 	struct locus loc = { NULL, 0 };
-	struct arg_type_info *info
-		= parse_lens(&loc, &ptr, NULL, 0, &own, NULL);
+
+	struct protolib fake_plib;
+	protolib_init(&fake_plib);
+
+	info = parse_lens(&fake_plib, &loc, &ptr, NULL, 0, &own, NULL);
+
+	protolib_destroy(&fake_plib);
 	assert(info != NULL);
 	free(str);
+
 	return info;
 }
 
@@ -1095,7 +1113,7 @@ void_to_hidden_int(struct prototype *proto, struct param *param, void *data)
 }
 
 static int
-process_line(struct locus *loc, struct protolib *plib, char *buf)
+process_line(struct protolib *plib, struct locus *loc, char *buf)
 {
 	char *str = buf;
 	char *tmp;
@@ -1108,7 +1126,7 @@ process_line(struct locus *loc, struct protolib *plib, char *buf)
 		return 0;
 
 	if (strncmp(str, "typedef", 7) == 0) {
-		parse_typedef(loc, &str);
+		parse_typedef(plib, loc, &str);
 		return 0;
 	}
 
@@ -1122,7 +1140,7 @@ process_line(struct locus *loc, struct protolib *plib, char *buf)
 
 	char *proto_name = NULL;
 	int own;
-	fun->return_info = parse_lens(loc, &str, NULL, 0, &own, NULL);
+	fun->return_info = parse_lens(plib, loc, &str, NULL, 0, &own, NULL);
 	if (fun->return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", loc->line_no);
@@ -1174,8 +1192,9 @@ process_line(struct locus *loc, struct protolib *plib, char *buf)
 
 		int own;
 		size_t param_num = prototype_num_params(fun) - have_stop;
-		struct arg_type_info *type = parse_lens(loc, &str, &extra_param,
-							param_num, &own, NULL);
+		struct arg_type_info *type
+			= parse_lens(plib, loc, &str, &extra_param,
+				     param_num, &own, NULL);
 		if (type == NULL) {
 			report_error(loc->filename, loc->line_no,
 				     "unknown argument type");
@@ -1256,7 +1275,7 @@ read_config_file(struct protolib *plib, const char *path)
 	size_t len = 0;
 	while (getline(&line, &len, stream) >= 0) {
 		loc.line_no++;
-		process_line(&loc, &g_prototypes, line);
+		process_line(&g_prototypes, &loc, line);
 	}
 
 	free(line);
