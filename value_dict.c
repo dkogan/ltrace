@@ -40,7 +40,7 @@ val_dict_init(struct value_dict *dict)
 }
 
 static int
-value_clone_cb(struct value *tgt, struct value *src, void *data)
+value_clone_cb(struct value *tgt, const struct value *src, void *data)
 {
 	return value_clone(tgt, src);
 }
@@ -52,7 +52,8 @@ value_dtor(struct value *val, void *data)
 }
 
 static int
-named_value_clone(struct named_value *tgt, struct named_value *src, void *data)
+named_value_clone(struct named_value *tgt,
+		  const struct named_value *src, void *data)
 {
 	tgt->name = strdup(src->name);
 	if (tgt->name == NULL)

@@ -127,7 +127,7 @@ unsigned char *value_get_raw_data(struct value *val);
 
 /* Copy value VAL into the area pointed-to by RETP.  Return 0 on
  * success or a negative value on failure.  */
-int value_clone(struct value *retp, struct value *val);
+int value_clone(struct value *retp, const struct value *val);
 
 /* Give a size of given value.  Return (size_t)-1 for error.  This is
  * a full size of the value.  In particular for arrays, it returns

@@ -53,8 +53,8 @@ void vect_init(struct vect *vec, size_t elt_size);
  * DTOR is non-NULL, it is invoked on all hitherto created elements
  * with the same DATA.  If one of CLONE, DTOR is non-NULL, then both
  * have to be.  */
-int vect_clone(struct vect *target, struct vect *source,
-	       int (*clone)(void *tgt, void *src, void *data),
+int vect_clone(struct vect *target, const struct vect *source,
+	       int (*clone)(void *tgt, const void *src, void *data),
 	       void (*dtor)(void *elt, void *data),
 	       void *data);
 
@@ -62,14 +62,15 @@ int vect_clone(struct vect *target, struct vect *source,
 #define VECT_CLONE(TGT_VEC, SRC_VEC, ELT_TYPE, CLONE, DTOR, DATA)	\
 	/* xxx GCC-ism necessary to get in the safety latches.  */	\
 	({								\
-		struct vect *_source_vec = (SRC_VEC);			\
+		const struct vect *_source_vec = (SRC_VEC);		\
 		assert(_source_vec->elt_size == sizeof(ELT_TYPE));	\
 		/* Check that callbacks are typed properly.  */		\
 		void (*_dtor_callback)(ELT_TYPE *, void *) = DTOR;	\
-		int (*_clone_callback)(ELT_TYPE *,			\
-				       ELT_TYPE *, void *) = CLONE;	\
+		int (*_clone_callback)(ELT_TYPE *, const ELT_TYPE *,	\
+				       void *) = CLONE;			\
 		vect_clone((TGT_VEC), _source_vec,			\
-			   (int (*)(void *, void *, void *))_clone_callback, \
+			   (int (*)(void *, const void *,		\
+				    void *))_clone_callback,		\
 			   (void (*)(void *, void *))_dtor_callback,	\
 			   DATA);					\
 	 })

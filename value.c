@@ -186,7 +186,7 @@ value_get_raw_data(struct value *val)
 }
 
 int
-value_clone(struct value *retp, struct value *val)
+value_clone(struct value *retp, const struct value *val)
 {
 	*retp = *val;
 	if (val->where == VAL_LOC_COPY) {

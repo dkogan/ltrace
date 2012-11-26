@@ -26,7 +26,13 @@
 static void *
 slot(struct vect *vec, size_t i)
 {
-	return ((char *)vec->data) + vec->elt_size * i;
+	return ((unsigned char *)vec->data) + vec->elt_size * i;
+}
+
+static const void *
+cslot(const struct vect *vec, size_t i)
+{
+	return ((const unsigned char *)vec->data) + vec->elt_size * i;
 }
 
 void
@@ -36,7 +42,7 @@ vect_init(struct vect *vec, size_t elt_size)
 }
 
 static int
-copy_elt(void *tgt, void *src, void *data)
+copy_elt(void *tgt, const void *src, void *data)
 {
 	struct vect *target = data;
 	memcpy(tgt, src, target->elt_size);
@@ -44,8 +50,8 @@ copy_elt(void *tgt, void *src, void *data)
 }
 
 int
-vect_clone(struct vect *target, struct vect *source,
-	   int (*clone)(void *tgt, void *src, void *data),
+vect_clone(struct vect *target, const struct vect *source,
+	   int (*clone)(void *tgt, const void *src, void *data),
 	   void (*dtor)(void *elt, void *data),
 	   void *data)
 {
@@ -63,7 +69,7 @@ vect_clone(struct vect *target, struct vect *source,
 
 	size_t i;
 	for (i = 0; i < source->size; ++i)
-		if (clone(slot(target, i), slot(source, i), data) < 0)
+		if (clone(slot(target, i), cslot(source, i), data) < 0)
 			goto fail;
 
 	target->size = source->size;
