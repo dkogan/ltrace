@@ -76,10 +76,10 @@ int vect_clone(struct vect *target, const struct vect *source,
 	 })
 
 /* Return number of elements in VEC.  */
-size_t vect_size(struct vect *vec);
+size_t vect_size(const struct vect *vec);
 
 /* Emptiness predicate.  */
-int vect_empty(struct vect *vec);
+int vect_empty(const struct vect *vec);
 
 /* Accessor.  Fetch ELT_NUM-th argument of type ELT_TYPE from the
  * vector referenced by VECP.  */

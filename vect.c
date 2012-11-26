@@ -100,13 +100,13 @@ vect_reserve(struct vect *vec, size_t count)
 }
 
 size_t
-vect_size(struct vect *vec)
+vect_size(const struct vect *vec)
 {
 	return vec->size;
 }
 
 int
-vect_empty(struct vect *vec)
+vect_empty(const struct vect *vec)
 {
 	return vec->size == 0;
 }
