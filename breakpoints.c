@@ -264,9 +264,6 @@ delete_breakpoint(struct process *proc, arch_addr_t addr)
 	assert(found != NULL);
 	struct breakpoint *sbp = *found;
 	assert(sbp != NULL);
-	/* This should only happen on out-of-memory conditions. */
-	if (sbp == NULL)
-		return;
 
 	if (breakpoint_turn_off(sbp, proc) < 0) {
 		fprintf(stderr, "Couldn't turn off the breakpoint %s@%p\n",

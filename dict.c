@@ -173,6 +173,12 @@ default_secondary_hash(size_t pos)
 	return pos % 97 + 1;
 }
 
+static size_t
+small_secondary_hash(size_t pos)
+{
+	return 1;
+}
+
 static inline size_t
 n(struct dict *dict)
 {
@@ -184,6 +190,8 @@ hash2(struct dict *dict))(size_t)
 {
 	if (dict->hash2 != NULL)
 		return dict->hash2;
+	else if (n(dict) < 100)
+		return small_secondary_hash;
 	else
 		return default_secondary_hash;
 }
@@ -217,12 +225,16 @@ find_slot(struct dict *dict, const void *key,
 	 * later, we return that position.  */
 	for (; bitp(dict, pos)->taken || bitp(dict, pos)->erased;
 	     pos = (pos + d) % n(dict)) {
-
 		if (pos0 == (size_t)-1 && bitp(dict, pos)->erased)
 			pos0 = pos;
 
-		if (++i > dict->size)
-			break;
+		/* If there is a loop, but we've seen an erased
+		 * element, take that one.  Otherwise give up.  */
+		if (++i > dict->size) {
+			if (pos0 != (size_t)-1)
+				break;
+			return (size_t)-1;
+		}
 
 		if (bitp(dict, pos)->taken
 		    && dict->eq(getkey(dict, pos), key)) {
@@ -256,6 +268,7 @@ rehash_move(void *key, void *value, void *data)
 int
 rehash(struct dict *dict, size_t nn)
 {
+	assert(nn != n(dict));
 	int ret = -1;
 
 	struct dict tmp;
@@ -358,9 +371,11 @@ dict_insert(struct dict *dict, void *key, void *value)
 	int found;
 	int should_rehash;
 	size_t slot_n = find_slot(dict, key, &found, &should_rehash, NULL);
-
+	if (slot_n == (size_t)-1)
+		return -1;
 	if (found)
 		return 1;
+	assert(!bitp(dict, slot_n)->taken);
 
 	/* If rehash was requested, do that, and retry.  But just live
 	 * with it for apparently sparse tables.  No resizing can fix
@@ -414,8 +429,10 @@ dict_erase(struct dict *dict, const void *key,
 	--dict->size;
 
 	if (dict->size < 0.3 * n(dict)) {
-		/* Don't mind if it fails when shrinking.  */
-		rehash(dict, smaller_size(n(dict)));
+		size_t smaller = smaller_size(n(dict));
+		if (smaller != n(dict))
+			/* Don't mind if it fails when shrinking.  */
+			rehash(dict, smaller);
 	}
 
 	return 0;
