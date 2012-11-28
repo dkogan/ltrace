@@ -218,4 +218,10 @@ size_t dict_hash_string(const char **key);
 /* An equality predicate callback for strings.  */
 int dict_eq_string(const char **key1, const char **key2);
 
+/* A dtor which calls 'free' on keys in a table.  */
+void dict_dtor_string(const char **key, void *data);
+
+/* A cloner that calls 'strdup' on keys in a table.  */
+int dict_clone_string(const char **tgt, const char **src, void *data);
+
 #endif /* _DICT_H_ */

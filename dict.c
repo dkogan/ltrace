@@ -486,6 +486,19 @@ dict_eq_string(const char **key1, const char **key2)
 	return strcmp(*key1, *key2) == 0;
 }
 
+void
+dict_dtor_string(const char **key, void *data)
+{
+	free((char *)*key);
+}
+
+int
+dict_clone_string(const char **tgt, const char **src, void *data)
+{
+	*tgt = strdup(*src);
+	return *tgt != NULL ? 0 : -1;
+}
+
 #ifdef TEST
 static enum callback_status
 dump(int *key, int *value, void *data)
