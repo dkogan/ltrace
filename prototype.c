@@ -18,12 +18,13 @@
  * 02110-1301 USA
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "prototype.h"
 #include "callback.h"
 #include "param.h"
+#include "prototype.h"
 #include "type.h"
 
 struct protolib g_prototypes;
@@ -125,40 +126,27 @@ named_type_destroy(struct named_type *named)
 	}
 }
 
-int
+void
 protolib_init(struct protolib *plib)
 {
-	plib->prototypes = dict_init(&dict_key2hash_string,
-				     &dict_key_cmp_string);
-	if (plib->prototypes == NULL)
-		return -1;
+	DICT_INIT(&plib->prototypes, const char *, struct prototype,
+		  dict_hash_string, dict_eq_string, NULL);
 
-	plib->named_types = dict_init(&dict_key2hash_string,
-				      &dict_key_cmp_string);
-	if (plib->named_types == NULL) {
-		dict_clear(plib->prototypes);
-		return -1;
-	}
+	DICT_INIT(&plib->named_types, const char *, struct named_type,
+		  dict_hash_string, dict_eq_string, NULL);
 
 	VECT_INIT(&plib->imports, struct protolib *);
-	return 0;
 }
 
 static void
-prototype_entry_destroy(void *key, void *val, void *data)
+destroy_prototype_cb(struct prototype *proto, void *data)
 {
-	char *name = key;
-	struct prototype *proto = val;
-	free(name);
 	prototype_destroy(proto);
 }
 
 static void
-named_type_entry_destroy(void *key, void *val, void *data)
+destroy_named_type_cb(struct named_type *named, void *data)
 {
-	char *name = key;
-	struct named_type *named = val;
-	free(name);
 	named_type_destroy(named);
 }
 
@@ -167,11 +155,11 @@ protolib_destroy(struct protolib *plib)
 {
 	VECT_DESTROY(&plib->imports, struct prototype *, NULL, NULL);
 
-	dict_apply_to_all(plib->prototypes, prototype_entry_destroy, NULL);
-	dict_clear(plib->prototypes);
+	DICT_DESTROY(&plib->prototypes, const char *, struct prototype,
+		     dict_dtor_string, destroy_prototype_cb, NULL);
 
-	dict_apply_to_all(plib->named_types, named_type_entry_destroy, NULL);
-	dict_clear(plib->named_types);
+	DICT_DESTROY(&plib->named_types, const char *, struct named_type,
+		     dict_dtor_string, destroy_named_type_cb, NULL);
 }
 
 static struct protolib **
@@ -203,36 +191,49 @@ protolib_add_import(struct protolib *plib, struct protolib *import)
 }
 
 static int
-enroll(struct dict *dict, const char *name, int own_name, void *value)
+clone_if_not_own(const char **strp, int own)
 {
-	assert(name != NULL);
+	assert(*strp != NULL);
 
-	if (!own_name) {
-		name = strdup(name);
-		if (name == NULL)
+	if (!own) {
+		*strp = strdup(*strp);
+		if (*strp == NULL)
 			return -1;
 	}
 
-	if (dict_enter(dict, (void *)name, value) < 0) {
-		if (own_name)
-			free((void *)name);
-		return -1;
-	}
 	return 0;
+}
+
+static int
+bailout(const char *name, int own)
+{
+	int save_errno = errno;
+	if (own)
+		free((char *)name);
+	errno = save_errno;
+	return -1;
 }
 
 int
 protolib_add_prototype(struct protolib *plib, const char *name, int own_name,
 		       struct prototype *proto)
 {
-	return enroll(plib->prototypes, name, own_name, proto);
+	if (clone_if_not_own(&name, own_name) < 0)
+		return -1;
+	if (DICT_INSERT(&plib->prototypes, &name, proto) < 0)
+		return bailout(name, own_name);
+	return 0;
 }
 
 int
 protolib_add_named_type(struct protolib *plib, const char *name, int own_name,
 			struct named_type *named)
 {
-	return enroll(plib->named_types, name, own_name, named);
+	if (clone_if_not_own(&name, own_name) < 0)
+		return -1;
+	if (DICT_INSERT(&plib->named_types, &name, named) < 0)
+		return bailout(name, own_name);
+	return 0;
 }
 
 struct lookup {
@@ -244,13 +245,13 @@ struct lookup {
 static struct dict *
 get_prototypes(struct protolib *plib)
 {
-	return plib->prototypes;
+	return &plib->prototypes;
 }
 
 static struct dict *
 get_named_types(struct protolib *plib)
 {
-	return plib->named_types;
+	return &plib->named_types;
 }
 
 static enum callback_status
@@ -259,7 +260,7 @@ protolib_lookup_rec(struct protolib **plibp, void *data)
 	struct lookup *lookup = data;
 	struct dict *dict = (*lookup->getter)(*plibp);
 
-	lookup->result = dict_find_entry(dict, lookup->name);
+	lookup->result = dict_find(dict, &lookup->name);
 	if (lookup->result != NULL)
 		return CBS_STOP;
 

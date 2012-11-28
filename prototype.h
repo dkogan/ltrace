@@ -88,15 +88,14 @@ struct protolib {
 	struct vect imports;
 
 	/* Dictionary of name->struct prototype.  */
-	struct dict *prototypes;
+	struct dict prototypes;
 
 	/* Dictionary of name->struct named_type.  */
-	struct dict *named_types;
+	struct dict named_types;
 };
 
-/* Initialize PLIB.  Returns 0 on success or a negative value on
- * failure.  */
-int protolib_init(struct protolib *plib);
+/* Initialize PLIB.  */
+void protolib_init(struct protolib *plib);
 
 /* Destroy PLIB.  */
 void protolib_destroy(struct protolib *plib);
