@@ -323,10 +323,11 @@ send_sigstop(struct process *task, void *data)
 static void
 ugly_workaround(struct process *proc)
 {
-	void *ip = get_instruction_pointer(proc);
-	struct breakpoint *sbp = dict_find_entry(proc->leader->breakpoints, ip);
-	if (sbp != NULL)
-		enable_breakpoint(proc, sbp);
+	arch_addr_t ip = get_instruction_pointer(proc);
+	struct breakpoint **found = DICT_FIND(proc->leader->breakpoints, &ip,
+					      struct breakpoint *);
+	if (found != NULL)
+		enable_breakpoint(proc, *found);
 	else
 		insert_breakpoint(proc, ip, NULL);
 	ptrace(PTRACE_CONT, proc->pid, 0, 0);
@@ -1031,7 +1032,7 @@ ltrace_exiting_install_handler(struct process *proc)
 struct process_vfork_handler
 {
 	struct event_handler super;
-	void *bp_addr;
+	arch_addr_t bp_addr;
 };
 
 static Event *
@@ -1042,7 +1043,6 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 	      event->proc->pid, event->type);
 
 	struct process_vfork_handler *self = (void *)super;
-	struct breakpoint *sbp;
 	assert(self != NULL);
 
 	switch (event->type) {
@@ -1058,10 +1058,12 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 		/* Smuggle back in the vfork return breakpoint, so
 		 * that our parent can trip over it once again.  */
 		if (self->bp_addr != 0) {
-			sbp = dict_find_entry(event->proc->leader->breakpoints,
-					      self->bp_addr);
-			if (sbp != NULL)
-				assert(sbp->libsym == NULL);
+			struct breakpoint **found
+				= DICT_FIND(event->proc->leader->breakpoints,
+					    &self->bp_addr,
+					    struct breakpoint *);
+			if (found != NULL)
+				assert((*found)->libsym == NULL);
 			/* We don't mind failing that, it's not a big
 			 * deal to not display one extra vfork return.  */
 			insert_breakpoint(event->proc->parent,

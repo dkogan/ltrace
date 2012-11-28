@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,1999,2003,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -31,34 +32,53 @@
 
 /*****************************************************************************/
 
-static Dict *d = NULL;
+static struct dict *name_cache = NULL;
 
 const char *
 my_demangle(const char *function_name) {
-	const char *tmp, *fn_copy;
 #ifdef USE_CXA_DEMANGLE
 	extern char *__cxa_demangle(const char *, char *, size_t *, int *);
 #endif
 
 	debug(DEBUG_FUNCTION, "my_demangle(name=%s)", function_name);
 
-	if (!d)
-		d = dict_init(dict_key2hash_string, dict_key_cmp_string);
-
-	tmp = dict_find_entry(d, (void *)function_name);
-	if (!tmp) {
-		fn_copy = strdup(function_name);
-#ifdef HAVE_LIBIBERTY
-		tmp = cplus_demangle(function_name, DMGL_ANSI | DMGL_PARAMS);
-#elif defined USE_CXA_DEMANGLE
-		int status = 0;
-		tmp = __cxa_demangle(function_name, NULL, NULL, &status);
-#endif
-		if (!tmp)
-			tmp = fn_copy;
-		if (tmp)
-			dict_enter(d, (void *)fn_copy, (void *)tmp);
+	if (name_cache == NULL) {
+		name_cache = malloc(sizeof(*name_cache));
+		if (name_cache != NULL)
+			DICT_INIT(name_cache, const char *, const char *,
+				  dict_hash_string, dict_eq_string, NULL);
 	}
+
+	const char **found = NULL;
+	if (name_cache != NULL)
+		found = DICT_FIND(name_cache, &function_name, const char *);
+
+	if (found != NULL)
+		return *found;
+
+#ifdef HAVE_LIBIBERTY
+	const char *tmp = cplus_demangle(function_name,
+					 DMGL_ANSI | DMGL_PARAMS);
+#elif defined USE_CXA_DEMANGLE
+	int status = 0;
+	const char *tmp = __cxa_demangle(function_name, NULL, NULL, &status);
+#endif
+	if (name_cache == NULL || tmp == NULL) {
+	fail:
+		if (tmp == NULL)
+			return function_name;
+		return tmp;
+	}
+
+	const char *fn_copy = strdup(function_name);
+	if (fn_copy == NULL)
+		goto fail;
+
+	if (DICT_INSERT(name_cache, &fn_copy, &tmp) < 0) {
+		free((char *)fn_copy);
+		goto fail;
+	}
+
 	return tmp;
 }
 

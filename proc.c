@@ -121,8 +121,12 @@ process_bare_init(struct process *proc, const char *filename,
 		if (proc->filename == NULL) {
 		fail:
 			free(proc->filename);
-			if (proc->breakpoints != NULL)
-				dict_clear(proc->breakpoints);
+			if (proc->breakpoints != NULL) {
+				dict_destroy(proc->breakpoints,
+					     NULL, NULL, NULL);
+				free(proc->breakpoints);
+				proc->breakpoints = NULL;
+			}
 			return -1;
 		}
 	}
@@ -134,10 +138,12 @@ process_bare_init(struct process *proc, const char *filename,
 		goto fail;
 
 	if (proc->leader == proc) {
-		proc->breakpoints = dict_init(target_address_hash,
-					      target_address_cmp);
+		proc->breakpoints = malloc(sizeof(*proc->breakpoints));
 		if (proc->breakpoints == NULL)
 			goto fail;
+		DICT_INIT(proc->breakpoints,
+			  arch_addr_t, struct breakpoint *,
+			  arch_addr_hash, arch_addr_eq, NULL);
 	} else {
 		proc->breakpoints = NULL;
 	}
@@ -153,7 +159,8 @@ process_bare_init(struct process *proc, const char *filename,
 static void
 process_bare_destroy(struct process *proc, int was_exec)
 {
-	dict_clear(proc->breakpoints);
+	dict_destroy(proc->breakpoints, NULL, NULL, NULL);
+	free(proc->breakpoints);
 	if (!was_exec) {
 		free(proc->filename);
 		unlist_process(proc);
@@ -249,7 +256,8 @@ private_process_destroy(struct process *proc, int was_exec)
 	/* Breakpoints.  */
 	if (proc->breakpoints != NULL) {
 		proc_each_breakpoint(proc, NULL, destroy_breakpoint_cb, NULL);
-		dict_clear(proc->breakpoints);
+		dict_destroy(proc->breakpoints, NULL, NULL, NULL);
+		free(proc->breakpoints);
 		proc->breakpoints = NULL;
 	}
 
@@ -299,18 +307,13 @@ open_program(const char *filename, pid_t pid)
 struct clone_single_bp_data {
 	struct process *old_proc;
 	struct process *new_proc;
-	int error;
 };
 
-static void
-clone_single_bp(void *key, void *value, void *u)
+static enum callback_status
+clone_single_bp(arch_addr_t *key, struct breakpoint **bpp, void *u)
 {
-	struct breakpoint *bp = value;
+	struct breakpoint *bp = *bpp;
 	struct clone_single_bp_data *data = u;
-
-	/* Don't bother if there were errors anyway.  */
-	if (data->error != 0)
-		return;
 
 	struct breakpoint *clone = malloc(sizeof(*clone));
 	if (clone == NULL
@@ -318,12 +321,13 @@ clone_single_bp(void *key, void *value, void *u)
 				bp, data->old_proc) < 0) {
 	fail:
 		free(clone);
-		data->error = -1;
+		return CBS_STOP;
 	}
 	if (proc_add_breakpoint(data->new_proc->leader, clone) < 0) {
 		breakpoint_destroy(clone);
 		goto fail;
 	}
+	return CBS_CONT;
 }
 
 int
@@ -373,10 +377,10 @@ process_clone(struct process *retp, struct process *proc, pid_t pid)
 	struct clone_single_bp_data data = {
 		.old_proc = proc,
 		.new_proc = retp,
-		.error = 0,
 	};
-	dict_apply_to_all(proc->leader->breakpoints, &clone_single_bp, &data);
-	if (data.error < 0)
+	if (DICT_EACH(proc->leader->breakpoints,
+		      arch_addr_t, struct breakpoint *, NULL,
+		      clone_single_bp, &data) != NULL)
 		goto fail2;
 
 	/* And finally the call stack.  */
@@ -747,9 +751,9 @@ breakpoint_for_symbol(struct library_symbol *libsym, struct process *proc)
 	 * be also custom-allocated, and we would really need to swap
 	 * the two: delete the one now in the dictionary, swap values
 	 * around, and put the new breakpoint back in.  */
-	struct breakpoint *bp = dict_find_entry(proc->breakpoints,
-						bp_addr);
-	if (bp != NULL) {
+	struct breakpoint **found = DICT_FIND(proc->breakpoints,
+					      &bp_addr, struct breakpoint *);
+	if (found != NULL) {
 		/* MIPS backend makes duplicate requests.  This is
 		 * likely a bug in the backend.  Currently there's no
 		 * point assigning more than one symbol to a
@@ -763,13 +767,13 @@ breakpoint_for_symbol(struct library_symbol *libsym, struct process *proc)
 		 *   http://lists.alioth.debian.org/pipermail/ltrace-devel/2012-November/000770.html
 		 */
 #ifndef __mips__
-		assert(bp->libsym == NULL);
-		bp->libsym = libsym;
+		assert((*found)->libsym == NULL);
+		(*found)->libsym = libsym;
 #endif
 		return 0;
 	}
 
-	bp = malloc(sizeof(*bp));
+	struct breakpoint *bp = malloc(sizeof(*bp));
 	if (bp == NULL
 	    || breakpoint_init(bp, proc, bp_addr, libsym) < 0) {
 	fail:
@@ -920,9 +924,9 @@ proc_add_breakpoint(struct process *proc, struct breakpoint *bp)
 	/* XXX We might merge bp->libsym instead of the following
 	 * assert, but that's not necessary right now.  Read the
 	 * comment in breakpoint_for_symbol.  */
-	assert(dict_find_entry(proc->breakpoints, bp->addr) == NULL);
+	assert(dict_find(proc->breakpoints, &bp->addr) == NULL);
 
-	if (dict_enter(proc->breakpoints, bp->addr, bp) < 0) {
+	if (DICT_INSERT(proc->breakpoints, &bp->addr, &bp) < 0) {
 		fprintf(stderr,
 			"couldn't enter breakpoint %s@%p to dictionary: %s\n",
 			breakpoint_name(bp), bp->addr, strerror(errno));
@@ -938,16 +942,13 @@ proc_remove_breakpoint(struct process *proc, struct breakpoint *bp)
 	debug(DEBUG_FUNCTION, "proc_remove_breakpoint(pid=%d, %s@%p)",
 	      proc->pid, breakpoint_name(bp), bp->addr);
 	check_leader(proc);
-	struct breakpoint *removed = dict_remove(proc->breakpoints, bp->addr);
-	assert(removed == bp);
+	int rc = DICT_ERASE(proc->breakpoints, &bp->addr, struct breakpoint *,
+			    NULL, NULL, NULL);
+	assert(rc == 0);
 }
 
-/* Dict doesn't support iteration restarts, so here's this contraption
- * for now.  XXX add restarts to dict.  */
 struct each_breakpoint_data
 {
-	void *start;
-	void *end;
 	struct process *proc;
 	enum callback_status (*cb)(struct process *proc,
 				   struct breakpoint *bp,
@@ -955,25 +956,11 @@ struct each_breakpoint_data
 	void *cb_data;
 };
 
-static void
-each_breakpoint_cb(void *key, void *value, void *d)
+static enum callback_status
+each_breakpoint_cb(arch_addr_t *key, struct breakpoint **bpp, void *d)
 {
 	struct each_breakpoint_data *data = d;
-	if (data->end != NULL)
-		return;
-	if (data->start == key)
-		data->start = NULL;
-
-	if (data->start == NULL) {
-		switch (data->cb(data->proc, value, data->cb_data)) {
-		case CBS_FAIL:
-			/* XXX handle me */
-		case CBS_STOP:
-			data->end = key;
-		case CBS_CONT:
-			return;
-		}
-	}
+	return data->cb(data->proc, *bpp, data->cb_data);
 }
 
 void *
@@ -983,13 +970,13 @@ proc_each_breakpoint(struct process *proc, void *start,
 						void *data), void *data)
 {
 	struct each_breakpoint_data dd = {
-		.start = start,
 		.proc = proc,
 		.cb = cb,
 		.cb_data = data,
 	};
-	dict_apply_to_all(proc->breakpoints, &each_breakpoint_cb, &dd);
-	return dd.end;
+	return DICT_EACH(proc->breakpoints,
+			 arch_addr_t, struct breakpoint *, start,
+			 &each_breakpoint_cb, &dd);
 }
 
 int

@@ -88,13 +88,18 @@ breakpoint_on_retract(struct breakpoint *bp, struct process *proc)
 /*****************************************************************************/
 
 struct breakpoint *
-address2bpstruct(struct process *proc, void *addr)
+address2bpstruct(struct process *proc, arch_addr_t addr)
 {
 	assert(proc != NULL);
 	assert(proc->breakpoints != NULL);
 	assert(proc->leader == proc);
 	debug(DEBUG_FUNCTION, "address2bpstruct(pid=%d, addr=%p)", proc->pid, addr);
-	return dict_find_entry(proc->breakpoints, addr);
+
+	struct breakpoint **found
+		= DICT_FIND(proc->breakpoints, &addr, struct breakpoint *);
+	if (found == NULL)
+		return NULL;
+	return *found;
 }
 
 #ifndef ARCH_HAVE_BREAKPOINT_DATA
@@ -196,7 +201,7 @@ breakpoint_turn_off(struct breakpoint *bp, struct process *proc)
 }
 
 struct breakpoint *
-insert_breakpoint(struct process *proc, void *addr,
+insert_breakpoint(struct process *proc, arch_addr_t addr,
 		  struct library_symbol *libsym)
 {
 	struct process *leader = proc->leader;
@@ -218,39 +223,46 @@ insert_breakpoint(struct process *proc, void *addr,
 	 * will suffice, about the only realistic case where we need
 	 * to have more than one breakpoint per address is return from
 	 * a recursive library call.  */
-	struct breakpoint *sbp = dict_find_entry(leader->breakpoints, addr);
-	if (sbp == NULL) {
-		sbp = malloc(sizeof(*sbp));
-		if (sbp == NULL
-		    || breakpoint_init(sbp, proc, addr, libsym) < 0) {
-			free(sbp);
+	struct breakpoint **found
+		= DICT_FIND(leader->breakpoints, &addr, struct breakpoint *);
+	struct breakpoint *bp;
+	if (found == NULL) {
+		bp = malloc(sizeof(*bp));
+		if (bp == NULL
+		    || breakpoint_init(bp, proc, addr, libsym) < 0) {
+			free(bp);
 			return NULL;
 		}
-		if (proc_add_breakpoint(leader, sbp) < 0) {
+		if (proc_add_breakpoint(leader, bp) < 0) {
 		fail:
-			breakpoint_destroy(sbp);
-			free(sbp);
+			breakpoint_destroy(bp);
+			free(bp);
 			return NULL;
 		}
+	} else {
+		bp = *found;
 	}
 
-	if (breakpoint_turn_on(sbp, proc) < 0) {
-		proc_remove_breakpoint(leader, sbp);
+	if (breakpoint_turn_on(bp, proc) < 0) {
+		proc_remove_breakpoint(leader, bp);
 		goto fail;
 	}
 
-	return sbp;
+	return bp;
 }
 
 void
-delete_breakpoint(struct process *proc, void *addr)
+delete_breakpoint(struct process *proc, arch_addr_t addr)
 {
 	debug(DEBUG_FUNCTION, "delete_breakpoint(pid=%d, addr=%p)", proc->pid, addr);
 
 	struct process *leader = proc->leader;
 	assert(leader != NULL);
 
-	struct breakpoint *sbp = dict_find_entry(leader->breakpoints, addr);
+	struct breakpoint **found
+		= DICT_FIND(leader->breakpoints, &addr, struct breakpoint *);
+	assert(found != NULL);
+	struct breakpoint *sbp = *found;
 	assert(sbp != NULL);
 	/* This should only happen on out-of-memory conditions. */
 	if (sbp == NULL)
@@ -282,13 +294,14 @@ breakpoint_library(const struct breakpoint *bp)
 	return bp->libsym != NULL ? bp->libsym->lib : NULL;
 }
 
-static void
-enable_bp_cb(void *addr, void *sbp, void *proc)
+static enum callback_status
+enable_bp_cb(arch_addr_t *addr, struct breakpoint **bpp, void *data)
 {
-	debug(DEBUG_FUNCTION, "enable_bp_cb(pid=%d)",
-	      ((struct process *)proc)->pid);
-	if (((struct breakpoint *)sbp)->enabled)
-		enable_breakpoint(proc, sbp);
+	struct process *proc = data;
+	debug(DEBUG_FUNCTION, "enable_bp_cb(pid=%d)", proc->pid);
+	if ((*bpp)->enabled)
+		enable_breakpoint(proc, *bpp);
+	return CBS_CONT;
 }
 
 void
@@ -297,19 +310,19 @@ enable_all_breakpoints(struct process *proc)
 	debug(DEBUG_FUNCTION, "enable_all_breakpoints(pid=%d)", proc->pid);
 
 	debug(1, "Enabling breakpoints for pid %u...", proc->pid);
-	if (proc->breakpoints) {
-		dict_apply_to_all(proc->breakpoints, enable_bp_cb,
-				  proc);
-	}
+	if (proc->breakpoints != NULL)
+		DICT_EACH(proc->breakpoints, arch_addr_t, struct breakpoint *,
+			  NULL, enable_bp_cb, proc);
 }
 
-static void
-disable_bp_cb(void *addr, void *sbp, void *proc)
+static enum callback_status
+disable_bp_cb(arch_addr_t *addr, struct breakpoint **bpp, void *data)
 {
-	debug(DEBUG_FUNCTION, "disable_bp_cb(pid=%d)",
-	      ((struct process *)proc)->pid);
-	if (((struct breakpoint *)sbp)->enabled)
-		disable_breakpoint(proc, sbp);
+	struct process *proc = data;
+	debug(DEBUG_FUNCTION, "disable_bp_cb(pid=%d)", proc->pid);
+	if ((*bpp)->enabled)
+		disable_breakpoint(proc, *bpp);
+	return CBS_CONT;
 }
 
 void
@@ -317,7 +330,8 @@ disable_all_breakpoints(struct process *proc)
 {
 	debug(DEBUG_FUNCTION, "disable_all_breakpoints(pid=%d)", proc->pid);
 	assert(proc->leader == proc);
-	dict_apply_to_all(proc->breakpoints, disable_bp_cb, proc);
+	DICT_EACH(proc->breakpoints, arch_addr_t, struct breakpoint *,
+		  NULL, disable_bp_cb, proc);
 }
 
 /* XXX This is not currently properly supported.  On clone, this is

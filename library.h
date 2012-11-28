@@ -34,8 +34,8 @@ enum toplt {
 };
 
 /* Dict interface.  */
-unsigned int target_address_hash(const void *key);
-int target_address_cmp(const void *key1, const void *key2);
+size_t arch_addr_hash(const arch_addr_t *addr);
+int arch_addr_eq(const arch_addr_t *addr1, const arch_addr_t *addr2);
 
 /* For handling -l.  */
 struct library_exported_name {

@@ -74,7 +74,7 @@ struct opt_c_struct {
 #include "demangle.h"
 #endif
 
-extern Dict * dict_opt_c;
+extern struct dict *dict_opt_c;
 
 /* Events  */
 extern Event * next_event(void);

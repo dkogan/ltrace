@@ -48,7 +48,7 @@
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
 
-Dict *dict_opt_c = NULL;
+struct dict *dict_opt_c = NULL;
 
 static struct process *current_proc = 0;
 static size_t current_depth = 0;
@@ -501,6 +501,12 @@ output_left(enum tof type, struct process *proc,
 	stel->out.need_delim = need_delim;
 }
 
+static void
+free_stringp_cb(const char **stringp, void *data)
+{
+	free((char *)*stringp);
+}
+
 void
 output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 {
@@ -509,26 +515,41 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 	if (func == NULL)
 		return;
 
+again:
 	if (options.summary) {
-		struct opt_c_struct *st;
-		if (!dict_opt_c) {
-			dict_opt_c =
-			    dict_init(dict_key2hash_string,
-				      dict_key_cmp_string);
-		}
-		st = dict_find_entry(dict_opt_c, function_name);
-		if (!st) {
-			char *na;
-			st = malloc(sizeof(struct opt_c_struct));
-			na = strdup(function_name);
-			if (!st || !na) {
-				perror("malloc()");
-				exit(1);
+		if (dict_opt_c == NULL) {
+			dict_opt_c = malloc(sizeof(*dict_opt_c));
+			if (dict_opt_c == NULL) {
+			oom:
+				fprintf(stderr,
+					"Can't allocate memory for "
+					"keeping track of -c.\n");
+				free(dict_opt_c);
+				options.summary = 0;
+				goto again;
 			}
-			st->count = 0;
-			st->tv.tv_sec = st->tv.tv_usec = 0;
-			dict_enter(dict_opt_c, na, st);
+			DICT_INIT(dict_opt_c, const char *, struct opt_c_struct,
+				  dict_hash_string, dict_eq_string, NULL);
 		}
+
+		struct opt_c_struct *st = DICT_FIND(dict_opt_c, &function_name,
+						    struct opt_c_struct);
+		if (st == NULL) {
+			const char *na = strdup(function_name);
+			struct opt_c_struct new_st = {.count = 0, .tv = {0, 0}};
+			if (na == NULL
+			    || DICT_INSERT(dict_opt_c, &na, &new_st) < 0) {
+				free((char *)na);
+				DICT_DESTROY(dict_opt_c, const char *,
+					     struct opt_c_struct,
+					     free_stringp_cb, NULL, NULL);
+				goto oom;
+			}
+			st = DICT_FIND(dict_opt_c, &function_name,
+				       struct opt_c_struct);
+			assert(st != NULL);
+		}
+
 		if (st->tv.tv_usec + current_time_spent.tv_usec > 1000000) {
 			st->tv.tv_usec += current_time_spent.tv_usec - 1000000;
 			st->tv.tv_sec++;
@@ -537,11 +558,9 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 		}
 		st->count++;
 		st->tv.tv_sec += current_time_spent.tv_sec;
-
-//              fprintf(options.output, "%s <%lu.%06d>\n", function_name,
-//                              current_time_spent.tv_sec, (int)current_time_spent.tv_usec);
 		return;
 	}
+
 	if (current_proc && (current_proc != proc ||
 			    current_depth != proc->callstack_depth)) {
 		fprintf(options.output, " <unfinished ...>\n");

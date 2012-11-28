@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2003,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -37,16 +38,15 @@ static struct entry_st {
 static int tot_count = 0;
 static unsigned long int tot_usecs = 0;
 
-static void fill_struct(void *key, void *value, void *data)
+static enum callback_status
+fill_struct(const char **namep, struct opt_c_struct *st, void *data)
 {
-	struct opt_c_struct *st = (struct opt_c_struct *)value;
-
 	entries = realloc(entries, (num_entries + 1) * sizeof(struct entry_st));
 	if (!entries) {
 		perror("realloc()");
 		exit(1);
 	}
-	entries[num_entries].name = (char *)key;
+	entries[num_entries].name = (char *)*namep;
 	entries[num_entries].count = st->count;
 	entries[num_entries].tv = st->tv;
 
@@ -55,6 +55,7 @@ static void fill_struct(void *key, void *value, void *data)
 	tot_usecs += st->tv.tv_usec;
 
 	num_entries++;
+	return CBS_CONT;
 }
 
 static int compar(const void *a, const void *b)
@@ -78,7 +79,8 @@ void show_summary(void)
 	num_entries = 0;
 	entries = NULL;
 
-	dict_apply_to_all(dict_opt_c, fill_struct, NULL);
+	DICT_EACH(dict_opt_c, const char *, struct opt_c_struct, NULL,
+		  fill_struct, NULL);
 
 	qsort(entries, num_entries, sizeof(*entries), compar);
 

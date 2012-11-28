@@ -68,31 +68,26 @@ arch_library_symbol_clone(struct library_symbol *retp,
 }
 #endif
 
-unsigned int
-target_address_hash(const void *key)
+size_t
+arch_addr_hash(const arch_addr_t *addr)
 {
-	/* XXX this assumes that key is passed by value.  */
 	union {
 		arch_addr_t addr;
-		unsigned int ints[sizeof(arch_addr_t)
-				  / sizeof(unsigned int)];
-	} u = { .addr = (arch_addr_t)key };
+		int ints[sizeof(arch_addr_t)
+			 / sizeof(unsigned int)];
+	} u = { .addr = *addr };
 
 	size_t i;
-	unsigned int h = 0;
+	size_t h = 0;
 	for (i = 0; i < sizeof(u.ints) / sizeof(*u.ints); ++i)
-		h ^= dict_key2hash_int((void *)(uintptr_t)u.ints[i]);
+		h ^= dict_hash_int(&u.ints[i]);
 	return h;
 }
 
 int
-target_address_cmp(const void *key1, const void *key2)
+arch_addr_eq(const arch_addr_t *addr1, const arch_addr_t *addr2)
 {
-	/* XXX this assumes that key is passed by value.  */
-	arch_addr_t addr1 = (arch_addr_t)key1;
-	arch_addr_t addr2 = (arch_addr_t)key2;
-	return addr1 < addr2 ? 1
-	     : addr1 > addr2 ? -1 : 0;
+	return *addr1 == *addr2;
 }
 
 /* If the other symbol owns the name, we need to make the copy, so
