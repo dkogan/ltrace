@@ -40,6 +40,8 @@
     For reasons of consistency with "hex".  "octal" is still valid and
     will be for forseeable future.
 
+*** The hex lens can now format floating point arguments
+
 * Version 0.7.0
 ** Tracing
 *** Full support for tracing multi-threaded processes

@@ -186,7 +186,17 @@ format_naked_char(FILE *stream, struct value *value,
 }
 
 static int
-format_floating(FILE *stream, struct value *value, struct value_dict *arguments)
+format_double(FILE *stream, double value, enum int_fmt_t format)
+{
+	if (format == INT_FMT_x)
+		return fprintf(stream, "%a", value);
+	else
+		return fprintf(stream, "%f", value);
+}
+
+static int
+format_floating(FILE *stream, struct value *value, struct value_dict *arguments,
+		enum int_fmt_t format)
 {
 	switch (value->type->type) {
 		float f;
@@ -194,11 +204,11 @@ format_floating(FILE *stream, struct value *value, struct value_dict *arguments)
 	case ARGTYPE_FLOAT:
 		if (read_float(value, &f, arguments) < 0)
 			return -1;
-		return fprintf(stream, "%f", (double)f);
+		return format_double(stream, f, format);
 	case ARGTYPE_DOUBLE:
 		if (read_double(value, &d, arguments) < 0)
 			return -1;
-		return fprintf(stream, "%f", d);
+		return format_double(stream, d, format);
 	default:
 		abort();
 	}
@@ -400,7 +410,7 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
-		return format_floating(stream, value, arguments);
+		return format_floating(stream, value, arguments, int_fmt);
 
 	case ARGTYPE_STRUCT:
 		return format_struct(stream, value, arguments);

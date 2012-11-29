@@ -166,4 +166,21 @@ ltraceParamTest {
     {{fun2\(<8-15,255>\) *= <void>} == 1}
 }
 
+ltraceParamTest {
+    hex(float) hex_float(hex(float));
+    hex(double) hex_double(hex(double));
+} {
+    float hex_float(float f);
+    double hex_double(double d);
+} {
+    float hex_float(float f) { return f + 1; }
+    double hex_double(double d) { return d + 1; }
+} {
+    hex_float(1.5);
+    hex_double(1.5);
+} {
+    {{hex_float\(0x1.8p\+0\) *= 0x1.4p\+1} == 1}
+    {{hex_double\(0x1.8p\+0\) *= 0x1.4p\+1} == 1}
+}
+
 ltraceDone

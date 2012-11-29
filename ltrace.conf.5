@@ -127,8 +127,9 @@ The argument, which should be an integer type, is formatted in base-8.
 
 .TP
 .B hex(\fITYPE\fB)
-The argument, which should be an integer type, is formatted in
-base-16.
+The argument, which should be an integer or floating point type, is
+formatted in base-16.  Floating point arguments are converted to
+double and then displayed using the \fB%a\fR fprintf modifier.
 
 .TP
 .B hide(\fITYPE\fB)
@@ -136,7 +137,7 @@ The argument is not shown in argument list.
 
 .TP
 .B bool(\fITYPE\fB)
-Arguments with zero value are shown as "false", other are shown as
+Arguments with zero value are shown as "false", others are shown as
 "true".
 
 .TP
