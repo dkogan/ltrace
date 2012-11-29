@@ -16,37 +16,41 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
+set trivial [ltraceCompile {} [ltraceSource c {
+    int main(void) {}
+}]]
+
 ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef aa = int;
     typedef aaa = int;
     typedef bbb = struct(aa);
-}] -- true] "error" == 0
+}] -- $trivial] "error" == 0
 
 ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef aa = int;
     typedef aa = int;
-}] -- true] "error" != 0
+}] -- $trivial] "error" != 0
 
 ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef aa = struct;
     typedef aa = int;
-}] -- true] "error" != 0
+}] -- $trivial] "error" != 0
 
 ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef aa = struct;
     typedef aa = struct(int);
     typedef aa = struct(int);
-}] -- true] "error" != 0
+}] -- $trivial] "error" != 0
 
 ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef aa = struct;
     typedef aa = struct();
     typedef aa = struct();
-}] -- true] "error" != 0
+}] -- $trivial] "error" != 0
 
 ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {
     typedef aa = struct(int, struct;);
-}] -- true] "error" != 0
+}] -- $trivial] "error" != 0
 
 set libll [ltraceCompile libll.so [ltraceSource c {
     struct xxx;
