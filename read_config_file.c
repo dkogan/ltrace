@@ -435,13 +435,16 @@ parse_typedef(char **str)
 		|| !forward->forward)) {
 		report_error(filename, line_no,
 			     "Redefinition of typedef '%s'", name);
+		free(name);
 		return;
 	}
 
 	// Skip = sign
 	eat_spaces(str);
-	if (parse_char(str, '=') < 0)
+	if (parse_char(str, '=') < 0) {
+		free(name);
 		return;
+	}
 	eat_spaces(str);
 
 	struct typedef_node_t *this_td = new_typedef(name, NULL, 0);
@@ -449,6 +452,7 @@ parse_typedef(char **str)
 
 	if (this_td->info == NULL) {
 		free(this_td);
+		free(name);
 		return;
 	}
 
@@ -467,6 +471,8 @@ parse_typedef(char **str)
 			type_destroy(this_td->info);
 			free(this_td->info);
 		}
+		free(this_td);
+		free(name);
 		return;
 	}
 
