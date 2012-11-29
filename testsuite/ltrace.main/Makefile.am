@@ -33,6 +33,7 @@ EXTRA_DIST = \
 	parameters.conf \
 	parameters.exp \
 	parameters-lib.c \
+	parameters2.exp \
 	signals.c \
 	signals.exp \
 	system_calls.c \
