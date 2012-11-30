@@ -521,7 +521,9 @@ crawl_linkmap(struct Process *proc, struct lt_r_debug_64 *dbg)
 		 * kludge is about the best that we can do.  */
 		if (*lib_name == 0
 		    || strcmp(lib_name, "linux-vdso.so.1") == 0
-		    || strcmp(lib_name, "linux-gate.so.1") == 0)
+		    || strcmp(lib_name, "linux-gate.so.1") == 0
+		    || strcmp(lib_name, "linux-vdso32.so.1") == 0
+		    || strcmp(lib_name, "linux-vdso64.so.1") == 0)
 			continue;
 
 		/* Do we have that library already?  */
