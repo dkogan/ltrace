@@ -165,7 +165,7 @@ if test x"$enable_libunwind" = xyes; then
       arm*|sa110)         UNWIND_ARCH="arm" ;;
       i?86)               UNWIND_ARCH="x86" ;;
       powerpc)            UNWIND_ARCH="ppc32" ;;
-      ppc64)              UNWIND_ARCH="ppc64" ;;
+      powerpc64)          UNWIND_ARCH="ppc64" ;;
       mips*)              UNWIND_ARCH="mips" ;;
       *)                  UNWIND_ARCH="${host_cpu}" ;;
   esac
