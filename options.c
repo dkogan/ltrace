@@ -112,7 +112,7 @@ usage(void) {
 		"  -u USERNAME         run command with the userid, groupid of username.\n"
 		"  -V, --version       output version information and exit.\n"
 #if defined(HAVE_LIBUNWIND)
-		"  -w=NR, --where=NR   print backtrace showing NR stack frames at most.\n"
+		"  -w, --where=NR      print backtrace showing NR stack frames at most.\n"
 #endif /* defined(HAVE_LIBUNWIND) */
 		"  -x NAME             treat the global NAME like a library subroutine.\n"
 		"\nReport bugs to ltrace-devel@lists.alioth.debian.org\n",
@@ -426,6 +426,22 @@ parse_filter_chain(const char *expr, struct filter **retp)
 	free(str);
 }
 
+static int
+parse_int(const char *optarg, char opt, int min, int max)
+{
+	char *endptr;
+	long int l = strtol(optarg, &endptr, 0);
+	if (l < min || (max != 0 && l > max)
+	    || *optarg == 0 || *endptr != 0) {
+		const char *fmt = max != 0
+			? "Invalid argument to -%c: '%s'.  Use integer %d..%d.\n"
+			: "Invalid argument to -%c: '%s'.  Use integer >=%d.\n";
+		fprintf(stderr, fmt, opt, optarg, min, max);
+		exit(1);
+	}
+	return (int)l;
+}
+
 char **
 process_options(int argc, char **argv)
 {
@@ -477,10 +493,10 @@ process_options(int argc, char **argv)
 		}
 		switch (c) {
 		case 'a':
-			options.align = atoi(optarg);
+			options.align = parse_int(optarg, 'a', 0, 0);
 			break;
 		case 'A':
-			options.arraylen = atoi(optarg);
+			options.arraylen = parse_int(optarg, 'A', 0, 0);
 			break;
 		case 'b':
 			options.no_signals = 1;
@@ -549,19 +565,9 @@ process_options(int argc, char **argv)
 		case 'L':
 			libcalls = 0;
 			break;
-		case 'n': {
-			char *endptr;
-			long int l = strtol(optarg, &endptr, 0);
-			/* Arbitrary cut-off.  Nobody needs to indent
-			 * more than, say, 8, anyway.  */
-			if (l < 0 || l > 20 || *optarg == 0 || *endptr != 0) {
-				fprintf(stderr, "Invalid argument to -n: '%s'."
-					"  Use integer 0..20.\n", optarg);
-				exit(1);
-			}
-			options.indent = (int)l;
+		case 'n':
+			options.indent = parse_int(optarg, 'n', 0, 20);
 			break;
-		}
 		case 'o':
 			options.output = fopen(optarg, "w");
 			if (!options.output) {
@@ -580,7 +586,7 @@ process_options(int argc, char **argv)
 					perror("ltrace: malloc");
 					exit(1);
 				}
-				tmp->pid = atoi(optarg);
+				tmp->pid = parse_int(optarg, 'p', 1, 0);
 				tmp->next = opt_p;
 				opt_p = tmp;
 				break;
@@ -589,7 +595,7 @@ process_options(int argc, char **argv)
 			opt_r++;
 			break;
 		case 's':
-			options.strlen = atoi(optarg);
+			options.strlen = parse_int(optarg, 's', 0, 0);
 			break;
 		case 'S':
 			options.syscalls = 1;
@@ -612,7 +618,7 @@ process_options(int argc, char **argv)
 			break;
 #if defined(HAVE_LIBUNWIND)
 		case 'w':
-			options.bt_depth = atoi(optarg);
+			options.bt_depth = parse_int(optarg, 'w', 1, 0);
 			break;
 #endif /* defined(HAVE_LIBUNWIND) */
 
