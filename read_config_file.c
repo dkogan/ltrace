@@ -439,53 +439,45 @@ parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 		goto err;
 	eat_spaces(str);
 
-	struct named_type *this_nt = malloc(sizeof(*this_nt));
-	if (this_nt == NULL) {
-		free(this_nt);
-		goto err;
-	}
-
 	int fwd = 0;
 	int own = 0;
 	struct arg_type_info *info
 		= parse_lens(plib, loc, str, NULL, 0, &own, &fwd);
-	if (info == NULL) {
-		free(this_nt);
+	if (info == NULL)
 		goto err;
-	}
-	named_type_init(this_nt, info, own);
-	this_nt->forward = fwd;
+
+	struct named_type this_nt;
+	named_type_init(&this_nt, info, own);
+	this_nt.forward = fwd;
 
 	if (forward == NULL) {
 		if (protolib_add_named_type(&g_prototypes, name,
-					    1, this_nt) < 0) {
-		err2:
-			named_type_destroy(this_nt);
-			free(this_nt);
-			return -1;
+					    1, &this_nt) < 0) {
+			named_type_destroy(&this_nt);
+			goto err;
 		}
 		return 0;
 	}
 
 	/* If we are defining a forward, make sure the definition is a
 	 * structure as well.  */
-	if (this_nt->info->type != ARGTYPE_STRUCT) {
+	if (this_nt.info->type != ARGTYPE_STRUCT) {
 		report_error(loc->filename, loc->line_no,
 			     "Definition of forward '%s' must be a structure.",
 			     name);
-		goto err2;
+		named_type_destroy(&this_nt);
+		goto err;
 	}
 
 	/* Now move guts of the actual type over to the forward type.
 	 * We can't just move pointers around, because references to
 	 * forward must stay intact.  */
-	assert(this_nt->own_type);
+	assert(this_nt.own_type);
 	type_destroy(forward->info);
-	*forward->info = *this_nt->info;
+	*forward->info = *this_nt.info;
 	forward->forward = 0;
-	free(this_nt->info);
+	free(this_nt.info);
 	free(name);
-	free(this_nt);
 	return 0;
 }
 
@@ -1130,27 +1122,21 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 		return 0;
 	}
 
-	struct prototype *fun = calloc(1, sizeof(*fun));
-	if (fun == NULL) {
-		report_error(loc->filename, loc->line_no,
-			     "%s", strerror(errno));
-		return -1;
-	}
-	prototype_init(fun);
+	struct prototype fun;
+	prototype_init(&fun);
 
 	char *proto_name = NULL;
 	int own;
-	fun->return_info = parse_lens(plib, loc, &str, NULL, 0, &own, NULL);
-	if (fun->return_info == NULL) {
+	fun.return_info = parse_lens(plib, loc, &str, NULL, 0, &own, NULL);
+	if (fun.return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", loc->line_no);
-		prototype_destroy(fun);
-		free(fun);
+		prototype_destroy(&fun);
 		free(proto_name);
 		return -1;
 	}
-	fun->own_return_info = own;
-	debug(4, " return_type = %d", fun->return_info->type);
+	fun.own_return_info = own;
+	debug(4, " return_type = %d", fun.return_info->type);
 
 	eat_spaces(&str);
 	tmp = start_of_arg_sig(str);
@@ -1183,7 +1169,7 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 			if (have_stop == 0) {
 				struct param param;
 				param_init_stop(&param);
-				if (prototype_push_param(fun, &param) < 0)
+				if (prototype_push_param(&fun, &param) < 0)
 					goto oom;
 				have_stop = 1;
 			}
@@ -1191,7 +1177,7 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 		}
 
 		int own;
-		size_t param_num = prototype_num_params(fun) - have_stop;
+		size_t param_num = prototype_num_params(&fun) - have_stop;
 		struct arg_type_info *type
 			= parse_lens(plib, loc, &str, &extra_param,
 				     param_num, &own, NULL);
@@ -1203,7 +1189,7 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 
 		struct param param;
 		param_init_type(&param, type, own);
-		if (prototype_push_param(fun, &param) < 0)
+		if (prototype_push_param(&fun, &param) < 0)
 			goto oom;
 
 		eat_spaces(&str);
@@ -1232,8 +1218,8 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 	 * latter is conservative, we can drop the argument
 	 * altogether, instead of fetching and then not showing it,
 	 * without breaking any observable behavior.  */
-	if (prototype_num_params(fun) == 1
-	    && param_is_void(prototype_get_nth_param(fun, 0))) {
+	if (prototype_num_params(&fun) == 1
+	    && param_is_void(prototype_get_nth_param(&fun, 0))) {
 		if (0)
 			/* Don't show this warning.  Pre-0.7.0
 			 * ltrace.conf often used this idiom.  This
@@ -1241,17 +1227,17 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 			 * extant uses are likely gone.  */
 			report_warning(loc->filename, loc->line_no,
 				       "sole void parameter ignored");
-		prototype_destroy_nth_param(fun, 0);
+		prototype_destroy_nth_param(&fun, 0);
 	} else {
-		prototype_each_param(fun, NULL, void_to_hidden_int, loc);
+		prototype_each_param(&fun, NULL, void_to_hidden_int, loc);
 	}
 
 	if (extra_param != NULL) {
-		prototype_push_param(fun, extra_param);
+		prototype_push_param(&fun, extra_param);
 		free(extra_param);
 	}
 
-	if (protolib_add_prototype(plib, proto_name, 1, fun) < 0) {
+	if (protolib_add_prototype(plib, proto_name, 1, &fun) < 0) {
 		report_error(loc->filename, loc->line_no,
 			     "couldn't add prototype: %s",
 			     strerror(errno));
