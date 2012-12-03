@@ -1065,26 +1065,15 @@ param_is_void(struct param *param)
 static struct arg_type_info *
 get_hidden_int(void)
 {
-	static struct arg_type_info *info = NULL;
-	if (info != NULL)
-		return info;
+	static struct arg_type_info info, *pinfo = NULL;
+	if (pinfo != NULL)
+		return pinfo;
 
-	char *str = strdup("hide(int)");
-	char *ptr = str;
-	assert(str != NULL);
-	int own;
-	struct locus loc = { NULL, 0 };
+	info = *type_get_simple(ARGTYPE_INT);
+	info.lens = &blind_lens;
+	pinfo = &info;
 
-	struct protolib fake_plib;
-	protolib_init(&fake_plib);
-
-	info = parse_lens(&fake_plib, &loc, &ptr, NULL, 0, &own, NULL);
-
-	protolib_destroy(&fake_plib);
-	assert(info != NULL);
-	free(str);
-
-	return info;
+	return pinfo;
 }
 
 static enum callback_status
