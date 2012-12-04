@@ -25,10 +25,6 @@ SUBDIRS = \
 	. \
 	testsuite
 
-AM_CPPFLAGS += \
-	$(libelf_CFLAGS) \
-	-DSYSCONFDIR=\"$(sysconfdir)\"
-
 noinst_LTLIBRARIES = \
 	libltrace.la
 

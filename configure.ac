@@ -225,6 +225,7 @@ CPPFLAGS="${saved_CPPFLAGS}"
 LDFLAGS="${saved_LDFLAGS}"
 
 AM_CPPFLAGS=" \
+	-DSYSCONFDIR="'\"$(sysconfdir)\"'" \
 	${AM_CPPFLAGS} \
 	-I\$(top_srcdir)/sysdeps/${HOST_OS}/${HOST_CPU} \
 	-I\$(top_srcdir)/sysdeps/${HOST_OS} \
