@@ -27,6 +27,7 @@
 #include <sys/time.h>
 
 #include "forward.h"
+#include "vect.h"
 
 struct options_t {
 	int align;      /* -a: default alignment column for results */
@@ -65,16 +66,40 @@ struct opt_p_t {
 	struct opt_p_t *next;
 };
 
-struct opt_F_t
-{
-	struct opt_F_t *next;
-	char *filename;
-	int own_filename : 1;
-};
-
 extern struct opt_p_t *opt_p;	/* attach to process with a given pid */
 
-extern struct opt_F_t *opt_F;	/* alternate configuration file(s) */
+enum opt_F_kind {
+	OPT_F_UNKNOWN = 0,
+	OPT_F_BROKEN,
+	OPT_F_FILE,
+	OPT_F_DIR,
+};
+
+struct opt_F_t {
+	char *pathname;
+	int own_pathname : 1;
+	enum opt_F_kind kind : 2;
+};
+
+/* If entry->kind is OPT_F_UNKNOWN, figure out whether it should be
+ * OPT_F_FILE or OPT_F_DIR, cache the result, and return it.  Return
+ * OPT_F_BROKEN on failure.  Error message will have been printed in
+ * that case.  */
+enum opt_F_kind opt_F_get_kind(struct opt_F_t *entry);
+
+/* Destroy and release any memory associated with ENTRY (but don't
+ * free ENTRY itself).  */
+void opt_F_destroy(struct opt_F_t *entry);
+
+/* PATHS contains colon-separated list of values, akin to enviroment
+ * variables PATH, PYTHONPATH, and others.  No escaping is possible.
+ * The list is split and added to VEC, which shall be a vector
+ * initialized like VECT_INIT(VEC, struct opt_F_t); Returns 0 on
+ * success or a negative value on failure.  */
+int parse_colon_separated_list(const char *paths, struct vect *vec);
+
+/* Vector of struct opt_F_t.  */
+extern struct vect opt_F;
 
 struct opt_c_struct {
 	int count;

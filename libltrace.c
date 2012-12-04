@@ -110,32 +110,7 @@ ltrace_init(int argc, char **argv) {
 
 	argv = process_options(argc, argv);
 	init_global_config();
-	while (opt_F) {
-		/* If filename begins with ~, expand it to the user's home */
-		/* directory. This does not correctly handle ~yoda, but that */
-		/* isn't as bad as it seems because the shell will normally */
-		/* be doing the expansion for us; only the hardcoded */
-		/* ~/.ltrace.conf should ever use this code. */
-		if (opt_F->filename[0] == '~') {
-			char path[PATH_MAX];
-			char *home_dir = getenv("HOME");
-			if (home_dir) {
-				strncpy(path, home_dir, PATH_MAX - 1);
-				path[PATH_MAX - 1] = '\0';
-				strncat(path, opt_F->filename + 1,
-						PATH_MAX - strlen(path) - 1);
-				read_config_file(&g_prototypes, path);
-			}
-		} else {
-			read_config_file(&g_prototypes, opt_F->filename);
-		}
 
-		struct opt_F_t *next = opt_F->next;
-		if (opt_F->own_filename)
-			free(opt_F->filename);
-		free(opt_F);
-		opt_F = next;
-	}
 	if (command) {
 		/* Check that the binary ABI is supported before
 		 * calling execute_program.  */

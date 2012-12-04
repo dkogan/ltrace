@@ -26,6 +26,8 @@
 #include "config.h"
 
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -40,13 +42,6 @@
 #include "filter.h"
 #include "glob.h"
 #include "demangle.h"
-
-#ifndef SYSCONFDIR
-#define SYSCONFDIR "/etc"
-#endif
-
-#define SYSTEM_CONFIG_FILE SYSCONFDIR "/ltrace.conf"
-#define USER_CONFIG_FILE "~/.ltrace.conf"
 
 struct options_t options = {
 	.align    = DEFAULT_ALIGN,    /* alignment column for results */
@@ -73,8 +68,8 @@ int opt_T = 0;			/* show the time spent inside each call */
 /* List of pids given to option -p: */
 struct opt_p_t *opt_p = NULL;	/* attach to process with a given pid */
 
-/* List of filenames give to option -F: */
-struct opt_F_t *opt_F = NULL;	/* alternate configuration file(s) */
+/* Vector of struct opt_F_t.  */
+struct vect opt_F;
 
 static void
 err_usage(void) {
@@ -443,9 +438,83 @@ parse_int(const char *optarg, char opt, int min, int max)
 	return (int)l;
 }
 
+int
+parse_colon_separated_list(const char *paths, struct vect *vec)
+{
+	/* PATHS contains a colon-separated list of directories and
+	 * files to load.  It's modeled after shell PATH variable,
+	 * which doesn't allow escapes.  PYTHONPATH in CPython behaves
+	 * the same way.  So let's follow suit, it makes things easier
+	 * to us.  */
+
+	char *clone = strdup(paths);
+	if (clone == NULL) {
+		fprintf(stderr, "Couldn't parse argument %s: %s.\n",
+			paths, strerror(errno));
+		return -1;
+	}
+
+	/* It's undesirable to use strtok, because we want the string
+	 * "a::b" to have three elements.  */
+	char *tok = clone - 1;
+	char *end = clone + strlen(clone);
+	while (tok < end) {
+		++tok;
+		size_t len = strcspn(tok, ":");
+		tok[len] = 0;
+
+		struct opt_F_t arg = {
+			.pathname = tok,
+			.own_pathname = tok == clone,
+		};
+		if (VECT_PUSHBACK(vec, &arg) < 0)
+			/* Presumably this is not a deal-breaker.  */
+			fprintf(stderr, "Couldn't store component of %s: %s.\n",
+				paths, strerror(errno));
+
+		tok += len;
+	}
+
+	return 0;
+}
+
+void
+opt_F_destroy(struct opt_F_t *entry)
+{
+	if (entry == NULL)
+		return;
+	if (entry->own_pathname)
+		free(entry->pathname);
+}
+
+enum opt_F_kind
+opt_F_get_kind(struct opt_F_t *entry)
+{
+	if (entry->kind == OPT_F_UNKNOWN) {
+		struct stat st;
+		if (lstat(entry->pathname, &st) < 0) {
+			fprintf(stderr, "Couldn't stat %s: %s\n",
+				entry->pathname, strerror(errno));
+			entry->kind = OPT_F_BROKEN;
+		} else if (S_ISDIR(st.st_mode)) {
+			entry->kind = OPT_F_DIR;
+		} else if (S_ISREG(st.st_mode)) {
+			entry->kind = OPT_F_FILE;
+		} else {
+			fprintf(stderr, "%s is neither a regular file, "
+				"nor a directory.\n", entry->pathname);
+			entry->kind = OPT_F_BROKEN;
+		}
+	}
+	assert(entry->kind != OPT_F_UNKNOWN);
+	return entry->kind;
+}
+
 char **
 process_options(int argc, char **argv)
 {
+	VECT_INIT(&opt_F, struct opt_F_t);
+
 	progname = argv[0];
 	options.output = stderr;
 	options.no_signals = 0;
@@ -537,23 +606,8 @@ process_options(int argc, char **argv)
 			options.follow = 1;
 			break;
 		case 'F':
-			{
-				struct opt_F_t *tmp = malloc(sizeof(*tmp));
-				if (tmp == NULL) {
-				fail:
-					fprintf(stderr, "%s\n",
-						strerror(errno));
-					free(tmp);
-					exit(1);
-				}
-				tmp->filename = strdup(optarg);
-				if (tmp->filename == NULL)
-					goto fail;
-				tmp->own_filename = 1;
-				tmp->next = opt_F;
-				opt_F = tmp;
-				break;
-			}
+			parse_colon_separated_list(optarg, &opt_F);
+			break;
 		case 'h':
 			usage();
 			exit(0);
@@ -642,31 +696,6 @@ process_options(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-
-	if (!opt_F) {
-		opt_F = malloc(sizeof(struct opt_F_t));
-		opt_F->next = malloc(sizeof(struct opt_F_t));
-		opt_F->next->next = NULL;
-		opt_F->filename = USER_CONFIG_FILE;
-		opt_F->own_filename = 0;
-		opt_F->next->filename = SYSTEM_CONFIG_FILE;
-		opt_F->next->own_filename = 0;
-	}
-	/* Reverse the config file list since it was built by
-	 * prepending, and it would make more sense to process the
-	 * files in the order they were given. Probably it would make
-	 * more sense to keep a tail pointer instead? */
-	{
-		struct opt_F_t *egg = NULL;
-		struct opt_F_t *chicken;
-		while (opt_F) {
-			chicken = opt_F->next;
-			opt_F->next = egg;
-			egg = opt_F;
-			opt_F = chicken;
-		}
-		opt_F = egg;
-	}
 
 	/* If neither -e, nor -l, nor -L are used, set default -e.
 	 * Use @MAIN for now, as that's what ltrace used to have in
