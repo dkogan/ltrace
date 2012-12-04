@@ -422,7 +422,7 @@ parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 	/* Look through the typedef list whether we already have a
 	 * forward of this type.  If we do, it must be forward
 	 * structure.  */
-	struct named_type *forward = protolib_lookup_type(&g_prototypes, name);
+	struct named_type *forward = protolib_lookup_type(plib, name);
 	if (forward != NULL
 	    && (forward->info->type != ARGTYPE_STRUCT
 		|| !forward->forward)) {
@@ -451,8 +451,7 @@ parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 	this_nt.forward = fwd;
 
 	if (forward == NULL) {
-		if (protolib_add_named_type(&g_prototypes, name,
-					    1, &this_nt) < 0) {
+		if (protolib_add_named_type(plib, name, 1, &this_nt) < 0) {
 			named_type_destroy(&this_nt);
 			goto err;
 		}
@@ -1250,7 +1249,7 @@ read_config_file(struct protolib *plib, const char *path)
 	size_t len = 0;
 	while (getline(&line, &len, stream) >= 0) {
 		loc.line_no++;
-		process_line(&g_prototypes, &loc, line);
+		process_line(plib, &loc, line);
 	}
 
 	free(line);
