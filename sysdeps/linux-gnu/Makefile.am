@@ -24,11 +24,7 @@ SUBDIRS = \
 noinst_LTLIBRARIES = \
 	../libos.la
 
-___libos_la_SOURCES = \
-	events.c \
-	trace.c \
-	proc.c \
-	breakpoint.c
+___libos_la_SOURCES = events.c trace.c proc.c breakpoint.c hooks.c
 
 ___libos_la_LIBADD = \
 	libcpu.la
