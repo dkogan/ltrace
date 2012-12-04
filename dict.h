@@ -199,8 +199,8 @@ void *dict_each(struct dict *dict, void *start_after,
 		/* Check that CB is typed properly.  */			\
 		enum callback_status (*_cb)(KEY_TYPE *, VALUE_TYPE *,	\
 					    void *) = CB;		\
-		KEY_TYPE *start_after = (START_AFTER);			\
-		(KEY_TYPE *)dict_each((DICTP), start_after,		\
+		KEY_TYPE *_start_after = (START_AFTER);			\
+		(KEY_TYPE *)dict_each((DICTP), _start_after,		\
 				      (enum callback_status		\
 				       (*)(void *, void *, void *))_cb,	\
 				      (DATA));				\

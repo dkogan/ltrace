@@ -164,8 +164,8 @@ void *vect_each(struct vect *vec, void *start_after,
 		assert((VECP)->elt_size == sizeof(ELT_TYPE));		\
 		/* Check that CB is typed properly.  */			\
 		enum callback_status (*_cb)(ELT_TYPE *, void *) = CB;	\
-		ELT_TYPE *start_after = (START_AFTER);			\
-		(ELT_TYPE *)vect_each((VECP), start_after,		\
+		ELT_TYPE *_start_after = (START_AFTER);			\
+		(ELT_TYPE *)vect_each((VECP), _start_after,		\
 				      (enum callback_status		\
 				       (*)(void *, void *))_cb,		\
 				      DATA);				\
