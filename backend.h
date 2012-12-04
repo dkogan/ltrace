@@ -316,7 +316,7 @@ enum plt_status arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 /* This callback needs to be implemented if arch.h defines
  * ARCH_HAVE_DYNLINK_DONE.  It is called after the dynamic linker is
- * done with the process startup.  */
+ * done with the process start-up.  */
 void arch_dynlink_done(struct process *proc);
 
 /* This callback needs to be implemented if arch.h defines
@@ -333,6 +333,22 @@ void arch_symbol_ret(struct process *proc, struct library_symbol *libsym);
  * If the debug area is not found, return a negative value.  */
 int arch_find_dl_debug(struct process *proc, arch_addr_t dyn_addr,
 		       arch_addr_t *ret);
+
+/* This is called to obtain a list of directories to search when
+ * loading config files.  The callback sets *RETP to a pointer to the
+ * first element of a NULL-terminated array of directory names.  It's
+ * legitimate to set *RETP to NULL to indicate there are no
+ * directories.  The function returns 0 on success or a negative value
+ * on a failure.
+ *
+ * If PRIVATE is set, the list in *RETP should contain only user's own
+ * directories (presumably under HOME if there's any such thing on the
+ * given OS).  Otherwise only system directories should be reported.
+ *
+ * The directories don't have to exist.  Directories passed in -F are
+ * handled separately by the caller and this callback shouldn't
+ * concern itself with it.  */
+int os_get_config_dirs(int private, const char ***retp);
 
 /* If arch.h defines ARCH_HAVE_FETCH_ARG, the following callbacks have
  * to be implemented: arch_fetch_arg_init, arch_fetch_arg_clone,
