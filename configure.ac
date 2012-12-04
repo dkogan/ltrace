@@ -154,13 +154,6 @@ esac
 AC_MSG_RESULT([$enable_libunwind])
 
 if test x"$enable_libunwind" = xyes; then
-  saved_LDFLAGS="${LDFLAGS}"
-  LDFLAGS="${LDFLAGS} ${AM_LDFLAGS}"
-  AC_CHECK_LIB(unwind, backtrace, libunwind_LIBS=-lunwind, libunwind_LIBS=)
-  AC_SUBST(libunwind_LIBS)
-  AC_CHECK_LIB(unwind-ptrace, _UPT_create, libunwind_ptrace_LIBS=-lunwind-ptrace, libunwind_ptrace_LIBS=)
-  AC_SUBST(libunwind_ptrace_LIBS)
-
   case "${host_cpu}" in
       arm*|sa110)         UNWIND_ARCH="arm" ;;
       i?86)               UNWIND_ARCH="x86" ;;
@@ -170,8 +163,22 @@ if test x"$enable_libunwind" = xyes; then
       *)                  UNWIND_ARCH="${host_cpu}" ;;
   esac
 
-  AC_CHECK_LIB(unwind-${UNWIND_ARCH}, _U${UNWIND_ARCH}_init_remote, libunwind_arch_LIBS=-lunwind-${UNWIND_ARCH}, libunwind_arch_LIBS=)
-  AC_SUBST(libunwind_arch_LIBS)
+  saved_LDFLAGS="${LDFLAGS}"
+  LDFLAGS="${LDFLAGS} ${AM_LDFLAGS}"
+  AC_CHECK_LIB([unwind], [backtrace], [libunwind_LIBS=-lunwind],
+	       [AC_MSG_ERROR([Couldn't find or use libunwind.])])
+
+  AC_CHECK_LIB([unwind-${UNWIND_ARCH}], [_U${UNWIND_ARCH}_init_remote],
+	       [libunwind_LIBS="-lunwind-${UNWIND_ARCH} $libunwind_LIBS"],
+	       [AC_MSG_ERROR([Couldn't find or use libunwind-${UNWIND_ARCH}.])],
+	       [$libunwind_LIBS])
+
+  AC_CHECK_LIB([unwind-ptrace], [_UPT_create],
+	       [libunwind_LIBS="-lunwind-ptrace $libunwind_LIBS"],
+	       [AC_MSG_ERROR([Couldn't find or use libunwind-ptrace.])],
+	       [$libunwind_LIBS])
+
+  AC_SUBST(libunwind_LIBS)
   AC_DEFINE([HAVE_LIBUNWIND], [1], [we have libunwind])
   LDFLAGS="${saved_LDFLAGS}"
 fi

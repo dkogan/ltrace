@@ -68,8 +68,6 @@ libltrace_la_LIBADD = \
 	$(libsupcxx_LIBS) \
 	$(libstdcxx_LIBS) \
 	$(libunwind_LIBS) \
-	$(libunwind_ptrace_LIBS) \
-	$(libunwind_arch_LIBS) \
 	sysdeps/libos.la
 
 

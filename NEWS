@@ -1,4 +1,7 @@
 -*-org-*-
+* Version 0.7.2
+*** Fix building with libunwind 1.1
+
 * Version 0.7.1
 ** Bugfixes
 *** ltrace.conf.5 is now installed to man5 as it should be
