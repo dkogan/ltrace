@@ -348,7 +348,7 @@ consider_config_dir(struct protolib_cache *cache,
 	char *buf = alloca(strlen(path) + 1 + strlen(key) + len);
 	strcpy(stpcpy(stpcpy(stpcpy(buf, path), slash), key), ".conf");
 
-	return protolib_cache_file(cache, buf);
+	return protolib_cache_file(cache, buf, 0);
 }
 
 static enum callback_status
@@ -410,7 +410,7 @@ add_imports_cb(struct opt_F_t *entry, void *data)
 		return CBS_CONT;
 
 	struct protolib *new_import
-		= protolib_cache_file(self, entry->pathname);
+		= protolib_cache_file(self, entry->pathname, 0);
 
 	if (new_import == NULL
 	    || protolib_add_import(&self->imports, new_import) < 0)
@@ -500,7 +500,7 @@ static void
 attempt_to_cache(struct protolib_cache *cache,
 		 const char *key, struct protolib *plib)
 {
-	if (protolib_cache_protolib(cache, key, plib) == 0
+	if (protolib_cache_protolib(cache, key, 1, plib) == 0
 	    || plib == NULL)
 		/* Never mind failing to store a NULL.  */
 		return;
@@ -513,11 +513,17 @@ attempt_to_cache(struct protolib_cache *cache,
 
 struct protolib *
 protolib_cache_search(struct protolib_cache *cache,
-		      const char *key, int allow_private)
+		      const char *key, int own_key, int allow_private)
 {
 	struct protolib *plib = NULL;
 	if (DICT_FIND_VAL(&cache->protolibs, &key, &plib) == 0)
 		return plib;
+
+	if (clone_if_not_own(&key, own_key) < 0) {
+		fprintf(stderr, "Couldn't cache %s: %s\n",
+			key, strerror(errno));
+		return NULL;
+	}
 
 	/* The order is: -F directories, private directories, system
 	 * directories.  If the config file is not found anywhere,
@@ -540,7 +546,8 @@ protolib_cache_search(struct protolib_cache *cache,
 }
 
 struct protolib *
-protolib_cache_file(struct protolib_cache *cache, const char *filename)
+protolib_cache_file(struct protolib_cache *cache,
+		    const char *filename, int own_filename)
 {
 	{
 		struct protolib *plib;
@@ -552,16 +559,23 @@ protolib_cache_file(struct protolib_cache *cache, const char *filename)
 	if (stream == NULL)
 		return NULL;
 
-	struct protolib *new_plib = build_default_config(cache, filename);
-	if (new_plib == NULL) {
+	if (clone_if_not_own(&filename, own_filename) < 0) {
+		fprintf(stderr, "Couldn't cache %s: %s\n",
+			filename, strerror(errno));
 		fclose(stream);
 		return NULL;
 	}
 
-	if (read_config_file(stream, filename, new_plib) < 0) {
-		protolib_destroy(new_plib);
-		free(new_plib);
+	struct protolib *new_plib = build_default_config(cache, filename);
+	if (new_plib == NULL
+	    || read_config_file(stream, filename, new_plib) < 0) {
 		fclose(stream);
+		if (own_filename)
+			free((char *)filename);
+		if (new_plib != NULL) {
+			protolib_destroy(new_plib);
+			free(new_plib);
+		}
 		return NULL;
 	}
 
@@ -572,9 +586,19 @@ protolib_cache_file(struct protolib_cache *cache, const char *filename)
 
 int
 protolib_cache_protolib(struct protolib_cache *cache,
-			const char *filename, struct protolib *plib)
+			const char *filename, int own_filename,
+			struct protolib *plib)
 {
-	return DICT_INSERT(&cache->protolibs, &filename, &plib);
+	if (clone_if_not_own(&filename, own_filename) < 0) {
+		fprintf(stderr, "Couldn't cache %s: %s\n",
+			filename, strerror(errno));
+		return -1;
+	}
+
+	int rc = DICT_INSERT(&cache->protolibs, &filename, &plib);
+	if (rc < 0 && own_filename)
+		free((char *)filename);
+	return rc;
 }
 
 void

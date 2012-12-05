@@ -186,7 +186,7 @@ library_get_prototype(struct library *lib, const char *name)
 {
 	if (lib->protolib == NULL)
 		lib->protolib = protolib_cache_search(&g_protocache,
-						      lib->soname, 1);
+						      lib->soname, 0, 1);
 	if (lib->protolib == NULL)
 		return NULL;
 

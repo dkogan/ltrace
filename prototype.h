@@ -195,19 +195,19 @@ void protolib_cache_destroy(struct protolib_cache *cache);
  * This function returns either the loaded protolib, or NULL when
  * there was an error.  */
 struct protolib *protolib_cache_search(struct protolib_cache *cache,
-				       const char *key,
+				       const char *key, int own_key,
 				       int allow_private);
 
 /* This is similar to above, but instead of looking for the file to
  * load in directories, the filename is given.  */
 struct protolib *protolib_cache_file(struct protolib_cache *cache,
-				     const char *filename);
+				     const char *filename, int own_filename);
 
 /* This is similar to protolib_cache_file, but the library to cache is
  * given in argument.  Returns 0 on success or a negative value on
  * failure.  PLIB is thereafter owned by CACHE.  */
 int protolib_cache_protolib(struct protolib_cache *cache,
-			    const char *filename,
+			    const char *filename, int own_filename,
 			    struct protolib *plib);
 
 /* Single global prototype cache.
