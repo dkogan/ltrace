@@ -47,4 +47,7 @@ enum callback_status {
 		   * and return error.  */
 };
 
+#define CBS_STOP_IF(X) ((X) ? CBS_STOP : CBS_CONT)
+#define CBS_CONT_IF(X) ((X) ? CBS_CONT : CBS_STOP)
+
 #endif /* _CALLBACK_H_ */
