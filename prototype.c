@@ -18,14 +18,19 @@
  * 02110-1301 USA
  */
 
+#include <alloca.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "callback.h"
 #include "param.h"
 #include "prototype.h"
 #include "type.h"
+#include "options.h"
+#include "read_config_file.h"
+#include "backend.h"
 
 struct protolib g_prototypes;
 
@@ -166,6 +171,7 @@ static struct protolib **
 each_import(struct protolib *plib, struct protolib **start_after,
 	    enum callback_status (*cb)(struct protolib **, void *), void *data)
 {
+	assert(plib != NULL);
 	return VECT_EACH(&plib->imports, struct protolib *,
 			 start_after, cb, data);
 }
@@ -173,6 +179,8 @@ each_import(struct protolib *plib, struct protolib **start_after,
 static enum callback_status
 is_or_imports(struct protolib **plibp, void *data)
 {
+	assert(plibp != NULL);
+	assert(*plibp != NULL);
 	struct protolib *import = data;
 	if (*plibp == import
 	    || each_import(*plibp, NULL, &is_or_imports, import) != NULL)
@@ -184,10 +192,14 @@ is_or_imports(struct protolib **plibp, void *data)
 int
 protolib_add_import(struct protolib *plib, struct protolib *import)
 {
-	if (is_or_imports(&plib, import) == CBS_STOP)
+	assert(plib != NULL);
+	assert(import != NULL);
+	if (is_or_imports(&import, plib) == CBS_STOP) {
+		fprintf(stderr, "Recursive import rejected.\n");
 		return -2;
+	}
 
-	return VECT_PUSHBACK(&plib->imports, import) < 0 ? -1 : 0;
+	return VECT_PUSHBACK(&plib->imports, &import) < 0 ? -1 : 0;
 }
 
 static int
@@ -218,6 +230,7 @@ int
 protolib_add_prototype(struct protolib *plib, const char *name, int own_name,
 		       struct prototype *proto)
 {
+	assert(plib != NULL);
 	if (clone_if_not_own(&name, own_name) < 0)
 		return -1;
 	if (DICT_INSERT(&plib->prototypes, &name, proto) < 0)
@@ -229,6 +242,7 @@ int
 protolib_add_named_type(struct protolib *plib, const char *name, int own_name,
 			struct named_type *named)
 {
+	assert(plib != NULL);
 	if (clone_if_not_own(&name, own_name) < 0)
 		return -1;
 	if (DICT_INSERT(&plib->named_types, &name, named) < 0)
@@ -245,18 +259,22 @@ struct lookup {
 static struct dict *
 get_prototypes(struct protolib *plib)
 {
+	assert(plib != NULL);
 	return &plib->prototypes;
 }
 
 static struct dict *
 get_named_types(struct protolib *plib)
 {
+	assert(plib != NULL);
 	return &plib->named_types;
 }
 
 static enum callback_status
 protolib_lookup_rec(struct protolib **plibp, void *data)
 {
+	assert(plibp != NULL);
+	assert(*plibp != NULL);
 	struct lookup *lookup = data;
 	struct dict *dict = (*lookup->getter)(*plibp);
 
@@ -276,6 +294,7 @@ static void *
 protolib_lookup(struct protolib *plib, const char *name,
 		struct dict *(*getter)(struct protolib *))
 {
+	assert(plib != NULL);
 	struct lookup lookup = { name, NULL, getter };
 	if (protolib_lookup_rec(&plib, &lookup) == CBS_STOP)
 		assert(lookup.result != NULL);
@@ -287,11 +306,275 @@ protolib_lookup(struct protolib *plib, const char *name,
 struct prototype *
 protolib_lookup_prototype(struct protolib *plib, const char *name)
 {
+	assert(plib != NULL);
 	return protolib_lookup(plib, name, &get_prototypes);
 }
 
 struct named_type *
 protolib_lookup_type(struct protolib *plib, const char *name)
 {
+	assert(plib != NULL);
 	return protolib_lookup(plib, name, &get_named_types);
+}
+
+static void
+destroy_protolib_cb(struct protolib **plibp, void *data)
+{
+	assert(plibp != NULL);
+	assert(*plibp != NULL);
+	protolib_destroy(*plibp);
+}
+
+void
+protolib_cache_destroy(struct protolib_cache *cache)
+{
+	DICT_DESTROY(&cache->protolibs, const char *, struct protolib *,
+		     dict_dtor_string, destroy_protolib_cb, NULL);
+}
+
+struct load_config_data {
+	struct protolib_cache *self;
+	const char *key;
+	struct protolib *result;
+};
+
+static struct protolib *
+consider_config_dir(struct protolib_cache *cache,
+		    const char *path, const char *key)
+{
+	size_t len = sizeof ".conf";
+	char slash[2] = {'/'};
+	char *buf = alloca(strlen(path) + 1 + strlen(key) + len);
+	strcpy(stpcpy(stpcpy(stpcpy(buf, path), slash), key), ".conf");
+
+	struct protolib *plib = protolib_cache_file(cache, buf);
+	if (plib == NULL)
+		return 0;
+	return CBS_STOP;
+}
+
+static enum callback_status
+consider_confdir_cb(struct opt_F_t *entry, void *d)
+{
+	if (opt_F_get_kind(entry) != OPT_F_DIR)
+		return CBS_CONT;
+	struct load_config_data *data = d;
+
+	data->result = consider_config_dir(data->self,
+					   entry->pathname, data->key);
+	return data->result != NULL ? CBS_STOP : CBS_CONT;
+}
+
+static int
+load_dash_F_dirs(struct protolib_cache *cache,
+		 const char *key, struct protolib **retp)
+{
+	struct load_config_data data = {cache, key};
+
+	if (VECT_EACH(&opt_F, struct opt_F_t, NULL,
+		      consider_confdir_cb, &data) == NULL)
+		/* Not found.  That's fine.  */
+		return 0;
+
+	if (data.result == NULL)
+		/* There were errors.  */
+		return -1;
+
+	*retp = data.result;
+	return 0;
+}
+
+static int
+load_config(struct protolib_cache *cache,
+	    const char *key, int private, struct protolib **retp)
+{
+	const char **dirs = NULL;
+	if (os_get_config_dirs(private, &dirs) < 0
+	    || dirs == NULL)
+		return -1;
+
+	for (; *dirs != NULL; ++dirs) {
+		struct protolib *plib = consider_config_dir(cache, *dirs, key);
+		if (plib != NULL) {
+			*retp = plib;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static enum callback_status
+add_imports_cb(struct opt_F_t *entry, void *data)
+{
+	struct protolib_cache *self = data;
+	if (opt_F_get_kind(entry) != OPT_F_FILE)
+		return CBS_CONT;
+
+	struct protolib *new_import
+		= protolib_cache_file(self, entry->pathname);
+
+	if (new_import == NULL
+	    || protolib_add_import(&self->imports, new_import) < 0)
+		/* N.B. If new_import is non-NULL, it has been already
+		 * cached.  We don't therefore destroy it on
+		 * failures.  */
+		return CBS_STOP;
+
+	return CBS_CONT;
+}
+
+int
+protolib_cache_init(struct protolib_cache *cache, struct protolib *import)
+{
+	DICT_INIT(&cache->protolibs, const char *, struct protolib *,
+		  dict_hash_string, dict_eq_string, NULL);
+	protolib_init(&cache->imports);
+
+	/* At this point the cache is consistent.  This is important,
+	 * because next we will use it to cache files that we load
+	 * due to -F.
+	 *
+	 * But we are about to construct the implicit import module,
+	 * which means this module can't be itself imported to the
+	 * files that we load now.  So remember that we are still
+	 * bootstrapping.  */
+	cache->bootstrap = 1;
+
+	if (protolib_add_import(&cache->imports, &legacy_typedefs) < 0
+	    || (import != NULL
+		&& protolib_add_import(&cache->imports, import) < 0)
+	    || VECT_EACH(&opt_F, struct opt_F_t, NULL,
+			 add_imports_cb, cache) != NULL) {
+		protolib_cache_destroy(cache);
+		return -1;
+	}
+
+	fprintf(stderr, "XXX Not looking for local and system config yet.\n");
+
+	cache->bootstrap = 0;
+	return 0;
+}
+
+static enum callback_status
+add_import_cb(struct protolib **importp, void *data)
+{
+	struct protolib *plib = data;
+	if (protolib_add_import(plib, *importp) < 0)
+		return CBS_STOP;
+	else
+		return CBS_CONT;
+}
+
+static struct protolib *
+build_default_config(struct protolib_cache *cache, const char *key)
+{
+	struct protolib *new_plib = malloc(sizeof(*new_plib));
+	if (new_plib == NULL) {
+		fprintf(stderr, "Couldn't create config module %s: %s\n",
+			key, strerror(errno));
+		return NULL;
+	}
+
+	protolib_init(new_plib);
+
+	/* If bootstrapping, copy over imports from implicit import
+	 * module to new_plib.  We can't reference the implicit
+	 * import module itself, because new_plib will become part of
+	 * this same implicit import module itself.  */
+	if ((cache->bootstrap && each_import(&cache->imports, NULL,
+					     add_import_cb, new_plib) != NULL)
+	    || (!cache->bootstrap
+		&& protolib_add_import(new_plib, &cache->imports) < 0)) {
+
+		fprintf(stderr,
+			"Couldn't add imports to config module %s: %s\n",
+			key, strerror(errno));
+		protolib_destroy(new_plib);
+		free(new_plib);
+		return NULL;
+	}
+
+	return new_plib;
+}
+
+static void
+attempt_to_cache(struct protolib_cache *cache,
+		 const char *key, struct protolib *plib)
+{
+	if (protolib_cache_protolib(cache, key, plib) == 0
+	    || plib == NULL)
+		/* Never mind failing to store a NULL.  */
+		return;
+
+	/* Returning a protolib that hasn't been cached would leak
+	 * that protolib, but perhaps it's less bad then giving up
+	 * outright.  At least print an error message.  */
+	fprintf(stderr, "Couldn't cache prototype library for %s\n", key);
+}
+
+struct protolib *
+protolib_cache_search(struct protolib_cache *cache,
+		      const char *key, int allow_private)
+{
+	struct protolib *plib = NULL;
+	if (DICT_FIND_VAL(&cache->protolibs, &key, &plib) == 0)
+		return plib;
+
+	/* The order is: -F directories, private directories, system
+	 * directories.  If the config file is not found anywhere,
+	 * build a default one.  */
+	if (load_dash_F_dirs(cache, key, &plib) < 0
+	    || (plib == NULL && allow_private
+		&& load_config(cache, key, 1, &plib) < 0)
+	    || (plib == NULL
+		&& load_config(cache, key, 0, &plib) < 0)
+	    || (plib == NULL
+		&& (plib = build_default_config(cache, key)) == NULL))
+		fprintf(stderr,
+			"Error occurred when attempting to load a prototype "
+			"library for %s.\n", key);
+
+	/* Whatever came out of this (even NULL), store it in the
+	 * cache.  */
+	attempt_to_cache(cache, key, plib);
+	return plib;
+}
+
+struct protolib *
+protolib_cache_file(struct protolib_cache *cache, const char *filename)
+{
+	{
+		struct protolib *plib;
+		if (DICT_FIND_VAL(&cache->protolibs, &filename, &plib) == 0)
+			return plib;
+	}
+
+	FILE *stream = fopen(filename, "r");
+	if (stream == NULL)
+		return NULL;
+
+	struct protolib *new_plib = build_default_config(cache, filename);
+	if (new_plib == NULL) {
+		fclose(stream);
+		return NULL;
+	}
+
+	if (read_config_file(stream, filename, new_plib) < 0) {
+		protolib_destroy(new_plib);
+		free(new_plib);
+		fclose(stream);
+		return NULL;
+	}
+
+	attempt_to_cache(cache, filename, new_plib);
+	fclose(stream);
+	return new_plib;
+}
+
+int
+protolib_cache_protolib(struct protolib_cache *cache,
+			const char *filename, struct protolib *plib)
+{
+	return DICT_INSERT(&cache->protolibs, &filename, &plib);
 }

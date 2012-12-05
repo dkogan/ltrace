@@ -23,7 +23,7 @@
 
 #include "forward.h"
 
-int read_config_file(struct protolib *plib, const char *path);
+int read_config_file(FILE *stream, const char *name, struct protolib *plib);
 
 void init_global_config(void);
 void destroy_global_config(void);

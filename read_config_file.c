@@ -1237,12 +1237,8 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 }
 
 int
-read_config_file(struct protolib *plib, const char *path)
+read_config_file(FILE *stream, const char *path, struct protolib *plib)
 {
-	FILE *stream = fopen(path, "r");
-	if (stream == NULL)
-		return -1;
-
 	debug(DEBUG_FUNCTION, "Reading config file `%s'...", path);
 
 	struct locus loc = { path, 0 };
@@ -1254,7 +1250,6 @@ read_config_file(struct protolib *plib, const char *path)
 	}
 
 	free(line);
-	fclose(stream);
 	return 0;
 }
 

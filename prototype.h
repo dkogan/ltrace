@@ -146,10 +146,69 @@ struct named_type *protolib_lookup_type(struct protolib *plib,
  * differ between the ABI's.  protolib cache would then naturally be
  * stored in the ABI object, when this is introduced.  */
 struct protolib_cache {
-	/* Dictionary of filename->protolib.  */
-	struct dict *protolibs;
+	/* Dictionary of filename->protolib*.  */
+	struct dict protolibs;
+
+	/* Fake module for implicit imports.  This is populated by all
+	 * files coming from -F.  When -F is empty, it also contains
+	 * either $HOME/.ltrace.conf, or /etc/ltrace.conf (whichever
+	 * comes first).  */
+	struct protolib imports;
+
+	/* For tracking uses of cache during cache's own
+	 * initialization.  */
+	int bootstrap : 1;
 };
 
+/* Initialize CACHE.  Returns 0 on success or a negative value on
+ * failure.  */
+int protolib_cache_init(struct protolib_cache *cache,
+			struct protolib *import);
+
+/* Destroy CACHE.  */
+void protolib_cache_destroy(struct protolib_cache *cache);
+
+/* Get protolib corresponding to KEY from CACHE.  KEY would typically
+ * be the soname of a library for which a protolib should be obtained.
+ * If none has been loaded yet, load a new protolib, cache and return
+ * it.  Returns NULL for failures.
+ *
+ * Protolibs are loaded from a config directory.  If -F contains
+ * directory names, those are checked first.  Next, os_get_config_dirs
+ * callback is used to get a list of directories to look into.  In the
+ * first round, if ALLOW_PRIVATE, ltrace looks in user's private
+ * directories.  If the config file wasn't found, the second round is
+ * made through system directories.  If it still wasn't found, an
+ * empty protolib (but with the following includes) is provided
+ * instead.
+ *
+ * In each directory, ltrace looks and reads the file named KEY.conf.
+ * This file is augmented with the following implicit includes, in
+ * this order:
+ *
+ * - Legacy typedefs
+ * - The INCLUDE argument passed to protolib_cache_init, if non-NULL
+ * - Any configure _files_ passed in -F
+ * - When looking into private directories, $HOME/.ltrace.conf
+ * - When looking into system directories, @sysconfdir@/ltrace.conf
+ *
+ * This function returns either the loaded protolib, or NULL when
+ * there was an error.  */
+struct protolib *protolib_cache_search(struct protolib_cache *cache,
+				       const char *key,
+				       int allow_private);
+
+/* This is similar to above, but instead of looking for the file to
+ * load in directories, the filename is given.  */
+struct protolib *protolib_cache_file(struct protolib_cache *cache,
+				     const char *filename);
+
+/* This is similar to protolib_cache_file, but the library to cache is
+ * given in argument.  Returns 0 on success or a negative value on
+ * failure.  PLIB is thereafter owned by CACHE.  */
+int protolib_cache_protolib(struct protolib_cache *cache,
+			    const char *filename,
+			    struct protolib *plib);
 
 /* Single global prototype library.
  * XXX Eventually each struct library should have its own prototype
