@@ -348,10 +348,7 @@ consider_config_dir(struct protolib_cache *cache,
 	char *buf = alloca(strlen(path) + 1 + strlen(key) + len);
 	strcpy(stpcpy(stpcpy(stpcpy(buf, path), slash), key), ".conf");
 
-	struct protolib *plib = protolib_cache_file(cache, buf);
-	if (plib == NULL)
-		return 0;
-	return CBS_STOP;
+	return protolib_cache_file(cache, buf);
 }
 
 static enum callback_status
