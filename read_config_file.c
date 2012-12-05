@@ -872,6 +872,7 @@ parse_nonpointer_type(struct protolib *plib, struct locus *loc,
 		      char **str, struct param **extra_param, size_t param_num,
 		      int *ownp, int *forwardp)
 {
+	const char *orig_str = *str;
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
 		struct arg_type_info *simple;
@@ -886,7 +887,7 @@ parse_nonpointer_type(struct protolib *plib, struct locus *loc,
 		}
 
 		report_error(loc->filename, loc->line_no,
-			     "unknown type around '%s'", *str);
+			     "unknown type around '%s'", orig_str);
 		return NULL;
 	}
 
