@@ -63,7 +63,7 @@ struct clone_data {
 	void *data;
 };
 
-enum callback_status
+static enum callback_status
 clone_cb(void *key, void *value, void *data)
 {
 	struct clone_data *clone_data = data;
@@ -136,7 +136,7 @@ struct destroy_data {
 	void *data;
 };
 
-enum callback_status
+static enum callback_status
 destroy_cb(void *key, void *value, void *data)
 {
 	struct destroy_data *destroy_data = data;
@@ -214,6 +214,7 @@ static size_t
 find_slot(struct dict *dict, const void *key,
 	  int *foundp, int *should_rehash, size_t *pi)
 {
+	assert(n(dict) > 0);
 	size_t pos = dict->hash1(key) % n(dict);
 	size_t pos0 = -1;
 	size_t d = hash2(dict)(pos);
@@ -256,7 +257,7 @@ find_slot(struct dict *dict, const void *key,
 	return pos;
 }
 
-enum callback_status
+static enum callback_status
 rehash_move(void *key, void *value, void *data)
 {
 	if (dict_insert(data, key, value) < 0)
@@ -265,7 +266,7 @@ rehash_move(void *key, void *value, void *data)
 		return CBS_CONT;
 }
 
-int
+static int
 rehash(struct dict *dict, size_t nn)
 {
 	assert(nn != n(dict));
@@ -398,6 +399,7 @@ dict_find(struct dict *dict, const void *key)
 {
 	if (dict->size == 0)
 		return NULL;
+	assert(n(dict) > 0);
 
 	int found;
 	size_t slot_n = find_slot(dict, key, &found, NULL, NULL);
