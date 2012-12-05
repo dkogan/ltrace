@@ -89,6 +89,8 @@ vect_reserve(struct vect *vec, size_t count)
 {
 	if (count > vec->allocated) {
 		size_t na = vec->allocated != 0 ? 2 * vec->allocated : 4;
+		while (na < count)
+			na *= 2;
 		void *n = realloc(vec->data, na * vec->elt_size);
 		if (n == NULL)
 			return -1;
