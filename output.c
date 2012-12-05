@@ -182,11 +182,22 @@ build_default_prototype(void)
 }
 
 static struct prototype *
-name2func(char const *name)
+lookup_symbol_prototype(struct library_symbol *libsym)
 {
-	struct prototype *p = protolib_lookup_prototype(&g_prototypes, name);
-	if (p != NULL)
-		return p;
+	struct library *lib = libsym->lib;
+	if (lib != NULL) {
+		if (lib->protolib == NULL)
+			lib->protolib = protolib_cache_search(&g_protocache,
+							      lib->soname, 1);
+		if (lib->protolib != NULL) {
+			struct prototype *p
+				= protolib_lookup_prototype(lib->protolib,
+							    libsym->name);
+			if (p != NULL)
+				return p;
+		}
+	}
+
 	return build_default_prototype();
 }
 
@@ -436,8 +447,6 @@ void
 output_left(enum tof type, struct process *proc,
 	    struct library_symbol *libsym)
 {
-	const char *function_name = libsym->name;
-
 	if (options.summary) {
 		return;
 	}
@@ -455,10 +464,10 @@ output_left(enum tof type, struct process *proc,
 			       fprintf(options.output, "%s->",
 				       libsym->lib->soname));
 
-	const char *name = function_name;
+	const char *name = libsym->name;
 #ifdef USE_DEMANGLE
 	if (options.demangle)
-		name = my_demangle(function_name);
+		name = my_demangle(libsym->name);
 #endif
 	if (account_output(&current_column,
 			   fprintf(options.output, "%s", name)) < 0)
@@ -475,7 +484,7 @@ output_left(enum tof type, struct process *proc,
 
 	account_output(&current_column, fprintf(options.output, "("));
 
-	struct prototype *func = name2func(function_name);
+	struct prototype *func = lookup_symbol_prototype(libsym);
 	if (func == NULL) {
 		account_output(&current_column, fprintf(options.output, "???"));
 		return;
@@ -515,8 +524,7 @@ free_stringp_cb(const char **stringp, void *data)
 void
 output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 {
-	const char *function_name = libsym->name;
-	struct prototype *func = name2func(function_name);
+	struct prototype *func = lookup_symbol_prototype(libsym);
 	if (func == NULL)
 		return;
 
@@ -538,10 +546,10 @@ again:
 		}
 
 		struct opt_c_struct *st
-			= DICT_FIND_REF(dict_opt_c, &function_name,
+			= DICT_FIND_REF(dict_opt_c, &libsym->name,
 					struct opt_c_struct);
 		if (st == NULL) {
-			const char *na = strdup(function_name);
+			const char *na = strdup(libsym->name);
 			struct opt_c_struct new_st = {.count = 0, .tv = {0, 0}};
 			if (na == NULL
 			    || DICT_INSERT(dict_opt_c, &na, &new_st) < 0) {
@@ -551,7 +559,7 @@ again:
 					     free_stringp_cb, NULL, NULL);
 				goto oom;
 			}
-			st = DICT_FIND_REF(dict_opt_c, &function_name,
+			st = DICT_FIND_REF(dict_opt_c, &libsym->name,
 					   struct opt_c_struct);
 			assert(st != NULL);
 		}
@@ -577,10 +585,11 @@ again:
 #ifdef USE_DEMANGLE
 		current_column +=
 		    fprintf(options.output, "<... %s resumed> ",
-			    options.demangle ? my_demangle(function_name) : function_name);
+			    options.demangle ? my_demangle(libsym->name)
+			    : libsym->name);
 #else
 		current_column +=
-		    fprintf(options.output, "<... %s resumed> ", function_name);
+		    fprintf(options.output, "<... %s resumed> ", libsym->name);
 #endif
 	}
 

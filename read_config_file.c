@@ -1252,31 +1252,3 @@ read_config_file(FILE *stream, const char *path, struct protolib *plib)
 	free(line);
 	return 0;
 }
-
-void
-init_global_config(void)
-{
-	protolib_init(&g_prototypes);
-
-	struct arg_type_info *void_info = type_get_simple(ARGTYPE_VOID);
-	static struct arg_type_info ptr_info;
-	type_init_pointer(&ptr_info, void_info, 0);
-
-	static struct named_type voidptr_type;
-	named_type_init(&voidptr_type, &ptr_info, 0);
-
-	if (protolib_add_named_type(&g_prototypes, "addr", 0,
-				    &voidptr_type) < 0
-	    || protolib_add_named_type(&g_prototypes, "file", 0,
-				       &voidptr_type) < 0) {
-		fprintf(stderr,
-			"Couldn't initialize aliases `addr' and `file'.\n");
-		exit(1);
-	}
-}
-
-void
-destroy_global_config(void)
-{
-	protolib_destroy(&g_prototypes);
-}

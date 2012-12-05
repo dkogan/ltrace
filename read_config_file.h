@@ -25,7 +25,4 @@
 
 int read_config_file(FILE *stream, const char *name, struct protolib *plib);
 
-void init_global_config(void);
-void destroy_global_config(void);
-
 #endif /* _READ_CONFIG_FILE_H_ */

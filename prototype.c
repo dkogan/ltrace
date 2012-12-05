@@ -32,7 +32,8 @@
 #include "read_config_file.h"
 #include "backend.h"
 
-struct protolib g_prototypes;
+struct protolib_cache g_protocache;
+static struct protolib legacy_typedefs;
 
 void
 prototype_init(struct prototype *proto)
@@ -577,4 +578,37 @@ protolib_cache_protolib(struct protolib_cache *cache,
 			const char *filename, struct protolib *plib)
 {
 	return DICT_INSERT(&cache->protolibs, &filename, &plib);
+}
+
+void
+init_global_config(void)
+{
+	protolib_init(&legacy_typedefs);
+	struct arg_type_info *void_info = type_get_simple(ARGTYPE_VOID);
+	static struct arg_type_info ptr_info;
+	type_init_pointer(&ptr_info, void_info, 0);
+
+	static struct named_type voidptr_type;
+	named_type_init(&voidptr_type, &ptr_info, 0);
+
+	if (protolib_add_named_type(&legacy_typedefs, "addr", 0,
+				    &voidptr_type) < 0
+	    || protolib_add_named_type(&legacy_typedefs, "file", 0,
+				       &voidptr_type) < 0) {
+		fprintf(stderr,
+			"Couldn't initialize aliases `addr' and `file'.\n");
+		exit(1);
+	}
+
+	if (protolib_cache_init(&g_protocache, NULL) < 0) {
+		fprintf(stderr, "Couldn't init prototype cache\n");
+		abort();
+	}
+}
+
+void
+destroy_global_config(void)
+{
+	protolib_cache_destroy(&g_protocache);
+	protolib_destroy(&legacy_typedefs);
 }

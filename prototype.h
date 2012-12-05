@@ -210,9 +210,15 @@ int protolib_cache_protolib(struct protolib_cache *cache,
 			    const char *filename,
 			    struct protolib *plib);
 
-/* Single global prototype library.
- * XXX Eventually each struct library should have its own prototype
- * library, so that there is one prototype library per DSO.  */
-extern struct protolib g_prototypes;
+/* Single global prototype cache.
+ *
+ * XXX Eventually each ABI should have its own cache.  The idea is
+ * that there's one per-ABI config file that all others use for
+ * elementary typedefs (long, char, size_t).  Ltrace then only deals
+ * in fixed-width integral types (and pointers etc.).  */
+extern struct protolib_cache g_protocache;
+
+void init_global_config(void);
+void destroy_global_config(void);
 
 #endif /* _PROTOTYPE_H_ */
