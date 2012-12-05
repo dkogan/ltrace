@@ -498,7 +498,7 @@ opt_F_get_kind(struct opt_F_t *entry)
 			entry->kind = OPT_F_BROKEN;
 		} else if (S_ISDIR(st.st_mode)) {
 			entry->kind = OPT_F_DIR;
-		} else if (S_ISREG(st.st_mode)) {
+		} else if (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode)) {
 			entry->kind = OPT_F_FILE;
 		} else {
 			fprintf(stderr, "%s is neither a regular file, "
