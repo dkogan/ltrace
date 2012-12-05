@@ -1,10 +1,16 @@
 -*-org-*-
 * Version 0.7.2
+** Bugfixes
 *** (Again) detect VDSO entry in r_debug linkmap with non-empty name
     This bug caused messages like:
     | Couldn't determine base address of linux-vdso32.so.1
     | Couldn't load ELF object linux-vdso32.so.1: No such file or directory
 *** Fix building with libunwind 1.1
+*** Fix prototype lookup for -x symbols from shared libraries
+    Ltrace was unable to find prototypes of static symbols in shared
+    libraries.  It changed the symbol name internally to the form
+    name@libfoo.so.  Thus mangled, symbols were not found in config
+    files.
 
 * Version 0.7.1
 ** Bugfixes

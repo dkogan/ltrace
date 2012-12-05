@@ -647,7 +647,6 @@ populate_this_symtab(struct Process *proc, const char *filename,
 		secflags[i] = shdr.sh_flags;
 	}
 
-	size_t lib_len = strlen(lib->soname);
 	for (i = 0; i < size; ++i) {
 		GElf_Sym sym;
 		if (gelf_getsym(symtab, i, &sym) == NULL) {
@@ -717,20 +716,13 @@ populate_this_symtab(struct Process *proc, const char *filename,
 
 		char *full_name;
 		int own_full_name = 1;
-		if (lib->type != LT_LIBTYPE_MAIN) {
-			full_name = malloc(strlen(name) + 1 + lib_len + 1);
+		if (name_copy == NULL) {
+			full_name = strdup(name);
 			if (full_name == NULL)
 				goto fail;
-			sprintf(full_name, "%s@%s", name, lib->soname);
 		} else {
-			if (name_copy == NULL) {
-				full_name = strdup(name);
-				if (full_name == NULL)
-					goto fail;
-			} else {
-				full_name = name_copy;
-				own_full_name = 0;
-			}
+			full_name = name_copy;
+			own_full_name = 0;
 		}
 
 		/* Look whether we already have a symbol for this

@@ -442,8 +442,10 @@ output_left(enum tof type, struct Process *proc,
 	begin_of_line(proc, type == LT_TOF_FUNCTION, 1);
 	if (!options.hide_caller && libsym->lib != NULL
 	    && libsym->plt_type != LS_TOPLT_NONE)
-		current_column += fprintf(options.output, "%s->",
-					  libsym->lib->soname);
+		/* We don't terribly mind failing this.  */
+		account_output(&current_column,
+			       fprintf(options.output, "%s->",
+				       libsym->lib->soname));
 
 	const char *name = function_name;
 #ifdef USE_DEMANGLE
@@ -451,12 +453,25 @@ output_left(enum tof type, struct Process *proc,
 		name = my_demangle(function_name);
 #endif
 	if (account_output(&current_column,
-			   fprintf(options.output, "%s(", name)) < 0)
+			   fprintf(options.output, "%s", name)) < 0)
 		return;
 
-	func = name2func(function_name);
-	if (func == NULL)
+	if (libsym->lib != NULL
+	    && libsym->lib->type != LT_LIBTYPE_MAIN
+	    && libsym->plt_type == LS_TOPLT_NONE
+	    && account_output(&current_column,
+			      fprintf(options.output, "@%s",
+				      libsym->lib->soname)) < 0)
+		/* We do mind failing this though.  */
 		return;
+
+	account_output(&current_column, fprintf(options.output, "("));
+
+	func = name2func(function_name);
+	if (func == NULL) {
+		account_output(&current_column, fprintf(options.output, "???"));
+		return;
+	}
 
 	struct fetch_context *context = fetch_arg_init(type, proc,
 						       func->return_info);

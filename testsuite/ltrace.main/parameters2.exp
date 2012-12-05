@@ -119,15 +119,18 @@ ltraceMatch1 [ltraceRun -F $conf -e ll -A 5 \
     }
 }]]] {->ll\({ 9, { 8, { 7, { 6, { 5, \.\.\. } } } } }\) *= <void>} == 1
 
-proc ltraceParamTest {conf cdecl libcode maincode match} {
+proc ltraceParamTest {conf cdecl libcode maincode match {params ""}} {
     set conffile [ltraceSource conf $conf]
     set lib [ltraceCompile liblib.so [ltraceSource c [concat $cdecl $libcode]]]
     set bin [ltraceCompile {} $lib \
 		 [ltraceSource c \
 		      [concat $cdecl "int main(void) {" $maincode "}"]]]
 
-    return [ltraceMatch [ltraceRun -F $conffile -- $bin] $match]
+    set command [concat "ltraceRun -F $conffile " $params "-- $bin"]
+    return [ltraceMatch [eval $command] $match]
 }
+
+# Test using lens in typedef.
 
 ltraceParamTest {
     typedef hexptr = hex(uint*);
@@ -142,6 +145,8 @@ ltraceParamTest {
 } {
     {{fun\(0x123\) *= <void>} == 1}
 }
+
+# Test support for bitvec lens.
 
 ltraceParamTest {
     void fun(bitvec(uint));
@@ -170,6 +175,8 @@ ltraceParamTest {
     {{fun2\(<8-15,255>\) *= <void>} == 1}
 }
 
+# Test support for hex(float), hex(double).
+
 ltraceParamTest {
     hex(float) hex_float(hex(float));
     hex(double) hex_double(hex(double));
@@ -185,6 +192,24 @@ ltraceParamTest {
 } {
     {{hex_float\(0x1.8p\+0\) *= 0x1.4p\+1} == 1}
     {{hex_double\(0x1.8p\+0\) *= 0x1.4p\+1} == 1}
+}
+
+# Test that -x fun can find "fun" prototype even if "fun" is in a
+# library.
+
+ltraceParamTest {
+    void fun();
+} {
+    void libfun(void);
+} {
+    void fun(void) {}
+    void libfun(void) { fun(); }
+} {
+    libfun();
+} {
+    {{fun@.*\(\)} == 1}
+} {
+    -L -x fun
 }
 
 ltraceDone
