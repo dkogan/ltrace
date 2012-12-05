@@ -79,8 +79,9 @@ void show_summary(void)
 	num_entries = 0;
 	entries = NULL;
 
-	DICT_EACH(dict_opt_c, const char *, struct opt_c_struct, NULL,
-		  fill_struct, NULL);
+	if (dict_opt_c != NULL)
+		DICT_EACH(dict_opt_c, const char *, struct opt_c_struct, NULL,
+			  fill_struct, NULL);
 
 	qsort(entries, num_entries, sizeof(*entries), compar);
 
