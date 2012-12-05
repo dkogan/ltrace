@@ -150,6 +150,9 @@ struct library {
 	 * enabled.  */
 	struct library_exported_name *exported_names;
 
+	/* Prototype library associated with this library.  */
+	struct protolib *protolib;
+
 	const char *soname;
 	const char *pathname;
 

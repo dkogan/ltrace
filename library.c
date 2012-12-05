@@ -225,6 +225,7 @@ private_library_init(struct library *lib, enum library_type type)
 	lib->base = 0;
 	lib->entry = 0;
 	lib->dyn_addr = 0;
+	lib->protolib = NULL;
 
 	lib->soname = NULL;
 	lib->own_soname = 0;
