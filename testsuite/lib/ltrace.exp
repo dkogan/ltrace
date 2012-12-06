@@ -620,6 +620,37 @@ proc ltraceMatch {logfile patterns} {
     return
 }
 
+# ltraceLibTest --
+#
+#	Generate a binary, a library (liblib.so) and a config file.
+#	Run the binary using ltraceRun, passing it -F to load the
+#	config file.
+#
+# Arguments:
+#	conf	Contents of ltrace config file.
+#
+#	cdecl	Contents of header file.
+#
+#	libcode	Contents of library implementation file.
+#
+#	maincode	Contents of function "main".
+#
+#	params	Additional parameters to pass to ltraceRun.
+#
+# Results:
+#
+#	Returns whatever ltraceRun returns.
+
+proc ltraceLibTest {conf cdecl libcode maincode {params ""}} {
+    set conffile [ltraceSource conf $conf]
+    set lib [ltraceCompile liblib.so [ltraceSource c [concat $cdecl $libcode]]]
+    set bin [ltraceCompile {} $lib \
+		 [ltraceSource c \
+		      [concat $cdecl "int main(void) {" $maincode "}"]]]
+
+    return [eval [concat "ltraceRun -F $conffile " $params "-- $bin"]]
+}
+
 #
 # ltrace_options OPTIONS_LIST
 # Pass ltrace commandline options.

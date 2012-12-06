@@ -119,20 +119,9 @@ ltraceMatch1 [ltraceRun -F $conf -e ll -A 5 \
     }
 }]]] {->ll\({ 9, { 8, { 7, { 6, { 5, \.\.\. } } } } }\) *= <void>} == 1
 
-proc ltraceParamTest {conf cdecl libcode maincode match {params ""}} {
-    set conffile [ltraceSource conf $conf]
-    set lib [ltraceCompile liblib.so [ltraceSource c [concat $cdecl $libcode]]]
-    set bin [ltraceCompile {} $lib \
-		 [ltraceSource c \
-		      [concat $cdecl "int main(void) {" $maincode "}"]]]
-
-    set command [concat "ltraceRun -F $conffile " $params "-- $bin"]
-    return [ltraceMatch [eval $command] $match]
-}
-
 # Test using lens in typedef.
 
-ltraceParamTest {
+ltraceMatch1 [ltraceLibTest {
     typedef hexptr = hex(uint*);
     void fun(hexptr);
 } {
@@ -142,13 +131,11 @@ ltraceParamTest {
 } {
     unsigned u = 0x123;
     fun(&u);
-} {
-    {{fun\(0x123\) *= <void>} == 1}
-}
+}] {fun\(0x123\) *= <void>} == 1
 
 # Test support for bitvec lens.
 
-ltraceParamTest {
+ltraceMatch [ltraceLibTest {
     void fun(bitvec(uint));
     void fun2(bitvec(array(char, 32)*));
 } {
@@ -167,7 +154,7 @@ ltraceParamTest {
     bytes[1] = 0xff;
     bytes[31] = 0x80;
     fun2(bytes);
-} {
+}] {
     {{fun\(<>\) *= <void>} == 1}
     {{fun\(<0-1,5,8>\) *= <void>} == 1}
     {{fun\(~<0>\) *= <void>} == 1}
@@ -177,7 +164,7 @@ ltraceParamTest {
 
 # Test support for hex(float), hex(double).
 
-ltraceParamTest {
+ltraceMatch [ltraceLibTest {
     hex(float) hex_float(hex(float));
     hex(double) hex_double(hex(double));
 } {
@@ -189,14 +176,14 @@ ltraceParamTest {
 } {
     hex_float(1.5);
     hex_double(1.5);
-} {
+}] {
     {{hex_float\(0x1.8p\+0\) *= 0x1.4p\+1} == 1}
     {{hex_double\(0x1.8p\+0\) *= 0x1.4p\+1} == 1}
 }
 
 # Test that "addr" is recognized.
 
-ltraceParamTest {
+ltraceMatch1 [ltraceLibTest {
     void fun(addr);
 } {
     #include <stdint.h>
@@ -205,14 +192,12 @@ ltraceParamTest {
     void fun(uintptr_t u) {}
 } {
     fun(0x1234);
-} {
-    {{fun\(0x1234\) *= <void>} == 1}
-}
+}] {fun\(0x1234\) *= <void>} == 1
 
 # Test that -x fun can find "fun" prototype even if "fun" is in a
 # library.
 
-ltraceParamTest {
+ltraceMatch1 [ltraceLibTest {
     void fun();
 } {
     void libfun(void);
@@ -222,9 +207,7 @@ ltraceParamTest {
 } {
     libfun();
 } {
-    {{fun@.*\(\)} == 1}
-} {
     -L -x fun
-}
+}] {fun@.*\(\)} == 1
 
 ltraceDone
