@@ -188,9 +188,9 @@ void protolib_cache_destroy(struct protolib_cache *cache);
  *
  * - Legacy typedefs
  * - The INCLUDE argument passed to protolib_cache_init, if non-NULL
+ * - The first available, if any, of $HOME/.ltrace.conf and
+ *   @sysconfdir@/ltrace.conf
  * - Any configure _files_ passed in -F
- * - When looking into private directories, $HOME/.ltrace.conf
- * - When looking into system directories, @sysconfdir@/ltrace.conf
  *
  * This function returns either the loaded protolib, or NULL when
  * there was an error.  */

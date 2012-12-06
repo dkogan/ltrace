@@ -402,6 +402,30 @@ load_config(struct protolib_cache *cache,
 	return 0;
 }
 
+static int
+add_ltrace_conf(struct protolib_cache *cache)
+{
+	/* Look into private config directories for .ltrace.conf and
+	 * into system config directories for ltrace.conf.  If it's
+	 * found, add it to implicit import module.  */
+	struct protolib *plib = NULL;
+	const char *home = NULL;
+	if (os_get_ltrace_conf_filename(&home) < 0
+	    || (home != NULL
+		&& (plib = consider_config_dir(cache, home, ".ltrace")) != NULL
+		&& protolib_add_import(&cache->imports, plib) < 0)
+	    || (plib == NULL && load_config(cache, "ltrace", 0, &plib) < 0)
+	    || (plib != NULL && protolib_add_import(&cache->imports, plib) < 0))
+		/* N.B. If plib is non-NULL, it has been already
+		 * cached.  We don't therefore destroy it on
+		 * failures.  */
+		return -1;
+
+	/* Never mind whether we've found anything.  It's fine if the
+	 * config is absent.  */
+	return 0;
+}
+
 static enum callback_status
 add_imports_cb(struct opt_F_t *entry, void *data)
 {
@@ -442,13 +466,12 @@ protolib_cache_init(struct protolib_cache *cache, struct protolib *import)
 	if (protolib_add_import(&cache->imports, &legacy_typedefs) < 0
 	    || (import != NULL
 		&& protolib_add_import(&cache->imports, import) < 0)
+	    || add_ltrace_conf(cache) < 0
 	    || VECT_EACH(&opt_F, struct opt_F_t, NULL,
 			 add_imports_cb, cache) != NULL) {
 		protolib_cache_destroy(cache);
 		return -1;
 	}
-
-	fprintf(stderr, "XXX Not looking for local and system config yet.\n");
 
 	cache->bootstrap = 0;
 	return 0;
