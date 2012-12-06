@@ -69,6 +69,8 @@ destroy_opt_F_cb(struct opt_F_t *entry, void *data)
 	opt_F_destroy(entry);
 }
 
+static char *g_home_dir = NULL;
+
 int
 os_get_config_dirs(int private, const char ***retp)
 {
@@ -84,11 +86,14 @@ again:
 		if (sys_start == -1)
 			return -1;
 
-		if (private)
-			*retp = VECT_ELEMENT(&dirs, const char *, 0);
-		else
-			*retp = VECT_ELEMENT(&dirs, const char *,
-					     (size_t)sys_start);
+		if (retp != NULL) {
+			if (private)
+				*retp = VECT_ELEMENT(&dirs, const char *, 0);
+			else
+				*retp = VECT_ELEMENT(&dirs, const char *,
+						     (size_t)sys_start);
+		}
+
 		return 0;
 	}
 
@@ -100,12 +105,18 @@ again:
 		if (pwd != NULL)
 			home = pwd->pw_dir;
 	}
+
 	/* The values coming from getenv and getpwuid may not be
 	 * persistent.  */
-	{
-		char *tmp = alloca(strlen(home) + 1);
-		strcpy(tmp, home);
-		home = tmp;
+	if (home != NULL) {
+		g_home_dir = strdup(home);
+		if (g_home_dir != NULL) {
+			home = g_home_dir;
+		} else {
+			char *tmp = alloca(strlen(home) + 1);
+			strcpy(tmp, home);
+			home = tmp;
+		}
 	}
 
 	char *xdg_home = getenv("XDG_CONFIG_HOME");
@@ -157,4 +168,13 @@ again:
 		goto fail;
 
 	goto again;
+}
+
+int
+os_get_ltrace_conf_filename(const char **retp)
+{
+	if (g_home_dir == NULL)
+		os_get_config_dirs(0, NULL);
+	*retp = g_home_dir;
+	return g_home_dir != NULL ? 0 : -1;
 }
