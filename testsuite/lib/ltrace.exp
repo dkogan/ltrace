@@ -218,12 +218,15 @@ proc ltrace_compile_shlib {sources dest options} {
 #
 # Arguments:
 #	files	List of files to delete.
+#
 # Results:
-#	Each of the files is deleted.  Returns nothing.
+#	Each of the files is deleted.  Files are deleted in reverse
+#	order, so that directories are emptied and can be deleted
+#	without using -force.  Returns nothing.
 
 proc WipeFiles {files} {
     verbose "WipeFiles: $files\n"
-    foreach f $files {
+    foreach f [lreverse $files] {
 	file delete $f
     }
 }
@@ -315,6 +318,37 @@ proc LtraceTempFile {pat} {
     return
 }
 
+# ltraceNamedSource --
+#
+#	Create a file named FILENAME, and prime it with TEXT.  If
+#	REMEMBERTEMP, add the file into LTRACE_TEMP_FILES, so that
+#	ltraceDone (or rather WipeFiles) erases it later.
+#
+# Arguments:
+#	filename	Name of the file to create.
+#
+#	text	Contents of the new file.
+#
+#	rememberTemp	Whether to add filename to LTRACE_TEMP_FILES.
+#
+# Results:
+#	Returns $filename, which now refers to a file with contents
+#	given by TEXT.
+
+proc ltraceNamedSource {filename text {rememberTemp 1}} {
+    global LTRACE_TEMP_FILES
+
+    set chan [open $filename w]
+    puts $chan $text
+    close $chan
+
+    if $rememberTemp {
+	lappend LTRACE_TEMP_FILES $filename
+    }
+
+    return $filename
+}
+
 # ltraceSource --
 #
 #	Create a temporary file with a given suffix and prime it with
@@ -329,12 +363,22 @@ proc LtraceTempFile {pat} {
 #	Returns file name of created file.
 
 proc ltraceSource {suffix text} {
-    set ret [LtraceTempFile "lt-XXXXXXXXXX.$suffix"]
+    return [ltraceNamedSource \
+		[LtraceTempFile "lt-XXXXXXXXXX.$suffix"] $text 0]
+}
 
-    set chan [open $ret w]
-    puts $chan $text
-    close $chan
+# ltraceDir --
+#
+#	Create a temporary directory.
+#
+# Arguments:
+#
+# Results:
+#	Returns name of created directory.
 
+proc ltraceDir {} {
+    set ret [LtraceTempFile "lt-XXXXXXXXXX.dir"]
+    file mkdir $ret
     return $ret
 }
 
