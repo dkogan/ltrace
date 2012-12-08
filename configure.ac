@@ -245,16 +245,12 @@ AC_CHECK_SIZEOF([long])
 
 
 # Checks for library functions.
-AC_FUNC_ERROR_AT_LINE
 AC_FUNC_FORK
 AC_CHECK_FUNCS([ \
 	alarm \
 	atexit \
-	getcwd \
 	gettimeofday \
 	memset \
-	mkdir \
-	rmdir \
 	strchr \
 	strdup \
 	strerror \
