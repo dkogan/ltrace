@@ -60,7 +60,8 @@ libltrace_la_SOURCES = \
 	zero.c \
 	lens.c \
 	lens_default.c \
-	lens_enum.c
+	lens_enum.c \
+	memstream.c
 
 libltrace_la_LIBADD = \
 	$(libelf_LIBS) \
@@ -112,7 +113,8 @@ noinst_HEADERS = \
 	zero.h \
 	lens.h \
 	lens_default.h \
-	lens_enum.h
+	lens_enum.h \
+	memstream.h
 
 dist_man1_MANS = ltrace.1
 dist_man5_MANS = ltrace.conf.5

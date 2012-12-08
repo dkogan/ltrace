@@ -258,6 +258,13 @@ AC_CHECK_FUNCS([ \
 	strtoul \
 ])
 
+#
+# Define HAVE_OPEN_MEMSTREAM if that is available.  If not, require
+# that tmpfile be present.
+#
+AC_CHECK_FUNCS([open_memstream], [],
+	[AC_CHECK_FUNC([tmpfile], [],
+		[AC_MSG_ERROR([Either open_memstream or tmpfile required.])])])
 
 #
 # Debugging

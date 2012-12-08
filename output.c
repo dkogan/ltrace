@@ -47,6 +47,7 @@
 #include "param.h"
 #include "fetch.h"
 #include "lens_default.h"
+#include "memstream.h"
 
 /* TODO FIXME XXX: include in common.h: */
 extern struct timeval current_time_spent;
@@ -640,18 +641,18 @@ delim_output(FILE *stream, int *need_delimp,
 		o = writer(stream, data);
 
 	} else {
-		char *buf;
-		size_t bufsz;
-		FILE *tmp = open_memstream(&buf, &bufsz);
-		o = writer(tmp, data);
-		fclose(tmp);
-
+		struct memstream ms;
+		if (memstream_init(&ms) < 0)
+			return -1;
+		o = writer(ms.stream, data);
+		if (memstream_close(&ms) < 0)
+			o = -1;
 		if (o > 0 && ((*need_delimp
 			       && account_output(&o, fprintf(stream, ", ")) < 0)
-			      || fwrite(buf, 1, bufsz, stream) != bufsz))
+			      || fwrite(ms.buf, 1, ms.size, stream) != ms.size))
 			o = -1;
 
-		free(buf);
+		memstream_destroy(&ms);
 	}
 
 	if (o < 0)
