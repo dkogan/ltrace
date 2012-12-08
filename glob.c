@@ -180,7 +180,7 @@ glob_to_regex(const char *glob, char **retp)
 			goto fail;
 	}
 	*retp = buf;
-	return REG_NOERROR;
+	return 0;
 }
 
 int
@@ -188,7 +188,7 @@ globcomp(regex_t *preg, const char *glob, int cflags)
 {
 	char *regex = NULL;
 	int status = glob_to_regex(glob, &regex);
-	if (status != REG_NOERROR)
+	if (status != 0)
 		return status;
 	assert(regex != NULL);
 	status = regcomp(preg, regex, cflags);
