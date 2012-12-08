@@ -21,7 +21,6 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <error.h>
 #include <stdlib.h>
 
 #include "expr.h"
@@ -327,12 +326,11 @@ expr_eval_constant(struct expr_node *node, long *valuep)
 struct expr_node *
 expr_self(void)
 {
-	static struct expr_node *node = NULL;
-	if (node == NULL) {
-		node = malloc(sizeof(*node));
-		if (node == NULL)
-			error(1, errno, "malloc expr_self");
-		expr_init_self(node);
+	static struct expr_node *nodep = NULL;
+	if (nodep == NULL) {
+		static struct expr_node node;
+		expr_init_self(&node);
+		nodep = &node;
 	}
-	return node;
+	return nodep;
 }

@@ -18,7 +18,6 @@
  * 02110-1301 USA
  */
 
-#include <error.h>
 #include <errno.h>
 
 #include "zero.h"
@@ -93,13 +92,12 @@ build_zero_w_arg(struct expr_node *expr, int own)
 struct expr_node *
 expr_node_zero(void)
 {
-	static struct expr_node *node = NULL;
-	if (node == NULL) {
-		node = malloc(sizeof(*node));
-		if (node == NULL)
-			error(1, errno, "malloc expr_node_zero");
-		expr_init_cb1(node, &zero1_callback,
+	static struct expr_node *nodep = NULL;
+	if (nodep == NULL) {
+		static struct expr_node node;
+		expr_init_cb1(&node, &zero1_callback,
 			      expr_self(), 0, (void *)-1);
+		nodep = &node;
 	}
-	return node;
+	return nodep;
 }
