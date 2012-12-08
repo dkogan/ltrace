@@ -23,6 +23,7 @@
 #include <stdarg.h>
 
 #include "common.h"
+#include "backend.h"
 
 void
 debug_(int level, const char *file, int line, const char *fmt, ...) {
@@ -105,30 +106,11 @@ xwritedump(void *ptr, long addr, int len) {
 }
 
 int
-xinfdump(long pid, void *ptr, int len) {
-	int rc;
-	int i;
-	long wrdcnt;
-	long *infwords;
-	long addr;
-
-	wrdcnt = len / sizeof(long) + 1;
-	infwords = malloc(wrdcnt * sizeof(long));
-	if (!infwords) {
-		perror("ltrace: malloc");
-		exit(1);
-	}
-	addr = (long)ptr;
-
-	addr = ((addr + sizeof(long) - 1) / sizeof(long)) * sizeof(long);
-
-	for (i = 0; i < wrdcnt; ++i) {
-		infwords[i] = ptrace(PTRACE_PEEKTEXT, pid, (void *)addr, NULL);
-		addr += sizeof(long);
-	}
-
-	rc = xwritedump(infwords, (long)ptr, len);
-
-	free(infwords);
-	return rc;
+xinfdump(long pid, void *ptr, int len)
+{
+	unsigned char buf[len];
+	size_t got = umovebytes(pid2proc(pid), ptr, buf, len);
+	if (got == (size_t)-1)
+		return -1;
+	return xwritedump(buf, (long)ptr, got);
 }
