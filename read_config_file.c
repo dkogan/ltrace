@@ -40,6 +40,19 @@
 #include "lens_default.h"
 #include "lens_enum.h"
 
+/* Lifted from GCC: The ctype functions are often implemented as
+ * macros which do lookups in arrays using the parameter as the
+ * offset.  If the ctype function parameter is a char, then gcc will
+ * (appropriately) warn that a "subscript has type char".  Using a
+ * (signed) char as a subscript is bad because you may get negative
+ * offsets and thus it is not 8-bit safe.  The CTYPE_CONV macro
+ * ensures that the parameter is cast to an unsigned char when a char
+ * is passed in.  When an int is passed in, the parameter is left
+ * alone so we don't lose EOF.  */
+
+#define CTYPE_CONV(CH) \
+  (sizeof(CH) == sizeof(unsigned char) ? (int)(unsigned char)(CH) : (int)(CH))
+
 static int line_no;
 static char *filename;
 struct typedef_node_t;
@@ -96,7 +109,7 @@ parse_arg_type(char **name, enum arg_type *ret)
 #undef KEYWORD
 
 ok:
-	if (isalnum(*rest))
+	if (isalnum(CTYPE_CONV(*rest)))
 		return -1;
 
 	*name = rest;
@@ -127,12 +140,12 @@ static char *
 parse_ident(char **str) {
 	char *ident = *str;
 
-	if (!isalpha(**str) && **str != '_') {
+	if (!isalpha(CTYPE_CONV(**str)) && **str != '_') {
 		report_error(filename, line_no, "bad identifier");
 		return NULL;
 	}
 
-	while (**str && (isalnum(**str) || **str == '_')) {
+	while (**str && (isalnum(CTYPE_CONV(**str)) || **str == '_')) {
 		++(*str);
 	}
 
@@ -279,7 +292,7 @@ parse_argnum(char **str, int *ownp, int zero)
 	if (expr == NULL)
 		return NULL;
 
-	if (isdigit(**str)) {
+	if (isdigit(CTYPE_CONV(**str))) {
 		long l;
 		if (parse_int(str, &l) < 0
 		    || check_nonnegative(l) < 0
@@ -380,7 +393,7 @@ static struct arg_type_info *
 parse_typedef_name(char **str)
 {
 	char *end = *str;
-	while (*end && (isalnum(*end) || *end == '_'))
+	while (*end && (isalnum(CTYPE_CONV(*end)) || *end == '_'))
 		++end;
 	if (end == *str)
 		return NULL;
@@ -567,7 +580,7 @@ parse_string(char **str, struct arg_type_info **retp, int *ownp)
 	int own_length;
 	int with_arg = 0;
 
-	if (isdigit(**str)) {
+	if (isdigit(CTYPE_CONV(**str))) {
 		/* string0 is string[retval], length is zero(retval)
 		 * stringN is string[argN], length is zero(argN) */
 		long l;
@@ -682,7 +695,7 @@ try_parse_kwd(char **str, const char *kwd)
 {
 	size_t len = strlen(kwd);
 	if (strncmp(*str, kwd, len) == 0
-	    && !isalnum((*str)[len])) {
+	    && !isalnum(CTYPE_CONV((*str)[len]))) {
 		(*str) += len;
 		return 0;
 	}
