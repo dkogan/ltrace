@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <limits.h>
 #include <sys/param.h>
 #include <sys/wait.h>
 #include <errno.h>
