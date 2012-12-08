@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
-#include <error.h>
 #include <assert.h>
 
 #include "common.h"
@@ -1258,8 +1257,11 @@ void
 init_global_config(void)
 {
 	struct arg_type_info *info = malloc(2 * sizeof(*info));
-	if (info == NULL)
-		error(1, errno, "malloc in init_global_config");
+	if (info == NULL) {
+		fprintf(stderr, "Couldn't init global config: %s\n",
+			strerror(errno));
+		exit(1);
+	}
 
 	memset(info, 0, 2 * sizeof(*info));
 	info[0].type = ARGTYPE_POINTER;
