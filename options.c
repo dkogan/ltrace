@@ -459,6 +459,7 @@ process_options(int argc, char **argv)
 	while (1) {
 		int c;
 		char *p;
+#ifdef HAVE_GETOPT_LONG
 		int option_index = 0;
 		static struct option long_options[] = {
 			{"align", 1, 0, 'a'},
@@ -466,28 +467,34 @@ process_options(int argc, char **argv)
 			{"debug", 1, 0, 'D'},
 # ifdef USE_DEMANGLE
 			{"demangle", 0, 0, 'C'},
-#endif
+# endif
 			{"indent", 1, 0, 'n'},
 			{"help", 0, 0, 'h'},
 			{"library", 1, 0, 'l'},
 			{"output", 1, 0, 'o'},
 			{"version", 0, 0, 'V'},
 			{"no-signals", 0, 0, 'b'},
-#if defined(HAVE_LIBUNWIND)
+# if defined(HAVE_LIBUNWIND)
 			{"where", 1, 0, 'w'},
-#endif /* defined(HAVE_LIBUNWIND) */
+# endif /* defined(HAVE_LIBUNWIND) */
 			{0, 0, 0, 0}
 		};
-		c = getopt_long(argc, argv, "+cfhiLrStTVb"
-# ifdef USE_DEMANGLE
-				"C"
-# endif
-#if defined(HAVE_LIBUNWIND)
-				"a:A:D:e:F:l:n:o:p:s:u:x:X:w:", long_options,
-#else /* !defined(HAVE_LIBUNWIND) */
-				"a:A:D:e:F:l:n:o:p:s:u:x:X:", long_options,
 #endif
-				&option_index);
+
+		const char *opts = "+"
+#ifdef USE_DEMANGLE
+			"C"
+#endif
+#if defined(HAVE_LIBUNWIND)
+			"w:"
+#endif
+			"cfhiLrStTVba:A:D:e:F:l:n:o:p:s:u:x:X:";
+
+#ifdef HAVE_GETOPT_LONG
+		c = getopt_long(argc, argv, opts, long_options, &option_index);
+#else
+		c = getopt(argc, argv, opts);
+#endif
 		if (c == -1) {
 			break;
 		}

@@ -267,6 +267,11 @@ AC_CHECK_FUNCS([open_memstream], [],
 		[AC_MSG_ERROR([Either open_memstream or tmpfile required.])])])
 
 #
+# Define HAVE_GETOPT_LONG if that is available.
+#
+AC_CHECK_HEADER([getopt.h], [AC_CHECK_FUNCS([getopt_long])])
+
+#
 # Debugging
 #
 AC_MSG_CHECKING([whether to enable debugging])
