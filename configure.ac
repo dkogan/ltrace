@@ -254,6 +254,7 @@ AC_CHECK_FUNCS([ \
 	strchr \
 	strdup \
 	strerror \
+	strsignal \
 	strtol \
 	strtoul \
 ])

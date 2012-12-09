@@ -388,6 +388,10 @@ arch_sysname(Process *proc, int sysnum) {
 	}
 }
 
+#ifndef HAVE_STRSIGNAL
+# define strsignal(SIGNUM) "???"
+#endif
+
 static void
 handle_signal(Event *event) {
 	debug(DEBUG_FUNCTION, "handle_signal(pid=%d, signum=%d)", event->proc->pid, event->e_un.signum);
