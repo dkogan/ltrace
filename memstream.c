@@ -18,6 +18,11 @@
  * 02110-1301 USA
  */
 
+/* _GNU_SOURCE may be necessary for open_memstream visibility (see
+ * configure.ac), and there's no harm defining it just in case.  */
+#define _GNU_SOURCE
+
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "config.h"

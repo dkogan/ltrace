@@ -260,12 +260,28 @@ AC_CHECK_FUNCS([ \
 ])
 
 #
-# Define HAVE_OPEN_MEMSTREAM if that is available.  If not, require
-# that tmpfile be present.
+# Define HAVE_OPEN_MEMSTREAM if open_memstream is available.  glibc
+# before 2.10, eglibc and uClibc all need _GNU_SOURCE defined for
+# open_memstream to become visible, so check for that as well.  If
+# unavailable, require that tmpfile be present.  There's no
+# HAVE_TMPFILE, as we plain require that to be present as a fallback.
 #
 AC_CHECK_FUNCS([open_memstream], [],
-	[AC_CHECK_FUNC([tmpfile], [],
-		[AC_MSG_ERROR([Either open_memstream or tmpfile required.])])])
+	[AC_MSG_CHECKING([for open_memstream with _GNU_SOURCE])
+	 AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[#define _GNU_SOURCE 1
+				   #include <stdio.h>]],
+				 [[char *buf; size_t sz;
+				   return open_memstream(&buf, &sz) != 0;]])],
+
+		 [AC_MSG_RESULT([yes])
+		  AC_DEFINE([HAVE_OPEN_MEMSTREAM], [1],
+			[Define if open_memstream exists.])],
+
+		 [AC_MSG_RESULT([no])
+		  AC_CHECK_FUNC([tmpfile], [],
+			[AC_MSG_ERROR(
+			    [Either open_memstream or tmpfile required.])])])])
 
 #
 # Define HAVE_GETOPT_LONG if that is available.
