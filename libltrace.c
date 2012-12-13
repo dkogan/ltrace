@@ -90,14 +90,13 @@ signal_exit(int sig)
 static void
 normal_exit(void)
 {
-	if (options.summary) {
+	if (options.summary)
 		show_summary();
-		destroy_global_config();
-	}
 	if (options.output) {
 		fclose(options.output);
 		options.output = NULL;
 	}
+	destroy_global_config();
 }
 
 void
