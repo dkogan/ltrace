@@ -92,6 +92,9 @@ struct protolib {
 
 	/* Dictionary of name->struct named_type.  */
 	struct dict named_types;
+
+	/* Reference count.  */
+	unsigned refs;
 };
 
 /* Initialize PLIB.  */

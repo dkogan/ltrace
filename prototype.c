@@ -142,6 +142,8 @@ protolib_init(struct protolib *plib)
 		  dict_hash_string, dict_eq_string, NULL);
 
 	VECT_INIT(&plib->imports, struct protolib *);
+
+	plib->refs = 0;
 }
 
 static void
@@ -159,6 +161,8 @@ destroy_named_type_cb(struct named_type *named, void *data)
 void
 protolib_destroy(struct protolib *plib)
 {
+	assert(plib->refs == 0);
+
 	VECT_DESTROY(&plib->imports, struct prototype *, NULL, NULL);
 
 	DICT_DESTROY(&plib->prototypes, const char *, struct prototype,
@@ -323,7 +327,11 @@ destroy_protolib_cb(struct protolib **plibp, void *data)
 {
 	assert(plibp != NULL);
 	assert(*plibp != NULL);
-	protolib_destroy(*plibp);
+
+	if (--(*plibp)->refs == 0) {
+		protolib_destroy(*plibp);
+		free(*plibp);
+	}
 }
 
 void
@@ -621,6 +629,8 @@ protolib_cache_protolib(struct protolib_cache *cache,
 	int rc = DICT_INSERT(&cache->protolibs, &filename, &plib);
 	if (rc < 0 && own_filename)
 		free((char *)filename);
+	if (rc == 0)
+		plib->refs++;
 	return rc;
 }
 

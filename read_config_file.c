@@ -532,20 +532,33 @@ parse_struct(struct protolib *plib, struct locus *loc,
 	}
 }
 
+/* Make a copy of INFO and set the *OWN bit if it's not already
+ * owned.  */
+static int
+unshare_type_info(struct locus *loc, struct arg_type_info **infop, int *ownp)
+{
+	if (*ownp)
+		return 0;
+
+	struct arg_type_info *ninfo = malloc(sizeof(*ninfo));
+	if (ninfo == NULL) {
+		report_error(loc->filename, loc->line_no,
+			     "malloc: %s", strerror(errno));
+		return -1;
+	}
+	*ninfo = **infop;
+	*infop = ninfo;
+	*ownp = 1;
+	return 0;
+}
+
 static int
 parse_string(struct protolib *plib, struct locus *loc,
 	     char **str, struct arg_type_info **retp, int *ownp)
 {
-	struct arg_type_info *info = malloc(sizeof(*info) * 2);
-	if (info == NULL) {
-	fail:
-		free(info);
-		return -1;
-	}
-
+	struct arg_type_info *info = NULL;
 	struct expr_node *length;
 	int own_length;
-	int with_arg = 0;
 
 	if (isdigit(CTYPE_CONV(**str))) {
 		/* string0 is string[retval], length is zero(retval)
@@ -553,11 +566,11 @@ parse_string(struct protolib *plib, struct locus *loc,
 		long l;
 		if (parse_int(loc, str, &l) < 0
 		    || check_int(loc, l) < 0)
-			goto fail;
+			return -1;
 
 		struct expr_node *length_arg = malloc(sizeof(*length_arg));
 		if (length_arg == NULL)
-			goto fail;
+			return -1;
 
 		if (l == 0)
 			expr_init_named(length_arg, "retval", 0);
@@ -568,7 +581,7 @@ parse_string(struct protolib *plib, struct locus *loc,
 		if (length == NULL) {
 			expr_destroy(length_arg);
 			free(length_arg);
-			goto fail;
+			return -1;
 		}
 		own_length = 1;
 
@@ -580,7 +593,7 @@ parse_string(struct protolib *plib, struct locus *loc,
 
 			length = parse_argnum(loc, str, &own_length, 1);
 			if (length == NULL)
-				goto fail;
+				return -1;
 
 			eat_spaces(str);
 			parse_char(loc, str, ']');
@@ -589,17 +602,16 @@ parse_string(struct protolib *plib, struct locus *loc,
 			/* Usage of "string" as lens.  */
 			++*str;
 
-			free(info);
-
 			eat_spaces(str);
 			info = parse_type(plib, loc, str, NULL, 0, ownp, NULL);
 			if (info == NULL)
-				goto fail;
+				return -1;
+
+			length = NULL;
+			own_length = 0;
 
 			eat_spaces(str);
 			parse_char(loc, str, ')');
-
-			with_arg = 1;
 
 		} else {
 			/* It was just a simple string after all.  */
@@ -609,13 +621,34 @@ parse_string(struct protolib *plib, struct locus *loc,
 	}
 
 	/* String is a pointer to array of chars.  */
-	if (!with_arg) {
-		type_init_array(&info[1], type_get_simple(ARGTYPE_CHAR), 0,
+	if (info == NULL) {
+		struct arg_type_info *info1 = malloc(sizeof(*info1));
+		struct arg_type_info *info2 = malloc(sizeof(*info2));
+		if (info1 == NULL || info2 == NULL) {
+			free(info1);
+			free(info2);
+		fail:
+			if (own_length) {
+				assert(length != NULL);
+				expr_destroy(length);
+				free(length);
+			}
+			return -1;
+		}
+		type_init_array(info2, type_get_simple(ARGTYPE_CHAR), 0,
 				length, own_length);
+		type_init_pointer(info1, info2, 1);
 
-		type_init_pointer(&info[0], &info[1], 0);
+		info = info1;
 		*ownp = 1;
 	}
+
+	/* We'll need to set the lens, so unshare.  */
+	if (unshare_type_info(loc, &info, ownp) < 0)
+		/* If unshare_type_info failed, it must have been as a
+		 * result of cloning attempt because *OWNP was 0.
+		 * Thus we don't need to destroy INFO.  */
+		goto fail;
 
 	info->lens = &string_lens;
 	info->own_lens = 0;
@@ -667,26 +700,6 @@ try_parse_kwd(char **str, const char *kwd)
 		return 0;
 	}
 	return -1;
-}
-
-/* Make a copy of INFO and set the *OWN bit if it's not already
- * owned.  */
-static int
-unshare_type_info(struct locus *loc, struct arg_type_info **infop, int *ownp)
-{
-	if (*ownp)
-		return 0;
-
-	struct arg_type_info *ninfo = malloc(sizeof(*ninfo));
-	if (ninfo == NULL) {
-		report_error(loc->filename, loc->line_no,
-			     "malloc: %s", strerror(errno));
-		return -1;
-	}
-	*ninfo = **infop;
-	*infop = ninfo;
-	*ownp = 1;
-	return 0;
 }
 
 /* XXX extra_param and param_num are a kludge to get in
@@ -875,20 +888,18 @@ parse_nonpointer_type(struct protolib *plib, struct locus *loc,
 	const char *orig_str = *str;
 	enum arg_type type;
 	if (parse_arg_type(str, &type) < 0) {
-		struct arg_type_info *simple;
-		if (parse_alias(plib, loc, str, &simple,
+		struct arg_type_info *type;
+		if (parse_alias(plib, loc, str, &type,
 				ownp, extra_param, param_num) < 0)
 			return NULL;
-		if (simple == NULL)
-			simple = parse_typedef_name(plib, str);
-		if (simple != NULL) {
-			*ownp = 0;
-			return simple;
-		}
+		else if (type != NULL)
+			return type;
 
-		report_error(loc->filename, loc->line_no,
-			     "unknown type around '%s'", orig_str);
-		return NULL;
+		*ownp = 0;
+		if ((type = parse_typedef_name(plib, str)) == NULL)
+			report_error(loc->filename, loc->line_no,
+				     "unknown type around '%s'", orig_str);
+		return type;
 	}
 
 	/* For some types that's all we need.  */
