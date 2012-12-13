@@ -153,8 +153,9 @@ dict_destroy(struct dict *dict,
 	     void (*dtor_value)(void *tgt, void *data),
 	     void *data)
 {
-	/* Some keys and values are not initialized, so we can't call
-	 * dtors for them.  Iterate DICT instead.  */
+	/* Some slots are unused (the corresponding keys and values
+	 * are uninitialized), so we can't call dtors for them.
+	 * Iterate DICT instead.  */
 	if (dtor_key != NULL || dtor_value != NULL) {
 		struct destroy_data destroy_data = {
 			dtor_key, dtor_value, data
