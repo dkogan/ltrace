@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2003,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -41,76 +42,26 @@ debug_(int level, const char *file, int line, const char *fmt, ...) {
 	fflush(options.output);
 }
 
-/*
- * The following section provides a way to print things, like hex dumps,
- * with out using buffered output.  This was written by Steve Munroe of IBM.
- */
-
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/ptrace.h>
-
 static int
-xwritehexl(long i) {
-	int rc = 0;
-	char text[17];
-	int j;
-	unsigned long temp = (unsigned long)i;
-
-	for (j = 15; j >= 0; j--) {
-		char c;
-		c = (char)((temp & 0x0f) + '0');
-		if (c > '9') {
-			c = (char)(c + ('a' - '9' - 1));
-		}
-		text[j] = c;
-		temp = temp >> 4;
-	}
-
-	rc = write(1, text, 16);
-	return rc;
-}
-
-static int
-xwritec(char c) {
-	char temp = c;
-	char *text = &temp;
-	int rc = 0;
-	rc = write(1, text, 1);
-	return rc;
-}
-
-static int
-xwritecr(void) {
-	return xwritec('\n');
-}
-
-static int
-xwritedump(void *ptr, long addr, int len) {
-	int rc = 0;
-	long *tprt = (long *)ptr;
-	int i;
-
-	for (i = 0; i < len; i += 8) {
-		xwritehexl(addr);
-		xwritec('-');
-		xwritec('>');
-		xwritehexl(*tprt++);
-		xwritecr();
+xwritedump(long *ptr, arch_addr_t addr, size_t count)
+{
+	size_t i;
+	for (i = 0; i < count; ++i) {
+		if (fprintf(stderr, "%p->%0*lx\n",
+			    addr, 2 * (int)sizeof(long), ptr[i]) < 0)
+			return -1;
 		addr += sizeof(long);
 	}
 
-	return rc;
+	return 0;
 }
 
 int
-xinfdump(long pid, void *ptr, int len)
+xinfdump(struct Process *proc, arch_addr_t addr, size_t length)
 {
-	unsigned char buf[len];
-	size_t got = umovebytes(pid2proc(pid), ptr, buf, len);
+	unsigned char buf[length];
+	size_t got = umovebytes(proc, addr, buf, length);
 	if (got == (size_t)-1)
 		return -1;
-	return xwritedump(buf, (long)ptr, got);
+	return xwritedump((long *)buf, addr, got / sizeof(long));
 }
