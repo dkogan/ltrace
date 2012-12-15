@@ -617,10 +617,12 @@ process_options(int argc, char **argv)
 			options.user = optarg;
 			break;
 		case 'V':
-			printf("ltrace version " PACKAGE_VERSION ".\n"
-					"Copyright (C) 1997-2009 Juan Cespedes <cespedes@debian.org>.\n"
-					"This is free software; see the GNU General Public Licence\n"
-					"version 2 or later for copying conditions.  There is NO warranty.\n");
+			printf("ltrace " PACKAGE_VERSION "\n"
+			       "Copyright (C) 2010-2012 Petr Machata, Red Hat Inc.\n"
+			       "Copyright (C) 1997-2009 Juan Cespedes <cespedes@debian.org>.\n"
+			       "License GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl.html>\n"
+			       "This is free software: you are free to change and redistribute it.\n"
+			       "There is NO WARRANTY, to the extent permitted by law.\n");
 			exit(0);
 			break;
 #if defined(HAVE_LIBUNWIND)
