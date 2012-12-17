@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <assert.h>
 
-#include "common.h"
+#include "output.h"
 #include "demangle.h"
 #include "fetch.h"
 #include "lens_default.h"
@@ -43,6 +43,7 @@
 #include "options.h"
 #include "param.h"
 #include "proc.h"
+#include "prototype.h"
 #include "type.h"
 #include "value.h"
 #include "value_dict.h"
@@ -152,58 +153,41 @@ get_unknown_type(void)
 static struct prototype *
 build_default_prototype(void)
 {
-	struct prototype *ret = malloc(sizeof(*ret));
-	size_t i = 0;
-	if (ret == NULL)
-		goto err;
-	memset(ret, 0, sizeof(*ret));
+	static struct prototype *ret = NULL;
+	if (ret != NULL)
+		return ret;
+
+	static struct prototype proto;
+	prototype_init(&proto);
 
 	struct arg_type_info *unknown_type = get_unknown_type();
+	assert(unknown_type != NULL);
+	proto.return_info = unknown_type;
+	proto.own_return_info = 0;
 
-	ret->return_info = unknown_type;
-	ret->own_return_info = 0;
+	struct param unknown_param;
+	param_init_type(&unknown_param, unknown_type, 0);
 
-	ret->num_params = 4;
-	ret->params = malloc(sizeof(*ret->params) * ret->num_params);
-	if (ret->params == NULL)
-		goto err;
+	size_t i;
+	for (i = 0; i < 4; ++i)
+		if (prototype_push_param(&proto, &unknown_param) < 0) {
+			report_global_error("build_default_prototype: %s",
+					    strerror(errno));
+			prototype_destroy(&proto);
+			return NULL;
+		}
 
-	for (i = 0; i < ret->num_params; ++i)
-		param_init_type(&ret->params[i], unknown_type, 0);
-
+	ret = &proto;
 	return ret;
-
-err:
-	report_global_error("malloc: %s", strerror(errno));
-	if (ret->params != NULL) {
-		while (i-- > 0)
-			param_destroy(&ret->params[i]);
-		free(ret->params);
-	}
-
-	free(ret);
-
-	return NULL;
 }
 
 static struct prototype *
 name2func(char const *name)
 {
-	struct prototype *tmp;
-	const char *str1, *str2;
-
-	for (tmp = list_of_functions; tmp != NULL; tmp = tmp->next) {
-		str1 = tmp->name;
-		str2 = name;
-		if (!strcmp(str1, str2))
-			return tmp;
-	}
-
-	static struct prototype *def = NULL;
-	if (def == NULL)
-		def = build_default_prototype();
-
-	return def;
+	struct prototype *p = protolib_lookup_prototype(&g_prototypes, name);
+	if (p != NULL)
+		return p;
+	return build_default_prototype();
 }
 
 void
@@ -373,17 +357,38 @@ fetch_one_param(enum tof type, struct process *proc,
 	abort();
 }
 
+struct fetch_one_param_data
+{
+	struct process *proc;
+	struct fetch_context *context;
+	struct value_dict *arguments;
+	ssize_t *params_leftp;
+	enum tof tof;
+};
+
+static enum callback_status
+fetch_one_param_cb(struct prototype *proto, struct param *param, void *data)
+{
+	struct fetch_one_param_data *cb_data = data;
+	if (fetch_one_param(cb_data->tof, cb_data->proc, cb_data->context,
+			    cb_data->arguments, param,
+			    cb_data->params_leftp) < 0)
+		return CBS_STOP;
+	else
+		return CBS_CONT;
+}
+
 static int
 fetch_params(enum tof type, struct process *proc,
 	     struct fetch_context *context,
 	     struct value_dict *arguments, struct prototype *func,
 	     ssize_t *params_leftp)
 {
-	size_t i;
-	for (i = 0; i < func->num_params; ++i)
-		if (fetch_one_param(type, proc, context, arguments,
-				    &func->params[i], params_leftp) < 0)
-			return -1;
+	struct fetch_one_param_data cb_data
+		= { proc, context, arguments, params_leftp, type };
+	if (prototype_each_param(func, NULL,
+				 &fetch_one_param_cb, &cb_data) != NULL)
+		return -1;
 
 	/* Implicit stop at the end of parameter list.  */
 	fetch_param_stop(arguments, params_leftp);

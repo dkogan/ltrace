@@ -43,16 +43,6 @@ extern char * command;
 
 extern int exiting;  /* =1 if we have to exit ASAP */
 
-struct prototype {
-	const char *name;
-	struct param *params;
-	struct arg_type_info *return_info;
-	int own_return_info;
-	size_t num_params;
-	struct prototype *next;
-};
-
-extern struct prototype *list_of_functions;
 extern char *PLTs_initialized_by_here;
 
 #include "options.h"

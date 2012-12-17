@@ -39,6 +39,7 @@
 #include "expr.h"
 #include "param.h"
 #include "printf.h"
+#include "prototype.h"
 #include "zero.h"
 #include "type.h"
 #include "lens.h"
@@ -506,21 +507,6 @@ parse_typedef(char **str)
 	free(this_td->info);
 	free(name);
 	free(this_td);
-}
-
-static void
-destroy_fun(struct prototype *fun)
-{
-	size_t i;
-	if (fun == NULL)
-		return;
-	if (fun->own_return_info) {
-		type_destroy(fun->return_info);
-		free(fun->return_info);
-	}
-	for (i = 0; i < fun->num_params; ++i)
-		param_destroy(&fun->params[i]);
-	free(fun->params);
 }
 
 /* Syntax: struct ( type,type,type,... ) */
@@ -1088,23 +1074,6 @@ parse_lens(char **str, struct param **extra_param, size_t param_num, int *ownp,
 }
 
 static int
-add_param(struct prototype *fun, size_t *allocdp)
-{
-	size_t allocd = *allocdp;
-	/* XXX +1 is for the extra_param handling hack.  */
-	if ((fun->num_params + 1) >= allocd) {
-		allocd = allocd > 0 ? 2 * allocd : 8;
-		void *na = realloc(fun->params, sizeof(*fun->params) * allocd);
-		if (na == NULL)
-			return -1;
-
-		fun->params = na;
-		*allocdp = allocd;
-	}
-	return 0;
-}
-
-static int
 param_is_void(struct param *param)
 {
 	return param->flavor == PARAM_FLAVOR_TYPE
@@ -1124,8 +1093,24 @@ get_hidden_int(void)
 	return info;
 }
 
+static enum callback_status
+void_to_hidden_int(struct prototype *proto, struct param *param, void *data)
+{
+	if (param_is_void(param)) {
+		report_warning(filename, line_no,
+			       "void parameter assumed to be 'hide(int)'");
+
+		static struct arg_type_info *type = NULL;
+		if (type == NULL)
+			type = get_hidden_int();
+		param_destroy(param);
+		param_init_type(param, type, 0);
+	}
+	return CBS_CONT;
+}
+
 static int
-process_line(char *buf)
+process_line(char *buf, struct protolib *plib)
 {
 	char *str = buf;
 	char *tmp;
@@ -1145,17 +1130,20 @@ process_line(char *buf)
 
 	struct prototype *fun = calloc(1, sizeof(*fun));
 	if (fun == NULL) {
-		report_error(filename, line_no,
-			     "alloc function: %s", strerror(errno));
+		report_error(filename, line_no, "%s", strerror(errno));
 		return -1;
 	}
+	prototype_init(fun);
 
+	char *proto_name = NULL;
 	int own;
 	fun->return_info = parse_lens(&str, NULL, 0, &own, NULL);
 	if (fun->return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", line_no);
-		destroy_fun(fun);
+		prototype_destroy(fun);
+		free(fun);
+		free(proto_name);
 		return -1;
 	}
 	fun->own_return_info = own;
@@ -1168,13 +1156,18 @@ process_line(char *buf)
 		goto err;
 	}
 	*tmp = '\0';
-	fun->name = strdup(str);
+
+	proto_name = strdup(str);
+	if (proto_name == NULL) {
+	oom:
+		report_error(filename, line_no, "%s", strerror(errno));
+		goto err;
+	}
+
 	str = tmp + 1;
-	debug(3, " name = %s", fun->name);
+	debug(3, " name = %s", proto_name);
 
-	size_t allocd = 0;
 	struct param *extra_param = NULL;
-
 	int have_stop = 0;
 
 	while (1) {
@@ -1184,33 +1177,29 @@ process_line(char *buf)
 
 		if (str[0] == '+') {
 			if (have_stop == 0) {
-				if (add_param(fun, &allocd) < 0)
-					goto add_err;
-				param_init_stop
-					(&fun->params[fun->num_params++]);
+				struct param param;
+				param_init_stop(&param);
+				if (prototype_push_param(fun, &param) < 0)
+					goto oom;
 				have_stop = 1;
 			}
 			str++;
 		}
 
-		if (add_param(fun, &allocd) < 0) {
-		add_err:
-			report_error(filename, line_no, "(re)alloc params: %s",
-				     strerror(errno));
-			goto err;
-		}
-
 		int own;
+		size_t param_num = prototype_num_params(fun) - have_stop;
 		struct arg_type_info *type
-			= parse_lens(&str, &extra_param,
-				     fun->num_params - have_stop, &own, NULL);
+			= parse_lens(&str, &extra_param, param_num, &own, NULL);
 		if (type == NULL) {
 			report_error(filename, line_no,
 				     "unknown argument type");
 			goto err;
 		}
 
-		param_init_type(&fun->params[fun->num_params++], type, own);
+		struct param param;
+		param_init_type(&param, type, own);
+		if (prototype_push_param(fun, &param) < 0)
+			goto oom;
 
 		eat_spaces(&str);
 		if (*str == ',') {
@@ -1238,7 +1227,8 @@ process_line(char *buf)
 	 * latter is conservative, we can drop the argument
 	 * altogether, instead of fetching and then not showing it,
 	 * without breaking any observable behavior.  */
-	if (fun->num_params == 1 && param_is_void(&fun->params[0])) {
+	if (prototype_num_params(fun) == 1
+	    && param_is_void(prototype_get_nth_param(fun, 0))) {
 		if (0)
 			/* Don't show this warning.  Pre-0.7.0
 			 * ltrace.conf often used this idiom.  This
@@ -1246,35 +1236,21 @@ process_line(char *buf)
 			 * extant uses are likely gone.  */
 			report_warning(filename, line_no,
 				       "sole void parameter ignored");
-		param_destroy(&fun->params[0]);
-		fun->num_params = 0;
+		prototype_destroy_nth_param(fun, 0);
 	} else {
-		size_t i;
-		for (i = 0; i < fun->num_params; ++i) {
-			if (param_is_void(&fun->params[i])) {
-				report_warning
-					(filename, line_no,
-					 "void parameter assumed to be "
-					 "'hide(int)'");
-
-				static struct arg_type_info *type = NULL;
-				if (type == NULL)
-					type = get_hidden_int();
-				param_destroy(&fun->params[i]);
-				param_init_type(&fun->params[i], type, 0);
-			}
-		}
+		prototype_each_param(fun, NULL, void_to_hidden_int, NULL);
 	}
 
 	if (extra_param != NULL) {
-		assert(fun->num_params < allocd);
-		memcpy(&fun->params[fun->num_params++], extra_param,
-		       sizeof(*extra_param));
+		prototype_push_param(fun, extra_param);
 		free(extra_param);
 	}
 
-	fun->next = list_of_functions;
-	list_of_functions = fun;
+	if (protolib_add_prototype(plib, proto_name, 1, fun) < 0) {
+		report_error(filename, line_no, "couldn't add prototype: %s",
+			     strerror(errno));
+		goto err;
+	}
 
 	return 0;
 }
@@ -1282,9 +1258,11 @@ process_line(char *buf)
 void
 init_global_config(void)
 {
+	protolib_init(&g_prototypes);
+
 	struct arg_type_info *info = malloc(2 * sizeof(*info));
 	if (info == NULL) {
-		fprintf(stderr, "Couldn't init global config: %s\n",
+		fprintf(stderr, "Couldn't allocate memory for aliases: %s.\n",
 			strerror(errno));
 		exit(1);
 	}
@@ -1301,6 +1279,7 @@ init_global_config(void)
 void
 destroy_global_config(void)
 {
+	protolib_destroy(&g_prototypes);
 }
 
 void
@@ -1320,7 +1299,7 @@ read_config_file(char *file)
 	char *line = NULL;
 	size_t len = 0;
 	while (getline(&line, &len, stream) >= 0)
-		process_line(line);
+		process_line(line, &g_prototypes);
 	free(line);
 	fclose(stream);
 }

@@ -32,36 +32,12 @@ AM_CPPFLAGS += \
 noinst_LTLIBRARIES = \
 	libltrace.la
 
-libltrace_la_SOURCES = \
-	breakpoints.c \
-	debug.c \
-	demangle.c \
-	dict.c \
-	ltrace-elf.c \
-	execute_program.c \
-	handle_event.c \
-	libltrace.c \
-	options.c \
-	output.c \
-	proc.c \
-	read_config_file.c  \
-	summary.c \
-	library.c \
-	filter.c \
-	glob.c \
-	type.c \
-	value.c \
-	value_dict.c \
-	expr.c \
-	fetch.c \
-	vect.c \
-	param.c \
-	printf.c \
-	zero.c \
-	lens.c \
-	lens_default.c \
-	lens_enum.c \
-	memstream.c
+libltrace_la_SOURCES = breakpoints.c debug.c demangle.c dict.c		\
+	ltrace-elf.c execute_program.c handle_event.c libltrace.c	\
+	options.c output.c proc.c read_config_file.c summary.c		\
+	library.c filter.c glob.c type.c value.c value_dict.c expr.c	\
+	fetch.c vect.c param.c printf.c zero.c lens.c lens_default.c	\
+	lens_enum.c memstream.c prototype.c
 
 libltrace_la_LIBADD = \
 	$(libelf_LIBS) \
@@ -70,7 +46,6 @@ libltrace_la_LIBADD = \
 	$(libstdcxx_LIBS) \
 	$(libunwind_LIBS) \
 	sysdeps/libos.la
-
 
 bin_PROGRAMS = \
 	ltrace
@@ -81,40 +56,12 @@ ltrace_SOURCES = \
 ltrace_LDADD = \
 	libltrace.la
 
-
-noinst_HEADERS = \
-	backend.h \
-	breakpoint.h \
-	common.h \
-	debug.h \
-	defs.h \
-	demangle.h \
-	dict.h \
-	forward.h \
-	ltrace-elf.h \
-	ltrace.h \
-	options.h \
-	output.h \
-	proc.h \
-	read_config_file.h \
-	library.h \
-	filter.h \
-	glob.h \
-	vect.h \
-	type.h \
-	value.h \
-	value_dict.h \
-	callback.h \
-	expr.h \
-	fetch.h \
-	vect.h \
-	param.h \
-	printf.h \
-	zero.h \
-	lens.h \
-	lens_default.h \
-	lens_enum.h \
-	memstream.h
+noinst_HEADERS = backend.h breakpoint.h common.h debug.h defs.h		\
+	demangle.h dict.h forward.h ltrace-elf.h ltrace.h options.h	\
+	output.h proc.h read_config_file.h library.h filter.h glob.h	\
+	vect.h type.h value.h value_dict.h callback.h expr.h fetch.h	\
+	vect.h param.h printf.h zero.h lens.h lens_default.h		\
+	lens_enum.h memstream.h prototype.h
 
 dist_man1_MANS = ltrace.1
 dist_man5_MANS = ltrace.conf.5
