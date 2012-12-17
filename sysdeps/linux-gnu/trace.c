@@ -351,7 +351,7 @@ process_stopping_done(struct process_stopping_handler *self,
 
 	if (self->exiting) {
 	ugly_workaround:
-		self->state = psh_ugly_workaround;
+		self->state = PSH_UGLY_WORKAROUND;
 		ugly_workaround(self->task_enabling_breakpoint);
 	} else {
 		switch ((self->ugly_workaround_p)(self)) {
@@ -680,7 +680,7 @@ disable_and(struct process_stopping_handler *self,
 	if (self->breakpoint_being_enabled->enabled)
 		disable_breakpoint(teb, self->breakpoint_being_enabled);
 	(do_this)(self);
-	self->state = psh_singlestep;
+	self->state = PSH_SINGLESTEP;
 }
 
 void
@@ -737,7 +737,7 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 	}
 
 	switch (state) {
-	case psh_stopping:
+	case PSH_STOPPING:
 		/* If everyone is stopped, singlestep.  */
 		if (each_task(leader, NULL, &task_blocked,
 			      &self->pids) == NULL) {
@@ -746,7 +746,7 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 		}
 		break;
 
-	case psh_singlestep:
+	case PSH_SINGLESTEP:
 		/* In singlestep state, breakpoint signifies that we
 		 * have now stepped, and can re-enable the breakpoint.  */
 		if (event != NULL && task == teb) {
@@ -801,13 +801,14 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 		break;
 
 	psh_sinking:
-		state = self->state = psh_sinking;
-	case psh_sinking:
+		state = self->state = PSH_SINKING;
+		/* Fall through.  */
+	case PSH_SINKING:
 		if (await_sigstop_delivery(&self->pids, task_info, event))
 			process_stopping_done(self, leader);
 		break;
 
-	case psh_ugly_workaround:
+	case PSH_UGLY_WORKAROUND:
 		if (event == NULL)
 			break;
 		if (event->type == EVENT_BREAKPOINT) {

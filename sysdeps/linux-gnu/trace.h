@@ -84,17 +84,17 @@ struct process_stopping_handler
 
 	enum {
 		/* We are waiting for everyone to land in t/T.  */
-		psh_stopping = 0,
+		PSH_STOPPING = 0,
 
 		/* We are doing the PTRACE_SINGLESTEP.  */
-		psh_singlestep,
+		PSH_SINGLESTEP,
 
 		/* We are waiting for all the SIGSTOPs to arrive so
 		 * that we can sink them.  */
-		psh_sinking,
+		PSH_SINKING,
 
 		/* This is for tracking the ugly workaround.  */
-		psh_ugly_workaround,
+		PSH_UGLY_WORKAROUND,
 	} state;
 
 	int exiting;
