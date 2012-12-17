@@ -27,12 +27,12 @@
 #include <gelf.h>
 
 enum process_status {
-	ps_invalid,	/* Failure.  */
-	ps_stop,	/* Job-control stop.  */
-	ps_tracing_stop,
-	ps_sleeping,
-	ps_zombie,
-	ps_other,	/* Necessary other states can be added as needed.  */
+	PS_INVALID,	/* Failure.  */
+	PS_STOP,	/* Job-control stop.  */
+	PS_TRACING_STOP,
+	PS_SLEEPING,
+	PS_ZOMBIE,
+	PS_OTHER,	/* Necessary other states can be added as needed.  */
 };
 
 /*

@@ -188,7 +188,7 @@ next_event(void)
 		 * now) the pain of figuring this out all over again.
 		 * Petr Machata 2011-11-22.  */
 		int i = 0;
-		for (; i < 100 && process_status(pid) != ps_tracing_stop; ++i) {
+		for (; i < 100 && process_status(pid) != PS_TRACING_STOP; ++i) {
 			debug(2, "waiting for %d to stop", pid);
 			usleep(10000);
 		}

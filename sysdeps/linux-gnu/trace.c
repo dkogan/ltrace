@@ -217,13 +217,13 @@ task_stopped(struct process *task, void *data)
 	 * the meantime.  This can happen when the whole thread group
 	 * is terminating.  */
 	switch (st) {
-	case ps_invalid:
-	case ps_tracing_stop:
-	case ps_zombie:
+	case PS_INVALID:
+	case PS_TRACING_STOP:
+	case PS_ZOMBIE:
 		return CBS_CONT;
-	case ps_sleeping:
-	case ps_stop:
-	case ps_other:
+	case PS_SLEEPING:
+	case PS_STOP:
+	case PS_OTHER:
 		return CBS_STOP;
 	}
 
@@ -299,8 +299,8 @@ send_sigstop(struct process *task, void *data)
 	 * vforked process.  We set up event handler specially to hint
 	 * us.  In that case parent is in D state, which we use to
 	 * weed out unnecessary looping.  */
-	if (st == ps_sleeping
-	    && is_vfork_parent (task)) {
+	if (st == PS_SLEEPING
+	    && is_vfork_parent(task)) {
 		task_info->vforked = 1;
 		return CBS_CONT;
 	}

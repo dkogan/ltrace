@@ -177,44 +177,45 @@ process_status_cb(const char *line, const char *prefix, void *data)
 	} while (0)
 
 	switch (c) {
-	case 'Z': RETURN(ps_zombie);
-	case 't': RETURN(ps_tracing_stop);
+	case 'Z': RETURN(PS_ZOMBIE);
+	case 't': RETURN(PS_TRACING_STOP);
 	case 'T':
 		/* This can be either "T (stopped)" or, for older
 		 * kernels, "T (tracing stop)".  */
 		if (!strcmp(status, "T (stopped)\n"))
-			RETURN(ps_stop);
+			RETURN(PS_STOP);
 		else if (!strcmp(status, "T (tracing stop)\n"))
-			RETURN(ps_tracing_stop);
+			RETURN(PS_TRACING_STOP);
 		else {
 			fprintf(stderr, "Unknown process status: %s",
 				status);
-			RETURN(ps_stop); /* Some sort of stop
+			RETURN(PS_STOP); /* Some sort of stop
 					  * anyway.  */
 		}
 	case 'D':
-	case 'S': RETURN(ps_sleeping);
+	case 'S': RETURN(PS_SLEEPING);
 	}
 
-	RETURN(ps_other);
+	RETURN(PS_OTHER);
 #undef RETURN
 }
 
 enum process_status
 process_status(pid_t pid)
 {
-	enum process_status ret = ps_invalid;
+	enum process_status ret = PS_INVALID;
 	FILE * file = open_status_file(pid);
 	if (file != NULL) {
 		each_line_starting(file, "State:\t", &process_status_cb, &ret);
 		fclose(file);
-		if (ret == ps_invalid)
+		if (ret == PS_INVALID)
 			fprintf(stderr, "process_status %d: %s", pid,
 				strerror(errno));
-	} else
+	} else {
 		/* If the file is not present, the process presumably
 		 * exited already.  */
-		ret = ps_zombie;
+		ret = PS_ZOMBIE;
+	}
 
 	return ret;
 }
