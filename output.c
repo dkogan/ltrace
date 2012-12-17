@@ -182,20 +182,42 @@ build_default_prototype(void)
 }
 
 static struct prototype *
-lookup_symbol_prototype(struct library_symbol *libsym)
+library_get_prototype(struct library *lib, const char *name)
+{
+	if (lib->protolib == NULL)
+		lib->protolib = protolib_cache_search(&g_protocache,
+						      lib->soname, 1);
+	if (lib->protolib == NULL)
+		return NULL;
+
+	return protolib_lookup_prototype(lib->protolib, name);
+}
+
+struct find_proto_data {
+	const char *name;
+	struct prototype *ret;
+};
+
+static enum callback_status
+find_proto_cb(struct process *proc, struct library *lib, void *d)
+{
+	struct find_proto_data *data = d;
+	data->ret = library_get_prototype(lib, data->name);
+	return CBS_STOP_IF(data->ret != NULL);
+}
+
+static struct prototype *
+lookup_symbol_prototype(struct process *proc, struct library_symbol *libsym)
 {
 	struct library *lib = libsym->lib;
 	if (lib != NULL) {
-		if (lib->protolib == NULL)
-			lib->protolib = protolib_cache_search(&g_protocache,
-							      lib->soname, 1);
-		if (lib->protolib != NULL) {
-			struct prototype *p
-				= protolib_lookup_prototype(lib->protolib,
-							    libsym->name);
-			if (p != NULL)
-				return p;
-		}
+		struct find_proto_data data = { libsym->name };
+		data.ret = library_get_prototype(lib, libsym->name);
+		if (data.ret == NULL
+		    && libsym->plt_type == LS_TOPLT_EXEC)
+			proc_each_library(proc, NULL, find_proto_cb, &data);
+		if (data.ret != NULL)
+			return data.ret;
 	}
 
 	return build_default_prototype();
@@ -381,12 +403,10 @@ static enum callback_status
 fetch_one_param_cb(struct prototype *proto, struct param *param, void *data)
 {
 	struct fetch_one_param_data *cb_data = data;
-	if (fetch_one_param(cb_data->tof, cb_data->proc, cb_data->context,
-			    cb_data->arguments, param,
-			    cb_data->params_leftp) < 0)
-		return CBS_STOP;
-	else
-		return CBS_CONT;
+	return CBS_STOP_IF(fetch_one_param(cb_data->tof, cb_data->proc,
+					   cb_data->context,
+					   cb_data->arguments, param,
+					   cb_data->params_leftp) < 0);
 }
 
 static int
@@ -484,7 +504,7 @@ output_left(enum tof type, struct process *proc,
 
 	account_output(&current_column, fprintf(options.output, "("));
 
-	struct prototype *func = lookup_symbol_prototype(libsym);
+	struct prototype *func = lookup_symbol_prototype(proc, libsym);
 	if (func == NULL) {
 		account_output(&current_column, fprintf(options.output, "???"));
 		return;
@@ -524,7 +544,7 @@ free_stringp_cb(const char **stringp, void *data)
 void
 output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 {
-	struct prototype *func = lookup_symbol_prototype(libsym);
+	struct prototype *func = lookup_symbol_prototype(proc, libsym);
 	if (func == NULL)
 		return;
 
