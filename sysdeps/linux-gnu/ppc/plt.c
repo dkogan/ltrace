@@ -600,12 +600,12 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 {
 	if (lte->ehdr.e_machine == EM_PPC) {
 		if (lte->arch.secure_plt)
-			return plt_default;
+			return PLT_DEFAULT;
 
 		struct library_symbol *libsym = NULL;
 		if (default_elf_add_plt_entry(proc, lte, a_name, rela, ndx,
 					      &libsym) < 0)
-			return plt_fail;
+			return PLT_FAIL;
 
 		/* On PPC32 with BSS PLT, delay the symbol until
 		 * dynamic linker is done.  */
@@ -613,7 +613,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		libsym->delayed = 1;
 
 		*ret = libsym;
-		return plt_ok;
+		return PLT_OK;
 	}
 
 	/* PPC64.  If we have stubs, we return a chain of breakpoint
@@ -636,7 +636,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 	if (chain != NULL) {
 		*ret = chain;
-		return plt_ok;
+		return PLT_OK;
 	}
 
 	/* We don't have stub symbols.  Find corresponding .plt slot,
@@ -653,7 +653,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 	GElf_Addr plt_slot_value;
 	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0)
-		return plt_fail;
+		return PLT_FAIL;
 
 	char *name = strdup(a_name);
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
@@ -663,7 +663,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	fail:
 		free(name);
 		free(libsym);
-		return plt_fail;
+		return PLT_FAIL;
 	}
 
 	/* XXX The double cast should be removed when
@@ -696,7 +696,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	}
 
 	*ret = libsym;
-	return plt_ok;
+	return PLT_OK;
 }
 
 void

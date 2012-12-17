@@ -106,7 +106,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
 		       struct library_symbol **ret)
 {
-	return plt_default;
+	return PLT_DEFAULT;
 }
 #endif
 
@@ -566,14 +566,14 @@ populate_plt(struct process *proc, const char *filename,
 		struct library_symbol *libsym = NULL;
 		switch (arch_elf_add_plt_entry(proc, lte, name,
 					       &rela, i, &libsym)) {
-		case plt_default:
+		case PLT_DEFAULT:
 			if (default_elf_add_plt_entry(proc, lte, name,
 						      &rela, i, &libsym) < 0)
 			/* fall-through */
-		case plt_fail:
+		case PLT_FAIL:
 				return -1;
 			/* fall-through */
-		case plt_ok:
+		case PLT_OK:
 			if (libsym != NULL) {
 				/* If we are adding those symbols just
 				 * for tracing exports, mark them all

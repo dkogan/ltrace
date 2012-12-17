@@ -351,7 +351,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
 	if (libsym == NULL)
-		return plt_fail;
+		return PLT_FAIL;
 
 	GElf_Addr addr = arch_plt_sym_val(lte, sym_index, 0);
 
@@ -390,12 +390,12 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	}
 
 	*ret = libsym;
-	return plt_ok;
+	return PLT_OK;
 
 fail:
 	free(name);
 	free(libsym);
-	return plt_fail;
+	return PLT_FAIL;
 }
 
 int

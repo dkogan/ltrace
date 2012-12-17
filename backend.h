@@ -289,9 +289,9 @@ int arch_get_sym_info(struct ltelf *lte, const char *filename,
 		      size_t sym_index, GElf_Rela *rela, GElf_Sym *sym);
 
 enum plt_status {
-	plt_fail,
-	plt_ok,
-	plt_default,
+	PLT_FAIL,
+	PLT_OK,
+	PLT_DEFAULT,
 };
 
 /* The following callback has to be implemented in backend if arch.h
@@ -302,9 +302,9 @@ enum plt_status {
  * The corresponding PLT entry is for symbol called NAME, and it's
  * I-th relocation in the file.
  *
- * If this function returns plt_default, PLT address is obtained by
- * calling arch_plt_sym_val, and symbol is allocated.  If plt_ok or
- * plt_default are returned, the chain of symbols passed back in RET
+ * If this function returns PLT_DEFAULT, PLT address is obtained by
+ * calling arch_plt_sym_val, and symbol is allocated.  If PLT_OK or
+ * PLT_DEFAULT are returned, the chain of symbols passed back in RET
  * is added to library under construction.  */
 enum plt_status arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 				       const char *name, GElf_Rela *rela,

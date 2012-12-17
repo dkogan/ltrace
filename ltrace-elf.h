@@ -79,12 +79,12 @@ int ltelf_read_library(struct library *lib, struct process *proc,
 struct library *ltelf_read_main_binary(struct process *proc, const char *path);
 
 /* Create a default PLT entry.  This can be used instead (or in
- * addition to) returning plt_default from arch_elf_add_plt_entry.
+ * addition to) returning PLT_DEFAULT from arch_elf_add_plt_entry.
  * RET shall be initialized, the created symbol will be added to the
  * beginning of the linked list at *RET.  This function doesn't add
  * the symbol to LTE.  arch_elf_add_plt_entry has the chance to adjust
- * symbol internals to its liking, and then return either plt_default
- * or plt_ok.  */
+ * symbol internals to its liking, and then return either PLT_DEFAULT
+ * or PLT_OK.  */
 int default_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 			      const char *a_name, GElf_Rela *rela, size_t ndx,
 			      struct library_symbol **ret);
