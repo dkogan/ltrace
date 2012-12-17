@@ -412,7 +412,7 @@ library_add_symbol(struct library *lib, struct library_symbol *first)
 }
 
 enum callback_status
-library_named_cb(struct Process *proc, struct library *lib, void *name)
+library_named_cb(struct process *proc, struct library *lib, void *name)
 {
 	if (name == lib->soname
 	    || strcmp(lib->soname, (char *)name) == 0)
@@ -422,7 +422,7 @@ library_named_cb(struct Process *proc, struct library *lib, void *name)
 }
 
 enum callback_status
-library_with_key_cb(struct Process *proc, struct library *lib, void *keyp)
+library_with_key_cb(struct process *proc, struct library *lib, void *keyp)
 {
 	return lib->key == *(arch_addr_t *)keyp ? CBS_STOP : CBS_CONT;
 }

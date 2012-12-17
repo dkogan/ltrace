@@ -57,7 +57,7 @@ xwritedump(long *ptr, arch_addr_t addr, size_t count)
 }
 
 int
-xinfdump(struct Process *proc, arch_addr_t addr, size_t length)
+xinfdump(struct process *proc, arch_addr_t addr, size_t length)
 {
 	unsigned char buf[length];
 	size_t got = umovebytes(proc, addr, buf, length);

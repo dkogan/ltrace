@@ -56,7 +56,7 @@ conv_32(arch_addr_t val)
 }
 
 void *
-get_instruction_pointer(struct Process *proc)
+get_instruction_pointer(struct process *proc)
 {
 	long int ret = ptrace(PTRACE_PEEKUSER, proc->pid, XIP, 0);
 	if (proc->e_machine == EM_386)
@@ -65,7 +65,7 @@ get_instruction_pointer(struct Process *proc)
 }
 
 void
-set_instruction_pointer(struct Process *proc, arch_addr_t addr)
+set_instruction_pointer(struct process *proc, arch_addr_t addr)
 {
 	if (proc->e_machine == EM_386)
 		addr = conv_32(addr);
@@ -73,7 +73,7 @@ set_instruction_pointer(struct Process *proc, arch_addr_t addr)
 }
 
 void *
-get_stack_pointer(struct Process *proc)
+get_stack_pointer(struct process *proc)
 {
 	long sp = ptrace(PTRACE_PEEKUSER, proc->pid, XSP, 0);
 	if (sp == -1 && errno) {
@@ -91,7 +91,7 @@ get_stack_pointer(struct Process *proc)
 }
 
 void *
-get_return_addr(struct Process *proc, void *sp)
+get_return_addr(struct process *proc, void *sp)
 {
 	long a = ptrace(PTRACE_PEEKTEXT, proc->pid, sp, 0);
 	if (a == -1 && errno) {
@@ -109,7 +109,8 @@ get_return_addr(struct Process *proc, void *sp)
 }
 
 void
-set_return_addr(Process *proc, void *addr) {
+set_return_addr(struct process *proc, void *addr)
+{
 	if (proc->e_machine == EM_386)
 		addr = (void *)((long int)addr & 0xffffffff);
 	ptrace(PTRACE_POKETEXT, proc->pid, proc->stack_pointer, addr);

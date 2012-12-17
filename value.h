@@ -46,7 +46,7 @@ enum value_location_t {
 
 struct value {
 	struct arg_type_info *type;
-	struct Process *inferior;
+	struct process *inferior;
 	struct value *parent;
 	size_t size;
 	union {
@@ -63,7 +63,7 @@ struct value {
  * value, in case of compound types.  It may be NULL.  TYPE is a type
  * of the value.  It may be NULL if the type is not yet known.  If
  * OWN_TYPE, the passed-in type is owned and released by value.  */
-void value_init(struct value *value, struct Process *inferior,
+void value_init(struct value *value, struct process *inferior,
 		struct value *parent, struct arg_type_info *type,
 		int own_type);
 

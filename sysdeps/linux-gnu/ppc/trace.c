@@ -49,7 +49,8 @@
 #endif
 
 void
-get_arch_dep(Process *proc) {
+get_arch_dep(struct process *proc)
+{
 #ifdef __powerpc64__
 	proc->mask_32bit = (proc->e_machine == EM_PPC);
 #endif
@@ -59,7 +60,8 @@ get_arch_dep(Process *proc) {
 
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise. */
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct process *proc, int status, int *sysnum)
+{
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
 		long pc = (long)get_instruction_pointer(proc);
@@ -85,10 +87,10 @@ syscall_p(Process *proc, int status, int *sysnum) {
 /* The atomic skip code is mostly taken from GDB.  */
 
 /* In plt.h.  XXX make this official interface.  */
-int read_target_4(struct Process *proc, arch_addr_t addr, uint32_t *lp);
+int read_target_4(struct process *proc, arch_addr_t addr, uint32_t *lp);
 
 int
-arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
+arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
 		       int (*add_cb)(void *addr, void *data),
 		       void *add_cb_data)
 {
@@ -172,7 +174,7 @@ arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
 }
 
 size_t
-arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
+arch_type_sizeof(struct process *proc, struct arg_type_info *info)
 {
 	if (proc == NULL)
 		return (size_t)-2;
@@ -215,7 +217,7 @@ arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
 }
 
 size_t
-arch_type_alignof(struct Process *proc, struct arg_type_info *info)
+arch_type_alignof(struct process *proc, struct arg_type_info *info)
 {
 	if (proc == NULL)
 		return (size_t)-2;

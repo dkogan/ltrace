@@ -43,24 +43,24 @@
 
 #ifndef ARCH_HAVE_PROCESS_DATA
 int
-arch_process_init(struct Process *proc)
+arch_process_init(struct process *proc)
 {
 	return 0;
 }
 
 void
-arch_process_destroy(struct Process *proc)
+arch_process_destroy(struct process *proc)
 {
 }
 
 int
-arch_process_clone(struct Process *retp, struct Process *proc)
+arch_process_clone(struct process *retp, struct process *proc)
 {
 	return 0;
 }
 
 int
-arch_process_exec(struct Process *proc)
+arch_process_exec(struct process *proc)
 {
 	return 0;
 }
@@ -68,24 +68,24 @@ arch_process_exec(struct Process *proc)
 
 #ifndef OS_HAVE_PROCESS_DATA
 int
-os_process_init(struct Process *proc)
+os_process_init(struct process *proc)
 {
 	return 0;
 }
 
 void
-os_process_destroy(struct Process *proc)
+os_process_destroy(struct process *proc)
 {
 }
 
 int
-os_process_clone(struct Process *retp, struct Process *proc)
+os_process_clone(struct process *retp, struct process *proc)
 {
 	return 0;
 }
 
 int
-os_process_exec(struct Process *proc)
+os_process_exec(struct process *proc)
 {
 	return 0;
 }
@@ -93,16 +93,16 @@ os_process_exec(struct Process *proc)
 
 #ifndef ARCH_HAVE_DYNLINK_DONE
 void
-arch_dynlink_done(struct Process *proc)
+arch_dynlink_done(struct process *proc)
 {
 }
 #endif
 
-static void add_process(struct Process *proc, int was_exec);
-static void unlist_process(struct Process *proc);
+static void add_process(struct process *proc, int was_exec);
+static void unlist_process(struct process *proc);
 
 static void
-destroy_unwind(struct Process *proc)
+destroy_unwind(struct process *proc)
 {
 #if defined(HAVE_LIBUNWIND)
 	_UPT_destroy(proc->unwind_priv);
@@ -111,7 +111,7 @@ destroy_unwind(struct Process *proc)
 }
 
 static int
-process_bare_init(struct Process *proc, const char *filename,
+process_bare_init(struct process *proc, const char *filename,
 		  pid_t pid, int was_exec)
 {
 	if (!was_exec) {
@@ -151,7 +151,7 @@ process_bare_init(struct Process *proc, const char *filename,
 }
 
 static void
-process_bare_destroy(struct Process *proc, int was_exec)
+process_bare_destroy(struct process *proc, int was_exec)
 {
 	dict_clear(proc->breakpoints);
 	if (!was_exec) {
@@ -162,7 +162,7 @@ process_bare_destroy(struct Process *proc, int was_exec)
 }
 
 static int
-process_init_main(struct Process *proc)
+process_init_main(struct process *proc)
 {
 	if (breakpoints_init(proc) < 0) {
 		fprintf(stderr, "failed to init breakpoints %d\n",
@@ -174,7 +174,7 @@ process_init_main(struct Process *proc)
 }
 
 int
-process_init(struct Process *proc, const char *filename, pid_t pid)
+process_init(struct process *proc, const char *filename, pid_t pid)
 {
 	if (process_bare_init(proc, filename, pid, 0) < 0) {
 	fail:
@@ -204,7 +204,7 @@ process_init(struct Process *proc, const char *filename, pid_t pid)
 }
 
 static enum callback_status
-destroy_breakpoint_cb(struct Process *proc, struct breakpoint *bp, void *data)
+destroy_breakpoint_cb(struct process *proc, struct breakpoint *bp, void *data)
 {
 	breakpoint_destroy(bp);
 	free(bp);
@@ -212,10 +212,10 @@ destroy_breakpoint_cb(struct Process *proc, struct breakpoint *bp, void *data)
 }
 
 // XXX see comment in handle_event.c
-void callstack_pop(struct Process *proc);
+void callstack_pop(struct process *proc);
 
 static void
-private_process_destroy(struct Process *proc, int was_exec)
+private_process_destroy(struct process *proc, int was_exec)
 {
 	/* Pop remaining stack elements.  */
 	while (proc->callstack_depth > 0) {
@@ -257,7 +257,7 @@ private_process_destroy(struct Process *proc, int was_exec)
 }
 
 void
-process_destroy(struct Process *proc)
+process_destroy(struct process *proc)
 {
 	arch_process_destroy(proc);
 	os_process_destroy(proc);
@@ -265,7 +265,7 @@ process_destroy(struct Process *proc)
 }
 
 int
-process_exec(struct Process *proc)
+process_exec(struct process *proc)
 {
 	/* Call exec handlers first, before we destroy the main
 	 * state.  */
@@ -284,11 +284,11 @@ process_exec(struct Process *proc)
 	return 0;
 }
 
-struct Process *
+struct process *
 open_program(const char *filename, pid_t pid)
 {
 	assert(pid != 0);
-	struct Process *proc = malloc(sizeof(*proc));
+	struct process *proc = malloc(sizeof(*proc));
 	if (proc == NULL || process_init(proc, filename, pid) < 0) {
 		free(proc);
 		return NULL;
@@ -297,8 +297,8 @@ open_program(const char *filename, pid_t pid)
 }
 
 struct clone_single_bp_data {
-	struct Process *old_proc;
-	struct Process *new_proc;
+	struct process *old_proc;
+	struct process *new_proc;
 	int error;
 };
 
@@ -327,7 +327,7 @@ clone_single_bp(void *key, void *value, void *u)
 }
 
 int
-process_clone(struct Process *retp, struct Process *proc, pid_t pid)
+process_clone(struct process *retp, struct process *proc, pid_t pid)
 {
 	if (process_bare_init(retp, proc->filename, pid, 0) < 0) {
 	fail1:
@@ -456,20 +456,18 @@ process_clone(struct Process *retp, struct Process *proc, pid_t pid)
 static int
 open_one_pid(pid_t pid)
 {
-	Process *proc;
-	char *filename;
 	debug(DEBUG_PROCESS, "open_one_pid(pid=%d)", pid);
 
 	/* Get the filename first.  Should the trace_pid fail, we can
 	 * easily free it, untracing is more work.  */
-	if ((filename = pid2name(pid)) == NULL
-	    || trace_pid(pid) < 0) {
+	char *filename = pid2name(pid);
+	if (filename == NULL || trace_pid(pid) < 0) {
 	fail:
 		free(filename);
 		return -1;
 	}
 
-	proc = open_program(filename, pid);
+	struct process *proc = open_program(filename, pid);
 	if (proc == NULL)
 		goto fail;
 	free(filename);
@@ -479,7 +477,7 @@ open_one_pid(pid_t pid)
 }
 
 static enum callback_status
-start_one_pid(Process * proc, void * data)
+start_one_pid(struct process *proc, void *data)
 {
 	continue_process(proc->pid);
 	return CBS_CONT;
@@ -537,7 +535,7 @@ open_pid(pid_t pid)
 		old_ntasks = ntasks;
 	}
 
-	struct Process *leader = pid2proc(pid)->leader;
+	struct process *leader = pid2proc(pid)->leader;
 
 	/* XXX Is there a way to figure out whether _start has
 	 * actually already been hit?  */
@@ -548,29 +546,29 @@ open_pid(pid_t pid)
 }
 
 static enum callback_status
-find_proc(Process * proc, void * data)
+find_proc(struct process *proc, void *data)
 {
 	pid_t pid = (pid_t)(uintptr_t)data;
 	return proc->pid == pid ? CBS_STOP : CBS_CONT;
 }
 
-Process *
-pid2proc(pid_t pid) {
+struct process *
+pid2proc(pid_t pid)
+{
 	return each_process(NULL, &find_proc, (void *)(uintptr_t)pid);
 }
 
-static Process * list_of_processes = NULL;
+static struct process *list_of_processes = NULL;
 
 static void
-unlist_process(Process * proc)
+unlist_process(struct process *proc)
 {
-	Process *tmp;
-
 	if (list_of_processes == proc) {
 		list_of_processes = list_of_processes->next;
 		return;
 	}
 
+	struct process *tmp;
 	for (tmp = list_of_processes; ; tmp = tmp->next) {
 		/* If the following assert fails, the process wasn't
 		 * in the list.  */
@@ -583,17 +581,17 @@ unlist_process(Process * proc)
 	}
 }
 
-struct Process *
-each_process(struct Process *start_after,
-	     enum callback_status(*cb)(struct Process *proc, void *data),
+struct process *
+each_process(struct process *start_after,
+	     enum callback_status(*cb)(struct process *proc, void *data),
 	     void *data)
 {
-	struct Process *it = start_after == NULL ? list_of_processes
+	struct process *it = start_after == NULL ? list_of_processes
 		: start_after->next;
 
 	while (it != NULL) {
 		/* Callback might call remove_process.  */
-		struct Process *next = it->next;
+		struct process *next = it->next;
 		switch ((*cb)(it, data)) {
 		case CBS_FAIL:
 			/* XXX handle me */
@@ -607,20 +605,20 @@ each_process(struct Process *start_after,
 	return NULL;
 }
 
-Process *
-each_task(struct Process *proc, struct Process *start_after,
-	  enum callback_status(*cb)(struct Process *proc, void *data),
+struct process *
+each_task(struct process *proc, struct process *start_after,
+	  enum callback_status(*cb)(struct process *proc, void *data),
 	  void *data)
 {
 	assert(proc != NULL);
-	struct Process *it = start_after == NULL ? proc->leader
+	struct process *it = start_after == NULL ? proc->leader
 		: start_after->next;
 
 	if (it != NULL) {
-		struct Process *leader = it->leader;
+		struct process *leader = it->leader;
 		while (it != NULL && it->leader == leader) {
 			/* Callback might call remove_process.  */
-			struct Process *next = it->next;
+			struct process *next = it->next;
 			switch ((*cb)(it, data)) {
 			case CBS_FAIL:
 				/* XXX handle me */
@@ -636,19 +634,19 @@ each_task(struct Process *proc, struct Process *start_after,
 }
 
 static void
-add_process(struct Process *proc, int was_exec)
+add_process(struct process *proc, int was_exec)
 {
-	Process ** leaderp = &list_of_processes;
+	struct process **leaderp = &list_of_processes;
 	if (proc->pid) {
 		pid_t tgid = process_leader(proc->pid);
 		if (tgid == 0)
 			/* Must have been terminated before we managed
 			 * to fully attach.  */
 			return;
-		if (tgid == proc->pid)
+		if (tgid == proc->pid) {
 			proc->leader = proc;
-		else {
-			Process * leader = pid2proc(tgid);
+		} else {
+			struct process *leader = pid2proc(tgid);
 			proc->leader = leader;
 			if (leader != NULL)
 				leaderp = &leader->next;
@@ -662,9 +660,9 @@ add_process(struct Process *proc, int was_exec)
 }
 
 void
-change_process_leader(Process * proc, Process * leader)
+change_process_leader(struct process *proc, struct process *leader)
 {
-	Process ** leaderp = &list_of_processes;
+	struct process **leaderp = &list_of_processes;
 	if (proc->leader == leader)
 		return;
 
@@ -679,7 +677,7 @@ change_process_leader(Process * proc, Process * leader)
 }
 
 static enum callback_status
-clear_leader(struct Process *proc, void *data)
+clear_leader(struct process *proc, void *data)
 {
 	debug(DEBUG_FUNCTION, "detach_task %d from leader %d",
 	      proc->pid, proc->leader->pid);
@@ -688,7 +686,7 @@ clear_leader(struct Process *proc, void *data)
 }
 
 void
-remove_process(Process *proc)
+remove_process(struct process *proc)
 {
 	debug(DEBUG_FUNCTION, "remove_proc(pid=%d)", proc->pid);
 
@@ -702,7 +700,7 @@ remove_process(Process *proc)
 }
 
 void
-install_event_handler(Process *proc, struct event_handler *handler)
+install_event_handler(struct process *proc, struct event_handler *handler)
 {
 	debug(DEBUG_FUNCTION, "install_event_handler(pid=%d, %p)", proc->pid, handler);
 	assert(proc->event_handler == NULL);
@@ -710,7 +708,7 @@ install_event_handler(Process *proc, struct event_handler *handler)
 }
 
 void
-destroy_event_handler(Process * proc)
+destroy_event_handler(struct process *proc)
 {
 	struct event_handler *handler = proc->event_handler;
 	debug(DEBUG_FUNCTION, "destroy_event_handler(pid=%d, %p)", proc->pid, handler);
@@ -722,7 +720,7 @@ destroy_event_handler(Process * proc)
 }
 
 static int
-breakpoint_for_symbol(struct library_symbol *libsym, struct Process *proc)
+breakpoint_for_symbol(struct library_symbol *libsym, struct process *proc)
 {
 	arch_addr_t bp_addr;
 	assert(proc->leader == proc);
@@ -799,7 +797,7 @@ cb_breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 }
 
 static int
-proc_activate_latent_symbol(struct Process *proc,
+proc_activate_latent_symbol(struct process *proc,
 			    struct library_symbol *libsym)
 {
 	assert(libsym->latent);
@@ -809,7 +807,7 @@ proc_activate_latent_symbol(struct Process *proc,
 }
 
 int
-proc_activate_delayed_symbol(struct Process *proc,
+proc_activate_delayed_symbol(struct process *proc,
 			     struct library_symbol *libsym)
 {
 	assert(libsym->delayed);
@@ -819,7 +817,7 @@ proc_activate_delayed_symbol(struct Process *proc,
 }
 
 static enum callback_status
-activate_latent_in(struct Process *proc, struct library *lib, void *data)
+activate_latent_in(struct process *proc, struct library *lib, void *data)
 {
 	struct library_exported_name *exported;
 	for (exported = data; exported != NULL; exported = exported->next) {
@@ -836,7 +834,7 @@ activate_latent_in(struct Process *proc, struct library *lib, void *data)
 }
 
 void
-proc_add_library(struct Process *proc, struct library *lib)
+proc_add_library(struct process *proc, struct library *lib)
 {
 	assert(lib->next == NULL);
 	lib->next = proc->libraries;
@@ -864,7 +862,7 @@ proc_add_library(struct Process *proc, struct library *lib)
 }
 
 int
-proc_remove_library(struct Process *proc, struct library *lib)
+proc_remove_library(struct process *proc, struct library *lib)
 {
 	struct library **libp;
 	for (libp = &proc->libraries; *libp != NULL; libp = &(*libp)->next)
@@ -876,8 +874,8 @@ proc_remove_library(struct Process *proc, struct library *lib)
 }
 
 struct library *
-proc_each_library(struct Process *proc, struct library *it,
-		  enum callback_status (*cb)(struct Process *proc,
+proc_each_library(struct process *proc, struct library *it,
+		  enum callback_status (*cb)(struct process *proc,
 					     struct library *lib, void *data),
 		  void *data)
 {
@@ -903,7 +901,7 @@ proc_each_library(struct Process *proc, struct library *it,
 }
 
 static void
-check_leader(struct Process *proc)
+check_leader(struct process *proc)
 {
 	/* Only the group leader should be getting the breakpoints and
 	 * thus have ->breakpoint initialized.  */
@@ -913,7 +911,7 @@ check_leader(struct Process *proc)
 }
 
 int
-proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
+proc_add_breakpoint(struct process *proc, struct breakpoint *bp)
 {
 	debug(DEBUG_FUNCTION, "proc_add_breakpoint(pid=%d, %s@%p)",
 	      proc->pid, breakpoint_name(bp), bp->addr);
@@ -935,7 +933,7 @@ proc_add_breakpoint(struct Process *proc, struct breakpoint *bp)
 }
 
 void
-proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp)
+proc_remove_breakpoint(struct process *proc, struct breakpoint *bp)
 {
 	debug(DEBUG_FUNCTION, "proc_remove_breakpoint(pid=%d, %s@%p)",
 	      proc->pid, breakpoint_name(bp), bp->addr);
@@ -950,8 +948,8 @@ struct each_breakpoint_data
 {
 	void *start;
 	void *end;
-	struct Process *proc;
-	enum callback_status (*cb)(struct Process *proc,
+	struct process *proc;
+	enum callback_status (*cb)(struct process *proc,
 				   struct breakpoint *bp,
 				   void *data);
 	void *cb_data;
@@ -979,8 +977,8 @@ each_breakpoint_cb(void *key, void *value, void *d)
 }
 
 void *
-proc_each_breakpoint(struct Process *proc, void *start,
-		     enum callback_status (*cb)(struct Process *proc,
+proc_each_breakpoint(struct process *proc, void *start,
+		     enum callback_status (*cb)(struct process *proc,
 						struct breakpoint *bp,
 						void *data), void *data)
 {
@@ -995,7 +993,7 @@ proc_each_breakpoint(struct Process *proc, void *start,
 }
 
 int
-proc_find_symbol(struct Process *proc, struct library_symbol *sym,
+proc_find_symbol(struct process *proc, struct library_symbol *sym,
 		 struct library **retlib, struct library_symbol **retsym)
 {
 	struct library *lib = sym->lib;
@@ -1021,7 +1019,7 @@ proc_find_symbol(struct Process *proc, struct library_symbol *sym,
 }
 
 struct library_symbol *
-proc_each_symbol(struct Process *proc, struct library_symbol *start_after,
+proc_each_symbol(struct process *proc, struct library_symbol *start_after,
 		 enum callback_status (*cb)(struct library_symbol *, void *),
 		 void *data)
 {

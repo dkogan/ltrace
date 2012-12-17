@@ -26,11 +26,9 @@
 
 #include <gelf.h>
 #include <stdlib.h>
-#include "sysdep.h"
 
-struct Process;
-struct library;
-struct library_symbol;
+#include "forward.h"
+#include "sysdep.h"
 
 /* XXX Ok, the original idea was to separate the low-level ELF data
  * from the abstract "struct library" object, but we use some of the
@@ -73,12 +71,12 @@ void do_close_elf(struct ltelf *lte);
 /* XXX is it possible to put breakpoints in VDSO and VSYSCALL
  * pseudo-libraries?  For now we assume that all libraries can be
  * opened via a filesystem.  BASE is ignored for ET_EXEC files.  */
-int ltelf_read_library(struct library *lib, struct Process *proc,
+int ltelf_read_library(struct library *lib, struct process *proc,
 		       const char *filename, GElf_Addr bias);
 
 /* Create a library object representing the main binary.  The entry
  * point address is stored to *ENTRYP.  */
-struct library *ltelf_read_main_binary(struct Process *proc, const char *path);
+struct library *ltelf_read_main_binary(struct process *proc, const char *path);
 
 /* Create a default PLT entry.  This can be used instead (or in
  * addition to) returning plt_default from arch_elf_add_plt_entry.
@@ -87,7 +85,7 @@ struct library *ltelf_read_main_binary(struct Process *proc, const char *path);
  * the symbol to LTE.  arch_elf_add_plt_entry has the chance to adjust
  * symbol internals to its liking, and then return either plt_default
  * or plt_ok.  */
-int default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+int default_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 			      const char *a_name, GElf_Rela *rela, size_t ndx,
 			      struct library_symbol **ret);
 

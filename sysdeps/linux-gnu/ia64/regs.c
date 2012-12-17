@@ -34,7 +34,8 @@
 #include "common.h"
 
 void *
-get_instruction_pointer(Process *proc) {
+get_instruction_pointer(struct process *proc)
+{
 	unsigned long ip = ptrace(PTRACE_PEEKUSER, proc->pid, PT_CR_IIP, 0);
 	unsigned long slot =
 	    (ptrace(PTRACE_PEEKUSER, proc->pid, PT_CR_IPSR, 0) >> 41) & 3;
@@ -43,7 +44,8 @@ get_instruction_pointer(Process *proc) {
 }
 
 void
-set_instruction_pointer(Process *proc, void *addr) {
+set_instruction_pointer(struct process *proc, void *addr)
+{
 
 	unsigned long newip = (unsigned long)addr;
 	unsigned long slot = (unsigned long)addr & 0xf;
@@ -59,7 +61,8 @@ set_instruction_pointer(Process *proc, void *addr) {
 }
 
 void *
-get_stack_pointer(Process *proc) {
+get_stack_pointer(struct process *proc)
+{
 	long l = ptrace(PTRACE_PEEKUSER, proc->pid, PT_R12, 0);
 	if (l == -1 && errno)
 		return NULL;
@@ -67,7 +70,8 @@ get_stack_pointer(Process *proc) {
 }
 
 void *
-get_return_addr(Process *proc, void *stack_pointer) {
+get_return_addr(struct process *proc, void *stack_pointer)
+{
 	long l = ptrace(PTRACE_PEEKUSER, proc->pid, PT_B0, 0);
 	if (l == -1 && errno)
 		return NULL;
@@ -75,6 +79,7 @@ get_return_addr(Process *proc, void *stack_pointer) {
 }
 
 void
-set_return_addr(Process *proc, void *addr) {
+set_return_addr(struct process *proc, void *addr)
+{
 	ptrace(PTRACE_POKEUSER, proc->pid, PT_B0, addr);
 }

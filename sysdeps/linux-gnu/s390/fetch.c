@@ -61,7 +61,7 @@ s390x(struct fetch_context *ctx)
 }
 
 static int
-fetch_register_banks(struct Process *proc, struct fetch_context *ctx)
+fetch_register_banks(struct process *proc, struct fetch_context *ctx)
 {
 	ptrace_area parea;
 	parea.len = sizeof(ctx->regs);
@@ -76,7 +76,7 @@ fetch_register_banks(struct Process *proc, struct fetch_context *ctx)
 }
 
 static int
-fetch_context_init(struct Process *proc, struct fetch_context *context)
+fetch_context_init(struct process *proc, struct fetch_context *context)
 {
 	context->greg = 2;
 	context->freg = 0;
@@ -84,7 +84,7 @@ fetch_context_init(struct Process *proc, struct fetch_context *context)
 }
 
 struct fetch_context *
-arch_fetch_arg_init(enum tof type, struct Process *proc,
+arch_fetch_arg_init(enum tof type, struct process *proc,
 		    struct arg_type_info *ret_info)
 {
 	struct fetch_context *context = malloc(sizeof(*context));
@@ -105,7 +105,7 @@ arch_fetch_arg_init(enum tof type, struct Process *proc,
 }
 
 struct fetch_context *
-arch_fetch_arg_clone(struct Process *proc,
+arch_fetch_arg_clone(struct process *proc,
 		     struct fetch_context *context)
 {
 	struct fetch_context *clone = malloc(sizeof(*context));
@@ -116,7 +116,7 @@ arch_fetch_arg_clone(struct Process *proc,
 }
 
 static int
-allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
+allocate_stack_slot(struct fetch_context *ctx, struct process *proc,
 		    struct arg_type_info *info, struct value *valuep,
 		    size_t sz)
 {
@@ -148,7 +148,7 @@ copy_gpr(struct fetch_context *ctx, struct value *valuep, int regno)
 }
 
 static int
-allocate_gpr(struct fetch_context *ctx, struct Process *proc,
+allocate_gpr(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep,
 	     size_t sz)
 {
@@ -160,7 +160,7 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-allocate_gpr_pair(struct fetch_context *ctx, struct Process *proc,
+allocate_gpr_pair(struct fetch_context *ctx, struct process *proc,
 		  struct arg_type_info *info, struct value *valuep,
 		  size_t sz)
 {
@@ -191,7 +191,7 @@ allocate_gpr_pair(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-allocate_fpr(struct fetch_context *ctx, struct Process *proc,
+allocate_fpr(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep,
 	     size_t sz)
 {
@@ -212,7 +212,7 @@ allocate_fpr(struct fetch_context *ctx, struct Process *proc,
 
 int
 arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
-		    struct Process *proc,
+		    struct process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
 	size_t sz = type_sizeof(proc, info);
@@ -267,7 +267,7 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 
 int
 arch_fetch_retval(struct fetch_context *ctx, enum tof type,
-		  struct Process *proc, struct arg_type_info *info,
+		  struct process *proc, struct arg_type_info *info,
 		  struct value *valuep)
 {
 	if (info->type == ARGTYPE_STRUCT) {

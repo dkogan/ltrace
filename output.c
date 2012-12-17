@@ -50,19 +50,19 @@ extern struct timeval current_time_spent;
 
 Dict *dict_opt_c = NULL;
 
-static Process *current_proc = 0;
+static struct process *current_proc = 0;
 static size_t current_depth = 0;
 static int current_column = 0;
 
 static void
-output_indent(struct Process *proc)
+output_indent(struct process *proc)
 {
 	int d = options.indent * (proc->callstack_depth - 1);
 	current_column += fprintf(options.output, "%*s", d, "");
 }
 
 static void
-begin_of_line(Process *proc, int is_func, int indent)
+begin_of_line(struct process *proc, int is_func, int indent)
 {
 	current_column = 0;
 	if (!proc) {
@@ -205,7 +205,7 @@ name2func(char const *name) {
 }
 
 void
-output_line(struct Process *proc, const char *fmt, ...)
+output_line(struct process *proc, const char *fmt, ...)
 {
 	if (options.summary)
 		return;
@@ -245,7 +245,8 @@ output_error(FILE *stream)
 }
 
 static int
-fetch_simple_param(enum tof type, Process *proc, struct fetch_context *context,
+fetch_simple_param(enum tof type, struct process *proc,
+		   struct fetch_context *context,
 		   struct value_dict *arguments,
 		   struct arg_type_info *info, int own,
 		   struct value *valuep)
@@ -287,7 +288,8 @@ fetch_param_stop(struct value_dict *arguments, ssize_t *params_leftp)
 }
 
 static int
-fetch_param_pack(enum tof type, Process *proc, struct fetch_context *context,
+fetch_param_pack(enum tof type, struct process *proc,
+		 struct fetch_context *context,
 		 struct value_dict *arguments, struct param *param,
 		 ssize_t *params_leftp)
 {
@@ -340,7 +342,8 @@ fetch_param_pack(enum tof type, Process *proc, struct fetch_context *context,
 }
 
 static int
-fetch_one_param(enum tof type, Process *proc, struct fetch_context *context,
+fetch_one_param(enum tof type, struct process *proc,
+		struct fetch_context *context,
 		struct value_dict *arguments, struct param *param,
 		ssize_t *params_leftp)
 {
@@ -369,7 +372,8 @@ fetch_one_param(enum tof type, Process *proc, struct fetch_context *context,
 }
 
 static int
-fetch_params(enum tof type, Process *proc, struct fetch_context *context,
+fetch_params(enum tof type, struct process *proc,
+	     struct fetch_context *context,
 	     struct value_dict *arguments, Function *func, ssize_t *params_leftp)
 {
 	size_t i;
@@ -421,7 +425,7 @@ output_params(struct value_dict *arguments, size_t start, size_t end,
 }
 
 void
-output_left(enum tof type, struct Process *proc,
+output_left(enum tof type, struct process *proc,
 	    struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
@@ -496,7 +500,7 @@ output_left(enum tof type, struct Process *proc,
 }
 
 void
-output_right(enum tof type, struct Process *proc, struct library_symbol *libsym)
+output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 {
 	const char *function_name = libsym->name;
 	Function *func = name2func(function_name);

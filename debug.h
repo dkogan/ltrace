@@ -38,7 +38,7 @@ void debug_(int level, const char *file, int line,
 
 /* Dump LENGTH bytes of memory starting on address ADDR of inferior
  * PID.  */
-int xinfdump(struct Process *proc, arch_addr_t addr, size_t length);
+int xinfdump(struct process *proc, arch_addr_t addr, size_t length);
 
 #define debug(level, expr...) debug_(level, __FILE__, __LINE__, expr)
 

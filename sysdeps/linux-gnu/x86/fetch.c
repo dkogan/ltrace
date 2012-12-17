@@ -323,13 +323,13 @@ allocate_class(enum arg_class cls, struct fetch_context *context,
 }
 
 static ssize_t
-classify(struct Process *proc, struct fetch_context *context,
+classify(struct process *proc, struct fetch_context *context,
 	 struct arg_type_info *info, struct value *valuep, enum arg_class classes[],
 	 size_t sz, size_t eightbytes);
 
 /* This classifies one eightbyte part of an array or struct.  */
 static ssize_t
-classify_eightbyte(struct Process *proc, struct fetch_context *context,
+classify_eightbyte(struct process *proc, struct fetch_context *context,
 		   struct arg_type_info *info, struct value *valuep,
 		   enum arg_class *classp, size_t start, size_t end,
 		   struct arg_type_info *(*getter)(struct arg_type_info *,
@@ -364,7 +364,7 @@ classify_eightbyte(struct Process *proc, struct fetch_context *context,
 
 /* This classifies small arrays and structs.  */
 static ssize_t
-classify_eightbytes(struct Process *proc, struct fetch_context *context,
+classify_eightbytes(struct process *proc, struct fetch_context *context,
 		    struct arg_type_info *info, struct value *valuep,
 		    enum arg_class classes[], size_t elements,
 		    size_t eightbytes,
@@ -432,7 +432,7 @@ flatten_structure(struct arg_type_info *flattened, struct arg_type_info *info)
 }
 
 static ssize_t
-classify(struct Process *proc, struct fetch_context *context,
+classify(struct process *proc, struct fetch_context *context,
 	 struct arg_type_info *info, struct value *valuep, enum arg_class classes[],
 	 size_t sz, size_t eightbytes)
 {
@@ -517,7 +517,7 @@ pass_by_reference(struct value *valuep, enum arg_class classes[])
 }
 
 static ssize_t
-classify_argument(struct Process *proc, struct fetch_context *context,
+classify_argument(struct process *proc, struct fetch_context *context,
 		  struct arg_type_info *info, struct value *valuep,
 		  enum arg_class classes[], size_t *sizep)
 {
@@ -545,7 +545,7 @@ classify_argument(struct Process *proc, struct fetch_context *context,
 }
 
 static int
-fetch_register_banks(struct Process *proc, struct fetch_context *context,
+fetch_register_banks(struct process *proc, struct fetch_context *context,
 		     int floating)
 {
 	if (ptrace(PTRACE_GETREGS, proc->pid, 0, &context->iregs) < 0)
@@ -566,7 +566,7 @@ fetch_register_banks(struct Process *proc, struct fetch_context *context,
 
 static int
 arch_fetch_arg_next_32(struct fetch_context *context, enum tof type,
-		       struct Process *proc, struct arg_type_info *info,
+		       struct process *proc, struct arg_type_info *info,
 		       struct value *valuep)
 {
 	size_t sz = type_sizeof(proc, info);
@@ -580,7 +580,7 @@ arch_fetch_arg_next_32(struct fetch_context *context, enum tof type,
 
 static int
 arch_fetch_retval_32(struct fetch_context *context, enum tof type,
-		     struct Process *proc, struct arg_type_info *info,
+		     struct process *proc, struct arg_type_info *info,
 		     struct value *valuep)
 {
 	if (fetch_register_banks(proc, context, type == LT_TOF_FUNCTIONR) < 0)
@@ -646,7 +646,7 @@ fetch_stack_pointer(struct fetch_context *context)
 
 struct fetch_context *
 arch_fetch_arg_init_32(struct fetch_context *context,
-		       enum tof type, struct Process *proc,
+		       enum tof type, struct process *proc,
 		       struct arg_type_info *ret_info)
 {
 	context->stack_pointer = fetch_stack_pointer(context) + 4;
@@ -673,7 +673,7 @@ arch_fetch_arg_init_32(struct fetch_context *context,
 
 struct fetch_context *
 arch_fetch_arg_init_64(struct fetch_context *ctx, enum tof type,
-		       struct Process *proc, struct arg_type_info *ret_info)
+		       struct process *proc, struct arg_type_info *ret_info)
 {
 	/* The first stack slot holds a return address.  */
 	ctx->stack_pointer = fetch_stack_pointer(ctx) + 8;
@@ -698,7 +698,7 @@ arch_fetch_arg_init_64(struct fetch_context *ctx, enum tof type,
 }
 
 struct fetch_context *
-arch_fetch_arg_init(enum tof type, struct Process *proc,
+arch_fetch_arg_init(enum tof type, struct process *proc,
 		    struct arg_type_info *ret_info)
 {
 	struct fetch_context *ctx = malloc(sizeof(*ctx));
@@ -724,7 +724,7 @@ arch_fetch_arg_init(enum tof type, struct Process *proc,
 }
 
 struct fetch_context *
-arch_fetch_arg_clone(struct Process *proc, struct fetch_context *context)
+arch_fetch_arg_clone(struct process *proc, struct fetch_context *context)
 {
 	struct fetch_context *ret = malloc(sizeof(*ret));
 	if (ret == NULL)
@@ -734,7 +734,7 @@ arch_fetch_arg_clone(struct Process *proc, struct fetch_context *context)
 
 static int
 arch_fetch_pool_arg_next(struct fetch_context *context, enum tof type,
-			 struct Process *proc, struct arg_type_info *info,
+			 struct process *proc, struct arg_type_info *info,
 			 struct value *valuep, enum reg_pool pool)
 {
 	enum arg_class classes[2];
@@ -776,7 +776,7 @@ arch_fetch_pool_arg_next(struct fetch_context *context, enum tof type,
 
 int
 arch_fetch_fun_retval(struct fetch_context *context, enum tof type,
-		      struct Process *proc, struct arg_type_info *info,
+		      struct process *proc, struct arg_type_info *info,
 		      struct value *valuep)
 {
 	assert(type != LT_TOF_FUNCTION
@@ -808,7 +808,7 @@ arch_fetch_fun_retval(struct fetch_context *context, enum tof type,
 
 int
 arch_fetch_arg_next(struct fetch_context *context, enum tof type,
-		    struct Process *proc, struct arg_type_info *info,
+		    struct process *proc, struct arg_type_info *info,
 		    struct value *valuep)
 {
 	if (proc->e_machine == EM_386)
@@ -832,7 +832,7 @@ arch_fetch_arg_next(struct fetch_context *context, enum tof type,
 
 int
 arch_fetch_retval(struct fetch_context *context, enum tof type,
-		  struct Process *proc, struct arg_type_info *info,
+		  struct process *proc, struct arg_type_info *info,
 		  struct value *valuep)
 {
 	if (proc->e_machine == EM_386)

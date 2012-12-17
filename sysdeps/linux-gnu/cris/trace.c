@@ -40,14 +40,14 @@
 # define PTRACE_POKEUSER PTRACE_POKEUSR
 #endif
 
-void get_arch_dep(Process *proc)
+void get_arch_dep(struct process *proc)
 {
 }
 
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise.
  */
 #define SYSCALL_INSN   0xe93d
-int syscall_p(Process *proc, int status, int *sysnum)
+int syscall_p(struct process *proc, int status, int *sysnum)
 {
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
@@ -71,7 +71,7 @@ int syscall_p(Process *proc, int status, int *sysnum)
 	return 0;
 }
 
-long gimme_arg(enum tof type, Process *proc, int arg_num,
+long gimme_arg(enum tof type, struct process *proc, int arg_num,
 	       struct arg_type_info *info)
 {
 	int pid = proc->pid;

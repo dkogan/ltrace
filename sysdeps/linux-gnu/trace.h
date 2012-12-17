@@ -59,7 +59,7 @@ struct process_stopping_handler
 	struct event_handler super;
 
 	/* The task that is doing the re-enablement.  */
-	struct Process *task_enabling_breakpoint;
+	struct process *task_enabling_breakpoint;
 
 	/* The pointer being re-enabled.  */
 	struct breakpoint *breakpoint_being_enabled;
@@ -108,7 +108,7 @@ struct process_stopping_handler
  * ON_ALL_STOPPED is LINUX_PTRACE_DISABLE_AND_SINGLESTEP, the default
  * for KEEP_STEPPING_P and UGLY_WORKAROUND_P is "no".  */
 int process_install_stopping_handler
-	(struct Process *proc, struct breakpoint *sbp,
+	(struct process *proc, struct breakpoint *sbp,
 	 void (*on_all_stopped)(struct process_stopping_handler *),
 	 enum callback_status (*keep_stepping_p)
 		 (struct process_stopping_handler *),

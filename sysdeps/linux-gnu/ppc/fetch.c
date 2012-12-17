@@ -31,7 +31,7 @@
 #include "proc.h"
 #include "value.h"
 
-static int allocate_gpr(struct fetch_context *ctx, struct Process *proc,
+static int allocate_gpr(struct fetch_context *ctx, struct process *proc,
 			struct arg_type_info *info, struct value *valuep);
 
 /* Floating point registers have the same width on 32-bit as well as
@@ -66,7 +66,7 @@ struct fetch_context {
 };
 
 static int
-fetch_context_init(struct Process *proc, struct fetch_context *context)
+fetch_context_init(struct process *proc, struct fetch_context *context)
 {
 	context->greg = 3;
 	context->freg = 1;
@@ -108,7 +108,7 @@ fetch_context_init(struct Process *proc, struct fetch_context *context)
 }
 
 struct fetch_context *
-arch_fetch_arg_init(enum tof type, struct Process *proc,
+arch_fetch_arg_init(enum tof type, struct process *proc,
 		    struct arg_type_info *ret_info)
 {
 	struct fetch_context *context = malloc(sizeof(*context));
@@ -132,7 +132,7 @@ arch_fetch_arg_init(enum tof type, struct Process *proc,
 }
 
 struct fetch_context *
-arch_fetch_arg_clone(struct Process *proc,
+arch_fetch_arg_clone(struct process *proc,
 		     struct fetch_context *context)
 {
 	struct fetch_context *clone = malloc(sizeof(*context));
@@ -143,7 +143,7 @@ arch_fetch_arg_clone(struct Process *proc,
 }
 
 static int
-allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
+allocate_stack_slot(struct fetch_context *ctx, struct process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
 	size_t sz = type_sizeof(proc, info);
@@ -170,7 +170,7 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 }
 
 static uint64_t
-read_gpr(struct fetch_context *ctx, struct Process *proc, int reg_num)
+read_gpr(struct fetch_context *ctx, struct process *proc, int reg_num)
 {
 	if (proc->e_machine == EM_PPC)
 		return ctx->regs.r32[reg_num];
@@ -215,7 +215,7 @@ align_small_int(unsigned char *buf, size_t w, size_t sz)
 }
 
 static int
-allocate_gpr(struct fetch_context *ctx, struct Process *proc,
+allocate_gpr(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep)
 {
 	if (ctx->greg > 10)
@@ -245,7 +245,7 @@ allocate_gpr(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-allocate_float(struct fetch_context *ctx, struct Process *proc,
+allocate_float(struct fetch_context *ctx, struct process *proc,
 	       struct arg_type_info *info, struct value *valuep)
 {
 	int pool = proc->e_machine == EM_PPC64 ? 13 : 8;
@@ -276,7 +276,7 @@ allocate_float(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-allocate_argument(struct fetch_context *ctx, struct Process *proc,
+allocate_argument(struct fetch_context *ctx, struct process *proc,
 		  struct arg_type_info *info, struct value *valuep)
 {
 	/* Floating point types and void are handled specially.  */
@@ -400,7 +400,7 @@ allocate_argument(struct fetch_context *ctx, struct Process *proc,
 
 int
 arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
-		    struct Process *proc,
+		    struct process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
 	return allocate_argument(ctx, proc, info, valuep);
@@ -408,7 +408,7 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 
 int
 arch_fetch_retval(struct fetch_context *ctx, enum tof type,
-		  struct Process *proc, struct arg_type_info *info,
+		  struct process *proc, struct arg_type_info *info,
 		  struct value *valuep)
 {
 	if (ctx->ret_struct) {

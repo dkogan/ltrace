@@ -63,7 +63,7 @@ union cfm_t {
 };
 
 static int
-fetch_context_init(struct Process *proc, struct fetch_context *context)
+fetch_context_init(struct process *proc, struct fetch_context *context)
 {
 	context->slot_n = 0;
 	context->flt = 8;
@@ -76,7 +76,7 @@ fetch_context_init(struct Process *proc, struct fetch_context *context)
 }
 
 struct fetch_context *
-arch_fetch_arg_init(enum tof type, struct Process *proc,
+arch_fetch_arg_init(enum tof type, struct process *proc,
 		    struct arg_type_info *ret_info)
 {
 	struct fetch_context *context = malloc(sizeof(*context));
@@ -91,7 +91,7 @@ arch_fetch_arg_init(enum tof type, struct Process *proc,
 }
 
 struct fetch_context *
-arch_fetch_arg_clone(struct Process *proc,
+arch_fetch_arg_clone(struct process *proc,
 		     struct fetch_context *context)
 {
 	struct fetch_context *clone = malloc(sizeof(*context));
@@ -102,7 +102,7 @@ arch_fetch_arg_clone(struct Process *proc,
 }
 
 int
-allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
+allocate_stack_slot(struct fetch_context *ctx, struct process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
 	size_t al = type_alignof(proc, info);
@@ -121,7 +121,7 @@ allocate_stack_slot(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-allocate_reg(struct fetch_context *ctx, struct Process *proc,
+allocate_reg(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep)
 {
 	if (ctx->slot_n >= 8)
@@ -152,7 +152,7 @@ allocate_reg(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-copy_aggregate_part(struct fetch_context *ctx, struct Process *proc,
+copy_aggregate_part(struct fetch_context *ctx, struct process *proc,
 		    unsigned char *buf, size_t size)
 {
 	size_t slots = (size + 7) / 8;
@@ -176,7 +176,7 @@ copy_aggregate_part(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-allocate_arg(struct fetch_context *ctx, struct Process *proc,
+allocate_arg(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep)
 {
 	size_t sz = type_sizeof(proc, info);
@@ -213,7 +213,7 @@ fpreg_to_double (struct ia64_fpreg *fp) {
 }
 
 static int
-allocate_float(struct fetch_context *ctx, struct Process *proc,
+allocate_float(struct fetch_context *ctx, struct process *proc,
 	       struct arg_type_info *info, struct value *valuep,
 	       int take_slot)
 {
@@ -281,7 +281,7 @@ get_hfa_type(struct arg_type_info *info, size_t *countp)
 }
 
 static int
-allocate_hfa(struct fetch_context *ctx, struct Process *proc,
+allocate_hfa(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep,
 	     enum arg_type hfa_type, size_t hfa_count)
 {
@@ -366,7 +366,7 @@ allocate_hfa(struct fetch_context *ctx, struct Process *proc,
 }
 
 static int
-allocate_ret(struct fetch_context *ctx, struct Process *proc,
+allocate_ret(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep)
 {
 	size_t sz = type_sizeof(proc, info);
@@ -405,7 +405,7 @@ allocate_ret(struct fetch_context *ctx, struct Process *proc,
 
 int
 arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
-		    struct Process *proc,
+		    struct process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
 	switch (info->type) {
@@ -446,7 +446,7 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 
 int
 arch_fetch_retval(struct fetch_context *ctx, enum tof type,
-		  struct Process *proc, struct arg_type_info *info,
+		  struct process *proc, struct arg_type_info *info,
 		  struct value *valuep)
 {
 	if (fetch_context_init(proc, ctx) < 0)

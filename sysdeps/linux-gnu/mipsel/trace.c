@@ -64,7 +64,8 @@
    private data area.
  */
 void
-get_arch_dep(Process *proc) {
+get_arch_dep(struct process *proc)
+{
 }
 
 /**
@@ -85,7 +86,8 @@ get_arch_dep(Process *proc) {
    for the system calls is 4000.
  */
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct process *proc, int status, int *sysnum)
+{
 	if (WIFSTOPPED(status)
 			&& WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
 		/* get the user's pc (plus 8) */
@@ -141,7 +143,7 @@ mips32_relative_offset (uint32_t inst)
   return ((itype_immediate(inst) ^ 0x8000) - 0x8000) << 2;
 }
 
-int mips_next_pcs(struct Process *proc, uint32_t pc, uint32_t *newpc)
+int mips_next_pcs(struct process *proc, uint32_t pc, uint32_t *newpc)
 {
 	uint32_t inst, rx;
 	int op;
@@ -262,7 +264,7 @@ fail:
 }
 
 int
-arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
+arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
 		       int (*add_cb)(void *addr, void *data),
 		       void *add_cb_data)
 {
@@ -317,7 +319,8 @@ I'm not doing any floating point support here.
 
 */
 long
-gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
+gimme_arg(enum tof type, struct process *proc, int arg_num,
+	  struct arg_type_info *info)
 {
 	long ret;
 	long addr;

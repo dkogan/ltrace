@@ -44,7 +44,7 @@ enum Event_type {
 typedef struct Event Event;
 struct Event {
 	struct Event * next;
-	struct Process * proc;
+	struct process *proc;
 	Event_type type;
 	union {
 		int ret_val;     /* EVENT_EXIT */

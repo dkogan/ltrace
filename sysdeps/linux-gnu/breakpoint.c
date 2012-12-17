@@ -79,7 +79,7 @@ arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
 #endif				/* ARCH_HAVE_ENABLE_BREAKPOINT */
 
 void
-enable_breakpoint(Process *proc, struct breakpoint *sbp)
+enable_breakpoint(struct process *proc, struct breakpoint *sbp)
 {
 	debug(DEBUG_PROCESS, "enable_breakpoint: pid=%d, addr=%p, symbol=%s",
 	      proc->pid, sbp->addr, breakpoint_name(sbp));
@@ -127,7 +127,7 @@ arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
 #endif				/* ARCH_HAVE_DISABLE_BREAKPOINT */
 
 void
-disable_breakpoint(Process *proc, struct breakpoint *sbp)
+disable_breakpoint(struct process *proc, struct breakpoint *sbp)
 {
 	debug(DEBUG_PROCESS, "disable_breakpoint: pid=%d, addr=%p, symbol=%s",
 	      proc->pid, sbp->addr, breakpoint_name(sbp));

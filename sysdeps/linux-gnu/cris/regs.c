@@ -37,22 +37,22 @@
 # define PTRACE_POKEUSER PTRACE_POKEUSR
 #endif
 
-void *get_instruction_pointer(Process *proc)
+void *get_instruction_pointer(struct process *proc)
 {
 	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, 4 * PT_PPC, 0);
 }
 
-void set_instruction_pointer(Process *proc, void *addr)
+void set_instruction_pointer(struct process *proc, void *addr)
 {
 	ptrace(PTRACE_POKEUSER, proc->pid, 4 * PT_PPC, addr);
 }
 
-void *get_stack_pointer(Process *proc)
+void *get_stack_pointer(struct process *proc)
 {
 	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, 4 * PT_USP, 0);
 }
 
-void *get_return_addr(Process *proc, void *stack_pointer)
+void *get_return_addr(struct process *proc, void *stack_pointer)
 {
 	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, 4 * PT_SRP, 0);
 }

@@ -104,7 +104,8 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
    breakpoint changes I just add a new breakpoint for the new address.
  */
 void *
-sym2addr(Process *proc, struct library_symbol *sym) {
+sym2addr(struct process *proc, struct library_symbol *sym)
+{
     long ret;
 
     if (sym->arch.pltalways
@@ -125,7 +126,7 @@ sym2addr(Process *proc, struct library_symbol *sym) {
 /* Address of run time loader map, used for debugging.  */
 #define DT_MIPS_RLD_MAP         0x70000016
 int
-arch_find_dl_debug(struct Process *proc, arch_addr_t dyn_addr,
+arch_find_dl_debug(struct process *proc, arch_addr_t dyn_addr,
 		   arch_addr_t *ret)
 {
 	arch_addr_t rld_addr;
@@ -251,11 +252,11 @@ arch_elf_destroy(struct ltelf *lte)
 
 /* When functions return we check if the symbol needs an updated
    breakpoint with the resolved address.  */
-void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym)
+void arch_symbol_ret(struct process *proc, struct library_symbol *libsym)
 {
 	struct breakpoint *bp;
 	arch_addr_t resolved_addr;
-	struct Process *leader = proc->leader;
+	struct process *leader = proc->leader;
 
 	/* Only deal with unresolved symbols.  */
 	if (libsym->arch.type != MIPS_PLT_UNRESOLVED)
@@ -302,7 +303,7 @@ err:
 static enum callback_status
 cb_enable_breakpoint_sym(struct library_symbol *libsym, void *data)
 {
-	struct Process *proc = data;
+	struct process *proc = data;
 	arch_addr_t bp_addr;
 
 	if (!libsym->arch.gotonly)
@@ -329,19 +330,19 @@ cb_enable_breakpoint_sym(struct library_symbol *libsym, void *data)
 }
 
 static enum callback_status
-cb_enable_breakpoint_lib(struct Process *proc, struct library *lib, void *data)
+cb_enable_breakpoint_lib(struct process *proc, struct library *lib, void *data)
 {
 	library_each_symbol(lib, NULL, cb_enable_breakpoint_sym, proc);
 	return CBS_CONT;
 }
 
-void arch_dynlink_done(struct Process *proc)
+void arch_dynlink_done(struct process *proc)
 {
 	proc_each_library(proc->leader, NULL, cb_enable_breakpoint_lib, NULL);
 }
 
 enum plt_status
-arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
                        const char *a_name, GElf_Rela *rela, size_t ndx,
                        struct library_symbol **ret)
 {

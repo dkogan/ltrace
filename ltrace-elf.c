@@ -65,7 +65,7 @@ arch_elf_destroy(struct ltelf *lte)
 #endif
 
 int
-default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+default_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 			  const char *a_name, GElf_Rela *rela, size_t ndx,
 			  struct library_symbol **ret)
 {
@@ -102,7 +102,7 @@ default_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
 
 #ifndef ARCH_HAVE_ADD_PLT_ENTRY
 enum plt_status
-arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
 		       struct library_symbol **ret)
 {
@@ -541,7 +541,7 @@ mark_chain_latent(struct library_symbol *libsym)
 }
 
 static int
-populate_plt(struct Process *proc, const char *filename,
+populate_plt(struct process *proc, const char *filename,
 	     struct ltelf *lte, struct library *lib,
 	     int latent_plts)
 {
@@ -615,7 +615,7 @@ symbol_with_address(struct library_symbol *sym, void *addrptr)
 }
 
 static int
-populate_this_symtab(struct Process *proc, const char *filename,
+populate_this_symtab(struct process *proc, const char *filename,
 		     struct ltelf *lte, struct library *lib,
 		     Elf_Data *symtab, const char *strtab, size_t size,
 		     struct library_exported_name **names)
@@ -778,7 +778,7 @@ populate_this_symtab(struct Process *proc, const char *filename,
 }
 
 static int
-populate_symtab(struct Process *proc, const char *filename,
+populate_symtab(struct process *proc, const char *filename,
 		struct ltelf *lte, struct library *lib,
 		int symtabs, int exports)
 {
@@ -803,7 +803,7 @@ populate_symtab(struct Process *proc, const char *filename,
 }
 
 static int
-read_module(struct library *lib, struct Process *proc,
+read_module(struct library *lib, struct process *proc,
 	    const char *filename, GElf_Addr bias, int main)
 {
 	struct ltelf lte = {};
@@ -943,7 +943,7 @@ fail:
 }
 
 int
-ltelf_read_library(struct library *lib, struct Process *proc,
+ltelf_read_library(struct library *lib, struct process *proc,
 		   const char *filename, GElf_Addr bias)
 {
 	return read_module(lib, proc, filename, bias, 0);
@@ -951,7 +951,7 @@ ltelf_read_library(struct library *lib, struct Process *proc,
 
 
 struct library *
-ltelf_read_main_binary(struct Process *proc, const char *path)
+ltelf_read_main_binary(struct process *proc, const char *path)
 {
 	struct library *lib = malloc(sizeof(*lib));
 	if (lib == NULL)

@@ -23,11 +23,10 @@
 #define _LIBRARY_H_
 
 #include <stdint.h>
-#include "callback.h"
-#include "sysdep.h"
 
-struct Process;
-struct library;
+#include "callback.h"
+#include "forward.h"
+#include "sysdep.h"
 
 enum toplt {
 	LS_TOPLT_NONE = 0,	/* PLT not used for this symbol. */
@@ -195,7 +194,7 @@ void library_add_symbol(struct library *lib, struct library_symbol *sym);
 
 /* A function that can be used as proc_each_library callback.  Looks
  * for a library with the name passed in DATA.  PROC is ignored.  */
-enum callback_status library_named_cb(struct Process *proc,
+enum callback_status library_named_cb(struct process *proc,
 				      struct library *lib, void *name);
 
 /* A function that can be used as proc_each_library callback.  Looks
@@ -203,7 +202,7 @@ enum callback_status library_named_cb(struct Process *proc,
  *
  * NOTE: The key is passed as a POINTER to arch_addr_t (that
  * because in general, arch_addr_t doesn't fit in void*).  */
-enum callback_status library_with_key_cb(struct Process *proc,
+enum callback_status library_with_key_cb(struct process *proc,
 					 struct library *lib, void *keyp);
 
 /* XXX this should really be in backend.h (as on pmachata/revamp
@@ -220,7 +219,7 @@ int arch_translate_address(struct ltelf *lte,
 			   arch_addr_t addr, arch_addr_t *ret);
 /* This is the same function as arch_translate_address, except it's
  * used at the point that we don't have ELF available anymore.  */
-int arch_translate_address_dyn(struct Process *proc,
+int arch_translate_address_dyn(struct process *proc,
 			       arch_addr_t addr, arch_addr_t *ret);
 
 #endif /* _LIBRARY_H_ */

@@ -43,7 +43,8 @@
 #endif
 
 void
-get_arch_dep(Process *proc) {
+get_arch_dep(struct process *proc)
+{
 #ifdef __s390x__
 	unsigned long psw;
 
@@ -64,7 +65,8 @@ get_arch_dep(Process *proc) {
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise.
  */
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct process *proc, int status, int *sysnum)
+{
 	long pc, opcode, offset_reg, scno, tmp;
 	void *svc_addr;
 	int gpr_offset[16] = { PT_GPR0, PT_GPR1, PT_ORIGGPR2, PT_GPR3,
@@ -175,7 +177,7 @@ syscall_p(Process *proc, int status, int *sysnum) {
 }
 
 size_t
-arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
+arch_type_sizeof(struct process *proc, struct arg_type_info *info)
 {
 	if (proc == NULL)
 		return (size_t)-2;
@@ -217,7 +219,7 @@ arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
 }
 
 size_t
-arch_type_alignof(struct Process *proc, struct arg_type_info *info)
+arch_type_alignof(struct process *proc, struct arg_type_info *info)
 {
 	if (proc == NULL)
 		return (size_t)-2;

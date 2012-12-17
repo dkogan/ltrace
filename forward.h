@@ -21,7 +21,7 @@
 /* Important types defined in other header files are declared
    here.  */
 struct Event;
-struct Process;
+struct process;
 struct arg_type_info;
 struct breakpoint;
 struct expr_node;

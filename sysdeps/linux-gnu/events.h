@@ -35,7 +35,7 @@ enum ecb_status {
 
 struct Event *each_qd_event(enum ecb_status (*cb)(struct Event *event,
 						  void *data), void *data);
-void delete_events_for(struct Process * proc);
+void delete_events_for(struct process *proc);
 void enque_event(struct Event *event);
 
 #endif /* SYSDEPS_LINUX_GNU_EVENTS_H */

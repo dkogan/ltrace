@@ -55,7 +55,7 @@ static const int x86_64 = 0;
 #endif
 
 void
-get_arch_dep(struct Process *proc)
+get_arch_dep(struct process *proc)
 {
 	/* Unfortunately there are still remnants of mask_32bit uses
 	 * around.  */
@@ -75,7 +75,7 @@ get_arch_dep(struct Process *proc)
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise.
  */
 int
-syscall_p(struct Process *proc, int status, int *sysnum)
+syscall_p(struct process *proc, int status, int *sysnum)
 {
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
@@ -109,7 +109,7 @@ syscall_p(struct Process *proc, int status, int *sysnum)
 }
 
 size_t
-arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
+arch_type_sizeof(struct process *proc, struct arg_type_info *info)
 {
 	if (proc == NULL)
 		return (size_t)-2;
@@ -151,7 +151,7 @@ arch_type_sizeof(struct Process *proc, struct arg_type_info *info)
 }
 
 size_t
-arch_type_alignof(struct Process *proc, struct arg_type_info *info)
+arch_type_alignof(struct process *proc, struct arg_type_info *info)
 {
 	if (proc == NULL)
 		return (size_t)-2;

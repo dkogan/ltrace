@@ -40,13 +40,15 @@
 #endif
 
 void
-get_arch_dep(Process *proc) {
+get_arch_dep(struct process *proc)
+{
 }
 
 /* Returns 1 if syscall, 2 if sysret, 0 otherwise.
  */
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct process *proc, int status, int *sysnum)
+{
 	int depth;
 
 	if (WIFSTOPPED(status)

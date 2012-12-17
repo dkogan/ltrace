@@ -70,7 +70,8 @@ union cfm_t {
 };
 
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct process *proc, int status, int *sysnum)
+{
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
 		long l = ptrace(PTRACE_PEEKUSER, proc->pid, PT_CR_IPSR, 0);
@@ -141,5 +142,6 @@ syscall_p(Process *proc, int status, int *sysnum) {
 }
 
 void
-get_arch_dep(Process *proc) {
+get_arch_dep(struct process *proc)
+{
 }

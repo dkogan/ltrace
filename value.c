@@ -29,7 +29,7 @@
 #include "backend.h"
 
 static void
-value_common_init(struct value *valp, struct Process *inferior,
+value_common_init(struct value *valp, struct process *inferior,
 		  struct value *parent, struct arg_type_info *type,
 		  int own_type)
 {
@@ -43,7 +43,7 @@ value_common_init(struct value *valp, struct Process *inferior,
 }
 
 void
-value_init(struct value *valp, struct Process *inferior, struct value *parent,
+value_init(struct value *valp, struct process *inferior, struct value *parent,
 	   struct arg_type_info *type, int own_type)
 {
 	assert(inferior != NULL);

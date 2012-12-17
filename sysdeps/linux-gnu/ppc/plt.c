@@ -126,7 +126,7 @@ host_powerpc64()
 }
 
 int
-read_target_4(struct Process *proc, arch_addr_t addr, uint32_t *lp)
+read_target_4(struct process *proc, arch_addr_t addr, uint32_t *lp)
 {
 	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 	if (l == -1UL && errno)
@@ -139,7 +139,7 @@ read_target_4(struct Process *proc, arch_addr_t addr, uint32_t *lp)
 }
 
 static int
-read_target_8(struct Process *proc, arch_addr_t addr, uint64_t *lp)
+read_target_8(struct process *proc, arch_addr_t addr, uint64_t *lp)
 {
 	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 	if (l == -1UL && errno)
@@ -157,7 +157,7 @@ read_target_8(struct Process *proc, arch_addr_t addr, uint64_t *lp)
 }
 
 int
-read_target_long(struct Process *proc, arch_addr_t addr, uint64_t *lp)
+read_target_long(struct process *proc, arch_addr_t addr, uint64_t *lp)
 {
 	if (proc->e_machine == EM_PPC) {
 		uint32_t w;
@@ -178,7 +178,7 @@ mark_as_resolved(struct library_symbol *libsym, GElf_Addr value)
 }
 
 void
-arch_dynlink_done(struct Process *proc)
+arch_dynlink_done(struct process *proc)
 {
 	/* On PPC32 with BSS PLT, we need to enable delayed symbols.  */
 	struct library_symbol *libsym = NULL;
@@ -258,7 +258,7 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
  * ourselves with bias, as the values in OPD have been resolved
  * already.  */
 int
-arch_translate_address_dyn(struct Process *proc,
+arch_translate_address_dyn(struct process *proc,
 			   arch_addr_t addr, arch_addr_t *ret)
 {
 	if (proc->e_machine == EM_PPC64) {
@@ -324,7 +324,7 @@ load_opd_data(struct ltelf *lte, struct library *lib)
 }
 
 void *
-sym2addr(struct Process *proc, struct library_symbol *sym)
+sym2addr(struct process *proc, struct library_symbol *sym)
 {
 	return sym->enter_addr;
 }
@@ -560,7 +560,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 }
 
 static int
-read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
+read_plt_slot_value(struct process *proc, GElf_Addr addr, GElf_Addr *valp)
 {
 	/* On PPC64, we read from .plt, which contains 8 byte
 	 * addresses.  On PPC32 we read from .plt, which contains 4
@@ -579,7 +579,7 @@ read_plt_slot_value(struct Process *proc, GElf_Addr addr, GElf_Addr *valp)
 }
 
 static int
-unresolve_plt_slot(struct Process *proc, GElf_Addr addr, GElf_Addr value)
+unresolve_plt_slot(struct process *proc, GElf_Addr addr, GElf_Addr value)
 {
 	/* We only modify plt_entry[0], which holds the resolved
 	 * address of the routine.  We keep the TOC and environment
@@ -594,7 +594,7 @@ unresolve_plt_slot(struct Process *proc, GElf_Addr addr, GElf_Addr value)
 }
 
 enum plt_status
-arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
+arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
 		       struct library_symbol **ret)
 {
@@ -712,7 +712,7 @@ arch_elf_destroy(struct ltelf *lte)
 }
 
 static void
-dl_plt_update_bp_on_hit(struct breakpoint *bp, struct Process *proc)
+dl_plt_update_bp_on_hit(struct breakpoint *bp, struct process *proc)
 {
 	debug(DEBUG_PROCESS, "pid=%d dl_plt_update_bp_on_hit %s(%p)",
 	      proc->pid, breakpoint_name(bp), bp->addr);
@@ -752,7 +752,7 @@ cb_on_all_stopped(struct process_stopping_handler *self)
 static enum callback_status
 cb_keep_stepping_p(struct process_stopping_handler *self)
 {
-	struct Process *proc = self->task_enabling_breakpoint;
+	struct process *proc = self->task_enabling_breakpoint;
 	struct library_symbol *libsym = self->breakpoint_being_enabled->libsym;
 
 	GElf_Addr value;
@@ -799,7 +799,7 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 	/* Install breakpoint to the address where the change takes
 	 * place.  If we fail, then that just means that we'll have to
 	 * singlestep the next time around as well.  */
-	struct Process *leader = proc->leader;
+	struct process *leader = proc->leader;
 	if (leader == NULL || leader->arch.dl_plt_update_bp != NULL)
 		goto done;
 
@@ -827,7 +827,7 @@ done:
 }
 
 static void
-jump_to_entry_point(struct Process *proc, struct breakpoint *bp)
+jump_to_entry_point(struct process *proc, struct breakpoint *bp)
 {
 	/* XXX The double cast should be removed when
 	 * arch_addr_t becomes integral type.  */
@@ -837,10 +837,10 @@ jump_to_entry_point(struct Process *proc, struct breakpoint *bp)
 }
 
 static void
-ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
+ppc_plt_bp_continue(struct breakpoint *bp, struct process *proc)
 {
 	switch (bp->libsym->arch.type) {
-		struct Process *leader;
+		struct process *leader;
 		void (*on_all_stopped)(struct process_stopping_handler *);
 		enum callback_status (*keep_stepping_p)
 			(struct process_stopping_handler *);
@@ -899,7 +899,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct Process *proc)
  * detect both cases and do any fix-ups necessary to mend this
  * situation.  */
 static enum callback_status
-detach_task_cb(struct Process *task, void *data)
+detach_task_cb(struct process *task, void *data)
 {
 	struct breakpoint *bp = data;
 
@@ -919,7 +919,7 @@ detach_task_cb(struct Process *task, void *data)
 }
 
 static void
-ppc_plt_bp_retract(struct breakpoint *bp, struct Process *proc)
+ppc_plt_bp_retract(struct breakpoint *bp, struct process *proc)
 {
 	/* On PPC64, we rewrite .plt with PLT entry addresses.  This
 	 * needs to be undone.  Unfortunately, the program may have
@@ -975,7 +975,7 @@ arch_library_symbol_clone(struct library_symbol *retp,
  * don't need PROC here, we can store the data in BP if it is of
  * interest to us.  */
 int
-arch_breakpoint_init(struct Process *proc, struct breakpoint *bp)
+arch_breakpoint_init(struct process *proc, struct breakpoint *bp)
 {
 	/* Artificial and entry-point breakpoints are plain.  */
 	if (bp->libsym == NULL || bp->libsym->plt_type != LS_TOPLT_EXEC)
@@ -1012,7 +1012,7 @@ arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp)
 }
 
 int
-arch_process_init(struct Process *proc)
+arch_process_init(struct process *proc)
 {
 	proc->arch.dl_plt_update_bp = NULL;
 	proc->arch.handler = NULL;
@@ -1020,19 +1020,19 @@ arch_process_init(struct Process *proc)
 }
 
 void
-arch_process_destroy(struct Process *proc)
+arch_process_destroy(struct process *proc)
 {
 }
 
 int
-arch_process_clone(struct Process *retp, struct Process *proc)
+arch_process_clone(struct process *retp, struct process *proc)
 {
 	retp->arch = proc->arch;
 	return 0;
 }
 
 int
-arch_process_exec(struct Process *proc)
+arch_process_exec(struct process *proc)
 {
 	return arch_process_init(proc);
 }

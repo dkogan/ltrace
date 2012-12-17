@@ -123,7 +123,7 @@ type_struct_destroy(struct arg_type_info *info)
 }
 
 static int
-layout_struct(struct Process *proc, struct arg_type_info *info,
+layout_struct(struct process *proc, struct arg_type_info *info,
 	      size_t *sizep, size_t *alignmentp, size_t *offsetofp)
 {
 	size_t sz = 0;
@@ -254,10 +254,10 @@ type_destroy(struct arg_type_info *info)
 }
 
 #ifdef ARCH_HAVE_SIZEOF
-size_t arch_type_sizeof(struct Process *proc, struct arg_type_info * arg);
+size_t arch_type_sizeof(struct process *proc, struct arg_type_info *arg);
 #else
 size_t
-arch_type_sizeof(struct Process *proc, struct arg_type_info * arg)
+arch_type_sizeof(struct process *proc, struct arg_type_info *arg)
 {
 	/* Use default value.  */
 	return (size_t)-2;
@@ -265,10 +265,10 @@ arch_type_sizeof(struct Process *proc, struct arg_type_info * arg)
 #endif
 
 #ifdef ARCH_HAVE_ALIGNOF
-size_t arch_type_alignof(struct Process *proc, struct arg_type_info * arg);
+size_t arch_type_alignof(struct process *proc, struct arg_type_info *arg);
 #else
 size_t
-arch_type_alignof(struct Process *proc, struct arg_type_info * arg)
+arch_type_alignof(struct process *proc, struct arg_type_info *arg)
 {
 	/* Use default value.  */
 	return (size_t)-2;
@@ -289,7 +289,7 @@ align(size_t sz, size_t alignment)
 }
 
 size_t
-type_sizeof(struct Process *proc, struct arg_type_info *type)
+type_sizeof(struct process *proc, struct arg_type_info *type)
 {
 	size_t arch_size = arch_type_sizeof(proc, type);
 	if (arch_size != (size_t)-2)
@@ -359,7 +359,7 @@ type_sizeof(struct Process *proc, struct arg_type_info *type)
 #define alignof(field,st) ((size_t) ((char*) &st.field - (char*) &st))
 
 size_t
-type_alignof(struct Process *proc, struct arg_type_info *type)
+type_alignof(struct process *proc, struct arg_type_info *type)
 {
 	size_t arch_alignment = arch_type_alignof(proc, type);
 	if (arch_alignment != (size_t)-2)
@@ -412,7 +412,7 @@ type_alignof(struct Process *proc, struct arg_type_info *type)
 }
 
 size_t
-type_offsetof(struct Process *proc, struct arg_type_info *type, size_t emt)
+type_offsetof(struct process *proc, struct arg_type_info *type, size_t emt)
 {
 	assert(type->type == ARGTYPE_STRUCT
 	       || type->type == ARGTYPE_ARRAY);

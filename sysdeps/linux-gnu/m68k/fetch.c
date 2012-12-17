@@ -43,7 +43,7 @@ struct fetch_context
 };
 
 static int
-fetch_register_banks(struct Process *proc, struct fetch_context *context,
+fetch_register_banks(struct process *proc, struct fetch_context *context,
 		     int floating)
 {
 	if (ptrace(PTRACE_GETREGS, proc->pid, 0, &context->regs) < 0)
@@ -57,7 +57,7 @@ fetch_register_banks(struct Process *proc, struct fetch_context *context,
 }
 
 struct fetch_context *
-arch_fetch_arg_init(enum tof type, struct Process *proc,
+arch_fetch_arg_init(enum tof type, struct process *proc,
 		    struct arg_type_info *ret_info)
 {
 	struct fetch_context *context = malloc(sizeof(*context));
@@ -92,7 +92,7 @@ arch_fetch_arg_init(enum tof type, struct Process *proc,
 }
 
 struct fetch_context *
-arch_fetch_arg_clone(struct Process *proc, struct fetch_context *context)
+arch_fetch_arg_clone(struct process *proc, struct fetch_context *context)
 {
 	struct fetch_context *ret = malloc(sizeof(*ret));
 	if (ret == NULL)
@@ -103,7 +103,7 @@ arch_fetch_arg_clone(struct Process *proc, struct fetch_context *context)
 
 int
 arch_fetch_arg_next(struct fetch_context *context, enum tof type,
-		    struct Process *proc, struct arg_type_info *info,
+		    struct process *proc, struct arg_type_info *info,
 		    struct value *valuep)
 {
 	size_t sz = type_sizeof(proc, info);
@@ -143,7 +143,7 @@ arch_fetch_arg_next(struct fetch_context *context, enum tof type,
 
 int
 arch_fetch_retval(struct fetch_context *context, enum tof type,
-		  struct Process *proc, struct arg_type_info *info,
+		  struct process *proc, struct arg_type_info *info,
 		  struct value *valuep)
 {
 	if (fetch_register_banks(proc, context, type == LT_TOF_FUNCTIONR) < 0)

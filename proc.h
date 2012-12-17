@@ -75,13 +75,12 @@ struct callstack_element {
 #define MAX_CALLDEPTH 64
 
 /* XXX We would rather have this all organized a little differently,
- * have Process for the whole group and Task for what's there for
- * per-thread stuff.  But for now this is the less invasive way of
- * structuring it.  */
-typedef struct Process Process;
-struct Process {
+ * have struct process for the whole group and struct task (or struct
+ * lwp, struct thread) for what's there for per-thread stuff.  But for
+ * now this is the less invasive way of structuring it.  */
+struct process {
 	enum process_state state;
-	Process * parent;         /* needed by STATE_BEING_CREATED */
+	struct process *parent;         /* needed by STATE_BEING_CREATED */
 	char * filename;
 	pid_t pid;
 
@@ -133,15 +132,15 @@ struct Process {
 	/**
 	 * Process chaining.
 	 **/
-	Process * next;
+	struct process *next;
 
 	/* LEADER points to the leader thread of the POSIX.1 process.
 	   If X->LEADER == X, then X is the leader thread and the
-	   Process structures chained by NEXT represent other threads,
+	   process structures chained by NEXT represent other threads,
 	   up until, but not including, the next leader thread.
 	   LEADER may be NULL after the leader has already exited.  In
 	   that case this process is waiting to be collected.  */
-	Process * leader;
+	struct process *leader;
 
 	struct os_process_data os;
 	struct arch_process_data arch;
@@ -149,12 +148,12 @@ struct Process {
 
 /* Initialize a process given a path to binary FILENAME, with a PID,
  * and add the process to an internal chain of traced processes.  */
-int process_init(struct Process *proc, const char *filename, pid_t pid);
+int process_init(struct process *proc, const char *filename, pid_t pid);
 
 /* PROC underwent an exec.  This is a bit like process_destroy
  * followed by process_init, except that some state is kept and the
  * process doesn't lose it's place in the list of processes.  */
-int process_exec(struct Process *proc);
+int process_exec(struct process *proc);
 
 /* Release any memory allocated for PROC (but not PROC itself).  Does
  * NOT remove PROC from internal chain.
@@ -162,74 +161,74 @@ int process_exec(struct Process *proc);
  * XXX clearly this init/destroy pair is different than others and
  * should be fixed.  process_init should presumably be separate from
  * process_add.  */
-void process_destroy(struct Process *proc);
+void process_destroy(struct process *proc);
 
-struct Process *open_program(const char *filename, pid_t pid);
+struct process *open_program(const char *filename, pid_t pid);
 void open_pid(pid_t pid);
-Process * pid2proc(pid_t pid);
+struct process *pid2proc(pid_t pid);
 
 /* Clone the contents of PROC into the memory referenced by RETP.
  * Returns 0 on success or a negative value on failure.  */
-int process_clone(struct Process *retp, struct Process *proc, pid_t pid);
+int process_clone(struct process *retp, struct process *proc, pid_t pid);
 
 /* Iterate through the processes that ltrace currently traces.  Tasks
  * are considered to be processes for the purpose of this iterator.
  * See callback.h for notes on iteration interfaces.  */
-Process *each_process(Process *start_after,
-		      enum callback_status (*cb)(struct Process *proc,
-						 void *data),
-		      void *data);
+struct process *each_process(struct process *start_after,
+			     enum callback_status (*cb)(struct process *proc,
+							void *data),
+			     void *data);
 
 /* Iterate through list of tasks of given process PROC.  See
  * callback.h for notes on iteration interfaces.  */
-Process *each_task(struct Process *proc, struct Process *start_after,
-		   enum callback_status (*cb)(struct Process *proc,
-					      void *data),
-		   void *data);
+struct process *each_task(struct process *proc, struct process *start_after,
+			  enum callback_status (*cb)(struct process *proc,
+						     void *data),
+			  void *data);
 
-void change_process_leader(Process *proc, Process *leader);
+void change_process_leader(struct process *proc, struct process *leader);
 
 /* Remove process from the list of traced processes, drop any events
  * in the event queue, destroy it and free memory.  */
-void remove_process(struct Process *proc);
+void remove_process(struct process *proc);
 
-void install_event_handler(Process *proc, struct event_handler *handler);
-void destroy_event_handler(Process *proc);
+void install_event_handler(struct process *proc, struct event_handler *handler);
+void destroy_event_handler(struct process *proc);
 
 /* Add a library LIB to the list of PROC's libraries.  */
-void proc_add_library(struct Process *proc, struct library *lib);
+void proc_add_library(struct process *proc, struct library *lib);
 
 /* Remove LIB from list of PROC's libraries.  Returns 0 if the library
  * was found and unlinked, otherwise returns a negative value.  */
-int proc_remove_library(struct Process *proc, struct library *lib);
+int proc_remove_library(struct process *proc, struct library *lib);
 
 /* Clear a delayed flag.  If a symbol is neither latent, nor delayed,
  * a breakpoint is inserted for it.  Returns 0 if the activation was
  * successful or a negative value if it failed.  Note that if a symbol
  * is both latent and delayed, this will not enable the corresponding
  * breakpoint.  */
-int proc_activate_delayed_symbol(struct Process *proc,
+int proc_activate_delayed_symbol(struct process *proc,
 				 struct library_symbol *libsym);
 
 /* Iterate through the libraries of PROC.  See callback.h for notes on
  * iteration interfaces.  */
-struct library *proc_each_library(struct Process *proc, struct library *start,
-				  enum callback_status (*cb)(struct Process *p,
+struct library *proc_each_library(struct process *proc, struct library *start,
+				  enum callback_status (*cb)(struct process *p,
 							     struct library *l,
 							     void *data),
 				  void *data);
 
 /* Insert BP into PROC.  */
-int proc_add_breakpoint(struct Process *proc, struct breakpoint *bp);
+int proc_add_breakpoint(struct process *proc, struct breakpoint *bp);
 
 /* Remove BP from PROC.  This has no reason to fail in runtime.  If it
  * does not find BP in PROC, it's hard error guarded by assertion.  */
-void proc_remove_breakpoint(struct Process *proc, struct breakpoint *bp);
+void proc_remove_breakpoint(struct process *proc, struct breakpoint *bp);
 
 /* Iterate through the breakpoints of PROC.  See callback.h for notes
  * on iteration interfaces.  */
-void *proc_each_breakpoint(struct Process *proc, void *start,
-			   enum callback_status (*cb)(struct Process *proc,
+void *proc_each_breakpoint(struct process *proc, void *start,
+			   enum callback_status (*cb)(struct process *proc,
 						      struct breakpoint *bp,
 						      void *data),
 			   void *data);
@@ -237,20 +236,20 @@ void *proc_each_breakpoint(struct Process *proc, void *start,
 /* Iterate through the dynamic section at src_addr looking for D_TAG.
  * If tag is found, fill it's value in RET and return 0.
  * If tag is not found, return a negative value.  */
-int proc_find_dynamic_entry_addr(struct Process *proc, arch_addr_t src_addr,
+int proc_find_dynamic_entry_addr(struct process *proc, arch_addr_t src_addr,
 				 int d_tag, arch_addr_t *ret);
 
 /* Finds a symbol corresponding to LIBSYM in a process PROC.  Returns
  * 0 and sets *RETLIB and *RETSYM if the corresponding pointer is
  * non-NULL.  Returns a negative value when the symbols couldn't be
  * found.  */
-int proc_find_symbol(struct Process *proc, struct library_symbol *sym,
+int proc_find_symbol(struct process *proc, struct library_symbol *sym,
 		     struct library **retlib, struct library_symbol **retsym);
 
 /* Iterate through all symbols in all libraries of PROC.  See
  * callback.h for notes on this interface.  */
 struct library_symbol *proc_each_symbol
-	(struct Process *proc, struct library_symbol *start_after,
+	(struct process *proc, struct library_symbol *start_after,
 	 enum callback_status (*cb)(struct library_symbol *, void *),
 	 void *data);
 

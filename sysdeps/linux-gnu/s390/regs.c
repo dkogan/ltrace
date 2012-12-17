@@ -46,7 +46,8 @@
 #endif
 
 void *
-get_instruction_pointer(Process *proc) {
+get_instruction_pointer(struct process *proc)
+{
 	long ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_PSWADDR, 0) & PSW_MASK;
 #ifdef __s390x__
 	if (proc->mask_32bit)
@@ -56,7 +57,8 @@ get_instruction_pointer(Process *proc) {
 }
 
 void
-set_instruction_pointer(Process *proc, void *addr) {
+set_instruction_pointer(struct process *proc, void *addr)
+{
 #ifdef __s390x__
 	if (proc->mask_32bit)
 		addr = (void *)((long)addr & PSW_MASK31);
@@ -65,7 +67,8 @@ set_instruction_pointer(Process *proc, void *addr) {
 }
 
 void *
-get_stack_pointer(Process *proc) {
+get_stack_pointer(struct process *proc)
+{
 	long ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_GPR15, 0) & PSW_MASK;
 #ifdef __s390x__
 	if (proc->mask_32bit)
@@ -75,7 +78,8 @@ get_stack_pointer(Process *proc) {
 }
 
 void *
-get_return_addr(Process *proc, void *stack_pointer) {
+get_return_addr(struct process *proc, void *stack_pointer)
+{
 	long ret = ptrace(PTRACE_PEEKUSER, proc->pid, PT_GPR14, 0) & PSW_MASK;
 #ifdef __s390x__
 	if (proc->mask_32bit)
@@ -85,7 +89,8 @@ get_return_addr(Process *proc, void *stack_pointer) {
 }
 
 void
-set_return_addr(Process *proc, void *addr) {
+set_return_addr(struct process *proc, void *addr)
+{
 #ifdef __s390x__
 	if (proc->mask_32bit)
 		addr = (void *)((long)addr & PSW_MASK31);

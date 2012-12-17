@@ -111,11 +111,11 @@ void type_init_pointer(struct arg_type_info *info,
 void type_destroy(struct arg_type_info *info);
 
 /* Compute a size of given type.  Return (size_t)-1 for error.  */
-size_t type_sizeof(struct Process *proc, struct arg_type_info *type);
+size_t type_sizeof(struct process *proc, struct arg_type_info *type);
 
 /* Compute an alignment necessary for elements of this type.  Return
  * (size_t)-1 for error.  */
-size_t type_alignof(struct Process *proc, struct arg_type_info *type);
+size_t type_alignof(struct process *proc, struct arg_type_info *type);
 
 /* Align value SZ to ALIGNMENT and return the result.  */
 size_t align(size_t sz, size_t alignment);
@@ -126,7 +126,7 @@ struct arg_type_info *type_element(struct arg_type_info *type, size_t elt);
 
 /* Compute an offset of EMT-th element of type TYPE.  This works for
  * arrays and structures.  Return (size_t)-1 for error.  */
-size_t type_offsetof(struct Process *proc,
+size_t type_offsetof(struct process *proc,
 		     struct arg_type_info *type, size_t elt);
 
 /* Whether TYPE is an integral type as defined by the C standard.  */

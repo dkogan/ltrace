@@ -92,7 +92,7 @@ arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
 }
 
 int
-arch_breakpoint_init(struct Process *proc, struct breakpoint *sbp)
+arch_breakpoint_init(struct process *proc, struct breakpoint *sbp)
 {
 	/* XXX That uintptr_t cast is there temporarily until
 	 * arch_addr_t becomes integral type.  */

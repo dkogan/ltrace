@@ -41,13 +41,13 @@ char *command = NULL;
 int exiting = 0;		/* =1 if a SIGINT or SIGTERM has been received */
 
 static enum callback_status
-stop_non_p_processes(Process *proc, void *data)
+stop_non_p_processes(struct process *proc, void *data)
 {
 	int stop = 1;
 
 	struct opt_p_t *it;
 	for (it = opt_p; it != NULL; it = it->next) {
-		Process * p_proc = pid2proc(it->pid);
+		struct process *p_proc = pid2proc(it->pid);
 		if (p_proc == NULL) {
 			printf("stop_non_p_processes: %d terminated?\n", it->pid);
 			continue;
@@ -142,7 +142,7 @@ ltrace_init(int argc, char **argv) {
 		do_close_elf(&lte);
 
 		pid_t pid = execute_program(command, argv);
-		struct Process *proc = open_program(command, pid);
+		struct process *proc = open_program(command, pid);
 		if (proc == NULL) {
 			fprintf(stderr, "couldn't open program '%s': %s\n",
 				command, strerror(errno));

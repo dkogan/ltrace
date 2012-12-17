@@ -68,12 +68,13 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela)
 }
 
 void *
-sym2addr(Process *proc, struct library_symbol *sym) {
+sym2addr(struct process *proc, struct library_symbol *sym)
+{
 	return sym->enter_addr;
 }
 
 int
-arch_translate_address_dyn(struct Process *proc,
+arch_translate_address_dyn(struct process *proc,
 			   arch_addr_t addr, arch_addr_t *ret)
 {
 	errno = 0;

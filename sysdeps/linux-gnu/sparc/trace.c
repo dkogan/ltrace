@@ -31,7 +31,8 @@
 #include "common.h"
 
 void
-get_arch_dep(Process *proc) {
+get_arch_dep(struct process *proc)
+{
 	proc_archdep *a;
 	if (!proc->arch_ptr)
 		proc->arch_ptr = (void *)malloc(sizeof(proc_archdep));
@@ -43,7 +44,8 @@ get_arch_dep(Process *proc) {
  * Returns -1 otherwise
  */
 int
-syscall_p(Process *proc, int status, int *sysnum) {
+syscall_p(struct process *proc, int status, int *sysnum)
+{
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
 		void *ip = get_instruction_pointer(proc);
@@ -66,7 +68,8 @@ syscall_p(Process *proc, int status, int *sysnum) {
 }
 
 long
-gimme_arg(enum tof type, Process *proc, int arg_num, struct arg_type_info *info)
+gimme_arg(enum tof type, struct process *proc, int arg_num,
+	  struct arg_type_info *info)
 {
 	proc_archdep *a = (proc_archdep *) proc->arch_ptr;
 	if (!a->valid) {

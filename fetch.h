@@ -38,24 +38,24 @@ struct fetch_context;
 
 /* Initialize argument fetching.  Returns NULL on failure.  RET_INFO
  * is the return type of the function.  */
-struct fetch_context *fetch_arg_init(enum tof type, struct Process *proc,
+struct fetch_context *fetch_arg_init(enum tof type, struct process *proc,
 				     struct arg_type_info *ret_info);
 
 /* Make a clone of context.  */
-struct fetch_context *fetch_arg_clone(struct Process *proc,
+struct fetch_context *fetch_arg_clone(struct process *proc,
 				      struct fetch_context *context);
 
 /* Load next argument.  The function returns 0 on success or a
  * negative value on failure.  The extracted value is stored in
  * *VALUEP.  */
 int fetch_arg_next(struct fetch_context *context, enum tof type,
-		   struct Process *proc,
+		   struct process *proc,
 		   struct arg_type_info *info, struct value *valuep);
 
 /* Load return value.  The function returns 0 on success or a negative
  * value on failure.  The extracted value is stored in *VALUEP.  */
 int fetch_retval(struct fetch_context *context, enum tof type,
-		 struct Process *proc,
+		 struct process *proc,
 		 struct arg_type_info *info, struct value *valuep);
 
 /* Destroy fetch context.  CONTEXT shall be the same memory location
@@ -74,15 +74,15 @@ void fetch_param_pack_end(struct fetch_context *context);
 /* The following callbacks have to be implemented in backend if arch.h
  * defines ARCH_HAVE_FETCH_ARG.  These backend callbacks correspond to
  * above functions.  */
-struct fetch_context *arch_fetch_arg_init(enum tof type, struct Process *proc,
+struct fetch_context *arch_fetch_arg_init(enum tof type, struct process *proc,
 					  struct arg_type_info *ret_info);
-struct fetch_context *arch_fetch_arg_clone(struct Process *proc,
+struct fetch_context *arch_fetch_arg_clone(struct process *proc,
 					   struct fetch_context *context);
 int arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
-			struct Process *proc, struct arg_type_info *info,
+			struct process *proc, struct arg_type_info *info,
 			struct value *valuep);
 int arch_fetch_retval(struct fetch_context *ctx, enum tof type,
-		      struct Process *proc, struct arg_type_info *info,
+		      struct process *proc, struct arg_type_info *info,
 		      struct value *valuep);
 void arch_fetch_arg_done(struct fetch_context *context);
 

@@ -24,10 +24,10 @@
 #include "fetch.h"
 #include "forward.h"
 
-void output_line(struct Process *proc, const char *fmt, ...);
-void output_left(enum tof type, struct Process *proc,
+void output_line(struct process *proc, const char *fmt, ...);
+void output_left(enum tof type, struct process *proc,
 		 struct library_symbol *libsym);
-void output_right(enum tof type, struct Process *proc,
+void output_right(enum tof type, struct process *proc,
 		  struct library_symbol *libsym);
 
 /* This function is for emitting lists of comma-separated strings.

@@ -54,20 +54,20 @@ static void handle_exec(Event *event);
 static void handle_breakpoint(Event *event);
 static void handle_new(Event *event);
 
-static void callstack_push_syscall(Process *proc, int sysnum);
-static void callstack_push_symfunc(Process *proc,
+static void callstack_push_syscall(struct process *proc, int sysnum);
+static void callstack_push_symfunc(struct process *proc,
 				   struct library_symbol *sym);
 /* XXX Stack maintenance should be moved to a dedicated module, or to
  * proc.c, and push/pop should be visible outside this module.  For
  * now, because we need this in proc.c, this is non-static.  */
-void callstack_pop(struct Process *proc);
+void callstack_pop(struct process *proc);
 
-static char * shortsignal(Process *proc, int signum);
-static char * sysname(Process *proc, int sysnum);
-static char * arch_sysname(Process *proc, int sysnum);
+static char *shortsignal(struct process *proc, int signum);
+static char *sysname(struct process *proc, int sysnum);
+static char *arch_sysname(struct process *proc, int sysnum);
 
 static Event *
-call_handler(Process * proc, Event * event)
+call_handler(struct process *proc, Event *event)
 {
 	assert(proc != NULL);
 
@@ -256,7 +256,7 @@ handle_clone(Event *event)
 {
 	debug(DEBUG_FUNCTION, "handle_clone(pid=%d)", event->proc->pid);
 
-	struct Process *proc = malloc(sizeof(*proc));
+	struct process *proc = malloc(sizeof(*proc));
 	if (proc == NULL) {
 	fail:
 		free(proc);
@@ -297,12 +297,11 @@ handle_clone(Event *event)
 }
 
 static void
-handle_new(Event * event) {
-	Process * proc;
-
+handle_new(Event *event)
+{
 	debug(DEBUG_FUNCTION, "handle_new(pid=%d)", event->e_un.newpid);
 
-	proc = pid2proc(event->e_un.newpid);
+	struct process *proc = pid2proc(event->e_un.newpid);
 	if (!proc) {
 		pending_new_insert(event->e_un.newpid);
 	} else {
@@ -317,7 +316,8 @@ handle_new(Event * event) {
 }
 
 static char *
-shortsignal(Process *proc, int signum) {
+shortsignal(struct process *proc, int signum)
+{
 	static char *signalent0[] = {
 #include "signalent.h"
 	};
@@ -341,7 +341,8 @@ shortsignal(Process *proc, int signum) {
 }
 
 static char *
-sysname(Process *proc, int sysnum) {
+sysname(struct process *proc, int sysnum)
+{
 	static char result[128];
 	static char *syscalent0[] = {
 #include "syscallent.h"
@@ -369,7 +370,8 @@ sysname(Process *proc, int sysnum) {
 }
 
 static char *
-arch_sysname(Process *proc, int sysnum) {
+arch_sysname(struct process *proc, int sysnum)
+{
 	static char result[128];
 	static char *arch_syscalent[] = {
 #include "arch_syscallent.h"
@@ -424,8 +426,8 @@ handle_exit_signal(Event *event) {
 }
 
 static void
-output_syscall(struct Process *proc, const char *name, enum tof tof,
-	       void (*output)(enum tof, struct Process *,
+output_syscall(struct process *proc, const char *name, enum tof tof,
+	       void (*output)(enum tof, struct process *,
 			      struct library_symbol *))
 {
 	struct library_symbol syscall;
@@ -436,13 +438,13 @@ output_syscall(struct Process *proc, const char *name, enum tof tof,
 }
 
 static void
-output_syscall_left(struct Process *proc, const char *name)
+output_syscall_left(struct process *proc, const char *name)
 {
 	output_syscall(proc, name, LT_TOF_SYSCALL, &output_left);
 }
 
 static void
-output_syscall_right(struct Process *proc, const char *name)
+output_syscall_right(struct process *proc, const char *name)
 {
 	output_syscall(proc, name, LT_TOF_SYSCALLR, &output_right);
 }
@@ -461,8 +463,9 @@ handle_syscall(Event *event) {
 }
 
 static void
-handle_exec(Event * event) {
-	Process * proc = event->proc;
+handle_exec(Event *event)
+{
+	struct process *proc = event->proc;
 
 	/* Save the PID so that we can use it after unsuccessful
 	 * process_exec.  */
@@ -514,7 +517,8 @@ handle_arch_syscall(Event *event) {
 struct timeval current_time_spent;
 
 static void
-calc_time_spent(Process *proc) {
+calc_time_spent(struct process *proc)
+{
 	struct timeval tv;
 	struct timezone tz;
 	struct timeval diff;
@@ -572,7 +576,7 @@ handle_arch_sysret(Event *event) {
 }
 
 static void
-output_right_tos(struct Process *proc)
+output_right_tos(struct process *proc)
 {
 	size_t d = proc->callstack_depth;
 	struct callstack_element *elem = &proc->callstack[d - 1];
@@ -581,7 +585,7 @@ output_right_tos(struct Process *proc)
 }
 
 #ifndef ARCH_HAVE_SYMBOL_RET
-void arch_symbol_ret(struct Process *proc, struct library_symbol *libsym)
+void arch_symbol_ret(struct process *proc, struct library_symbol *libsym)
 {
 }
 #endif
@@ -591,7 +595,7 @@ handle_breakpoint(Event *event)
 {
 	int i, j;
 	struct breakpoint *sbp;
-	Process *leader = event->proc->leader;
+	struct process *leader = event->proc->leader;
 	void *brk_addr = event->e_un.brk_addr;
 
 	/* The leader has terminated.  */
@@ -686,7 +690,8 @@ handle_breakpoint(Event *event)
 }
 
 static void
-callstack_push_syscall(Process *proc, int sysnum) {
+callstack_push_syscall(struct process *proc, int sysnum)
+{
 	struct callstack_element *elem;
 
 	debug(DEBUG_FUNCTION, "callstack_push_syscall(pid=%d, sysnum=%d)", proc->pid, sysnum);
@@ -711,7 +716,8 @@ callstack_push_syscall(Process *proc, int sysnum) {
 }
 
 static void
-callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
+callstack_push_symfunc(struct process *proc, struct library_symbol *sym)
+{
 	struct callstack_element *elem;
 
 	debug(DEBUG_FUNCTION, "callstack_push_symfunc(pid=%d, symbol=%s)", proc->pid, sym->name);
@@ -738,7 +744,7 @@ callstack_push_symfunc(Process *proc, struct library_symbol *sym) {
 }
 
 void
-callstack_pop(struct Process *proc)
+callstack_pop(struct process *proc)
 {
 	struct callstack_element *elem;
 	assert(proc->callstack_depth > 0);

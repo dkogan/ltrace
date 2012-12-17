@@ -48,7 +48,7 @@ static Event * delayed_events = NULL;
 static Event * end_delayed_events = NULL;
 
 static enum callback_status
-first (Process * proc, void * data)
+first(struct process *proc, void *data)
 {
 	return CBS_STOP;
 }
@@ -199,7 +199,7 @@ next_event(void)
 	}
 	get_arch_dep(event.proc);
 	debug(3, "event from pid %u", pid);
-	Process *leader = event.proc->leader;
+	struct process *leader = event.proc->leader;
 
 	/* The process should be stopped after the waitpid call.  But
 	 * when the whole thread group is terminated, we see
@@ -347,7 +347,7 @@ event_for_proc(struct Event *event, void *data)
 }
 
 void
-delete_events_for(struct Process *proc)
+delete_events_for(struct process *proc)
 {
 	struct Event *event;
 	while ((event = each_qd_event(&event_for_proc, proc)) != NULL)
