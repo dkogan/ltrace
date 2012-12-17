@@ -83,12 +83,12 @@ each_qd_event(enum ecb_status (*pred)(Event *, void *), void * data)
 	Event * event;
 	for (event = prev; event != NULL; ) {
 		switch ((*pred)(event, data)) {
-		case ecb_cont:
+		case ECB_CONT:
 			prev = event;
 			event = event->next;
 			continue;
 
-		case ecb_deque:
+		case ECB_DEQUE:
 			debug(DEBUG_FUNCTION, "dequeuing event %d for %d",
 			      event->type,
 			      event->proc != NULL ? event->proc->pid : -1);
@@ -106,7 +106,7 @@ each_qd_event(enum ecb_status (*pred)(Event *, void *), void * data)
 				end_delayed_events = NULL;
 			/* fall-through */
 
-		case ecb_yield:
+		case ECB_YIELD:
 			return event;
 		}
 	}
@@ -120,9 +120,9 @@ event_process_not_reenabling(Event * event, void * data)
 	if (event->proc == NULL
 	    || event->proc->leader == NULL
 	    || event->proc->leader->event_handler == NULL)
-		return ecb_deque;
+		return ECB_DEQUE;
 	else
-		return ecb_cont;
+		return ECB_CONT;
 }
 
 static Event *
@@ -341,9 +341,9 @@ static enum ecb_status
 event_for_proc(struct Event *event, void *data)
 {
 	if (event->proc == data)
-		return ecb_deque;
+		return ECB_DEQUE;
 	else
-		return ecb_cont;
+		return ECB_CONT;
 }
 
 void

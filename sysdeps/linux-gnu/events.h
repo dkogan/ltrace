@@ -26,10 +26,10 @@
 /* Declarations for event que functions.  */
 
 enum ecb_status {
-	ecb_cont, /* The iteration should continue.  */
-	ecb_yield, /* The iteration should stop, yielding this
+	ECB_CONT, /* The iteration should continue.  */
+	ECB_YIELD, /* The iteration should stop, yielding this
 		    * event.  */
-	ecb_deque, /* Like ecb_stop, but the event should be removed
+	ECB_DEQUE, /* Like ECB_STOP, but the event should be removed
 		    * from the queue.  */
 };
 

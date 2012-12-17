@@ -148,8 +148,8 @@ static enum ecb_status
 event_for_pid(Event *event, void *data)
 {
 	if (event->proc != NULL && event->proc->pid == (pid_t)(uintptr_t)data)
-		return ecb_yield;
-	return ecb_cont;
+		return ECB_YIELD;
+	return ECB_CONT;
 }
 
 static int
@@ -377,7 +377,7 @@ undo_breakpoint(Event *event, void *data)
 	    && event->proc->leader == data
 	    && event->type == EVENT_BREAKPOINT)
 		set_instruction_pointer(event->proc, event->e_un.brk_addr);
-	return ecb_cont;
+	return ECB_CONT;
 }
 
 static enum callback_status
