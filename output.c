@@ -136,17 +136,15 @@ begin_of_line(struct process *proc, int is_func, int indent)
 static struct arg_type_info *
 get_unknown_type(void)
 {
-	static struct arg_type_info *info = NULL;
-	if (info == NULL) {
-		info = malloc(sizeof(*info));
-		if (info == NULL) {
-			report_global_error("malloc: %s", strerror(errno));
-			abort();
-		}
-		*info = *type_get_simple(ARGTYPE_LONG);
-		info->lens = &guess_lens;
-	}
-	return info;
+	static struct arg_type_info *ret = NULL;
+	if (ret != NULL)
+		return ret;
+
+	static struct arg_type_info info;
+	info = *type_get_simple(ARGTYPE_LONG);
+	info.lens = &guess_lens;
+	ret = &info;
+	return ret;
 }
 
 /* The default prototype is: long X(long, long, long, long).  */
