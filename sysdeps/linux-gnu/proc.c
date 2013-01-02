@@ -484,7 +484,7 @@ crawl_linkmap(struct process *proc, struct lt_r_debug_64 *dbg)
 	arch_addr_t addr = (arch_addr_t)(uintptr_t)dbg->r_map;
 
 	while (addr != 0) {
-		struct lt_link_map_64 rlm;
+		struct lt_link_map_64 rlm = {};
 		if (lm_fetcher(proc)(proc, addr, &rlm) < 0) {
 			debug(2, "Unable to read link map");
 			return;
