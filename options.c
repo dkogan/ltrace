@@ -203,7 +203,7 @@ compile_libname(const char *expr, const char *a_lib, int lib_re_p,
 		if (status != 0) {
 			char buf[100];
 			regerror(status, &lib_re, buf, sizeof buf);
-			fprintf(stderr, "Rule near '%s' will be ignored: %s.\n",
+			fprintf(stderr, "Couldn't compile '%s': %s.\n",
 				expr, buf);
 			return -1;
 		}
@@ -212,7 +212,7 @@ compile_libname(const char *expr, const char *a_lib, int lib_re_p,
 	return 0;
 }
 
-static void
+static int
 add_filter_rule(struct filter *filt, const char *expr,
 		enum filter_rule_type type,
 		const char *a_sym, int sym_re_p,
@@ -222,12 +222,10 @@ add_filter_rule(struct filter *filt, const char *expr,
 	struct filter_lib_matcher *matcher = malloc(sizeof(*matcher));
 
 	if (rule == NULL || matcher == NULL) {
-		fprintf(stderr, "Rule near '%s' will be ignored: %s.\n",
-			expr, strerror(errno));
 	fail:
 		free(rule);
 		free(matcher);
-		return;
+		return -1;
 	}
 
 	regex_t symbol_re;
@@ -242,7 +240,7 @@ add_filter_rule(struct filter *filt, const char *expr,
 		if (status != 0) {
 			char buf[100];
 			regerror(status, &symbol_re, buf, sizeof buf);
-			fprintf(stderr, "Rule near '%s' will be ignored: %s.\n",
+			fprintf(stderr, "Couldn't compile '%s': %s.\n",
 				expr, buf);
 			goto fail;
 		}
@@ -255,6 +253,7 @@ add_filter_rule(struct filter *filt, const char *expr,
 
 	filter_rule_init(rule, type, matcher, symbol_re);
 	filter_add_rule(filt, rule);
+	return 0;
 }
 
 static int
@@ -369,16 +368,16 @@ parse_filter(struct filter *filt, char *expr, int operators)
 		if (*libname == 0) /* /aa@/ */
 			libname = "*";
 
-		add_filter_rule(filt, expr, this_type,
-				symname, sym_is_re,
-				libname, lib_is_re);
+		return add_filter_rule(filt, expr, this_type,
+				       symname, sym_is_re,
+				       libname, lib_is_re);
 	}
 
 	return 0;
 }
 
 static struct filter *
-recursive_parse_chain(char *expr, int operators)
+recursive_parse_chain(const char *orig, char *expr, int operators)
 {
 	struct filter *filt = malloc(sizeof(*filt));
 	if (filt == NULL) {
@@ -389,7 +388,7 @@ recursive_parse_chain(char *expr, int operators)
 
 	filter_init(filt);
 	if (parse_filter(filt, expr, operators) < 0) {
-		fprintf(stderr, "Filter '%s' will be ignored.\n", expr);
+		fprintf(stderr, "Filter '%s' will be ignored.\n", orig);
 		free(filt);
 		filt = NULL;
 	}
@@ -418,7 +417,7 @@ parse_filter_chain(const char *expr, struct filter **retp)
 	if (str[0] == '!')
 		str[0] = '-';
 
-	*slist_chase_end(retp) = recursive_parse_chain(str, 1);
+	*slist_chase_end(retp) = recursive_parse_chain(expr, str, 1);
 	free(str);
 }
 
@@ -620,7 +619,7 @@ process_options(int argc, char **argv)
 			char buf[patlen + 2];
 			sprintf(buf, "@%s", optarg);
 			*slist_chase_end(&options.export_filter)
-				= recursive_parse_chain(buf, 0);
+				= recursive_parse_chain(buf, buf, 0);
 			break;
 		}
 
