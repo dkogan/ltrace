@@ -645,18 +645,25 @@ init_global_config(void)
 	static struct named_type voidptr_type;
 	named_type_init(&voidptr_type, &ptr_info, 0);
 
+	/* Build legacy typedefs first.  This is used by
+	 * protolib_cache_init call below.  */
 	if (protolib_add_named_type(&legacy_typedefs, "addr", 0,
 				    &voidptr_type) < 0
 	    || protolib_add_named_type(&legacy_typedefs, "file", 0,
 				       &voidptr_type) < 0) {
 		fprintf(stderr,
 			"Couldn't initialize aliases `addr' and `file'.\n");
-		exit(1);
+
+		/* Since global config was not yet initialized, do an
+		 * early exit.  */
+		fflush(stderr);
+		_Exit(1);
 	}
 
 	if (protolib_cache_init(&g_protocache, NULL) < 0) {
 		fprintf(stderr, "Couldn't init prototype cache\n");
-		abort();
+		fflush(stderr);
+		_Exit(1);
 	}
 }
 
