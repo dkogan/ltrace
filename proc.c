@@ -864,7 +864,8 @@ proc_add_library(struct process *proc, struct library *lib)
 	while ((libsym = library_each_symbol(lib, libsym,
 					     cb_breakpoint_for_symbol,
 					     proc)) != NULL)
-		fprintf(stderr, "Couldn't insert breakpoint for %s to %d: %s.",
+		fprintf(stderr,
+			"Couldn't insert breakpoint for %s to %d: %s.\n",
 			libsym->name, proc->pid, strerror(errno));
 
 	/* Look through export list of the new library and compare it
@@ -874,7 +875,7 @@ proc_add_library(struct process *proc, struct library *lib)
 	while ((lib2 = proc_each_library(proc, lib2, activate_latent_in,
 					 lib->exported_names)) != NULL)
 		fprintf(stderr,
-			"Couldn't activate latent symbols for %s in %d: %s.",
+			"Couldn't activate latent symbols for %s in %d: %s.\n",
 			libsym->name, proc->pid, strerror(errno));
 }
 
