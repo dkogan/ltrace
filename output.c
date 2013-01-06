@@ -657,7 +657,9 @@ again:
 	fprintf(options.output, "\n");
 
 #if defined(HAVE_LIBUNWIND)
-	if (options.bt_depth > 0) {
+	if (options.bt_depth > 0
+	    && proc->unwind_priv != NULL
+	    && proc->unwind_as != NULL) {
 		unw_cursor_t cursor;
 		unw_word_t ip, sp;
 		int unwind_depth = options.bt_depth;

@@ -38,6 +38,7 @@
 #include "breakpoint.h"
 #include "debug.h"
 #include "fetch.h"
+#include "options.h"
 #include "proc.h"
 #include "value_dict.h"
 
@@ -105,8 +106,10 @@ static void
 destroy_unwind(struct process *proc)
 {
 #if defined(HAVE_LIBUNWIND)
-	_UPT_destroy(proc->unwind_priv);
-	unw_destroy_addr_space(proc->unwind_as);
+	if (proc->unwind_priv != NULL)
+		_UPT_destroy(proc->unwind_priv);
+	if (proc->unwind_as != NULL)
+		unw_destroy_addr_space(proc->unwind_as);
 #endif /* defined(HAVE_LIBUNWIND) */
 }
 
@@ -148,10 +151,21 @@ process_bare_init(struct process *proc, const char *filename,
 		proc->breakpoints = NULL;
 	}
 
+	if (options.bt_depth > 0) {
 #if defined(HAVE_LIBUNWIND)
-	proc->unwind_priv = _UPT_create(pid);
-	proc->unwind_as = unw_create_addr_space(&_UPT_accessors, 0);
+		proc->unwind_priv = _UPT_create(pid);
+		proc->unwind_as = unw_create_addr_space(&_UPT_accessors, 0);
 #endif /* defined(HAVE_LIBUNWIND) */
+
+		if (proc->unwind_priv == NULL || proc->unwind_as == NULL) {
+			fprintf(stderr,
+				"Couldn't initialize unwinding "
+				"for process %d\n", proc->pid);
+			destroy_unwind(proc);
+			proc->unwind_priv = NULL;
+			proc->unwind_as = NULL;
+		}
+	}
 
 	return 0;
 }
