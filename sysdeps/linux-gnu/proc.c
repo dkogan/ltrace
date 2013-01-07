@@ -209,8 +209,9 @@ process_status(pid_t pid)
 		each_line_starting(file, "State:\t", &process_status_cb, &ret);
 		fclose(file);
 		if (ret == PS_INVALID)
-			fprintf(stderr, "process_status %d: %s", pid,
-				strerror(errno));
+			fprintf(stderr,
+				"Couldn't determine status of process %d: %s\n",
+				pid, strerror(errno));
 	} else {
 		/* If the file is not present, the process presumably
 		 * exited already.  */
