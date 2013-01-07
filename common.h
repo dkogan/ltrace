@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 2009 Juan Cespedes
  *
@@ -65,5 +65,10 @@ struct library_symbol;
  * failure.  */
 int format_argument(FILE *stream, struct value *value,
 		    struct value_dict *arguments);
+
+/* Set *RET to either a duplicate of STR (if WHETHER), or STR
+ * (otherwise).  Return 0 on success or a negative value on failure.
+ * The duplication is not done if STR is NULL.  */
+int strdup_if(const char **ret, const char *str, int whether);
 
 #endif

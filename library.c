@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2001,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -90,19 +90,17 @@ arch_addr_eq(const arch_addr_t *addr1, const arch_addr_t *addr2)
 	return *addr1 == *addr2;
 }
 
-/* If the other symbol owns the name, we need to make the copy, so
- * that the life-times of the two symbols are not dependent on each
- * other.  */
-static int
-strdup_if_owned(const char **retp, const char *str, int owned)
+int
+strdup_if(const char **retp, const char *str, int whether)
 {
-	if (!owned || str == NULL) {
-		*retp = str;
-		return 0;
-	} else {
-		*retp = strdup(str);
-		return *retp != NULL ? 0 : -1;
+	if (whether && str != NULL) {
+		str = strdup(str);
+		if (str == NULL)
+			return -1;
 	}
+
+	*retp = str;
+	return 0;
 }
 
 static void
@@ -154,8 +152,10 @@ library_symbol_destroy(struct library_symbol *libsym)
 int
 library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 {
+	/* Make lifetimes of name stored at original independent of
+	 * the one at the clone.  */
 	const char *name;
-	if (strdup_if_owned(&name, libsym->name, libsym->own_name) < 0)
+	if (strdup_if(&name, libsym->name, libsym->own_name) < 0)
 		return -1;
 
 	private_library_symbol_init(retp, libsym->enter_addr,
@@ -262,9 +262,11 @@ library_clone(struct library *retp, struct library *lib)
 {
 	const char *soname = NULL;
 	const char *pathname;
-	if (strdup_if_owned(&soname, lib->soname, lib->own_soname) < 0
-	     || strdup_if_owned(&pathname,
-				lib->pathname, lib->own_pathname) < 0) {
+
+	/* Make lifetimes of strings stored at original independent of
+	 * those at the clone.  */
+	if (strdup_if(&soname, lib->soname, lib->own_soname) < 0
+	    || strdup_if(&pathname, lib->pathname, lib->own_pathname) < 0) {
 		if (lib->own_soname)
 			free((char *)soname);
 		return -1;

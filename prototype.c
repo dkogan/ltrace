@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "common.h"
 #include "callback.h"
 #include "param.h"
 #include "prototype.h"
@@ -208,20 +209,6 @@ protolib_add_import(struct protolib *plib, struct protolib *import)
 }
 
 static int
-clone_if_not_own(const char **strp, int own)
-{
-	assert(*strp != NULL);
-
-	if (!own) {
-		*strp = strdup(*strp);
-		if (*strp == NULL)
-			return -1;
-	}
-
-	return 0;
-}
-
-static int
 bailout(const char *name, int own)
 {
 	int save_errno = errno;
@@ -236,7 +223,7 @@ protolib_add_prototype(struct protolib *plib, const char *name, int own_name,
 		       struct prototype *proto)
 {
 	assert(plib != NULL);
-	if (clone_if_not_own(&name, own_name) < 0)
+	if (strdup_if(&name, name, !own_name) < 0)
 		return -1;
 	if (DICT_INSERT(&plib->prototypes, &name, proto) < 0)
 		return bailout(name, own_name);
@@ -248,7 +235,7 @@ protolib_add_named_type(struct protolib *plib, const char *name, int own_name,
 			struct named_type *named)
 {
 	assert(plib != NULL);
-	if (clone_if_not_own(&name, own_name) < 0)
+	if (strdup_if(&name, name, !own_name) < 0)
 		return -1;
 	if (DICT_INSERT(&plib->named_types, &name, named) < 0)
 		return bailout(name, own_name);
@@ -550,7 +537,7 @@ protolib_cache_search(struct protolib_cache *cache,
 	if (DICT_FIND_VAL(&cache->protolibs, &key, &plib) == 0)
 		return plib;
 
-	if (clone_if_not_own(&key, own_key) < 0) {
+	if (strdup_if(&key, key, !own_key) < 0) {
 		fprintf(stderr, "Couldn't cache %s: %s\n",
 			key, strerror(errno));
 		return NULL;
@@ -590,7 +577,7 @@ protolib_cache_file(struct protolib_cache *cache,
 	if (stream == NULL)
 		return NULL;
 
-	if (clone_if_not_own(&filename, own_filename) < 0) {
+	if (strdup_if(&filename, filename, !own_filename) < 0) {
 		fprintf(stderr, "Couldn't cache %s: %s\n",
 			filename, strerror(errno));
 		fclose(stream);
@@ -620,7 +607,7 @@ protolib_cache_protolib(struct protolib_cache *cache,
 			const char *filename, int own_filename,
 			struct protolib *plib)
 {
-	if (clone_if_not_own(&filename, own_filename) < 0) {
+	if (strdup_if(&filename, filename, !own_filename) < 0) {
 		fprintf(stderr, "Couldn't cache %s: %s\n",
 			filename, strerror(errno));
 		return -1;
