@@ -354,7 +354,7 @@ process_clone(struct process *retp, struct process *proc, pid_t pid)
 {
 	if (process_bare_init(retp, proc->filename, pid, 0) < 0) {
 	fail1:
-		fprintf(stderr, "failed to clone process %d->%d : %s\n",
+		fprintf(stderr, "Failed to clone process %d to %d: %s\n",
 			proc->pid, pid, strerror(errno));
 		return -1;
 	}
@@ -423,7 +423,7 @@ process_clone(struct process *retp, struct process *proc, pid_t pid)
 				size_t j;
 			fail3:
 				for (j = 0; j < i; ++j) {
-					nctx = elem->fetch_context;
+					nctx = retp->callstack[j].fetch_context;
 					fetch_arg_done(nctx);
 					elem->fetch_context = NULL;
 				}
@@ -432,14 +432,13 @@ process_clone(struct process *retp, struct process *proc, pid_t pid)
 			elem->fetch_context = nctx;
 		}
 
-		struct value_dict *args = elem->arguments;
-		if (args != NULL) {
+		if (elem->arguments != NULL) {
 			struct value_dict *nargs = malloc(sizeof(*nargs));
 			if (nargs == NULL
-			    || val_dict_clone(nargs, args) < 0) {
+			    || val_dict_clone(nargs, elem->arguments) < 0) {
 				size_t j;
 				for (j = 0; j < i; ++j) {
-					nargs = elem->arguments;
+					nargs = retp->callstack[j].arguments;
 					val_dict_destroy(nargs);
 					free(nargs);
 					elem->arguments = NULL;
