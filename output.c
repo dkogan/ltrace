@@ -504,15 +504,21 @@ output_left(enum tof type, struct process *proc,
 
 	struct prototype *func = lookup_symbol_prototype(proc, libsym);
 	if (func == NULL) {
+	fail:
 		account_output(&current_column, fprintf(options.output, "???"));
 		return;
 	}
 
 	struct fetch_context *context = fetch_arg_init(type, proc,
 						       func->return_info);
+	if (context == NULL)
+		goto fail;
+
 	struct value_dict *arguments = malloc(sizeof(*arguments));
-	if (arguments == NULL)
-		return;
+	if (arguments == NULL) {
+		fetch_arg_done(context);
+		goto fail;
+	}
 	val_dict_init(arguments);
 
 	ssize_t params_left = -1;
