@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -326,9 +326,9 @@ static void
 destroy_protolib_cb(struct protolib **plibp, void *data)
 {
 	assert(plibp != NULL);
-	assert(*plibp != NULL);
 
-	if (--(*plibp)->refs == 0) {
+	if (*plibp != NULL
+	    && --(*plibp)->refs == 0) {
 		protolib_destroy(*plibp);
 		free(*plibp);
 	}
@@ -629,7 +629,7 @@ protolib_cache_protolib(struct protolib_cache *cache,
 	int rc = DICT_INSERT(&cache->protolibs, &filename, &plib);
 	if (rc < 0 && own_filename)
 		free((char *)filename);
-	if (rc == 0)
+	if (rc == 0 && plib != NULL)
 		plib->refs++;
 	return rc;
 }
