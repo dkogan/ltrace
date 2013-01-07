@@ -99,7 +99,7 @@ arch_dynlink_done(struct process *proc)
 }
 #endif
 
-static void add_process(struct process *proc, int was_exec);
+static int add_process(struct process *proc, int was_exec);
 static void unlist_process(struct process *proc);
 
 static void
@@ -136,14 +136,19 @@ process_bare_init(struct process *proc, const char *filename,
 
 	/* Add process so that we know who the leader is.  */
 	proc->pid = pid;
-	add_process(proc, was_exec);
-	if (proc->leader == NULL)
+	if (add_process(proc, was_exec) < 0)
 		goto fail;
+	if (proc->leader == NULL) {
+	unlist_and_fail:
+		if (!was_exec)
+			unlist_process(proc);
+		goto fail;
+	}
 
 	if (proc->leader == proc) {
 		proc->breakpoints = malloc(sizeof(*proc->breakpoints));
 		if (proc->breakpoints == NULL)
-			goto fail;
+			goto unlist_and_fail;
 		DICT_INIT(proc->breakpoints,
 			  arch_addr_t, struct breakpoint *,
 			  arch_addr_hash, arch_addr_eq, NULL);
@@ -651,7 +656,7 @@ each_task(struct process *proc, struct process *start_after,
 	return NULL;
 }
 
-static void
+static int
 add_process(struct process *proc, int was_exec)
 {
 	struct process **leaderp = &list_of_processes;
@@ -660,7 +665,7 @@ add_process(struct process *proc, int was_exec)
 		if (tgid == 0)
 			/* Must have been terminated before we managed
 			 * to fully attach.  */
-			return;
+			return -1;
 		if (tgid == proc->pid) {
 			proc->leader = proc;
 		} else {
@@ -675,6 +680,7 @@ add_process(struct process *proc, int was_exec)
 		proc->next = *leaderp;
 		*leaderp = proc;
 	}
+	return 0;
 }
 
 void
