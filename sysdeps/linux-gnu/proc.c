@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Zachary T Welch, CodeSourcery
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1998,2008,2009 Juan Cespedes
@@ -620,6 +620,8 @@ linkmap_init(struct process *proc, arch_addr_t dyn_addr)
 		return status;
 	}
 
+	crawl_linkmap(proc, &rdbg);
+
 	/* XXX The double cast should be removed when
 	 * arch_addr_t becomes integral type.  */
 	arch_addr_t addr = (arch_addr_t)(uintptr_t)rdbg.r_brk;
@@ -627,12 +629,20 @@ linkmap_init(struct process *proc, arch_addr_t dyn_addr)
 		return -1;
 
 	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);
-	static struct bp_callbacks rdebug_callbacks = {
-		.on_hit = rdebug_bp_on_hit,
-	};
-	rdebug_bp->cbs = &rdebug_callbacks;
-
-	crawl_linkmap(proc, &rdbg);
+	if (rdebug_bp == NULL) {
+		/* This is not fatal, the tracing can continue with
+		 * reduced functionality.  */
+		fprintf(stderr,
+			"Couldn't insert _r_debug breakpoint to %d: %s.\n"
+			"As a result of that, ltrace will not be able to "
+			"detect and trace\nnewly-loaded libraries.\n",
+			proc->pid, strerror(errno));
+	} else {
+		static struct bp_callbacks rdebug_callbacks = {
+			.on_hit = rdebug_bp_on_hit,
+		};
+		rdebug_bp->cbs = &rdebug_callbacks;
+	}
 
 	return 0;
 }
