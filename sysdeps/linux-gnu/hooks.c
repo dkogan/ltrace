@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata
+ * Copyright (C) 2012, 2013 Petr Machata
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -106,6 +106,8 @@ again:
 			home = pwd->pw_dir;
 	}
 
+	size_t home_len = home != NULL ? strlen(home) : 0;
+
 	/* The values coming from getenv and getpwuid may not be
 	 * persistent.  */
 	if (home != NULL) {
@@ -113,7 +115,7 @@ again:
 		if (g_home_dir != NULL) {
 			home = g_home_dir;
 		} else {
-			char *tmp = alloca(strlen(home) + 1);
+			char *tmp = alloca(home_len + 1);
 			strcpy(tmp, home);
 			home = tmp;
 		}
@@ -121,8 +123,8 @@ again:
 
 	char *xdg_home = getenv("XDG_CONFIG_HOME");
 	if (xdg_home == NULL && home != NULL) {
-		xdg_home = alloca(strlen(home) + sizeof "/.config");
-		strcpy(stpcpy(xdg_home, home), "/.config");
+		xdg_home = alloca(home_len + sizeof "/.config");
+		sprintf(xdg_home, "%s/.config", home);
 	}
 	if (xdg_home != NULL)
 		add_dir(&dirs, xdg_home, "/ltrace");
