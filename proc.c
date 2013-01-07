@@ -373,8 +373,12 @@ process_clone(struct process *retp, struct process *proc, pid_t pid)
 	struct library **nlibp = &retp->libraries;
 	for (lib = proc->leader->libraries; lib != NULL; lib = lib->next) {
 		*nlibp = malloc(sizeof(**nlibp));
+
 		if (*nlibp == NULL
 		    || library_clone(*nlibp, lib) < 0) {
+			free(*nlibp);
+			*nlibp = NULL;
+
 		fail2:
 			process_bare_destroy(retp, 0);
 

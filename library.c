@@ -288,6 +288,7 @@ library_clone(struct library *retp, struct library *lib)
 			if (*nsymp == NULL
 			    || library_symbol_clone(*nsymp, it) < 0) {
 				free(*nsymp);
+				*nsymp = NULL;
 			fail:
 				/* Release what we managed to allocate.  */
 				library_destroy(retp);
