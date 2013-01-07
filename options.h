@@ -21,6 +21,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
+#ifndef _OPTIONS_H_
+#define _OPTIONS_H_
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -108,3 +110,5 @@ struct opt_c_struct {
 extern struct dict *dict_opt_c;
 
 extern char **process_options(int argc, char **argv);
+
+#endif /* _OPTIONS_H_ */
