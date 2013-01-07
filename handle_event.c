@@ -257,43 +257,47 @@ handle_clone(Event *event)
 	debug(DEBUG_FUNCTION, "handle_clone(pid=%d)", event->proc->pid);
 
 	struct process *proc = malloc(sizeof(*proc));
-	if (proc == NULL) {
-	fail:
+	pid_t newpid = event->e_un.newpid;
+	if (proc == NULL
+	    || process_clone(proc, event->proc, newpid) < 0) {
 		free(proc);
+		proc = NULL;
 		fprintf(stderr,
-			"Error during init of tracing process %d\n"
-			"This process won't be traced.\n",
-			event->proc->pid);
-		return;
+			"Couldn't initialize tracing of process %d.\n",
+			newpid);
+
+	} else {
+		proc->parent = event->proc;
+		/* We save register values to the arch pointer, and
+		 * these need to be per-thread.  XXX arch_ptr should
+		 * be retired in favor of fetch interface anyway.  */
+		proc->arch_ptr = NULL;
 	}
 
-	if (process_clone(proc, event->proc, event->e_un.newpid) < 0)
-		goto fail;
-	proc->parent = event->proc;
+	if (pending_new(newpid)) {
+		pending_new_remove(newpid);
 
-	/* We save register values to the arch pointer, and these need
-	   to be per-thread.  */
-	proc->arch_ptr = NULL;
+		if (proc != NULL) {
+			proc->event_handler = NULL;
+			if (event->proc->state == STATE_ATTACHED
+			    && options.follow)
+				proc->state = STATE_ATTACHED;
+			else
+				proc->state = STATE_IGNORED;
+		}
 
-	if (pending_new(proc->pid)) {
-		pending_new_remove(proc->pid);
-		/* XXX this used to be destroy_event_handler call, but
-		 * I don't think we want to call that on a shared
-		 * state.  */
-		proc->event_handler = NULL;
-		if (event->proc->state == STATE_ATTACHED && options.follow)
-			proc->state = STATE_ATTACHED;
-		else
-			proc->state = STATE_IGNORED;
-		continue_process(proc->pid);
-	} else {
+		continue_process(newpid);
+
+	} else if (proc != NULL) {
 		proc->state = STATE_BEING_CREATED;
 	}
 
-	if (event->type == EVENT_VFORK)
+	if (event->type != EVENT_VFORK)
+		continue_process(event->proc->pid);
+	else if (proc != NULL)
 		continue_after_vfork(proc);
 	else
-		continue_process(event->proc->pid);
+		continue_process(newpid);
 }
 
 static void
