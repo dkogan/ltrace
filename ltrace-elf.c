@@ -219,7 +219,7 @@ need_data(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
 	int								\
 	NAME(Elf_Data *data, GElf_Xword offset, uint##SIZE##_t *retp)	\
 	{								\
-		if (!need_data(data, offset, SIZE / 8) < 0)		\
+		if (need_data(data, offset, SIZE / 8) < 0)		\
 			return -1;					\
 									\
 		if (data->d_buf == NULL) /* NODATA section */ {		\
