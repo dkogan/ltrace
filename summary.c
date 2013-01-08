@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2003,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -28,83 +28,89 @@
 
 #include "common.h"
 
-static int num_entries = 0;
-static struct entry_st {
-	char *name;
-	int count;
+struct entry_st {
+	const char *name;
+	unsigned count;
 	struct timeval tv;
-} *entries = NULL;
+};
 
-static int tot_count = 0;
-static unsigned long int tot_usecs = 0;
+struct fill_struct_data {
+	struct vect entries;
+	unsigned tot_count;
+	unsigned long tot_usecs;
+};
 
 static enum callback_status
-fill_struct(const char **namep, struct opt_c_struct *st, void *data)
+fill_struct(const char **namep, struct opt_c_struct *st, void *u)
 {
-	entries = realloc(entries, (num_entries + 1) * sizeof(struct entry_st));
-	if (!entries) {
-		perror("realloc()");
-		exit(1);
-	}
-	entries[num_entries].name = (char *)*namep;
-	entries[num_entries].count = st->count;
-	entries[num_entries].tv = st->tv;
+	struct fill_struct_data *data = u;
+	struct entry_st entry = { *namep, st->count, st->tv };
+	if (VECT_PUSHBACK(&data->entries, &entry) < 0)
+		return CBS_STOP;
 
-	tot_count += st->count;
-	tot_usecs += 1000000 * st->tv.tv_sec;
-	tot_usecs += st->tv.tv_usec;
-
-	num_entries++;
+	data->tot_count += st->count;
+	data->tot_usecs += 1000000 * st->tv.tv_sec;
+	data->tot_usecs += st->tv.tv_usec;
 	return CBS_CONT;
 }
 
-static int compar(const void *a, const void *b)
+static int
+compar(const struct entry_st *en1, const struct entry_st *en2)
 {
-	struct entry_st *en1, *en2;
-
-	en1 = (struct entry_st *)a;
-	en2 = (struct entry_st *)b;
-
-	if (en2->tv.tv_sec - en1->tv.tv_sec) {
-		return (en2->tv.tv_sec - en1->tv.tv_sec);
-	} else {
-		return (en2->tv.tv_usec - en1->tv.tv_usec);
-	}
+	if (en2->tv.tv_sec - en1->tv.tv_sec)
+		return en2->tv.tv_sec - en1->tv.tv_sec;
+	else
+		return en2->tv.tv_usec - en1->tv.tv_usec;
 }
 
-void show_summary(void)
+static enum callback_status
+dump_one(struct entry_st *entry, void *u)
 {
-	int i;
-
-	num_entries = 0;
-	entries = NULL;
-
-	if (dict_opt_c != NULL)
-		DICT_EACH(dict_opt_c, const char *, struct opt_c_struct, NULL,
-			  fill_struct, NULL);
-
-	qsort(entries, num_entries, sizeof(*entries), compar);
-
-	fprintf(options.output, "%% time     seconds  usecs/call     calls      function\n");
-	fprintf(options.output, "------ ----------- ----------- --------- --------------------\n");
-	for (i = 0; i < num_entries; i++) {
-		unsigned long long int c;
-		unsigned long long int p;
-		c = 1000000 * (int)entries[i].tv.tv_sec +
-		    (int)entries[i].tv.tv_usec;
-		p = 100000 * c / tot_usecs + 5;
-		fprintf(options.output, "%3lu.%02lu %4d.%06d %11lu %9d %s\n",
-		       (unsigned long int)(p / 1000),
-		       (unsigned long int)((p / 10) % 100),
-		       (int)entries[i].tv.tv_sec, (int)entries[i].tv.tv_usec,
-		       (unsigned long int)(c / entries[i].count),
-		       entries[i].count,
+	struct fill_struct_data *data = u;
+	unsigned long long int c;
+	unsigned long long int p;
+	c = 1000000 * (int)entry->tv.tv_sec +
+		(int)entry->tv.tv_usec;
+	p = 100000 * c / data->tot_usecs + 5;
+	fprintf(options.output, "%3lu.%02lu %4d.%06d %11lu %9d %s\n",
+		(unsigned long int)(p / 1000),
+		(unsigned long int)((p / 10) % 100),
+		(int)entry->tv.tv_sec, (int)entry->tv.tv_usec,
+		(unsigned long int)(c / entry->count),
+		entry->count,
 #ifdef USE_DEMANGLE
-		       options.demangle ? my_demangle(entries[i].name) :
+		options.demangle ? my_demangle(entry->name) :
 #endif
-		       entries[i].name);
+		entry->name);
+
+	return CBS_CONT;
+}
+
+void
+show_summary(void)
+{
+	struct fill_struct_data cdata = {};
+	VECT_INIT(&cdata.entries, struct entry_st);
+
+	if (dict_opt_c != NULL) {
+		DICT_EACH(dict_opt_c, const char *, struct opt_c_struct, NULL,
+			  fill_struct, &cdata);
+
+		VECT_QSORT(&cdata.entries, struct entry_st, &compar);
 	}
-	fprintf(options.output, "------ ----------- ----------- --------- --------------------\n");
-	fprintf(options.output, "100.00 %4lu.%06lu             %9d total\n", tot_usecs / 1000000,
-	       tot_usecs % 1000000, tot_count);
+
+	fprintf(options.output,
+		"%% time     seconds  usecs/call     calls      function\n");
+	fprintf(options.output,
+		"------ ----------- ----------- --------- --------------------\n");
+
+	VECT_EACH(&cdata.entries, struct entry_st, NULL, dump_one, &cdata);
+
+	fprintf(options.output,
+		"------ ----------- ----------- --------- --------------------\n");
+	fprintf(options.output, "100.00 %4lu.%06lu             %9d total\n",
+		cdata.tot_usecs / 1000000,
+		cdata.tot_usecs % 1000000, cdata.tot_count);
+
+	vect_destroy(&cdata.entries, NULL, NULL);
 }
