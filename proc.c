@@ -908,6 +908,8 @@ proc_each_library(struct process *proc, struct library *it,
 {
 	if (it == NULL)
 		it = proc->libraries;
+	else
+		it = it->next;
 
 	while (it != NULL) {
 		struct library *next = it->next;
