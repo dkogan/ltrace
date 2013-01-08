@@ -885,7 +885,7 @@ proc_add_library(struct process *proc, struct library *lib)
 					 lib->exported_names)) != NULL)
 		fprintf(stderr,
 			"Couldn't activate latent symbols for %s in %d: %s.\n",
-			libsym->name, proc->pid, strerror(errno));
+			lib2->soname, proc->pid, strerror(errno));
 }
 
 int
