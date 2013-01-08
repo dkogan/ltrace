@@ -737,7 +737,8 @@ process_stopping_on_event(struct event_handler *super, Event *event)
 	if (event != NULL && event->type == EVENT_SYSRET) {
 		debug(1, "%d LT_EV_SYSRET", event->proc->pid);
 		event_to_queue = 0;
-		task_info->sysret = 1;
+		if (task_info != NULL)
+			task_info->sysret = 1;
 	}
 
 	switch (state) {
