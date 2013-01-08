@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2007, 2008, 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2007,2008,2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -63,14 +63,9 @@ match_brack(const char *glob, size_t length, size_t from, int *exclmp)
 	}
 	++i; /* skip any character, including [ or ]  */
 
-	int escape = 0;
 	for (; i < length; ++i) {
 		char c = glob[i];
-		if (escape) {
-			++i;
-			escape = 0;
-
-		} else if (c == '[' && glob[i + 1] == ':') {
+		if (c == '[' && glob[i + 1] == ':') {
 			ssize_t j = match_character_class(glob, length, i);
 			if (j < 0)
 				goto fail;
