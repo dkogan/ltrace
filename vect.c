@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -187,4 +187,10 @@ vect_each(struct vect *vec, void *start_after,
 	}
 
 	return NULL;
+}
+
+void
+vect_qsort(struct vect *vec, int (*compar)(const void *, const void *))
+{
+	qsort(vec->data, vec->size, vec->elt_size, compar);
 }

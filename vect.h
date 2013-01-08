@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -170,5 +170,18 @@ void *vect_each(struct vect *vec, void *start_after,
 				       (*)(void *, void *))_cb,		\
 				      DATA);				\
 	})
+
+/* Call qsort on elements of VECT, with COMPAR as a comparison
+ * function.  */
+void vect_qsort(struct vect *vec, int (*compar)(const void *, const void *));
+
+#define VECT_QSORT(VECP, ELT_TYPE, COMPAR)				\
+	do {								\
+		assert((VECP)->elt_size == sizeof(ELT_TYPE));		\
+		/* Check that CB is typed properly.  */			\
+		int (*_compar)(const ELT_TYPE *, const ELT_TYPE *) = COMPAR; \
+		vect_qsort((VECP),					\
+			   (int (*)(const void *, const void *))_compar); \
+	} while (0)
 
 #endif /* VECT_H */
