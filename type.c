@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2007,2008 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -92,11 +92,7 @@ struct arg_type_info *
 type_struct_get(struct arg_type_info *info, size_t idx)
 {
 	assert(info->type == ARGTYPE_STRUCT);
-	struct struct_field *field = VECT_ELEMENT(&info->u.entries,
-						  struct struct_field, idx);
-	if (field == NULL)
-		return NULL;
-	return field->info;
+	return VECT_ELEMENT(&info->u.entries, struct struct_field, idx)->info;
 }
 
 size_t
