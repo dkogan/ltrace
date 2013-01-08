@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2006,2010,2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2006,2010,2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Zachary T Welch, CodeSourcery
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1997,1998,2001,2004,2007,2008,2009 Juan Cespedes
@@ -889,8 +889,10 @@ read_module(struct library *lib, struct process *proc,
 			goto fail;
 		library_set_soname(lib, soname, 1);
 	} else {
-		const char *soname = rindex(lib->pathname, '/') + 1;
-		if (soname == NULL)
+		const char *soname = rindex(lib->pathname, '/');
+		if (soname != NULL)
+			soname += 1;
+		else
 			soname = lib->pathname;
 		library_set_soname(lib, soname, 0);
 	}
