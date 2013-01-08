@@ -114,70 +114,91 @@ handle_event(Event *event)
 	case EVENT_NONE:
 		debug(1, "event: none");
 		return;
+
 	case EVENT_SIGNAL:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: signal (%s [%d])",
 		      event->proc->pid,
 		      shortsignal(event->proc, event->e_un.signum),
 		      event->e_un.signum);
 		handle_signal(event);
 		return;
+
 	case EVENT_EXIT:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: exit (%d)",
 		      event->proc->pid,
 		      event->e_un.ret_val);
 		handle_exit(event);
 		return;
+
 	case EVENT_EXIT_SIGNAL:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: exit signal (%s [%d])",
 		      event->proc->pid,
 		      shortsignal(event->proc, event->e_un.signum),
 		      event->e_un.signum);
 		handle_exit_signal(event);
 		return;
+
 	case EVENT_SYSCALL:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: syscall (%s [%d])",
 		      event->proc->pid,
 		      sysname(event->proc, event->e_un.sysnum),
 		      event->e_un.sysnum);
 		handle_syscall(event);
 		return;
+
 	case EVENT_SYSRET:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: sysret (%s [%d])",
 		      event->proc->pid,
 		      sysname(event->proc, event->e_un.sysnum),
 		      event->e_un.sysnum);
 		handle_sysret(event);
 		return;
+
 	case EVENT_ARCH_SYSCALL:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: arch_syscall (%s [%d])",
 		      event->proc->pid,
 		      arch_sysname(event->proc, event->e_un.sysnum),
 		      event->e_un.sysnum);
 		handle_arch_syscall(event);
 		return;
+
 	case EVENT_ARCH_SYSRET:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: arch_sysret (%s [%d])",
 		      event->proc->pid,
 		      arch_sysname(event->proc, event->e_un.sysnum),
 		      event->e_un.sysnum);
 		handle_arch_sysret(event);
 		return;
+
 	case EVENT_CLONE:
 	case EVENT_VFORK:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: clone (%u)",
 		      event->proc->pid, event->e_un.newpid);
 		handle_clone(event);
 		return;
+
 	case EVENT_EXEC:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: exec()",
 		      event->proc->pid);
 		handle_exec(event);
 		return;
+
 	case EVENT_BREAKPOINT:
+		assert(event->proc != NULL);
 		debug(1, "[%d] event: breakpoint %p",
 		      event->proc->pid, event->e_un.brk_addr);
 		handle_breakpoint(event);
 		return;
+
 	case EVENT_NEW:
 		debug(1, "[%d] event: new process",
 		      event->e_un.newpid);
