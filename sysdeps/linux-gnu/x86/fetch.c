@@ -58,7 +58,7 @@ struct fetch_context
 	struct user_regs_struct iregs;
 	struct user_fpregs_struct fpregs;
 
-	void *stack_pointer;
+	arch_addr_t stack_pointer;
 	size_t ireg;	/* Used-up integer registers.  */
 	size_t freg;	/* Used-up floating registers.  */
 
