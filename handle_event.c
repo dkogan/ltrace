@@ -356,8 +356,7 @@ shortsignal(struct process *proc, int signum)
 
 	debug(DEBUG_FUNCTION, "shortsignal(pid=%d, signum=%d)", proc->pid, signum);
 
-	if (proc->personality > sizeof signalents / sizeof signalents[0])
-		abort();
+	assert(proc->personality < sizeof signalents / sizeof signalents[0]);
 	if (signum < 0 || signum >= nsignals[proc->personality]) {
 		return "UNKNOWN_SIGNAL";
 	} else {
@@ -369,27 +368,27 @@ static char *
 sysname(struct process *proc, int sysnum)
 {
 	static char result[128];
-	static char *syscalent0[] = {
+	static char *syscallent0[] = {
 #include "syscallent.h"
 	};
-	static char *syscalent1[] = {
+	static char *syscallent1[] = {
 #include "syscallent1.h"
 	};
-	static char **syscalents[] = { syscalent0, syscalent1 };
-	int nsyscals[] = { sizeof syscalent0 / sizeof syscalent0[0],
-		sizeof syscalent1 / sizeof syscalent1[0]
+	static char **syscallents[] = { syscallent0, syscallent1 };
+	int nsyscalls[] = {
+		sizeof syscallent0 / sizeof syscallent0[0],
+		sizeof syscallent1 / sizeof syscallent1[0],
 	};
 
 	debug(DEBUG_FUNCTION, "sysname(pid=%d, sysnum=%d)", proc->pid, sysnum);
 
-	if (proc->personality > sizeof syscalents / sizeof syscalents[0])
-		abort();
-	if (sysnum < 0 || sysnum >= nsyscals[proc->personality]) {
+	assert(proc->personality < sizeof syscallents / sizeof syscallents[0]);
+	if (sysnum < 0 || sysnum >= nsyscalls[proc->personality]) {
 		sprintf(result, "SYS_%d", sysnum);
 		return result;
 	} else {
 		sprintf(result, "SYS_%s",
-			syscalents[proc->personality][sysnum]);
+			syscallents[proc->personality][sysnum]);
 		return result;
 	}
 }
@@ -398,19 +397,18 @@ static char *
 arch_sysname(struct process *proc, int sysnum)
 {
 	static char result[128];
-	static char *arch_syscalent[] = {
+	static char *arch_syscallent[] = {
 #include "arch_syscallent.h"
 	};
-	int nsyscals = sizeof arch_syscalent / sizeof arch_syscalent[0];
+	int nsyscalls = sizeof arch_syscallent / sizeof arch_syscallent[0];
 
 	debug(DEBUG_FUNCTION, "arch_sysname(pid=%d, sysnum=%d)", proc->pid, sysnum);
 
-	if (sysnum < 0 || sysnum >= nsyscals) {
+	if (sysnum < 0 || sysnum >= nsyscalls) {
 		sprintf(result, "ARCH_%d", sysnum);
 		return result;
 	} else {
-		sprintf(result, "ARCH_%s",
-				arch_syscalent[sysnum]);
+		sprintf(result, "ARCH_%s", arch_syscallent[sysnum]);
 		return result;
 	}
 }
