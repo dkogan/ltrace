@@ -324,13 +324,13 @@ allocate_class(enum arg_class cls, struct fetch_context *context,
 
 static ssize_t
 classify(struct process *proc, struct fetch_context *context,
-	 struct arg_type_info *info, struct value *valuep, enum arg_class classes[],
+	 struct arg_type_info *info, enum arg_class classes[],
 	 size_t sz, size_t eightbytes);
 
 /* This classifies one eightbyte part of an array or struct.  */
 static ssize_t
 classify_eightbyte(struct process *proc, struct fetch_context *context,
-		   struct arg_type_info *info, struct value *valuep,
+		   struct arg_type_info *info,
 		   enum arg_class *classp, size_t start, size_t end,
 		   struct arg_type_info *(*getter)(struct arg_type_info *,
 						   size_t))
@@ -343,7 +343,7 @@ classify_eightbyte(struct process *proc, struct fetch_context *context,
 		size_t sz = type_sizeof(proc, info2);
 		if (sz == (size_t)-1)
 			return -1;
-		if (classify(proc, context, info2, valuep, &cls2, sz, 1) < 0)
+		if (classify(proc, context, info2, &cls2, sz, 1) < 0)
 			return -1;
 
 		if (cls == CLASS_NO)
@@ -365,7 +365,7 @@ classify_eightbyte(struct process *proc, struct fetch_context *context,
 /* This classifies small arrays and structs.  */
 static ssize_t
 classify_eightbytes(struct process *proc, struct fetch_context *context,
-		    struct arg_type_info *info, struct value *valuep,
+		    struct arg_type_info *info,
 		    enum arg_class classes[], size_t elements,
 		    size_t eightbytes,
 		    struct arg_type_info *(*getter)(struct arg_type_info *,
@@ -384,9 +384,9 @@ classify_eightbytes(struct process *proc, struct fetch_context *context,
 			}
 
 		enum arg_class cls1, cls2;
-		if (classify_eightbyte(proc, context, info, valuep, &cls1,
+		if (classify_eightbyte(proc, context, info, &cls1,
 				       0, start_2nd, getter) < 0
-		    || classify_eightbyte(proc, context, info, valuep, &cls2,
+		    || classify_eightbyte(proc, context, info, &cls2,
 					  start_2nd, elements, getter) < 0)
 			return -1;
 
@@ -400,7 +400,7 @@ classify_eightbytes(struct process *proc, struct fetch_context *context,
 		return 2;
 	}
 
-	return classify_eightbyte(proc, context, info, valuep, classes,
+	return classify_eightbyte(proc, context, info, classes,
 				  0, elements, getter);
 }
 
@@ -433,7 +433,7 @@ flatten_structure(struct arg_type_info *flattened, struct arg_type_info *info)
 
 static ssize_t
 classify(struct process *proc, struct fetch_context *context,
-	 struct arg_type_info *info, struct value *valuep, enum arg_class classes[],
+	 struct arg_type_info *info, enum arg_class classes[],
 	 size_t sz, size_t eightbytes)
 {
 	switch (info->type) {
@@ -474,7 +474,7 @@ classify(struct process *proc, struct fetch_context *context,
 		if (expr_eval_constant(info->u.array_info.length, &l) < 0)
 			return -1;
 
-		return classify_eightbytes(proc, context, info, valuep, classes,
+		return classify_eightbytes(proc, context, info, classes,
 					   (size_t)l, eightbytes,
 					   get_array_field);
 
@@ -492,7 +492,7 @@ classify(struct process *proc, struct fetch_context *context,
 			goto done;
 		}
 		ret = classify_eightbytes(proc, context, &flattened,
-					  valuep, classes,
+					  classes,
 					  type_struct_size(&flattened),
 					  eightbytes, type_struct_get);
 	done:
@@ -541,7 +541,7 @@ classify_argument(struct process *proc, struct fetch_context *context,
 			return pass_by_reference(valuep, classes);
 	}
 
-	return classify(proc, context, info, valuep, classes, sz, eightbytes);
+	return classify(proc, context, info, classes, sz, eightbytes);
 }
 
 static int
