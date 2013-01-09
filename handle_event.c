@@ -250,26 +250,18 @@ pending_new_insert(pid_t pid) {
 }
 
 static void
-pending_new_remove(pid_t pid) {
-	Pending_New *p, *pred;
-
+pending_new_remove(pid_t pid)
+{
 	debug(DEBUG_FUNCTION, "pending_new_remove(%d)", pid);
 
-	p = pending_news;
-	pred = NULL;
-	if (p->pid == pid) {
-		pending_news = p->next;
-		free(p);
-	} else {
-		while (p) {
-			if (p->pid == pid) {
-				pred->next = p->next;
-				free(p);
-			}
-			pred = p;
-			p = p->next;
+	Pending_New **pp;
+	for (pp = &pending_news; *pp != NULL; pp = &(*pp)->next)
+		if ((*pp)->pid == pid) {
+			Pending_New *p = *pp;
+			*pp = p->next;
+			free(p);
+			return;
 		}
-	}
 }
 
 static void
