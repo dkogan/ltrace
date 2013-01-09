@@ -137,14 +137,14 @@ allocate_stack_slot(struct fetch_context *context,
 		    struct value *valuep, size_t sz, size_t offset,
 		    size_t archw)
 {
+	assert(valuep != NULL);
 	size_t a = type_alignof(valuep->inferior, valuep->type);
 	if (a < archw)
 		a = archw;
 	context->stack_pointer
 		= (void *)align((unsigned long)context->stack_pointer, a);
 
-	if (valuep != NULL)
-		value_in_inferior(valuep, context->stack_pointer);
+	value_in_inferior(valuep, context->stack_pointer);
 	context->stack_pointer += sz;
 }
 
