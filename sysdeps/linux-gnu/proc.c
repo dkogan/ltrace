@@ -233,7 +233,7 @@ int
 process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
 {
 	PROC_PID_FILE(fn, "/proc/%d/task", pid);
-	DIR * d = opendir(fn);
+	DIR *d = opendir(fn);
 	if (d == NULL)
 		return -1;
 
@@ -245,7 +245,9 @@ process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
 		struct dirent entry;
 		struct dirent *result;
 		if (readdir_r(d, &entry, &result) != 0) {
+		fail:
 			free(tasks);
+			closedir(d);
 			return -1;
 		}
 		if (result == NULL)
@@ -256,14 +258,11 @@ process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
 				alloc = alloc > 0 ? (2 * alloc) : 8;
 				pid_t *ntasks = realloc(tasks,
 							sizeof(*tasks) * alloc);
-				if (ntasks == NULL) {
-					free(tasks);
-					return -1;
-				}
+				if (ntasks == NULL)
+					goto fail;
 				tasks = ntasks;
 			}
-			if (n >= alloc)
-				abort();
+			assert(n < alloc);
 			tasks[n++] = npid;
 		}
 	}
