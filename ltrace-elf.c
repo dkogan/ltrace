@@ -317,7 +317,7 @@ read_symbol_table(struct ltelf *lte, const char *filename,
 	if (scn == NULL || gelf_getshdr(scn, &shdr2) == NULL) {
 		fprintf(stderr, "Couldn't get header of section"
 			" #%d from \"%s\": %s\n",
-			shdr2.sh_link, filename, elf_errmsg(-1));
+			shdr->sh_link, filename, elf_errmsg(-1));
 		exit(EXIT_FAILURE);
 	}
 
