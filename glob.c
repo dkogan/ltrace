@@ -27,13 +27,11 @@
 static ssize_t
 match_character_class(const char *glob, size_t length, size_t from)
 {
-	size_t i = 0;
-	if (length > 0)
-		for (i = from + 2; i < length - 1 && glob[++i] != ':'; )
-			;
-	if (i >= length || glob[++i] != ']')
+	assert(length > 0);
+	const char *colon = memchr(glob + from + 2, ':', length - 1);
+	if (colon == NULL || colon[1] != ']')
 		return -1;
-	return i;
+	return colon - glob;
 }
 
 static ssize_t
