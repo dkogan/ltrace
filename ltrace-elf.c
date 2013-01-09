@@ -873,8 +873,8 @@ read_module(struct library *lib, struct process *proc,
 
 	/* Note that we set soname and pathname as soon as they are
 	 * allocated, so in case of further errors, this get released
-	 * when LIB is release, which should happen in the caller when
-	 * we return error.  */
+	 * when LIB is released, which should happen in the caller
+	 * when we return error.  */
 
 	if (lib->pathname == NULL) {
 		char *pathname = strdup(filename);
@@ -968,14 +968,13 @@ ltelf_read_main_binary(struct process *proc, const char *path)
 	 * that.  Presumably we could read the DSOs from the process
 	 * memory image, but that's not currently done.  */
 	char *fname = pid2name(proc->pid);
-	if (fname == NULL)
-		return NULL;
-	if (read_module(lib, proc, fname, 0, 1) < 0) {
+	if (fname == NULL
+	    || read_module(lib, proc, fname, 0, 1) < 0) {
 		library_destroy(lib);
 		free(lib);
-		return NULL;
+		lib = NULL;
 	}
-	free(fname);
 
+	free(fname);
 	return lib;
 }
