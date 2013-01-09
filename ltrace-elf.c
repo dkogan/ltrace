@@ -640,12 +640,11 @@ populate_this_symtab(struct process *proc, const char *filename,
 	size_t i;
 	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
 		Elf_Scn *scn = elf_getscn(lte->elf, i);
-		if (scn == NULL)
-			continue;
 		GElf_Shdr shdr;
-		if (gelf_getshdr(scn, &shdr) == NULL)
-			continue;
-		secflags[i] = shdr.sh_flags;
+		if (scn == NULL || gelf_getshdr(scn, &shdr) == NULL)
+			secflags[i] = 0;
+		else
+			secflags[i] = shdr.sh_flags;
 	}
 
 	for (i = 0; i < size; ++i) {
