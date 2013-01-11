@@ -1,5 +1,5 @@
 .\" -*-nroff-*-
-.\" Copyright (c) 2012 Petr Machata, Red Hat Inc.
+.\" Copyright (c) 2012, 2013 Petr Machata, Red Hat Inc.
 .\" Copyright (c) 1997-2005 Juan Cespedes <cespedes@debian.org>
 .\"
 .\" This program is free software; you can redistribute it and/or
@@ -17,13 +17,65 @@
 .\" Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 .\" 02110-1301 USA
 .\"
-.TH LTRACE "1" "October 2012" "" "User Commands"
+.TH LTRACE "1" "January 2013" "" "User Commands"
 .SH NAME
 ltrace \- A library call tracer
 
 .SH SYNOPSIS
+.\"
+.\" ---------------------------------------------------------------------------
+.\"
+.PP
 .B ltrace
-.I "[-bCfghiLrStttV] [-a column] [-A maxelts] [-D level] [-e expr] [-l library_pattern] [-n nr] [-o filename] [-p pid] ... [-s strsize] [-u username] [-w count] [-x extern] ... [--align=column] [--debug=level] [--demangle] [--help] [--indent=nr] [--library=library_pattern] [--no-signals] [--output=filename] [--version] [--where=NR] [command [arg ...]]"
+.\"
+.\" What events to trace:
+.\"
+[\-e \fIfilter\fR|\-L] [\-l|\-\-library=\fIlibrary_pattern\fR]
+[\-x \fIfilter\fR] [\-S] [\-b|\-\-no-signals]
+.\"
+.\" What to display with each event:
+.\"
+[\-i] [\-w|\-\-where=\fInr\fR] [\-r|\-t|\-tt|\-ttt] [\-T]
+.\"
+.\" Output formatting:
+.\"
+[\-F \fIfilename\fR]
+[\-A \fImaxelts\fR] [\-s \fIstrsize\fR] [\-C|\-\-demangle]
+[\-a|\-\-align \fIcolumn\fR] [\-n|\-\-indent \fInr\fR]
+[\-o|\-\-output \fIfilename\fR]
+.\"
+.\" Various:
+.\"
+[\-D|\-\-debug \fImask\fR] [\-u \fIusername\fR]
+.\"
+.\" What processes to trace:
+.\"
+[\-f] [\-p \fIpid\fR] [[\-\-] \fIcommand [arg ...]\fR]
+.\"
+.\" ---------------------------------------------------------------------------
+.\"
+.PP
+.BR ltrace " -c"
+.\"
+.\" What events to trace:
+.\"
+[\-e \fIfilter\fR|\-L] [\-l|\-\-library=\fIlibrary_pattern\fR]
+[\-x \fIfilter\fR] [\-S]
+.\"
+.\" Output formatting:
+.\"
+[\-o|\-\-output \fIfilename\fR]
+.\"
+.\" What processes to trace:
+.\"
+[\-f] [\-p \fIpid\fR] [[\-\-] \fIcommand [arg ...]\fR]
+.\"
+.\" ---------------------------------------------------------------------------
+.\"
+.PP
+.BR ltrace " \-V|\-\-version"
+.PP
+.BR ltrace " \-h|\-\-help"
 
 .SH DESCRIPTION
 .B ltrace
@@ -38,77 +90,51 @@ Its use is very similar to
 .BR strace(1) .
 
 .SH OPTIONS
-.TP
-.I \-a, \-\-align column
+.PP
+.IP "\-a, \-\-align \fIcolumn"
 Align return values in a specific
 .IR column
 (default column is 5/8 of screen width).
-.TP
-.I \-A maxelts
+.IP "\-A \fImaxelts"
 Maximum number of array elements to print before suppressing the rest
 with an ellipsis ("...").  This also limits number of recursive
 structure expansions.
-.TP
-.I \-b, \-\-no-signals
+.IP "\-b, \-\-no-signals"
 Disable printing of signals recieved by the traced process.
-.TP
-.I \-c
-Count time and calls for each library call and report a summary on program exit.
-.TP
-.I \-C, \-\-demangle
+.IP \-c
+Count time and calls for each library call and report a summary on
+program exit.
+.IP "\-C, \-\-demangle"
 Decode (demangle) low-level symbol names into user-level names.
 Besides removing any initial underscore prefix used by the system,
 this makes C++ function names readable.
-.TP
-.I \-D, \-\-debug level
-Show debugging output of
-.B ltrace
-itself.
-.I level
-must be a sum of some of the following numbers:
-.RS
-.TP
-.B 01
-DEBUG_GENERAL.  Shows helpful progress information
-.TP
-.B 010
-DEBUG_EVENT.  Shows every event received by a traced program
-.TP
-.B 020
-DEBUG_PROCESS.  Shows every action
-.B ltrace
-carries upon a traced process
-.TP
-.B 040
-DEBUG_FUNCTION.  Shows every entry to internal functions
-.RE
-.TP
-.I \-e filter
+.IP "\-D, \-\-debug \fRmask\fI"
+Show debugging output of \fBltrace\fR itself.  \fImask\fR is a number
+with internal meaning that's not really well defined at all.
+\fImask\fR of 77 shows all debug messages, which is what you usually
+need.
+.IP "\-e \fIfilter"
 A qualifying expression which modifies which library calls to trace.
 The format of the filter expression is described in the section
 \fBFILTER EXPRESSIONS\fR.  If more than one \-e option appears on the
 command line, the library calls that match any of them are traced.  If
 no \-e is given, \fB@MAIN\fR is assumed as a default.
-.TP
-.I \-f
+.IP \-f
 Trace child processes as they are created by
 currently traced processes as a result of the fork(2)
 or clone(2) system calls.
 The new process is attached immediately.
-.TP
-.I \-F
+.IP "\-F \fIfilename"
 Load an alternate config file. Normally, /etc/ltrace.conf and
-~/.ltrace.conf will be read (the latter only if it exists).
-Use this option to load the given file or files instead of
-those two default files.
-.TP
-.I \-h, \-\-help
+~/.ltrace.conf will be read (the latter only if it exists).  Use this
+option to load the given file or files instead of those two default
+files.  See ltrace.conf(5) for details on the syntax of ltrace
+configuration files.
+.IP "\-h, \-\-help"
 Show a summary of the options to ltrace and exit.
-.TP
-.I \-i
+.IP \-i
 Print the instruction pointer at the time of the library call.
-.TP
-.I \-l, \-\-library library_pattern
+.IP "\-l, \-\-library \fIlibrary_pattern"
 Display only calls to functions implemented by libraries that match
 .I library_pattern.
 Multiple library patters can be specified with several instances of
@@ -120,71 +146,55 @@ the selected libraries, there's no actual guarantee that the call
 won't be directed elsewhere due to e.g. LD_PRELOAD or simply
 dependency ordering.  If you want to make sure that symbols in given
 library are actually called, use \fB-x @\fIlibrary_pattern\fR instead.
-.TP
-.I \-L
+.IP \-L
 When no -e option is given, don't assume the default action of
 \fB@MAIN\fR.
-.TP
-.I \-n, \-\-indent nr
-Indent trace output by
-.I nr
-number of spaces for each new nested call. Using this option makes
-the program flow visualization easy to follow.
-.TP
-.I \-o, \-\-output filename
-Write the trace output to the file
-.I filename
-rather than to stderr.
-.TP
-.I \-p pid
-Attach to the process with the process ID
-.I pid
-and begin tracing.
-.TP
-.I \-r
-Print a relative timestamp with each line of the trace.
-This records the time difference between the beginning of
-successive lines.
-.TP
-.I \-s strsize
+.IP "\-n, \-\-indent \fInr"
+Indent trace output by \fInr\fR spaces for each level of call
+nesting. Using this option makes the program flow visualization easy
+to follow.  This indents uselessly also functions that never return,
+such as service functions for throwing exceptions in the C++ runtime.
+.IP "\-o, \-\-output \fIfilename"
+Write the trace output to the file \fIfilename\fR rather than to
+stderr.
+.IP "\-p \fIpid"
+Attach to the process with the process ID \fIpid\fR and begin tracing.
+This option can be used together with passing a command to execute.
+It is possible to attach to several processes by passing more than one
+option \-p.
+.IP \-r
+Print a relative timestamp with each line of the trace.  This records
+the time difference between the beginning of successive lines.
+.IP "\-s \fIstrsize"
 Specify the maximum string size to print (the default is 32).
-.TP
-.I \-S
+.IP \-S
 Display system calls as well as library calls
-.TP
-.I \-t
+.IP \-t
 Prefix each line of the trace with the time of day.
-.TP
-.I \-tt
+.IP \-tt
 If given twice, the time printed will include the microseconds.
-.TP
-.I \-ttt
+.IP \-ttt
 If given thrice, the time printed will include the microseconds and
 the leading portion will be printed as the number of seconds since the
 epoch.
-.TP
-.I \-T
+.IP \-T
 Show  the  time  spent inside each call. This records the time difference
 between the beginning and the end of each call.
-.TP
-.I \-u username
+.IP "\-u \fIusername"
 Run command with the userid, groupid and supplementary groups of
 .IR username .
 This option is only useful when running as root and enables the
 correct execution of setuid and/or setgid binaries.
-.TP
-.I \-w, --where NR
-Show backtrace of NR stack frames for each traced function. This option enabled
-only if libunwind support was enabled at compile time.
-.TP
-.I \-x filter
+.IP "\-w, --where \fInr"
+Show backtrace of \fInr\fR stack frames for each traced function. This
+option enabled only if libunwind support was enabled at compile time.
+.IP "\-x \fIfilter"
 A qualifying expression which modifies which symbol table entry points
 to trace.  The format of the filter expression is described in the
 section \fBFILTER EXPRESSIONS\fR.  If more than one \-x option appears
 on the command line, the symbols that match any of them are traced.
 No entry points are traced if no \-x is given.
-.TP
-.I \-V, \-\-version
+.IP "\-V, \-\-version"
 Show the version number of ltrace and exit.
 
 .SH FILTER EXPRESSIONS
@@ -235,7 +245,8 @@ path name.
 
 The first rule may lack a sign, in which case \fB+\fR is assumed.  If,
 on the other hand, the first rule has a \fB-\fR sign, it is as if
-there was another rule \fB@*\fR in front of it.
+there was another rule \fB@\fR in front of it, which has the effect of
+tracing complement of given rule.
 
 The above rules are used to construct the set of traced symbols.  Each
 candidate symbol is passed through the chain of above rules.
