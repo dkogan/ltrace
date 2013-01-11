@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009,2010 Joe Damato
  * Copyright (C) 1998,1999,2002,2003,2004,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -86,27 +86,27 @@ usage(void) {
 	fprintf(stdout, "Usage: %s [option ...] [command [arg ...]]\n"
 		"Trace library calls of a given program.\n\n"
 		"  -a, --align=COLUMN  align return values in a secific column.\n"
-		"  -A ARRAYLEN         maximum number of array elements to print.\n"
+		"  -A MAXELTS          maximum number of array elements to print.\n"
 		"  -b, --no-signals    don't print signals.\n"
 		"  -c                  count time and calls, and report a summary on exit.\n"
 # ifdef USE_DEMANGLE
 		"  -C, --demangle      decode low-level symbol names into user-level names.\n"
 # endif
-		"  -D, --debug=LEVEL   enable debugging (see -Dh or --debug=help).\n"
+		"  -D, --debug=MASK    enable debugging (see -Dh or --debug=help).\n"
 		"  -Dh, --debug=help   show help on debugging.\n"
-		"  -e expr             modify which events to trace.\n"
+		"  -e FILTER           modify which library calls to trace.\n"
 		"  -f                  trace children (fork() and clone()).\n"
 		"  -F, --config=FILE   load alternate configuration file (may be repeated).\n"
 		"  -h, --help          display this help and exit.\n"
 		"  -i                  print instruction pointer at time of library call.\n"
-		"  -l, --library=FILE  only trace symbols implemented by this library.\n"
+		"  -l, --library=LIBRARY_PATTERN only trace symbols implemented by this library.\n"
 		"  -L                  do NOT display library calls.\n"
 		"  -n, --indent=NR     indent output by NR spaces for each call level nesting.\n"
-		"  -o, --output=FILE   write the trace output to that file.\n"
+		"  -o, --output=FILENAME write the trace output to file with given name.\n"
 		"  -p PID              attach to the process with the process ID pid.\n"
 		"  -r                  print relative timestamps.\n"
-		"  -s STRLEN           specify the maximum string size to print.\n"
-		"  -S                  display system calls.\n"
+		"  -s STRSIZE          specify the maximum string size to print.\n"
+		"  -S                  trace system calls as well as library calls.\n"
 		"  -t, -tt, -ttt       print absolute timestamps.\n"
 		"  -T                  show the time spent inside each call.\n"
 		"  -u USERNAME         run command with the userid, groupid of username.\n"
@@ -114,7 +114,7 @@ usage(void) {
 #if defined(HAVE_LIBUNWIND)
 		"  -w, --where=NR      print backtrace showing NR stack frames at most.\n"
 #endif /* defined(HAVE_LIBUNWIND) */
-		"  -x NAME             treat the global NAME like a library subroutine.\n"
+		"  -x FILTER           modify which static functions to trace.\n"
 		"\nReport bugs to ltrace-devel@lists.alioth.debian.org\n",
 		progname);
 }
