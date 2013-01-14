@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata
+ * Copyright (C) 2012,2013 Petr Machata
  * Copyright (C) 2006 Paul Gilliam
  * Copyright (C) 2002,2004 Juan Cespedes
  *
@@ -37,7 +37,7 @@
 #define ARCH_SUPPORTS_OPD
 #endif
 
-#define ARCH_HAVE_ATOMIC_SINGLESTEP
+#define ARCH_HAVE_SW_SINGLESTEP
 #define ARCH_HAVE_ADD_PLT_ENTRY
 #define ARCH_HAVE_TRANSLATE_ADDRESS
 #define ARCH_HAVE_DYNLINK_DONE

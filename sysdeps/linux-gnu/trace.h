@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -65,7 +65,7 @@ struct process_stopping_handler
 	struct breakpoint *breakpoint_being_enabled;
 
 	/* Artificial atomic skip breakpoint, if any needed.  */
-	void *atomic_skip_bp_addrs[2];
+	arch_addr_t sws_bp_addrs[2];
 
 	/* When all tasks are stopped, this callback gets called.  */
 	void (*on_all_stopped)(struct process_stopping_handler *);

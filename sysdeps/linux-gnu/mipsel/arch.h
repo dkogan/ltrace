@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata
  * Copyright (C) 2006 Eric Vaitl
  *
  * This program is free software; you can redistribute it and/or
@@ -43,7 +44,7 @@ struct arch_ltelf_data {
 #define ARCH_HAVE_GET_SYMINFO
 #define ARCH_HAVE_DYNLINK_DONE
 #define ARCH_HAVE_ADD_PLT_ENTRY
-#define ARCH_HAVE_ATOMIC_SINGLESTEP
+#define ARCH_HAVE_SW_SINGLESTEP
 #define ARCH_HAVE_SYMBOL_RET
 
 #define ARCH_HAVE_LIBRARY_SYMBOL_DATA

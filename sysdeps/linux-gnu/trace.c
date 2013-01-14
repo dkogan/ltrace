@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2007,2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2007,2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1998,2002,2003,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -540,19 +540,13 @@ all_stops_accountable(struct pid_set *pids)
 	return 1;
 }
 
-/* The protocol is: 0 for success, negative for failure, positive if
- * default singlestep is to be used.  */
-int arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
-			   int (*add_cb)(void *addr, void *data),
-			   void *add_cb_data);
-
-#ifndef ARCH_HAVE_ATOMIC_SINGLESTEP
-int
-arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
-		       int (*add_cb)(void *addr, void *data),
-		       void *add_cb_data)
+#ifndef ARCH_HAVE_SW_SINGLESTEP
+enum sw_singlestep_status
+arch_sw_singlestep(struct process *proc, struct breakpoint *bp,
+		   int (*add_cb)(arch_addr_t, struct sw_singlestep_data *),
+		   struct sw_singlestep_data *data)
 {
-	return 1;
+	return SWS_HW;
 }
 #endif
 
@@ -560,43 +554,46 @@ static Event *process_stopping_on_event(struct event_handler *super,
 					Event *event);
 
 static void
-remove_atomic_breakpoints(struct process *proc)
+remove_sw_breakpoints(struct process *proc)
 {
 	struct process_stopping_handler *self
 		= (void *)proc->leader->event_handler;
 	assert(self != NULL);
 	assert(self->super.on_event == process_stopping_on_event);
 
-	int ct = sizeof(self->atomic_skip_bp_addrs)
-		/ sizeof(*self->atomic_skip_bp_addrs);
+	int ct = sizeof(self->sws_bp_addrs) / sizeof(*self->sws_bp_addrs);
 	int i;
 	for (i = 0; i < ct; ++i)
-		if (self->atomic_skip_bp_addrs[i] != 0) {
-			delete_breakpoint(proc, self->atomic_skip_bp_addrs[i]);
-			self->atomic_skip_bp_addrs[i] = 0;
+		if (self->sws_bp_addrs[i] != 0) {
+			delete_breakpoint(proc, self->sws_bp_addrs[i]);
+			self->sws_bp_addrs[i] = 0;
 		}
 }
 
 static void
-atomic_singlestep_bp_on_hit(struct breakpoint *bp, struct process *proc)
+sw_singlestep_bp_on_hit(struct breakpoint *bp, struct process *proc)
 {
-	remove_atomic_breakpoints(proc);
+	remove_sw_breakpoints(proc);
 }
 
+struct sw_singlestep_data {
+	struct process_stopping_handler *self;
+};
+
 static int
-atomic_singlestep_add_bp(void *addr, void *data)
+sw_singlestep_add_bp(arch_addr_t addr, struct sw_singlestep_data *data)
 {
-	struct process_stopping_handler *self = data;
+	struct process_stopping_handler *self = data->self;
 	struct process *proc = self->task_enabling_breakpoint;
 
-	int ct = sizeof(self->atomic_skip_bp_addrs)
-		/ sizeof(*self->atomic_skip_bp_addrs);
+	int ct = sizeof(self->sws_bp_addrs)
+		/ sizeof(*self->sws_bp_addrs);
 	int i;
 	for (i = 0; i < ct; ++i)
-		if (self->atomic_skip_bp_addrs[i] == 0) {
-			self->atomic_skip_bp_addrs[i] = addr;
+		if (self->sws_bp_addrs[i] == 0) {
+			self->sws_bp_addrs[i] = addr;
 			static struct bp_callbacks cbs = {
-				.on_hit = atomic_singlestep_bp_on_hit,
+				.on_hit = sw_singlestep_bp_on_hit,
 			};
 			struct breakpoint *bp
 				= insert_breakpoint(proc, addr, NULL);
@@ -604,7 +601,7 @@ atomic_singlestep_add_bp(void *addr, void *data)
 			return 0;
 		}
 
-	assert(!"Too many atomic singlestep breakpoints!");
+	assert(!"Too many sw singlestep breakpoints!");
 	abort();
 }
 
@@ -613,9 +610,10 @@ singlestep(struct process_stopping_handler *self)
 {
 	struct process *proc = self->task_enabling_breakpoint;
 
-	int status = arch_atomic_singlestep(self->task_enabling_breakpoint,
-					    self->breakpoint_being_enabled,
-					    &atomic_singlestep_add_bp, self);
+	struct sw_singlestep_data data = { self };
+	int status = arch_sw_singlestep(self->task_enabling_breakpoint,
+					self->breakpoint_being_enabled,
+					&sw_singlestep_add_bp, &data);
 
 	/* Propagate failure and success.  */
 	if (status <= 0)
@@ -641,7 +639,7 @@ post_singlestep(struct process_stopping_handler *self,
 
 	struct process *proc = self->task_enabling_breakpoint;
 
-	remove_atomic_breakpoints(proc);
+	remove_sw_breakpoints(proc);
 	self->breakpoint_being_enabled = NULL;
 }
 

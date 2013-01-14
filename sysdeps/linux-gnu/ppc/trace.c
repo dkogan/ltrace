@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2010,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2010,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2011 Andreas Schwab
  * Copyright (C) 2002,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2008 Luis Machado, IBM Corporation
@@ -89,15 +89,15 @@ syscall_p(struct process *proc, int status, int *sysnum)
 /* In plt.h.  XXX make this official interface.  */
 int read_target_4(struct process *proc, arch_addr_t addr, uint32_t *lp);
 
-int
-arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
-		       int (*add_cb)(void *addr, void *data),
-		       void *add_cb_data)
+enum sw_singlestep_status
+arch_sw_singlestep(struct process *proc, struct breakpoint *sbp,
+		   int (*add_cb)(arch_addr_t, struct sw_singlestep_data *),
+		   struct sw_singlestep_data *add_cb_data)
 {
 	arch_addr_t ip = get_instruction_pointer(proc);
 	struct breakpoint *other = address2bpstruct(proc->leader, ip);
 
-	debug(1, "arch_atomic_singlestep pid=%d addr=%p %s(%p)",
+	debug(1, "arch_sw_singlestep pid=%d addr=%p %s(%p)",
 	      proc->pid, ip, breakpoint_name(sbp), sbp->addr);
 
 	/* If the original instruction was lwarx/ldarx, we can't
@@ -112,12 +112,12 @@ arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
 	} else if (read_target_4(proc, ip, &u.insn) < 0) {
 		fprintf(stderr, "couldn't read instruction at IP %p\n", ip);
 		/* Do the normal singlestep.  */
-		return 1;
+		return SWS_HW;
 	}
 
 	if ((u.insn & LWARX_MASK) != LWARX_INSTRUCTION
 	    && (u.insn & LWARX_MASK) != LDARX_INSTRUCTION)
-		return 1;
+		return SWS_HW;
 
 	debug(1, "singlestep over atomic block at %p", ip);
 
@@ -127,7 +127,7 @@ arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
 		addr += 4;
 		unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
 		if (l == (unsigned long)-1 && errno)
-			return -1;
+			return SWS_FAIL;
 		uint32_t insn;
 #ifdef __powerpc64__
 		insn = l >> 32;
@@ -142,7 +142,7 @@ arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
 			debug(1, "pid=%d, branch in atomic block from %p to %p",
 			      proc->pid, addr, branch_addr);
 			if (add_cb(branch_addr, add_cb_data) < 0)
-				return -1;
+				return SWS_FAIL;
 		}
 
 		/* Assume that the atomic sequence ends with a
@@ -159,18 +159,18 @@ arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
 		if (insn_count > 16) {
 			fprintf(stderr, "[%d] couldn't find end of atomic block"
 				" at %p\n", proc->pid, ip);
-			return -1;
+			return SWS_FAIL;
 		}
 	}
 
 	/* Put the breakpoint to the next instruction.  */
 	addr += 4;
 	if (add_cb(addr, add_cb_data) < 0)
-		return -1;
+		return SWS_FAIL;
 
 	debug(1, "PTRACE_CONT");
 	ptrace(PTRACE_CONT, proc->pid, 0, 0);
-	return 0;
+	return SWS_OK;
 }
 
 size_t

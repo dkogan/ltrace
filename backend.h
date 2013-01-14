@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -339,5 +339,35 @@ int arch_find_dl_debug(struct process *proc, arch_addr_t dyn_addr,
  * ARCH_HAVE_FETCH_PACK, the following callbacks have to be
  * implemented: arch_fetch_param_pack_start,
  * arch_fetch_param_pack_end.  See fetch.h for details.  */
+
+enum sw_singlestep_status {
+	SWS_FAIL,
+	SWS_OK,
+	SWS_HW,
+};
+struct sw_singlestep_data;
+
+/* The following callback has to be implemented in backend if arch.h
+ * defines ARCH_HAVE_SW_SINGLESTEP.
+ *
+ * This is called before the OS backend requests hardware singlestep.
+ * arch_sw_singlestep should consider whether a singlestep needs to be
+ * done in software.  If not, it returns SWS_HW.  Otherwise it needs
+ * to add one or several breakpoints by calling ADD_CB.  When it is
+ * done, it continues the process as appropriate, and answers either
+ * SWS_OK, or SWS_FAIL, depending on how it went.
+ *
+ * PROC is the process that should perform the singlestep, BP the
+ * breakpoint that we are singlestepping over.  ADD_CB is a callback
+ * to request adding breakpoints that should trap the process after
+ * it's continued.  The arguments to ADD_CB are the address where the
+ * breakpoint should be added, and DATA.  ADD_CB returns 0 on success
+ * or a negative value on failure.  It is expected that
+ * arch_sw_singlestep returns SWS_FAIL if ADD_CB returns error.  */
+enum sw_singlestep_status arch_sw_singlestep(struct process *proc,
+					     struct breakpoint *bp,
+					     int (*add_cb)(arch_addr_t addr,
+						   struct sw_singlestep_data *),
+					     struct sw_singlestep_data *data);
 
 #endif /* BACKEND_H */

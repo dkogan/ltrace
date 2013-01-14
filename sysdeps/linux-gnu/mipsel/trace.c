@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2012 Edgar E. Iglesias, Axis Communications
  * Copyright (C) 2010 Arnaud Patard, Mandriva SA
  * Copyright (C) 2008,2009 Juan Cespedes
@@ -263,10 +264,10 @@ fail:
 	return 0;
 }
 
-int
-arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
-		       int (*add_cb)(void *addr, void *data),
-		       void *add_cb_data)
+enum sw_singlestep_status
+arch_sw_singlestep(struct process *proc, struct breakpoint *bp,
+		   int (*add_cb)(arch_addr_t, struct sw_singlestep_data *),
+		   struct sw_singlestep_data *add_cb_data)
 {
 	uint32_t pc = (uint32_t) get_instruction_pointer(proc);
 	uint32_t newpcs[2];
@@ -283,11 +284,11 @@ arch_atomic_singlestep(struct process *proc, struct breakpoint *sbp,
 		}
 
 		if (add_cb(baddr, add_cb_data) < 0)
-			return -1;
+			return SWS_FAIL;
 	}
 
 	ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
-	return 0;
+	return SWS_OK;
 }
 
 /**
