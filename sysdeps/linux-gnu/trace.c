@@ -611,21 +611,25 @@ singlestep(struct process_stopping_handler *self)
 	struct process *proc = self->task_enabling_breakpoint;
 
 	struct sw_singlestep_data data = { self };
-	int status = arch_sw_singlestep(self->task_enabling_breakpoint,
-					self->breakpoint_being_enabled,
-					&sw_singlestep_add_bp, &data);
+	switch (arch_sw_singlestep(self->task_enabling_breakpoint,
+				   self->breakpoint_being_enabled,
+				   &sw_singlestep_add_bp, &data)) {
+	case SWS_HW:
+		/* Otherwise do the default action: singlestep.  */
+		debug(1, "PTRACE_SINGLESTEP");
+		if (ptrace(PTRACE_SINGLESTEP, proc->pid, 0, 0)) {
+			perror("PTRACE_SINGLESTEP");
+			return -1;
+		}
+		return 0;
 
-	/* Propagate failure and success.  */
-	if (status <= 0)
-		return status;
+	case SWS_OK:
+		return 0;
 
-	/* Otherwise do the default action: singlestep.  */
-	debug(1, "PTRACE_SINGLESTEP");
-	if (ptrace(PTRACE_SINGLESTEP, proc->pid, 0, 0)) {
-		perror("PTRACE_SINGLESTEP");
+	case SWS_FAIL:
 		return -1;
 	}
-	return 0;
+	abort();
 }
 
 static void
