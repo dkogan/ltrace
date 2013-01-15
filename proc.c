@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1998,2009 Juan Cespedes
  *
@@ -1033,3 +1033,25 @@ proc_each_symbol(struct process *proc, struct library_symbol *start_after,
 
 	return NULL;
 }
+
+#define DEF_READER(NAME, SIZE)						\
+	int								\
+	NAME(struct process *proc, arch_addr_t addr,			\
+	     uint##SIZE##_t *lp)					\
+	{								\
+		union {							\
+			uint##SIZE##_t dst;				\
+			char buf[0];					\
+		} u;							\
+		if (umovebytes(proc, addr, &u.buf, sizeof(u.dst))	\
+		    != sizeof(u.dst))					\
+			return -1;					\
+		*lp = u.dst;						\
+		return 0;						\
+	}
+
+DEF_READER(proc_read_16, 16)
+DEF_READER(proc_read_32, 32)
+DEF_READER(proc_read_64, 64)
+
+#undef DEF_READER

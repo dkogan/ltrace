@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2010,2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2010,2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1998,2001,2008,2009 Juan Cespedes
  *
@@ -26,6 +26,7 @@
 #include "config.h"
 
 #include <sys/time.h>
+#include <stdint.h>
 
 #if defined(HAVE_LIBUNWIND)
 # include <libunwind.h>
@@ -252,5 +253,13 @@ struct library_symbol *proc_each_symbol
 	(struct process *proc, struct library_symbol *start_after,
 	 enum callback_status (*cb)(struct library_symbol *, void *),
 	 void *data);
+
+/* Read 16, 32 or 64-bit quantity located at ADDR in PROC.  The
+ * resulting value is stored in *LP.  0 is returned on success or a
+ * negative value on failure.  This uses umovebytes under the hood
+ * (see backend.h).  */
+int proc_read_16(struct process *proc, arch_addr_t addr, uint16_t *lp);
+int proc_read_32(struct process *proc, arch_addr_t addr, uint32_t *lp);
+int proc_read_64(struct process *proc, arch_addr_t addr, uint64_t *lp);
 
 #endif /* _PROC_H_ */

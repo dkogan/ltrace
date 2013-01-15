@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Paul Gilliam
  *
@@ -125,51 +125,6 @@ host_powerpc64()
 #endif
 }
 
-int
-read_target_4(struct process *proc, arch_addr_t addr, uint32_t *lp)
-{
-	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
-	if (l == -1UL && errno)
-		return -1;
-#ifdef __powerpc64__
-	l >>= 32;
-#endif
-	*lp = l;
-	return 0;
-}
-
-static int
-read_target_8(struct process *proc, arch_addr_t addr, uint64_t *lp)
-{
-	unsigned long l = ptrace(PTRACE_PEEKTEXT, proc->pid, addr, 0);
-	if (l == -1UL && errno)
-		return -1;
-	if (host_powerpc64()) {
-		*lp = l;
-	} else {
-		unsigned long l2 = ptrace(PTRACE_PEEKTEXT, proc->pid,
-					  addr + 4, 0);
-		if (l2 == -1UL && errno)
-			return -1;
-		*lp = ((uint64_t)l << 32) | l2;
-	}
-	return 0;
-}
-
-int
-read_target_long(struct process *proc, arch_addr_t addr, uint64_t *lp)
-{
-	if (proc->e_machine == EM_PPC) {
-		uint32_t w;
-		int ret = read_target_4(proc, addr, &w);
-		if (ret >= 0)
-			*lp = (uint64_t)w;
-		return ret;
-	} else {
-		return read_target_8(proc, addr, lp);
-	}
-}
-
 static void
 mark_as_resolved(struct library_symbol *libsym, GElf_Addr value)
 {
@@ -184,8 +139,8 @@ arch_dynlink_done(struct process *proc)
 	struct library_symbol *libsym = NULL;
 	while ((libsym = proc_each_symbol(proc, libsym,
 					  library_symbol_delayed_cb, NULL))) {
-		if (read_target_8(proc, libsym->enter_addr,
-				  &libsym->arch.resolved_value) < 0) {
+		if (proc_read_64(proc, libsym->enter_addr,
+				 &libsym->arch.resolved_value) < 0) {
 			fprintf(stderr,
 				"couldn't read PLT value for %s(%p): %s\n",
 				libsym->name, libsym->enter_addr,
@@ -263,7 +218,7 @@ arch_translate_address_dyn(struct process *proc,
 {
 	if (proc->e_machine == EM_PPC64) {
 		uint64_t value;
-		if (read_target_8(proc, addr, &value) < 0) {
+		if (proc_read_64(proc, addr, &value) < 0) {
 			fprintf(stderr,
 				"dynamic .opd translation of %p: %s\n",
 				addr, strerror(errno));
@@ -568,7 +523,7 @@ read_plt_slot_value(struct process *proc, GElf_Addr addr, GElf_Addr *valp)
 	 * either can change.  */
 	uint64_t l;
 	/* XXX double cast.  */
-	if (read_target_8(proc, (arch_addr_t)(uintptr_t)addr, &l) < 0) {
+	if (proc_read_64(proc, (arch_addr_t)(uintptr_t)addr, &l) < 0) {
 		fprintf(stderr, "ptrace .plt slot value @%#" PRIx64": %s\n",
 			addr, strerror(errno));
 		return -1;

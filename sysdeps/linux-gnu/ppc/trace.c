@@ -86,9 +86,6 @@ syscall_p(struct process *proc, int status, int *sysnum)
 
 /* The atomic skip code is mostly taken from GDB.  */
 
-/* In plt.h.  XXX make this official interface.  */
-int read_target_4(struct process *proc, arch_addr_t addr, uint32_t *lp);
-
 enum sw_singlestep_status
 arch_sw_singlestep(struct process *proc, struct breakpoint *sbp,
 		   int (*add_cb)(arch_addr_t, struct sw_singlestep_data *),
@@ -109,7 +106,7 @@ arch_sw_singlestep(struct process *proc, struct breakpoint *sbp,
 	} u;
 	if (other != NULL) {
 		memcpy(u.buf, sbp->orig_value, BREAKPOINT_LENGTH);
-	} else if (read_target_4(proc, ip, &u.insn) < 0) {
+	} else if (proc_read_32(proc, ip, &u.insn) < 0) {
 		fprintf(stderr, "couldn't read instruction at IP %p\n", ip);
 		/* Do the normal singlestep.  */
 		return SWS_HW;
