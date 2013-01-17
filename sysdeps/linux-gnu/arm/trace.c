@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -148,4 +148,67 @@ gimme_arg(enum tof type, struct process *proc, int arg_num,
 	}
 
 	return 0;
+}
+
+static arch_addr_t
+arm_branch_dest(const arch_addr_t pc, const uint32_t insn)
+{
+	/* Bits 0-23 are signed immediate value.  */
+	return pc + ((((insn & 0xffffff) ^ 0x800000) - 0x800000) << 2) + 8;
+}
+
+static int
+get_next_pcs(struct process *proc,
+	     const arch_addr_t pc, arch_addr_t next_pcs[2])
+{
+	uint32_t insn;
+	if (proc_read_32(proc, pc, &insn) < 0)
+		return -1;
+
+	/* In theory, we sometimes don't even need to add any
+	 * breakpoints at all.  If the conditional bits of the
+	 * instruction indicate that it should not be taken, then we
+	 * can just skip it altogether without bothering.  We could
+	 * also emulate the instruction under the breakpoint.  GDB
+	 * does both.
+	 *
+	 * Here, we make it as simple as possible (though We Accept
+	 * Patches).  */
+	int nr = 0;
+
+	/* ARM can branch either relatively by using a branch
+	 * instruction, or absolutely, by doing arbitrary arithmetic
+	 * with PC as the destination.  XXX implement the latter.  */
+	const int is_branch = ((insn >> 24) & 0x0e) == 0x0a;
+	const int is_always = ((insn >> 24) & 0xf0) == 0xe0;
+	if (is_branch) {
+		next_pcs[nr++] = arm_branch_dest(pc, insn);
+		if (is_always)
+			return 0;
+	}
+
+	/* Otherwise take the next instruction.  */
+	next_pcs[nr++] = pc + 4;
+	return 0;
+}
+
+enum sw_singlestep_status
+arch_sw_singlestep(struct process *proc, struct breakpoint *sbp,
+		   int (*add_cb)(arch_addr_t, struct sw_singlestep_data *),
+		   struct sw_singlestep_data *add_cb_data)
+{
+	arch_addr_t pc = get_instruction_pointer(proc);
+	arch_addr_t next_pcs[2] = {};
+	if (get_next_pcs(proc, pc, next_pcs) < 0)
+		return SWS_FAIL;
+
+	int i;
+	for (i = 0; i < 2; ++i) {
+		if (next_pcs[i] != 0 && add_cb(next_pcs[i], add_cb_data) < 0)
+			return SWS_FAIL;
+	}
+
+	debug(1, "PTRACE_CONT");
+	ptrace(PTRACE_CONT, proc->pid, 0, 0);
+	return SWS_OK;
 }

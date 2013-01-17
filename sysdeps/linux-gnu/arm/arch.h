@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,2004,2008 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -31,6 +32,7 @@
 #define LT_ELFCLASS	ELFCLASS32
 #define LT_ELF_MACHINE	EM_ARM
 
+#define ARCH_HAVE_SW_SINGLESTEP
 #define ARCH_HAVE_BREAKPOINT_DATA
 struct arch_breakpoint_data {
 	int thumb_mode;
