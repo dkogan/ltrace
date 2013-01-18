@@ -1,4 +1,5 @@
 # This file is part of ltrace.
+# Copyright (C) 2013 Petr Machata, Red Hat Inc.
 # Copyright (C) 2010 Marc Kleine-Budde, Pengutronix
 #
 # This program is free software; you can redistribute it and/or
@@ -16,21 +17,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-noinst_LTLIBRARIES = \
-	../libcpu.la
+noinst_LTLIBRARIES = ../libcpu.la
 
-___libcpu_la_SOURCES = \
-	breakpoint.c \
-	plt.c \
-	regs.c \
-	trace.c
+___libcpu_la_SOURCES = breakpoint.c plt.c regs.c trace.c
 
-noinst_HEADERS = \
-	arch.h \
-	arch_syscallent.h \
-	ptrace.h \
-	signalent.h \
-	syscallent.h
+noinst_HEADERS = arch.h arch_syscallent.h ptrace.h regs.h signalent.h	\
+	 syscallent.h
 
-MAINTAINERCLEANFILES = \
-	Makefile.in
+MAINTAINERCLEANFILES = Makefile.in

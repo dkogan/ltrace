@@ -33,6 +33,7 @@
 #include "common.h"
 #include "output.h"
 #include "ptrace.h"
+#include "regs.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -46,6 +47,7 @@
 #define off_r7 ((void *)28)
 #define off_ip ((void *)48)
 #define off_pc ((void *)60)
+#define off_cpsr ((void *)64)
 
 void
 get_arch_dep(struct process *proc)
@@ -157,12 +159,21 @@ arm_branch_dest(const arch_addr_t pc, const uint32_t insn)
 	return pc + ((((insn & 0xffffff) ^ 0x800000) - 0x800000) << 2) + 8;
 }
 
+/* Addresses for calling Thumb functions have the bit 0 set.
+   Here are some macros to test, set, or clear bit 0 of addresses.  */
+/* XXX double cast */
+#define IS_THUMB_ADDR(addr)	((uintptr_t)(addr) & 1)
+#define MAKE_THUMB_ADDR(addr)	((arch_addr_t)((uintptr_t)(addr) | 1))
+#define UNMAKE_THUMB_ADDR(addr) ((arch_addr_t)((uintptr_t)(addr) & ~1))
+
 static int
 get_next_pcs(struct process *proc,
 	     const arch_addr_t pc, arch_addr_t next_pcs[2])
 {
-	uint32_t insn;
-	if (proc_read_32(proc, pc, &insn) < 0)
+	uint32_t this_instr;
+	uint32_t status;
+	if (proc_read_32(proc, pc, &this_instr) < 0
+	    || arm_get_register(proc, ARM_REG_CPSR, &status) < 0)
 		return -1;
 
 	/* In theory, we sometimes don't even need to add any
@@ -178,17 +189,194 @@ get_next_pcs(struct process *proc,
 
 	/* ARM can branch either relatively by using a branch
 	 * instruction, or absolutely, by doing arbitrary arithmetic
-	 * with PC as the destination.  XXX implement the latter.  */
-	const int is_branch = ((insn >> 24) & 0x0e) == 0x0a;
-	const int is_always = ((insn >> 24) & 0xf0) == 0xe0;
-	if (is_branch) {
-		next_pcs[nr++] = arm_branch_dest(pc, insn);
-		if (is_always)
-			return 0;
-	}
+	 * with PC as the destination.  */
+	enum {
+		COND_ALWAYS = 0xe,
+		COND_NV = 0xf,
+		FLAG_C = 0x20000000,
+	};
+	const unsigned cond = BITS(this_instr, 28, 31);
+	const unsigned opcode = BITS(this_instr, 24, 27);
+
+	if (cond == COND_NV)
+		switch (opcode) {
+			arch_addr_t addr;
+		case 0xa:
+		case 0xb:
+			/* Branch with Link and change to Thumb.  */
+			/* XXX double cast.  */
+			addr = (arch_addr_t)
+				((uint32_t)arm_branch_dest(pc, this_instr)
+				 | (((this_instr >> 24) & 0x1) << 1));
+			next_pcs[nr++] = MAKE_THUMB_ADDR(addr);
+			break;
+		}
+	else
+		switch (opcode) {
+			uint32_t operand1, operand2, result = 0;
+		case 0x0:
+		case 0x1:			/* data processing */
+		case 0x2:
+		case 0x3:
+			if (BITS(this_instr, 12, 15) != ARM_REG_PC)
+				break;
+
+			if (BITS(this_instr, 22, 25) == 0
+			    && BITS(this_instr, 4, 7) == 9) {	/* multiply */
+			invalid:
+				fprintf(stderr,
+				"Invalid update to pc in instruction.\n");
+				break;
+			}
+
+			/* BX <reg>, BLX <reg> */
+			if (BITS(this_instr, 4, 27) == 0x12fff1
+			    || BITS(this_instr, 4, 27) == 0x12fff3) {
+				enum arm_register reg = BITS(this_instr, 0, 3);
+				/* XXX double cast: no need to go
+				 * through tmp.  */
+				uint32_t tmp;
+				if (arm_get_register_offpc(proc, reg, &tmp) < 0)
+					return -1;
+				next_pcs[nr++] = (arch_addr_t)tmp;
+				return 0;
+			}
+
+			/* Multiply into PC.  */
+			if (arm_get_register_offpc
+			    (proc, BITS(this_instr, 16, 19), &operand1) < 0)
+				return -1;
+
+			int c = (status & FLAG_C) ? 1 : 0;
+			if (BIT(this_instr, 25)) {
+				uint32_t immval = BITS(this_instr, 0, 7);
+				uint32_t rotate = 2 * BITS(this_instr, 8, 11);
+				operand2 = (((immval >> rotate)
+					     | (immval << (32 - rotate)))
+					    & 0xffffffff);
+			} else {
+				/* operand 2 is a shifted register.  */
+				if (arm_get_shifted_register
+				    (proc, this_instr, c, pc, &operand2) < 0)
+					return -1;
+			}
+
+			switch (BITS(this_instr, 21, 24)) {
+			case 0x0:	/*and */
+				result = operand1 & operand2;
+				break;
+
+			case 0x1:	/*eor */
+				result = operand1 ^ operand2;
+				break;
+
+			case 0x2:	/*sub */
+				result = operand1 - operand2;
+				break;
+
+			case 0x3:	/*rsb */
+				result = operand2 - operand1;
+				break;
+
+			case 0x4:	/*add */
+				result = operand1 + operand2;
+				break;
+
+			case 0x5:	/*adc */
+				result = operand1 + operand2 + c;
+				break;
+
+			case 0x6:	/*sbc */
+				result = operand1 - operand2 + c;
+				break;
+
+			case 0x7:	/*rsc */
+				result = operand2 - operand1 + c;
+				break;
+
+			case 0x8:
+			case 0x9:
+			case 0xa:
+			case 0xb:	/* tst, teq, cmp, cmn */
+				/* Only take the default branch.  */
+				result = 0;
+				break;
+
+			case 0xc:	/*orr */
+				result = operand1 | operand2;
+				break;
+
+			case 0xd:	/*mov */
+				/* Always step into a function.  */
+				result = operand2;
+				break;
+
+			case 0xe:	/*bic */
+				result = operand1 & ~operand2;
+				break;
+
+			case 0xf:	/*mvn */
+				result = ~operand2;
+				break;
+			}
+
+			/* XXX double cast */
+			next_pcs[nr++] = (arch_addr_t)result;
+			break;
+
+		case 0x4:
+		case 0x5:		/* data transfer */
+		case 0x6:
+		case 0x7:
+			/* Ignore if insn isn't load or Rn not PC.  */
+			if (!BIT(this_instr, 20)
+			    || BITS(this_instr, 12, 15) != ARM_REG_PC)
+				break;
+
+			if (BIT(this_instr, 22))
+				goto invalid;
+
+			/* byte write to PC */
+			uint32_t base;
+			if (arm_get_register_offpc
+			    (proc, BITS(this_instr, 16, 19), &base) < 0)
+				return -1;
+
+			if (BIT(this_instr, 24)) {
+				/* pre-indexed */
+				int c = (status & FLAG_C) ? 1 : 0;
+				uint32_t offset;
+				if (BIT(this_instr, 25)) {
+					if (arm_get_shifted_register
+					    (proc, this_instr, c,
+					     pc, &offset) < 0)
+						return -1;
+				} else {
+					offset = BITS(this_instr, 0, 11);
+				}
+
+				if (BIT(this_instr, 23))
+					base += offset;
+				else
+					base -= offset;
+			}
+
+			/* XXX two double casts.  */
+			uint32_t next;
+			if (proc_read_32(proc, (arch_addr_t)base, &next) < 0)
+				return -1;
+			next_pcs[nr++] = (arch_addr_t)next;
+			break;
+
+		case 0xb:		/* branch & link */
+		case 0xa:		/* branch */
+			next_pcs[nr++] = arm_branch_dest(pc, this_instr);
+			break;
+		}
 
 	/* Otherwise take the next instruction.  */
-	next_pcs[nr++] = pc + 4;
+	if (cond != COND_ALWAYS || nr == 0)
+		next_pcs[nr++] = pc + 4;
 	return 0;
 }
 
