@@ -23,6 +23,7 @@
 #define BITS(obj,st,fn) (((obj) >> (st)) & SUBMASK((fn) - (st)))
 
 enum arm_register {
+	ARM_REG_SP = 13,
 	ARM_REG_PC = 15,
 	ARM_REG_CPSR = 16,
 };

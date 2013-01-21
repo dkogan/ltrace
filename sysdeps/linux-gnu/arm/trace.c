@@ -29,8 +29,9 @@
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
 
-#include "proc.h"
+#include "bits.h"
 #include "common.h"
+#include "proc.h"
 #include "output.h"
 #include "ptrace.h"
 #include "regs.h"
@@ -167,8 +168,8 @@ arm_branch_dest(const arch_addr_t pc, const uint32_t insn)
 #define UNMAKE_THUMB_ADDR(addr) ((arch_addr_t)((uintptr_t)(addr) & ~1))
 
 static int
-get_next_pcs(struct process *proc,
-	     const arch_addr_t pc, arch_addr_t next_pcs[2])
+arm_get_next_pcs(struct process *proc,
+		 const arch_addr_t pc, arch_addr_t next_pcs[2])
 {
 	uint32_t this_instr;
 	uint32_t status;
@@ -420,19 +421,67 @@ get_next_pcs(struct process *proc,
 	return 0;
 }
 
+static int
+thumb_get_next_pcs(struct process *proc,
+		   const arch_addr_t pc, arch_addr_t next_pcs[2])
+{
+	uint16_t inst1;
+	uint32_t status;
+	if (proc_read_16(proc, pc, &inst1) < 0
+	    || arm_get_register(proc, ARM_REG_CPSR, &status) < 0)
+		return -1;
+
+	int nr = 0;
+
+	/* We currently ignore Thumb-2 conditional execution support
+	 * (the IT instruction).  No branches are allowed in IT block,
+	 * and it's not legal to jump in the middle of it, so unless
+	 * we need to singlestep through large swaths of code, which
+	 * we currently don't, we can ignore them.  */
+
+	if ((inst1 & 0xff00) == 0xbd00)	{ /* pop {rlist, pc} */
+		/* Fetch the saved PC from the stack.  It's stored
+		 * above all of the other registers.  */
+		unsigned offset = bitcount(BITS(inst1, 0, 7)) * 4;
+		uint32_t sp;
+		uint32_t next;
+		/* XXX two double casts */
+		if (arm_get_register(proc, ARM_REG_SP, &sp) < 0
+		    || proc_read_32(proc, (arch_addr_t)(sp + offset),
+				    &next) < 0)
+			return -1;
+		next_pcs[nr++] = (arch_addr_t)next;
+	}
+
+	/* Otherwise take the next instruction.  */
+	if (nr == 0)
+		next_pcs[nr++] = pc + 2;
+	return 0;
+}
+
 enum sw_singlestep_status
 arch_sw_singlestep(struct process *proc, struct breakpoint *sbp,
 		   int (*add_cb)(arch_addr_t, struct sw_singlestep_data *),
 		   struct sw_singlestep_data *add_cb_data)
 {
-	arch_addr_t pc = get_instruction_pointer(proc);
+	const arch_addr_t pc = get_instruction_pointer(proc);
+
+	uint32_t cpsr;
+	if (arm_get_register(proc, ARM_REG_CPSR, &cpsr) < 0)
+		return SWS_FAIL;
+
+	const unsigned thumb_p = BIT(cpsr, 5);
 	arch_addr_t next_pcs[2] = {};
-	if (get_next_pcs(proc, pc, next_pcs) < 0)
+	if ((thumb_p ? &thumb_get_next_pcs
+	     : &arm_get_next_pcs)(proc, pc, next_pcs) < 0)
 		return SWS_FAIL;
 
 	int i;
 	for (i = 0; i < 2; ++i) {
-		if (next_pcs[i] != 0 && add_cb(next_pcs[i], add_cb_data) < 0)
+		/* XXX double cast.  */
+		arch_addr_t target
+			= (arch_addr_t)(((uintptr_t)next_pcs[i]) | thumb_p);
+		if (next_pcs[i] != 0 && add_cb(target, add_cb_data) < 0)
 			return SWS_FAIL;
 	}
 
