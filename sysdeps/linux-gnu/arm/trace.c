@@ -180,8 +180,7 @@ get_next_pcs(struct process *proc,
 	 * breakpoints at all.  If the conditional bits of the
 	 * instruction indicate that it should not be taken, then we
 	 * can just skip it altogether without bothering.  We could
-	 * also emulate the instruction under the breakpoint.  GDB
-	 * does both.
+	 * also emulate the instruction under the breakpoint.
 	 *
 	 * Here, we make it as simple as possible (though We Accept
 	 * Patches).  */
@@ -368,9 +367,50 @@ get_next_pcs(struct process *proc,
 			next_pcs[nr++] = (arch_addr_t)next;
 			break;
 
+		case 0x8:
+		case 0x9:		/* block transfer */
+			if (!BIT(this_instr, 20))
+				break;
+			/* LDM */
+			if (BIT(this_instr, 15)) {
+				/* Loading pc.  */
+				int offset = 0;
+				enum arm_register rn = BITS(this_instr, 16, 19);
+				uint32_t rn_val;
+				if (arm_get_register(proc, rn, &rn_val) < 0)
+					return -1;
+
+				int pre = BIT(this_instr, 24);
+				if (BIT(this_instr, 23)) {
+					/* Bit U = up.  */
+					unsigned reglist
+						= BITS(this_instr, 0, 14);
+					offset = bitcount(reglist) * 4;
+					if (pre)
+						offset += 4;
+				} else if (pre) {
+					offset = -4;
+				}
+
+				/* XXX double cast.  */
+				arch_addr_t addr
+					= (arch_addr_t)(rn_val + offset);
+				uint32_t next;
+				if (proc_read_32(proc, addr, &next) < 0)
+					return -1;
+				next_pcs[nr++] = (arch_addr_t)next;
+			}
+			break;
+
 		case 0xb:		/* branch & link */
 		case 0xa:		/* branch */
 			next_pcs[nr++] = arm_branch_dest(pc, this_instr);
+			break;
+
+		case 0xc:
+		case 0xd:
+		case 0xe:		/* coproc ops */
+		case 0xf:		/* SWI */
 			break;
 		}
 
