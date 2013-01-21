@@ -64,8 +64,8 @@ struct process_stopping_handler
 	/* The pointer being re-enabled.  */
 	struct breakpoint *breakpoint_being_enabled;
 
-	/* Artificial atomic skip breakpoint, if any needed.  */
-	arch_addr_t sws_bp_addrs[2];
+	/* Software singlestep breakpoints, if any needed.  */
+	struct breakpoint *sws_bps[2];
 
 	/* When all tasks are stopped, this callback gets called.  */
 	void (*on_all_stopped)(struct process_stopping_handler *);

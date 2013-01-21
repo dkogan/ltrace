@@ -563,12 +563,12 @@ remove_sw_breakpoints(struct process *proc)
 	assert(self != NULL);
 	assert(self->super.on_event == process_stopping_on_event);
 
-	int ct = sizeof(self->sws_bp_addrs) / sizeof(*self->sws_bp_addrs);
+	int ct = sizeof(self->sws_bps) / sizeof(*self->sws_bps);
 	int i;
 	for (i = 0; i < ct; ++i)
-		if (self->sws_bp_addrs[i] != 0) {
-			delete_breakpoint(proc, self->sws_bp_addrs[i]);
-			self->sws_bp_addrs[i] = 0;
+		if (self->sws_bps[i] != NULL) {
+			delete_breakpoint(proc, self->sws_bps[i]->addr);
+			self->sws_bps[i] = NULL;
 		}
 }
 
@@ -588,18 +588,17 @@ sw_singlestep_add_bp(arch_addr_t addr, struct sw_singlestep_data *data)
 	struct process_stopping_handler *self = data->self;
 	struct process *proc = self->task_enabling_breakpoint;
 
-	int ct = sizeof(self->sws_bp_addrs)
-		/ sizeof(*self->sws_bp_addrs);
+	int ct = sizeof(self->sws_bps) / sizeof(*self->sws_bps);
 	int i;
 	for (i = 0; i < ct; ++i)
-		if (self->sws_bp_addrs[i] == 0) {
-			self->sws_bp_addrs[i] = addr;
+		if (self->sws_bps[i] == NULL) {
 			static struct bp_callbacks cbs = {
 				.on_hit = sw_singlestep_bp_on_hit,
 			};
 			struct breakpoint *bp
 				= insert_breakpoint(proc, addr, NULL);
 			breakpoint_set_callbacks(bp, &cbs);
+			self->sws_bps[i] = bp;
 			return 0;
 		}
 
@@ -610,7 +609,9 @@ sw_singlestep_add_bp(arch_addr_t addr, struct sw_singlestep_data *data)
 static int
 singlestep(struct process_stopping_handler *self)
 {
-	struct process *proc = self->task_enabling_breakpoint;
+	size_t i;
+	for (i = 0; i < sizeof(self->sws_bps) / sizeof(*self->sws_bps); ++i)
+		self->sws_bps[i] = NULL;
 
 	struct sw_singlestep_data data = { self };
 	switch (arch_sw_singlestep(self->task_enabling_breakpoint,
@@ -619,7 +620,8 @@ singlestep(struct process_stopping_handler *self)
 	case SWS_HW:
 		/* Otherwise do the default action: singlestep.  */
 		debug(1, "PTRACE_SINGLESTEP");
-		if (ptrace(PTRACE_SINGLESTEP, proc->pid, 0, 0)) {
+		if (ptrace(PTRACE_SINGLESTEP,
+			   self->task_enabling_breakpoint->pid, 0, 0)) {
 			perror("PTRACE_SINGLESTEP");
 			return -1;
 		}
