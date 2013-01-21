@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "bits.h"
 #include "proc.h"
 #include "lens_default.h"
 #include "value.h"
@@ -606,15 +607,6 @@ out_bits(FILE *stream, size_t low, size_t high)
 		return fprintf(stream, "%zd", low);
 	else
 		return fprintf(stream, "%zd-%zd", low, high);
-}
-
-static unsigned
-bitcount(unsigned u)
-{
-	int c = 0;
-	for (; u > 0; u &= u - 1)
-		c++;
-	return c;
 }
 
 static int

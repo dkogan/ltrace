@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2012 Petr Machata, Red Hat Inc.
+# Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
 # Copyright (C) 2010 Marc Kleine-Budde, Pengutronix
 # Copyright (C) 2010 Zachary T Welch, CodeSourcery
 #
@@ -28,7 +28,7 @@ SUBDIRS = \
 noinst_LTLIBRARIES = \
 	libltrace.la
 
-libltrace_la_SOURCES = breakpoints.c debug.c demangle.c dict.c		\
+libltrace_la_SOURCES = bits.c breakpoints.c debug.c demangle.c dict.c	\
 	ltrace-elf.c execute_program.c handle_event.c libltrace.c	\
 	options.c output.c proc.c read_config_file.c summary.c		\
 	library.c filter.c glob.c type.c value.c value_dict.c expr.c	\
@@ -52,12 +52,12 @@ ltrace_SOURCES = \
 ltrace_LDADD = \
 	libltrace.la
 
-noinst_HEADERS = backend.h breakpoint.h common.h debug.h defs.h		\
-	demangle.h dict.h forward.h ltrace-elf.h ltrace.h options.h	\
-	output.h proc.h read_config_file.h library.h filter.h glob.h	\
-	vect.h type.h value.h value_dict.h callback.h expr.h fetch.h	\
-	vect.h param.h printf.h zero.h lens.h lens_default.h		\
-	lens_enum.h memstream.h prototype.h
+noinst_HEADERS = bits.h backend.h breakpoint.h common.h debug.h		\
+	defs.h demangle.h dict.h forward.h ltrace-elf.h ltrace.h	\
+	options.h output.h proc.h read_config_file.h library.h		\
+	filter.h glob.h vect.h type.h value.h value_dict.h callback.h	\
+	expr.h fetch.h vect.h param.h printf.h zero.h lens.h		\
+	lens_default.h lens_enum.h memstream.h prototype.h
 
 dist_man1_MANS = ltrace.1
 dist_man5_MANS = ltrace.conf.5
