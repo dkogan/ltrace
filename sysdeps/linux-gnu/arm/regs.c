@@ -47,7 +47,7 @@ int
 arm_get_register(struct process *proc, enum arm_register reg, uint32_t *lp)
 {
 	errno = 0;
-	long l = ptrace(PTRACE_PEEKUSER, proc->pid, reg * 4L, 0);
+	long l = ptrace(PTRACE_PEEKUSER, proc->pid, (void *)(reg * 4L), 0);
 	if (l == -1 && errno != 0)
 		return -1;
 	*lp = (uint32_t)l;
