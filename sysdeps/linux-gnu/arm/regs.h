@@ -21,9 +21,12 @@
 #define SUBMASK(x) ((1L << ((x) + 1)) - 1)
 #define BIT(obj,st) (((obj) >> (st)) & 1)
 #define BITS(obj,st,fn) (((obj) >> (st)) & SUBMASK((fn) - (st)))
+#define SBITS(obj,st,fn) \
+	((long) (BITS(obj,st,fn) | ((long) BIT(obj,fn) * ~ SUBMASK(fn - st))))
 
 enum arm_register {
 	ARM_REG_SP = 13,
+	ARM_REG_LR = 14,
 	ARM_REG_PC = 15,
 	ARM_REG_CPSR = 16,
 };

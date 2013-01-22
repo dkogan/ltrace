@@ -167,6 +167,12 @@ arm_branch_dest(const arch_addr_t pc, const uint32_t insn)
 #define MAKE_THUMB_ADDR(addr)	((arch_addr_t)((uintptr_t)(addr) | 1))
 #define UNMAKE_THUMB_ADDR(addr) ((arch_addr_t)((uintptr_t)(addr) & ~1))
 
+enum {
+	COND_ALWAYS = 0xe,
+	COND_NV = 0xf,
+	FLAG_C = 0x20000000,
+};
+
 static int
 arm_get_next_pcs(struct process *proc,
 		 const arch_addr_t pc, arch_addr_t next_pcs[2])
@@ -190,11 +196,6 @@ arm_get_next_pcs(struct process *proc,
 	/* ARM can branch either relatively by using a branch
 	 * instruction, or absolutely, by doing arbitrary arithmetic
 	 * with PC as the destination.  */
-	enum {
-		COND_ALWAYS = 0xe,
-		COND_NV = 0xf,
-		FLAG_C = 0x20000000,
-	};
 	const unsigned cond = BITS(this_instr, 28, 31);
 	const unsigned opcode = BITS(this_instr, 24, 27);
 
@@ -421,6 +422,18 @@ arm_get_next_pcs(struct process *proc,
 	return 0;
 }
 
+/* Return the size in bytes of the complete Thumb instruction whose
+ * first halfword is INST1.  */
+
+static int
+thumb_insn_size (unsigned short inst1)
+{
+  if ((inst1 & 0xe000) == 0xe000 && (inst1 & 0x1800) != 0)
+	  return 4;
+  else
+	  return 2;
+}
+
 static int
 thumb_get_next_pcs(struct process *proc,
 		   const arch_addr_t pc, arch_addr_t next_pcs[2])
@@ -442,7 +455,7 @@ thumb_get_next_pcs(struct process *proc,
 	if ((inst1 & 0xff00) == 0xbd00)	{ /* pop {rlist, pc} */
 		/* Fetch the saved PC from the stack.  It's stored
 		 * above all of the other registers.  */
-		unsigned offset = bitcount(BITS(inst1, 0, 7)) * 4;
+		const unsigned offset = bitcount(BITS(inst1, 0, 7)) * 4;
 		uint32_t sp;
 		uint32_t next;
 		/* XXX two double casts */
@@ -451,11 +464,218 @@ thumb_get_next_pcs(struct process *proc,
 				    &next) < 0)
 			return -1;
 		next_pcs[nr++] = (arch_addr_t)next;
+	} else if ((inst1 & 0xf000) == 0xd000) { /* conditional branch */
+		const unsigned long cond = BITS(inst1, 8, 11);
+		if (cond != 0x0f) { /* SWI */
+			next_pcs[nr++] = pc + (SBITS(inst1, 0, 7) << 1);
+			if (cond == COND_ALWAYS)
+				return 0;
+		}
+	} else if ((inst1 & 0xf800) == 0xe000) { /* unconditional branch */
+		next_pcs[nr++] = pc + (SBITS(inst1, 0, 10) << 1);
+	} else if (thumb_insn_size(inst1) == 4) { /* 32-bit instruction */
+		unsigned short inst2;
+		if (proc_read_16(proc, pc + 2, &inst2) < 0)
+			return -1;
+
+		if ((inst1 & 0xf800) == 0xf000 && (inst2 & 0x8000) == 0x8000) {
+			/* Branches and miscellaneous control instructions.  */
+
+			if ((inst2 & 0x1000) != 0
+			    || (inst2 & 0xd001) == 0xc000) {
+				/* B, BL, BLX.  */
+
+				const int imm1 = SBITS(inst1, 0, 10);
+				const unsigned imm2 = BITS(inst2, 0, 10);
+				const unsigned j1 = BIT(inst2, 13);
+				const unsigned j2 = BIT(inst2, 11);
+
+				int32_t offset
+					= ((imm1 << 12) + (imm2 << 1));
+				offset ^= ((!j2) << 22) | ((!j1) << 23);
+
+				/* XXX double cast */
+				uint32_t next = (uint32_t)(pc + offset);
+				/* For BLX make sure to clear the low bits.  */
+				if (BIT(inst2, 12) == 0)
+					next = next & 0xfffffffc;
+				/* XXX double cast */
+				next_pcs[nr++] = (arch_addr_t)next;
+				return 0;
+			} else if (inst1 == 0xf3de
+				   && (inst2 & 0xff00) == 0x3f00) {
+				/* SUBS PC, LR, #imm8.  */
+				uint32_t next;
+				if (arm_get_register(proc, ARM_REG_LR,
+						     &next) < 0)
+					return -1;
+				next -= inst2 & 0x00ff;
+				/* XXX double cast */
+				next_pcs[nr++] = (arch_addr_t)next;
+				return 0;
+			} else if ((inst2 & 0xd000) == 0x8000
+				   && (inst1 & 0x0380) != 0x0380) {
+				/* Conditional branch.  */
+				const int sign = SBITS(inst1, 10, 10);
+				const unsigned imm1 = BITS(inst1, 0, 5);
+				const unsigned imm2 = BITS(inst2, 0, 10);
+				const unsigned j1 = BIT(inst2, 13);
+				const unsigned j2 = BIT(inst2, 11);
+
+				int32_t offset = (sign << 20)
+					+ (j2 << 19) + (j1 << 18);
+				offset += (imm1 << 12) + (imm2 << 1);
+				next_pcs[nr++] = pc + offset;
+				if (BITS(inst1, 6, 9) == COND_ALWAYS)
+					return 0;
+			}
+		} else if ((inst1 & 0xfe50) == 0xe810) {
+			int load_pc = 1;
+			int offset;
+			const enum arm_register rn = BITS(inst1, 0, 3);
+
+			if (BIT(inst1, 7) && !BIT(inst1, 8)) {
+				/* LDMIA or POP */
+				if (!BIT(inst2, 15))
+					load_pc = 0;
+				offset = bitcount(inst2) * 4 - 4;
+			} else if (!BIT(inst1, 7) && BIT(inst1, 8)) {
+				/* LDMDB */
+				if (!BIT(inst2, 15))
+					load_pc = 0;
+				offset = -4;
+			} else if (BIT(inst1, 7) && BIT(inst1, 8)) {
+				/* RFEIA */
+				offset = 0;
+			} else if (!BIT(inst1, 7) && !BIT(inst1, 8)) {
+				/* RFEDB */
+				offset = -8;
+			} else {
+				load_pc = 0;
+			}
+
+			if (load_pc) {
+				uint32_t addr;
+				if (arm_get_register(proc, rn, &addr) < 0)
+					return -1;
+				arch_addr_t a = (arch_addr_t)(addr + offset);
+				uint32_t next;
+				if (proc_read_32(proc, a, &next) < 0)
+					return -1;
+				/* XXX double cast */
+				next_pcs[nr++] = (arch_addr_t)next;
+			}
+		} else if ((inst1 & 0xffef) == 0xea4f
+			   && (inst2 & 0xfff0) == 0x0f00) {
+			/* MOV PC or MOVS PC.  */
+			const enum arm_register rn = BITS(inst2, 0, 3);
+			uint32_t next;
+			if (arm_get_register(proc, rn, &next) < 0)
+				return -1;
+			/* XXX double cast */
+			next_pcs[nr++] = (arch_addr_t)next;
+		} else if ((inst1 & 0xff70) == 0xf850
+			   && (inst2 & 0xf000) == 0xf000) {
+			/* LDR PC.  */
+			const enum arm_register rn = BITS(inst1, 0, 3);
+			uint32_t base;
+			if (arm_get_register(proc, rn, &base) < 0)
+				return -1;
+
+			int load_pc = 1;
+			if (rn == ARM_REG_PC) {
+				base = (base + 4) & ~(uint32_t)0x3;
+				if (BIT(inst1, 7))
+					base += BITS(inst2, 0, 11);
+				else
+					base -= BITS(inst2, 0, 11);
+			} else if (BIT(inst1, 7)) {
+				base += BITS(inst2, 0, 11);
+			} else if (BIT(inst2, 11)) {
+				if (BIT(inst2, 10)) {
+					if (BIT(inst2, 9))
+						base += BITS(inst2, 0, 7);
+					else
+						base -= BITS(inst2, 0, 7);
+				}
+			} else if ((inst2 & 0x0fc0) == 0x0000) {
+				const int shift = BITS(inst2, 4, 5);
+				const enum arm_register rm = BITS(inst2, 0, 3);
+				uint32_t v;
+				if (arm_get_register(proc, rm, &v) < 0)
+					return -1;
+				base += v << shift;
+			} else {
+				/* Reserved.  */
+				load_pc = 0;
+			}
+
+			if (load_pc) {
+				/* xxx double casts */
+				uint32_t next;
+				if (proc_read_32(proc,
+						 (arch_addr_t)base, &next) < 0)
+					return -1;
+				next_pcs[nr++] = (arch_addr_t)next;
+			}
+		} else if ((inst1 & 0xfff0) == 0xe8d0
+			   && (inst2 & 0xfff0) == 0xf000) {
+			/* TBB.  */
+			const enum arm_register tbl_reg = BITS(inst1, 0, 3);
+			const enum arm_register off_reg = BITS(inst2, 0, 3);
+
+			uint32_t table;
+			if (tbl_reg == ARM_REG_PC)
+				/* Regcache copy of PC isn't right yet.  */
+				/* XXX double cast */
+				table = (uint32_t)pc + 4;
+			else if (arm_get_register(proc, tbl_reg, &table) < 0)
+				return -1;
+
+			uint32_t offset;
+			if (arm_get_register(proc, off_reg, &offset) < 0)
+				return -1;
+
+			table += offset;
+			uint8_t length;
+			/* XXX double cast */
+			if (proc_read_8(proc, (arch_addr_t)table, &length) < 0)
+				return -1;
+
+			next_pcs[nr++] = pc + 2 * length;
+
+		} else if ((inst1 & 0xfff0) == 0xe8d0
+			   && (inst2 & 0xfff0) == 0xf010) {
+			/* TBH.  */
+			const enum arm_register tbl_reg = BITS(inst1, 0, 3);
+			const enum arm_register off_reg = BITS(inst2, 0, 3);
+
+			uint32_t table;
+			if (tbl_reg == ARM_REG_PC)
+				/* Regcache copy of PC isn't right yet.  */
+				/* XXX double cast */
+				table = (uint32_t)pc + 4;
+			else if (arm_get_register(proc, tbl_reg, &table) < 0)
+				return -1;
+
+			uint32_t offset;
+			if (arm_get_register(proc, off_reg, &offset) < 0)
+				return -1;
+
+			table += 2 * offset;
+			uint16_t length;
+			/* XXX double cast */
+			if (proc_read_16(proc, (arch_addr_t)table, &length) < 0)
+				return -1;
+
+			next_pcs[nr++] = pc + 2 * length;
+		}
 	}
+
 
 	/* Otherwise take the next instruction.  */
 	if (nr == 0)
-		next_pcs[nr++] = pc + 2;
+		next_pcs[nr++] = pc + thumb_insn_size(inst1);
 	return 0;
 }
 
