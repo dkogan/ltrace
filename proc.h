@@ -253,10 +253,11 @@ struct library_symbol *proc_each_symbol
 	 enum callback_status (*cb)(struct library_symbol *, void *),
 	 void *data);
 
-/* Read 16, 32 or 64-bit quantity located at ADDR in PROC.  The
+/* Read 8, 16, 32 or 64-bit quantity located at ADDR in PROC.  The
  * resulting value is stored in *LP.  0 is returned on success or a
  * negative value on failure.  This uses umovebytes under the hood
  * (see backend.h).  */
+int proc_read_8(struct process *proc, arch_addr_t addr, uint8_t *lp);
 int proc_read_16(struct process *proc, arch_addr_t addr, uint16_t *lp);
 int proc_read_32(struct process *proc, arch_addr_t addr, uint32_t *lp);
 int proc_read_64(struct process *proc, arch_addr_t addr, uint64_t *lp);

@@ -1062,6 +1062,7 @@ proc_each_symbol(struct process *proc, struct library_symbol *start_after,
 		return 0;						\
 	}
 
+DEF_READER(proc_read_8, 8)
 DEF_READER(proc_read_16, 16)
 DEF_READER(proc_read_32, 32)
 DEF_READER(proc_read_64, 64)
