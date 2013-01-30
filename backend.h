@@ -148,6 +148,10 @@ void continue_after_breakpoint(struct process *proc, struct breakpoint *sbp);
  * imagine other systems may be different.  */
 void continue_after_vfork(struct process *proc);
 
+/* Called after the process exec's.  Should do whatever book-keeping
+ * is necessary and then continue the process.  */
+void continue_after_exec(struct process *proc);
+
 /* Called when trace_me or primary trace_pid fail.  This may plug in
  * any platform-specific knowledge of why it could be so.  */
 void trace_fail_warning(pid_t pid);

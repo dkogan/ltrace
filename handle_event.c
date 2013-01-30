@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Arnaud Patard, Mandriva SA
  * Copyright (C) 1998,2001,2002,2003,2004,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2008 Luis Machado, IBM Corporation
@@ -486,18 +486,7 @@ handle_exec(Event *event)
 		goto untrace;
 	}
 
-	continue_process(proc->pid);
-
-	/* After the exec, we expect to hit the first executable
-	 * instruction.
-	 *
-	 * XXX TODO It would be nice to have this removed, but then we
-	 * need to do that also for initial call to wait_for_proc in
-	 * execute_program.  In that case we could generate a
-	 * EVENT_FIRST event or something, or maybe this could somehow
-	 * be rolled into EVENT_NEW.  */
-	wait_for_proc(proc->pid);
-	continue_process(proc->pid);
+	continue_after_exec(proc);
 }
 
 static void

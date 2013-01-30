@@ -1139,6 +1139,23 @@ continue_after_syscall(struct process *proc, int sysnum, int ret_p)
 	continue_process(proc->pid);
 }
 
+void
+continue_after_exec(struct process *proc)
+{
+	continue_process(proc->pid);
+
+	/* After the exec, we expect to hit the first executable
+	 * instruction.
+	 *
+	 * XXX TODO It would be nice to have this removed, but then we
+	 * need to do that also for initial call to wait_for_proc in
+	 * execute_program.  In that case we could generate a
+	 * EVENT_FIRST event or something, or maybe this could somehow
+	 * be rolled into EVENT_NEW.  */
+	wait_for_proc(proc->pid);
+	continue_process(proc->pid);
+}
+
 /* If ltrace gets SIGINT, the processes directly or indirectly run by
  * ltrace get it too.  We just have to wait long enough for the signal
  * to be delivered and the process terminated, which we notice and
