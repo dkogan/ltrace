@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -57,10 +58,4 @@ void *
 get_return_addr(struct process *proc, void *stack_pointer)
 {
 	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, 26 /* RA */ , 0);
-}
-
-void
-set_return_addr(struct process *proc, void *addr)
-{
-	ptrace(PTRACE_POKEUSER, proc->pid, 26 /* RA */ , addr);
 }

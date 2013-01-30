@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -64,13 +65,4 @@ get_return_addr(struct process *proc, void *stack_pointer)
 	if (t < 0x400000)
 		return (void *)a->regs.u_regs[UREG_I6] + 12;
 	return (void *)a->regs.u_regs[UREG_I6] + 8;
-}
-
-void
-set_return_addr(struct process *proc, void *addr)
-{
-	proc_archdep *a = (proc_archdep *) (proc->arch_ptr);
-	if (!a->valid)
-		return;
-	ptrace(PTRACE_POKETEXT, proc->pid, a->regs.u_regs[UREG_I6] + 8, addr);
 }

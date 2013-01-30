@@ -107,10 +107,6 @@ void *get_stack_pointer(struct process *proc);
  * function returns.  */
 void *get_return_addr(struct process *proc, void *stack_pointer);
 
-/* Adjust PROC so that when the current function returns, it returns
- * to ADDR.  */
-void set_return_addr(struct process *proc, void *addr);
-
 /* Enable breakpoint SBP in process PROC.  */
 void enable_breakpoint(struct process *proc, struct breakpoint *sbp);
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,2002,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -106,12 +106,4 @@ get_return_addr(struct process *proc, void *sp)
 	if (proc->e_machine == EM_386)
 		ret = conv_32(ret);
 	return ret;
-}
-
-void
-set_return_addr(struct process *proc, void *addr)
-{
-	if (proc->e_machine == EM_386)
-		addr = (void *)((long int)addr & 0xffffffff);
-	ptrace(PTRACE_POKETEXT, proc->pid, proc->stack_pointer, addr);
 }

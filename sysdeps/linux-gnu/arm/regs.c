@@ -158,10 +158,3 @@ get_return_addr(struct process *proc, void *stack_pointer)
 
 	return (void *)addr;
 }
-
-void
-set_return_addr(struct process *proc, void *addr)
-{
-	long iaddr = (int)addr | proc->thumb_mode;
-	ptrace(PTRACE_POKEUSER, proc->pid, off_lr, (void *)iaddr);
-}

@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2002,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -86,14 +87,4 @@ get_return_addr(struct process *proc, void *stack_pointer)
 		ret &= PSW_MASK31;
 #endif
 	return (void *)ret;
-}
-
-void
-set_return_addr(struct process *proc, void *addr)
-{
-#ifdef __s390x__
-	if (proc->mask_32bit)
-		addr = (void *)((long)addr & PSW_MASK31);
-#endif
-	ptrace(PTRACE_POKEUSER, proc->pid, PT_GPR14, addr);
 }
