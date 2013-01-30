@@ -622,7 +622,6 @@ handle_breakpoint(Event *event)
 					calc_time_spent(event->proc);
 				}
 			}
-			event->proc->return_addr = brk_addr;
 
 			struct library_symbol *libsym =
 			    event->proc->callstack[i].c_un.libfunc;
@@ -678,8 +677,6 @@ handle_breakpoint(Event *event)
 		if (event->proc->state != STATE_IGNORED
 		    && sbp->libsym != NULL) {
 			event->proc->stack_pointer = get_stack_pointer(event->proc);
-			event->proc->return_addr =
-				get_return_addr(event->proc, event->proc->stack_pointer);
 			callstack_push_symfunc(event->proc, sbp->libsym);
 			output_left(LT_TOF_FUNCTION, event->proc, sbp->libsym);
 		}

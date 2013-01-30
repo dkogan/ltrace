@@ -121,12 +121,15 @@ begin_of_line(struct process *proc, int is_func, int indent)
 		}
 	}
 	if (opt_i) {
-		if (is_func)
+		if (is_func) {
+			struct callstack_element *stel
+				= &proc->callstack[proc->callstack_depth - 1];
 			current_column += fprintf(options.output, "[%p] ",
-						  proc->return_addr);
-		else
+						  stel->return_addr);
+		} else {
 			current_column += fprintf(options.output, "[%p] ",
 						  proc->instruction_pointer);
+		}
 	}
 	if (options.indent > 0 && indent) {
 		output_indent(proc);

@@ -65,7 +65,7 @@ struct callstack_element {
 		struct library_symbol * libfunc;
 	} c_un;
 	int is_syscall;
-	void * return_addr;
+	arch_addr_t return_addr;
 	struct timeval time_spent;
 	struct fetch_context *fetch_context;
 	struct value_dict *arguments;
@@ -104,7 +104,6 @@ struct process {
 	/* Arch-dependent: */
 	void * instruction_pointer;
 	void * stack_pointer;      /* To get return addr, args... */
-	void * return_addr;
 	void * arch_ptr;
 
 	/* XXX We would like to replace this with a pointer to ABI
