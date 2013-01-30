@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -82,11 +82,10 @@ int breakpoint_init(struct breakpoint *bp, struct process *proc,
 		    arch_addr_t addr, struct library_symbol *libsym);
 
 /* Make a clone of breakpoint BP into the area of memory pointed to by
- * RETP.  The original breakpoint was assigned to process OLD_PROC,
- * the cloned breakpoint will be attached to process NEW_PROC.
+ * RETP.  Symbols of cloned breakpoint are looked up in NEW_PROC.
  * Returns 0 on success or a negative value on failure.  */
 int breakpoint_clone(struct breakpoint *retp, struct process *new_proc,
-		     struct breakpoint *bp, struct process *old_proc);
+		     struct breakpoint *bp);
 
 /* Set callbacks.  If CBS is non-NULL, then BP->cbs shall be NULL.  */
 void breakpoint_set_callbacks(struct breakpoint *bp, struct bp_callbacks *cbs);

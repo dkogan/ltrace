@@ -121,7 +121,7 @@ arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp)
 #endif
 
 static void
-breakpoint_init_base(struct breakpoint *bp, struct process *proc,
+breakpoint_init_base(struct breakpoint *bp,
 		     arch_addr_t addr, struct library_symbol *libsym)
 {
 	bp->cbs = NULL;
@@ -139,7 +139,7 @@ int
 breakpoint_init(struct breakpoint *bp, struct process *proc,
 		arch_addr_t addr, struct library_symbol *libsym)
 {
-	breakpoint_init_base(bp, proc, addr, libsym);
+	breakpoint_init_base(bp, addr, libsym);
 	return arch_breakpoint_init(proc, bp);
 }
 
@@ -161,7 +161,7 @@ breakpoint_destroy(struct breakpoint *bp)
 
 int
 breakpoint_clone(struct breakpoint *retp, struct process *new_proc,
-		 struct breakpoint *bp, struct process *old_proc)
+		 struct breakpoint *bp)
 {
 	struct library_symbol *libsym = NULL;
 	if (bp->libsym != NULL) {
@@ -169,7 +169,7 @@ breakpoint_clone(struct breakpoint *retp, struct process *new_proc,
 		assert(rc == 0);
 	}
 
-	breakpoint_init_base(retp, new_proc, bp->addr, libsym);
+	breakpoint_init_base(retp, bp->addr, libsym);
 	memcpy(retp->orig_value, bp->orig_value, sizeof(bp->orig_value));
 	retp->enabled = bp->enabled;
 	if (arch_breakpoint_clone(retp, bp) < 0)

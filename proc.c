@@ -336,8 +336,7 @@ clone_single_bp(arch_addr_t *key, struct breakpoint **bpp, void *u)
 
 	struct breakpoint *clone = malloc(sizeof(*clone));
 	if (clone == NULL
-	    || breakpoint_clone(clone, data->new_proc,
-				bp, data->old_proc) < 0) {
+	    || breakpoint_clone(clone, data->new_proc, bp) < 0) {
 	fail:
 		free(clone);
 		return CBS_STOP;
