@@ -94,14 +94,11 @@ arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
 int
 arch_breakpoint_init(struct process *proc, struct breakpoint *sbp)
 {
-	/* XXX That uintptr_t cast is there temporarily until
-	 * arch_addr_t becomes integral type.  */
-	int thumb_mode = ((uintptr_t)sbp->addr) & 1;
-	if (thumb_mode)
-		sbp->addr = (void *)((uintptr_t)sbp->addr & ~1);
-	sbp->arch.thumb_mode = thumb_mode | proc->thumb_mode;
-	/* XXX This doesn't seem like it belongs here.  */
-	proc->thumb_mode = 0;
+	/* XXX double cast  */
+	sbp->arch.thumb_mode = ((uintptr_t)sbp->addr) & 1;
+	if (sbp->arch.thumb_mode)
+		/* XXX double cast */
+		sbp->addr = (arch_addr_t)((uintptr_t)sbp->addr & ~1);
 	return 0;
 }
 

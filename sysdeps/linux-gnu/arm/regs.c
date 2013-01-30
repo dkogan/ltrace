@@ -40,7 +40,6 @@
 #endif
 
 #define off_pc ((void *)60)
-#define off_lr ((void *)56)
 #define off_sp ((void *)52)
 
 int
@@ -140,21 +139,13 @@ get_stack_pointer(struct process *proc)
 	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, off_sp, 0);
 }
 
-/* really, this is given the *stack_pointer expecting
- * a CISC architecture; in our case, we don't need that */
-void *
-get_return_addr(struct process *proc, void *stack_pointer)
+arch_addr_t
+get_return_addr(struct process *proc, arch_addr_t stack_pointer)
 {
-	long addr = ptrace(PTRACE_PEEKUSER, proc->pid, off_lr, 0);
-
-	/* Remember & unset the thumb mode bit.  XXX This is really a
-	 * bit of a hack, as we assume that the following
-	 * insert_breakpoint call will be related to this address.
-	 * This interface should really be get_return_breakpoint, or
-	 * maybe install_return_breakpoint.  */
-	proc->thumb_mode = addr & 1;
-	if (proc->thumb_mode)
-		addr &= ~1;
-
-	return (void *)addr;
+	uint32_t reg;
+	if (arm_get_register(proc, ARM_REG_LR, &reg) < 0)
+		/* XXX double cast. */
+		return (arch_addr_t)-1;
+	/* XXX double cast.  */
+	return (arch_addr_t)(uintptr_t)reg;
 }

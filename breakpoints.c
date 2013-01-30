@@ -215,6 +215,22 @@ insert_breakpoint(struct process *proc, arch_addr_t addr,
 
 	assert(addr != 0);
 
+	/* We first create the breakpoint to find out what it's real
+	 * address is.  This makes a difference on ARM.
+	 *
+	 * XXX The real problem here is that to create a return
+	 * breakpoint ltrace calls get_return_addr and then
+	 * insert_breakpoint.  So get_return_addr needs to encode all
+	 * the information necessary for breakpoint_init into the
+	 * address itself, so ADDR is potentially mangled.  We filter
+	 * the noise out by first creating the breakpoint on stack,
+	 * and then looking at the address of the created breakpoint.
+	 * Replacing get_return_addr with get_return_breakpoint might
+	 * be a better solution.  */
+	struct breakpoint bp;
+	if (breakpoint_init(&bp, proc, addr, libsym) < 0)
+		return NULL;
+
 	/* XXX what we need to do instead is have a list of
 	 * breakpoints that are enabled at this address.  The
 	 * following works if every breakpoint is the same and there's
@@ -222,28 +238,31 @@ insert_breakpoint(struct process *proc, arch_addr_t addr,
 	 * will suffice, about the only realistic case where we need
 	 * to have more than one breakpoint per address is return from
 	 * a recursive library call.  */
-	struct breakpoint *bp;
-	if (DICT_FIND_VAL(leader->breakpoints, &addr, &bp) < 0) {
-		bp = malloc(sizeof(*bp));
-		if (bp == NULL
-		    || breakpoint_init(bp, proc, addr, libsym) < 0) {
-			free(bp);
+	struct breakpoint *sbp;
+	if (DICT_FIND_VAL(leader->breakpoints, &bp.addr, &sbp) >= 0) {
+		breakpoint_destroy(&bp);
+	} else {
+		sbp = malloc(sizeof(*sbp));
+		if (sbp == NULL
+		    || breakpoint_init(sbp, proc, addr, libsym) < 0) {
+			free(sbp);
 			return NULL;
 		}
-		if (proc_add_breakpoint(leader, bp) < 0) {
+		if (proc_add_breakpoint(leader, sbp) < 0) {
 		fail:
-			breakpoint_destroy(bp);
-			free(bp);
+			free(sbp);
+			breakpoint_destroy(&bp);
 			return NULL;
 		}
+		memcpy(sbp, &bp, sizeof(*sbp));
 	}
 
-	if (breakpoint_turn_on(bp, proc) < 0) {
-		proc_remove_breakpoint(leader, bp);
+	if (breakpoint_turn_on(sbp, proc) < 0) {
+		proc_remove_breakpoint(leader, sbp);
 		goto fail;
 	}
 
-	return bp;
+	return sbp;
 }
 
 void

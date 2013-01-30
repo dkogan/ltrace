@@ -737,9 +737,11 @@ callstack_push_symfunc(struct process *proc, struct library_symbol *sym)
 	elem->is_syscall = 0;
 	elem->c_un.libfunc = sym;
 
-	elem->return_addr = proc->return_addr;
-	if (elem->return_addr)
-		insert_breakpoint(proc, elem->return_addr, NULL);
+	arch_addr_t return_addr = get_return_addr(proc, proc->stack_pointer);
+	struct breakpoint *rbp = NULL;
+	if (return_addr != 0)
+		rbp = insert_breakpoint(proc, return_addr, NULL);
+	elem->return_addr = rbp != NULL ? rbp->addr : 0;
 
 	if (opt_T || options.summary) {
 		struct timezone tz;

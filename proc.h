@@ -114,11 +114,6 @@ struct process {
 	short e_machine;
 	char e_class;
 
-	/* XXX this shoudl go to ARM's arch_process_data.  */
-#ifdef __arm__
-	int thumb_mode;           /* ARM execution mode: 0: ARM, 1: Thumb */
-#endif
-
 #if defined(HAVE_LIBUNWIND)
 	/* libunwind address space */
 	unw_addr_space_t unwind_as;
