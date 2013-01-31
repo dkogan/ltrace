@@ -15,15 +15,9 @@
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
 
-EXTRA_DIST = \
-	ia64-sigill.exp \
-	ia64-sigill.s \
-	ppc-lwarx.c \
-	ppc-lwarx.exp \
-	signals.c \
-	signals.exp \
-	vfork-thread.c \
-	vfork-thread.exp
+EXTRA_DIST = arm-singlestep.exp ia64-sigill.exp ia64-sigill.s	\
+	 ppc-lwarx.c ppc-lwarx.exp signals.c signals.exp	\
+	 vfork-thread.c vfork-thread.exp
 
 CLEANFILES = *.o *.so *.log *.sum *.ltrace setval.tmp \
 	signals
