@@ -25,10 +25,18 @@
 #include <stddef.h>
 #include <gelf.h>
 
-#define BREAKPOINT_VALUE { 0x0d, 0x00, 0x00, 0x00 }
+#ifdef __MIPSEL__
+# define BREAKPOINT_VALUE { 0x0d, 0x00, 0x00, 0x00 }
+# define ARCH_ENDIAN_LITTLE
+#elif defined(__MIPSEB__)
+# define BREAKPOINT_VALUE { 0x00, 0x00, 0x00, 0x0d }
+# define ARCH_ENDIAN_BIG
+#else
+# error __MIPSEL__ or __MIPSEB__ must be defined
+#endif
+
 #define BREAKPOINT_LENGTH 4
 #define DECR_PC_AFTER_BREAK 0
-#define ARCH_ENDIAN_LITTLE
 
 #define LT_ELFCLASS	ELFCLASS32
 #define LT_ELF_MACHINE	EM_MIPS
