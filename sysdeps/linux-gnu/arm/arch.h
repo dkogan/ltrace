@@ -19,6 +19,9 @@
  * 02110-1301 USA
  */
 
+#ifndef LTRACE_ARM_ARCH_H
+#define LTRACE_ARM_ARCH_H
+
 #define ARCH_HAVE_ENABLE_BREAKPOINT 1
 #define ARCH_HAVE_DISABLE_BREAKPOINT 1
 
@@ -33,9 +36,22 @@
 #define LT_ELF_MACHINE	EM_ARM
 
 #define ARCH_HAVE_SW_SINGLESTEP
+#define ARCH_HAVE_FETCH_ARG
 #define ARCH_HAVE_SIZEOF
 #define ARCH_HAVE_ALIGNOF
 #define ARCH_HAVE_BREAKPOINT_DATA
 struct arch_breakpoint_data {
 	int thumb_mode;
 };
+
+#define ARCH_HAVE_LTELF_DATA
+struct arch_ltelf_data {
+	/* We have this only for the hooks.  */
+};
+
+#define ARCH_HAVE_LIBRARY_DATA
+struct arch_library_data {
+	unsigned int hardfp:1;
+};
+
+#endif /* LTRACE_ARM_ARCH_H */

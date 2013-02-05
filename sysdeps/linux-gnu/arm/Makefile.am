@@ -19,7 +19,7 @@
 
 noinst_LTLIBRARIES = ../libcpu.la
 
-___libcpu_la_SOURCES = breakpoint.c plt.c regs.c trace.c
+___libcpu_la_SOURCES = breakpoint.c fetch.c plt.c regs.c trace.c
 
 noinst_HEADERS = arch.h arch_syscallent.h ptrace.h regs.h signalent.h	\
 	 syscallent.h
