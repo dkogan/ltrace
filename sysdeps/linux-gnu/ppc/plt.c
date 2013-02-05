@@ -262,7 +262,8 @@ load_opd_data(struct ltelf *lte, struct library *lib)
 {
 	Elf_Scn *sec;
 	GElf_Shdr shdr;
-	if (elf_get_section_named(lte, ".opd", &sec, &shdr) < 0) {
+	if (elf_get_section_named(lte, ".opd", &sec, &shdr) < 0
+	    || sec == NULL) {
 	fail:
 		fprintf(stderr, "couldn't find .opd data\n");
 		return -1;
@@ -290,8 +291,9 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 	Elf_Scn *ppcgot_sec = NULL;
 	GElf_Shdr ppcgot_shdr;
 	if (ppcgot != 0
-	    && elf_get_section_covering(lte, ppcgot,
-					&ppcgot_sec, &ppcgot_shdr) < 0)
+	    && (elf_get_section_covering(lte, ppcgot,
+					 &ppcgot_sec, &ppcgot_shdr) < 0
+		|| ppcgot_sec == NULL))
 		fprintf(stderr,
 			"DT_PPC_GOT=%#"PRIx64", but no such section found\n",
 			ppcgot);

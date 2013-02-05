@@ -141,8 +141,9 @@ elf_get_section_if(struct ltelf *lte, Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr,
 			return 0;
 		}
 	}
-	return -1;
 
+	*tgt_sec = NULL;
+	return 0;
 }
 
 static int

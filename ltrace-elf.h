@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2006,2010,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2006,2010,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Zachary T Welch
  * Copyright (C) 2001,2004,2007,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -95,6 +95,12 @@ int elf_get_sym_info(struct ltelf *lte, const char *filename,
 		     size_t sym_index, GElf_Rela *rela, GElf_Sym *sym);
 
 Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
+
+/* The following three look for sections based on various criteria.
+ * They return 0 if there was no error, or a negative value if there
+ * was.  If the section was found, it is returned in *TGT_SEC, and the
+ * header is stored te TGT_SHDR.  If it wasn't found, *TGT_SEC is set
+ * to NULL.  */
 int elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
 			     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
 int elf_get_section_type(struct ltelf *lte, GElf_Word type,
