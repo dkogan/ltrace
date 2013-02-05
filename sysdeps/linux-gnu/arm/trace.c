@@ -709,3 +709,49 @@ arch_sw_singlestep(struct process *proc, struct breakpoint *sbp,
 	ptrace(PTRACE_CONT, proc->pid, 0, 0);
 	return SWS_OK;
 }
+
+size_t
+arch_type_sizeof(struct process *proc, struct arg_type_info *info)
+{
+	if (proc == NULL)
+		return (size_t)-2;
+
+	switch (info->type) {
+	case ARGTYPE_VOID:
+		return 0;
+
+	case ARGTYPE_CHAR:
+		return 1;
+
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+		return 2;
+
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+		return 4;
+
+	case ARGTYPE_FLOAT:
+		return 4;
+	case ARGTYPE_DOUBLE:
+		return 8;
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		/* Use default value.  */
+		return (size_t)-2;
+
+	default:
+		assert(info->type != info->type);
+		abort();
+	}
+}
+
+size_t
+arch_type_alignof(struct process *proc, struct arg_type_info *info)
+{
+	return arch_type_sizeof(proc, info);
+}

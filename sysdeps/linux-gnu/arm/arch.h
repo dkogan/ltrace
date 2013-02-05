@@ -33,6 +33,8 @@
 #define LT_ELF_MACHINE	EM_ARM
 
 #define ARCH_HAVE_SW_SINGLESTEP
+#define ARCH_HAVE_SIZEOF
+#define ARCH_HAVE_ALIGNOF
 #define ARCH_HAVE_BREAKPOINT_DATA
 struct arch_breakpoint_data {
 	int thumb_mode;
