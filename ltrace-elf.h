@@ -108,9 +108,10 @@ int elf_get_section_type(struct ltelf *lte, GElf_Word type,
 int elf_get_section_named(struct ltelf *lte, const char *name,
 			  Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
 
-/* Read, respectively, 2, 4, or 8 bytes from Elf data at given OFFSET,
- * and store it in *RETP.  Returns 0 on success or a negative value if
- * there's not enough data.  */
+/* Read, respectively, 1, 2, 4, or 8 bytes from Elf data at given
+ * OFFSET, and store it in *RETP.  Returns 0 on success or a negative
+ * value if there's not enough data.  */
+int elf_read_u8(Elf_Data *data, GElf_Xword offset, uint8_t *retp);
 int elf_read_u16(Elf_Data *data, GElf_Xword offset, uint16_t *retp);
 int elf_read_u32(Elf_Data *data, GElf_Xword offset, uint32_t *retp);
 int elf_read_u64(Elf_Data *data, GElf_Xword offset, uint64_t *retp);

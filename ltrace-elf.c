@@ -237,6 +237,7 @@ need_data(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
 		return 0;						\
 	}
 
+DEF_READER(elf_read_u8, 8)
 DEF_READER(elf_read_u16, 16)
 DEF_READER(elf_read_u32, 32)
 DEF_READER(elf_read_u64, 64)
