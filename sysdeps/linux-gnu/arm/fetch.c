@@ -233,16 +233,26 @@ struct fetch_context {
 		};
 		uint32_t fpscr;
 	} fpregs;
+	unsigned ncrn;
+	arch_addr_t sp;
+	arch_addr_t nsaa;
+	arch_addr_t ret_struct;
 	bool hardfp:1;
 };
 
 static int
 fetch_register_banks(struct process *proc, struct fetch_context *context)
 {
+	if (ptrace(PTRACE_GETREGS, proc->pid, NULL, &context->regs) == -1)
+		return -1;
+
 	if (context->hardfp
 	    && ptrace(PTRACE_GETVFPREGS, proc->pid,
 		      NULL, &context->fpregs) == -1)
 		return -1;
+
+	context->ncrn = 0;
+	context->nsaa = context->sp = get_stack_pointer(proc);
 
 	return 0;
 }
@@ -252,11 +262,30 @@ arch_fetch_arg_init(enum tof type, struct process *proc,
 		    struct arg_type_info *ret_info)
 {
 	struct fetch_context *context = malloc(sizeof(*context));
-	context->hardfp = proc->libraries->arch.hardfp;
+
+	{
+		struct process *mainp = proc;
+		while (mainp->libraries == NULL && mainp->parent != NULL)
+			mainp = mainp->parent;
+		context->hardfp = mainp->libraries->arch.hardfp;
+	}
+
 	if (context == NULL
 	    || fetch_register_banks(proc, context) < 0) {
 		free(context);
 		return NULL;
+	}
+
+	if (ret_info->type == ARGTYPE_STRUCT
+	    || ret_info->type == ARGTYPE_ARRAY) {
+		size_t sz = type_sizeof(proc, ret_info);
+		assert(sz != (size_t)-1);
+		if (sz > 4) {
+			/* XXX double cast */
+			context->ret_struct
+				= (arch_addr_t)context->regs.uregs[0];
+			context->ncrn++;
+		}
 	}
 
 	return context;
@@ -278,6 +307,54 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 		    struct process *proc,
 		    struct arg_type_info *info, struct value *valuep)
 {
+	const size_t sz = type_sizeof(proc, info);
+	assert(sz != (size_t)-1);
+
+	/* IHI0042E_aapcs: If the argument requires double-word
+	 * alignment (8-byte), the NCRN is rounded up to the next even
+	 * register number.  */
+	const size_t al = type_alignof(proc, info);
+	assert(al != (size_t)-1);
+	if (al == 8)
+		ctx->ncrn = ((ctx->ncrn + 1) / 2) * 2;
+
+	/* If the size in words of the argument is not more than r4
+	 * minus NCRN, the argument is copied into core registers,
+	 * starting at the NCRN.  */
+	/* If the NCRN is less than r4 and the NSAA is equal to the
+	 * SP, the argument is split between core registers and the
+	 * stack.  */
+
+	const size_t words = (sz + 3) / 4;
+	if (ctx->ncrn < 4 && ctx->nsaa == ctx->sp) {
+		unsigned char *data = value_reserve(valuep, words * 4);
+		if (data == NULL)
+			return -1;
+		size_t i;
+		for (i = 0; i < words && ctx->ncrn < 4; ++i) {
+			memcpy(data, &ctx->regs.uregs[ctx->ncrn++], 4);
+			data += 4;
+		}
+		const size_t rest = (words - i) * 4;
+		if (rest > 0) {
+			umovebytes(proc, ctx->nsaa, data, rest);
+			ctx->nsaa += rest;
+		}
+		return 0;
+	}
+
+	assert(ctx->ncrn == 4);
+
+	/* If the argument required double-word alignment (8-byte),
+	 * then the NSAA is rounded up to the next double-word
+	 * address.  */
+	if (al == 8)
+		/* XXX double cast.  */
+		ctx->nsaa = (arch_addr_t)((((uintptr_t)ctx->nsaa + 7) / 8) * 8);
+
+	value_in_inferior(valuep, ctx->nsaa);
+	ctx->nsaa += sz;
+
 	return 0;
 }
 
@@ -289,19 +366,37 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 	if (fetch_register_banks(proc, ctx) < 0)
 		return -1;
 
+	size_t sz = type_sizeof(proc, info);
+	assert(sz != (size_t)-1);
+
 	switch (info->type) {
+		unsigned char *data;
+		union {
+			struct {
+				uint32_t r0;
+				uint32_t r1;
+			} s;
+			unsigned char buf[8];
+		} u;
+
 	case ARGTYPE_VOID:
 		return 0;
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
 		if (ctx->hardfp) {
-			size_t sz = type_sizeof(proc, info);
-			assert(sz != (size_t)-1);
 			unsigned char *data = value_reserve(valuep, sz);
 			if (data == NULL)
 				return -1;
 			memmove(data, &ctx->fpregs, sz);
+			return 0;
+		}
+		goto pass_in_registers;
+
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		if (sz > 4) {
+			value_in_inferior(valuep, ctx->ret_struct);
 			return 0;
 		}
 		/* Fall through.  */
@@ -314,9 +409,14 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 	case ARGTYPE_LONG:
 	case ARGTYPE_ULONG:
 	case ARGTYPE_POINTER:
-	case ARGTYPE_ARRAY:
-	case ARGTYPE_STRUCT:
-		return -1;
+	pass_in_registers:
+		if (arm_get_register(proc, ARM_REG_R3, &u.s.r0) < 0
+		    || (sz > 4 && arm_get_register(proc, ARM_REG_R1,
+						   &u.s.r1) < 0)
+		    || (data = value_reserve(valuep, sz)) == NULL)
+			return -1;
+		memmove(data, u.buf, sz);
+		return 0;
 	}
 	assert(info->type != info->type);
 	abort();
