@@ -223,3 +223,107 @@ arch_library_clone(struct library *retp, struct library *lib)
 {
 	retp->arch = lib->arch;
 }
+
+struct fetch_context {
+	struct pt_regs regs;
+	struct {
+		union {
+			double d[32];
+			float s[64];
+		};
+		uint32_t fpscr;
+	} fpregs;
+	bool hardfp:1;
+};
+
+static int
+fetch_register_banks(struct process *proc, struct fetch_context *context)
+{
+	if (context->hardfp
+	    && ptrace(PTRACE_GETVFPREGS, proc->pid,
+		      NULL, &context->fpregs) == -1)
+		return -1;
+
+	return 0;
+}
+
+struct fetch_context *
+arch_fetch_arg_init(enum tof type, struct process *proc,
+		    struct arg_type_info *ret_info)
+{
+	struct fetch_context *context = malloc(sizeof(*context));
+	context->hardfp = proc->libraries->arch.hardfp;
+	if (context == NULL
+	    || fetch_register_banks(proc, context) < 0) {
+		free(context);
+		return NULL;
+	}
+
+	return context;
+}
+
+struct fetch_context *
+arch_fetch_arg_clone(struct process *proc,
+		     struct fetch_context *context)
+{
+	struct fetch_context *clone = malloc(sizeof(*context));
+	if (clone == NULL)
+		return NULL;
+	*clone = *context;
+	return clone;
+}
+
+int
+arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
+		    struct process *proc,
+		    struct arg_type_info *info, struct value *valuep)
+{
+	return 0;
+}
+
+int
+arch_fetch_retval(struct fetch_context *ctx, enum tof type,
+		  struct process *proc, struct arg_type_info *info,
+		  struct value *valuep)
+{
+	if (fetch_register_banks(proc, ctx) < 0)
+		return -1;
+
+	switch (info->type) {
+	case ARGTYPE_VOID:
+		return 0;
+
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+		if (ctx->hardfp) {
+			size_t sz = type_sizeof(proc, info);
+			assert(sz != (size_t)-1);
+			unsigned char *data = value_reserve(valuep, sz);
+			if (data == NULL)
+				return -1;
+			memmove(data, &ctx->fpregs, sz);
+			return 0;
+		}
+		/* Fall through.  */
+
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_POINTER:
+	case ARGTYPE_ARRAY:
+	case ARGTYPE_STRUCT:
+		return -1;
+	}
+	assert(info->type != info->type);
+	abort();
+}
+
+void
+arch_fetch_arg_done(struct fetch_context *context)
+{
+	free(context);
+}

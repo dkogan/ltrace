@@ -108,51 +108,6 @@ syscall_p(struct process *proc, int status, int *sysnum)
 	return 0;
 }
 
-long
-gimme_arg(enum tof type, struct process *proc, int arg_num,
-	  struct arg_type_info *info)
-{
-	proc_archdep *a = (proc_archdep *) proc->arch_ptr;
-
-	if (arg_num == -1) {	/* return value */
-		return ptrace(PTRACE_PEEKUSER, proc->pid, off_r0, 0);
-	}
-
-	/* deal with the ARM calling conventions */
-	if (type == LT_TOF_FUNCTION || type == LT_TOF_FUNCTIONR) {
-		if (arg_num < 4) {
-			if (a->valid && type == LT_TOF_FUNCTION)
-				return a->regs.uregs[arg_num];
-			if (a->valid && type == LT_TOF_FUNCTIONR)
-				return a->func_arg[arg_num];
-			return ptrace(PTRACE_PEEKUSER, proc->pid,
-				      (void *)(4 * arg_num), 0);
-		} else {
-			return ptrace(PTRACE_PEEKDATA, proc->pid,
-				      proc->stack_pointer + 4 * (arg_num - 4),
-				      0);
-		}
-	} else if (type == LT_TOF_SYSCALL || type == LT_TOF_SYSCALLR) {
-		if (arg_num < 5) {
-			if (a->valid && type == LT_TOF_SYSCALL)
-				return a->regs.uregs[arg_num];
-			if (a->valid && type == LT_TOF_SYSCALLR)
-				return a->sysc_arg[arg_num];
-			return ptrace(PTRACE_PEEKUSER, proc->pid,
-				      (void *)(4 * arg_num), 0);
-		} else {
-			return ptrace(PTRACE_PEEKDATA, proc->pid,
-				      proc->stack_pointer + 4 * (arg_num - 5),
-				      0);
-		}
-	} else {
-		fprintf(stderr, "gimme_arg called with wrong arguments\n");
-		exit(1);
-	}
-
-	return 0;
-}
-
 static arch_addr_t
 arm_branch_dest(const arch_addr_t pc, const uint32_t insn)
 {
