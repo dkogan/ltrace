@@ -204,23 +204,23 @@ elf_get_section_named(struct ltelf *lte, const char *name,
 				  &name_p, &data);
 }
 
-static int
-need_data(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
+int
+elf_can_read_next(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
 {
 	assert(data != NULL);
 	if (data->d_size < size || offset > data->d_size - size) {
 		debug(1, "Not enough data to read %"PRId64"-byte value"
 		      " at offset %"PRId64".", size, offset);
-		return -1;
+		return 0;
 	}
-	return 0;
+	return 1;
 }
 
 #define DEF_READER(NAME, SIZE)						\
 	int								\
 	NAME(Elf_Data *data, GElf_Xword offset, uint##SIZE##_t *retp)	\
 	{								\
-		if (need_data(data, offset, SIZE / 8) < 0)		\
+		if (!elf_can_read_next(data, offset, SIZE / 8))		\
 			return -1;					\
 									\
 		if (data->d_buf == NULL) /* NODATA section */ {		\
