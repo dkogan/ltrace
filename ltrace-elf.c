@@ -263,6 +263,38 @@ DEF_READER(elf_read_next_u64, 64)
 #undef DEF_READER
 
 int
+elf_read_next_uleb128(Elf_Data *data, GElf_Xword *offset, uint64_t *retp)
+{
+	uint64_t result = 0;
+	int shift = 0;
+	int size = 8 * sizeof result;
+
+	while (1) {
+		uint8_t byte;
+		if (elf_read_next_u8(data, offset, &byte) < 0)
+			return -1;
+
+		uint8_t payload = byte & 0x7f;
+		result |= (uint64_t)payload << shift;
+		shift += 7;
+		if (shift > size && byte != 0x1)
+			return -1;
+		if ((byte & 0x80) == 0)
+			break;
+	}
+
+	if (retp != NULL)
+		*retp = result;
+	return 0;
+}
+
+int
+elf_read_uleb128(Elf_Data *data, GElf_Xword offset, uint64_t *retp)
+{
+	return elf_read_next_uleb128(data, &offset, retp);
+}
+
+int
 open_elf(struct ltelf *lte, const char *filename)
 {
 	lte->fd = open(filename, O_RDONLY);
