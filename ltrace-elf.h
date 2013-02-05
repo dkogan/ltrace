@@ -116,6 +116,13 @@ int elf_read_u16(Elf_Data *data, GElf_Xword offset, uint16_t *retp);
 int elf_read_u32(Elf_Data *data, GElf_Xword offset, uint32_t *retp);
 int elf_read_u64(Elf_Data *data, GElf_Xword offset, uint64_t *retp);
 
+/* These are same as above, but update *OFFSET with the width
+ * of read datum.  */
+int elf_read_next_u8(Elf_Data *data, GElf_Xword *offset, uint8_t *retp);
+int elf_read_next_u16(Elf_Data *data, GElf_Xword *offset, uint16_t *retp);
+int elf_read_next_u32(Elf_Data *data, GElf_Xword *offset, uint32_t *retp);
+int elf_read_next_u64(Elf_Data *data, GElf_Xword *offset, uint64_t *retp);
+
 #if __WORDSIZE == 32
 #define PRI_ELF_ADDR		PRIx32
 #define GELF_ADDR_CAST(x)	(void *)(uint32_t)(x)

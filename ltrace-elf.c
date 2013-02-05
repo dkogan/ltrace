@@ -244,6 +244,24 @@ DEF_READER(elf_read_u64, 64)
 
 #undef DEF_READER
 
+#define DEF_READER(NAME, SIZE)						\
+	int								\
+	NAME(Elf_Data *data, GElf_Xword *offset, uint##SIZE##_t *retp)	\
+	{								\
+		int rc = elf_read_u##SIZE(data, *offset, retp);		\
+		if (rc < 0)						\
+			return rc;					\
+		*offset += SIZE / 8;					\
+		return 0;						\
+	}
+
+DEF_READER(elf_read_next_u8, 8)
+DEF_READER(elf_read_next_u16, 16)
+DEF_READER(elf_read_next_u32, 32)
+DEF_READER(elf_read_next_u64, 64)
+
+#undef DEF_READER
+
 int
 open_elf(struct ltelf *lte, const char *filename)
 {
