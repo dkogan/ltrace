@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 1997-2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -141,5 +141,14 @@ int type_is_signed(enum arg_type type);
  * ARGTYPE_STRUCT whose sole member is a floating point equivalent
  * type.  */
 struct arg_type_info *type_get_fp_equivalent(struct arg_type_info *info);
+
+/* If INFO is homogeneous floating-point aggregate, return the
+ * corresponding floating point type, and set *COUNTP to number of
+ * fields of the structure.  Otherwise return NULL.  INFO is a HFA if
+ * it's an aggregate whose each field is either a HFA, or a
+ * floating-point type.  */
+struct arg_type_info *type_get_hfa_type(struct arg_type_info *info,
+					size_t *countp);
+
 
 #endif /* TYPE_H */

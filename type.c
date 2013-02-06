@@ -564,3 +564,39 @@ type_get_fp_equivalent(struct arg_type_info *info)
 	}
 	abort();
 }
+
+struct arg_type_info *
+type_get_hfa_type(struct arg_type_info *info, size_t *countp)
+{
+	assert(info != NULL);
+	if (info->type != ARGTYPE_STRUCT
+	    && info->type != ARGTYPE_ARRAY)
+		return NULL;
+
+	size_t n = type_aggregate_size(info);
+	if (n == (size_t)-1)
+		return NULL;
+
+	struct arg_type_info *ret = NULL;
+	*countp = 0;
+
+	while (n-- > 0) {
+		struct arg_type_info *emt = type_element(info, n);
+
+		size_t emt_count = 1;
+		if (emt->type == ARGTYPE_STRUCT || emt->type == ARGTYPE_ARRAY)
+			emt = type_get_hfa_type(emt, &emt_count);
+		if (emt == NULL)
+			return NULL;
+		if (ret == NULL) {
+			if (emt->type != ARGTYPE_FLOAT
+			    && emt->type != ARGTYPE_DOUBLE)
+				return NULL;
+			ret = emt;
+		}
+		if (emt->type != ret->type)
+			return NULL;
+		*countp += emt_count;
+	}
+	return ret;
+}
