@@ -39,9 +39,6 @@
 # define PTRACE_POKEUSER PTRACE_POKEUSR
 #endif
 
-#define off_pc ((void *)60)
-#define off_sp ((void *)52)
-
 int
 arm_get_register(struct process *proc, enum arm_register reg, uint32_t *lp)
 {
@@ -51,6 +48,13 @@ arm_get_register(struct process *proc, enum arm_register reg, uint32_t *lp)
 		return -1;
 	*lp = (uint32_t)l;
 	return 0;
+}
+
+int
+arm_set_register(struct process *proc, enum arm_register reg, uint32_t lp)
+{
+	return ptrace(PTRACE_PEEKUSER, proc->pid,
+		      (void *)(reg * 4L), (void *)lp);
 }
 
 int
@@ -116,36 +120,38 @@ arm_get_shifted_register(struct process *proc, uint32_t inst, int carry,
 	return 0;
 }
 
-arch_addr_t
-get_instruction_pointer(struct process *proc)
+static arch_addr_t
+get_register_nocheck(struct process *proc, enum arm_register r)
 {
 	uint32_t reg;
-	if (arm_get_register(proc, ARM_REG_PC, &reg) < 0)
+	if (arm_get_register(proc, r, &reg) < 0)
 		/* XXX double cast. */
 		return (arch_addr_t)-1;
 	/* XXX double cast.  */
 	return (arch_addr_t)(uintptr_t)reg;
 }
 
-void
-set_instruction_pointer(struct process *proc, void *addr)
+arch_addr_t
+get_instruction_pointer(struct process *proc)
 {
-	ptrace(PTRACE_POKEUSER, proc->pid, off_pc, addr);
+	return get_register_nocheck(proc, ARM_REG_PC);
+}
+
+void
+set_instruction_pointer(struct process *proc, arch_addr_t addr)
+{
+	/* XXX double cast.  */
+	arm_set_register(proc, ARM_REG_PC, (uint32_t)addr);
 }
 
 void *
 get_stack_pointer(struct process *proc)
 {
-	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, off_sp, 0);
+	return get_register_nocheck(proc, ARM_REG_SP);
 }
 
 arch_addr_t
 get_return_addr(struct process *proc, arch_addr_t stack_pointer)
 {
-	uint32_t reg;
-	if (arm_get_register(proc, ARM_REG_LR, &reg) < 0)
-		/* XXX double cast. */
-		return (arch_addr_t)-1;
-	/* XXX double cast.  */
-	return (arch_addr_t)(uintptr_t)reg;
+	return get_register_nocheck(proc, ARM_REG_LR);
 }

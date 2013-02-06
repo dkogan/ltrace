@@ -35,6 +35,7 @@
 #include "output.h"
 #include "ptrace.h"
 #include "regs.h"
+#include "type.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -43,12 +44,6 @@
 #if (!defined(PTRACE_POKEUSER) && defined(PTRACE_POKEUSR))
 # define PTRACE_POKEUSER PTRACE_POKEUSR
 #endif
-
-#define off_r0 ((void *)0)
-#define off_r7 ((void *)28)
-#define off_ip ((void *)48)
-#define off_pc ((void *)60)
-#define off_cpsr ((void *)64)
 
 void
 get_arch_dep(struct process *proc)
@@ -71,18 +66,24 @@ syscall_p(struct process *proc, int status, int *sysnum)
 {
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
-		/* get the user's pc (plus 8) */
-		unsigned pc = ptrace(PTRACE_PEEKUSER, proc->pid, off_pc, 0);
+		uint32_t pc, ip;
+		if (arm_get_register(proc, ARM_REG_PC, &pc) < 0
+		    || arm_get_register(proc, ARM_REG_IP, &ip) < 0)
+			return -1;
+
 		pc = pc - 4;
+
 		/* fetch the SWI instruction */
 		unsigned insn = ptrace(PTRACE_PEEKTEXT, proc->pid,
 				       (void *)pc, 0);
-		int ip = ptrace(PTRACE_PEEKUSER, proc->pid, off_ip, 0);
 
 		if (insn == 0xef000000 || insn == 0x0f000000
 		    || (insn & 0xffff0000) == 0xdf000000) {
 			/* EABI syscall */
-			*sysnum = ptrace(PTRACE_PEEKUSER, proc->pid, off_r7, 0);
+			uint32_t r7;
+			if (arm_get_register(proc, ARM_REG_R7, &r7) < 0)
+				return -1;
+			*sysnum = r7;
 		} else if ((insn & 0xfff00000) == 0xef900000) {
 			/* old ABI syscall */
 			*sysnum = insn & 0xfffff;

@@ -25,6 +25,8 @@
 	((long) (BITS(obj,st,fn) | ((long) BIT(obj,fn) * ~ SUBMASK(fn - st))))
 
 enum arm_register {
+	ARM_REG_R7 = 7,
+	ARM_REG_IP = 12,
 	ARM_REG_SP = 13,
 	ARM_REG_LR = 14,
 	ARM_REG_PC = 15,
