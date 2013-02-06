@@ -224,8 +224,15 @@ arch_library_clone(struct library *retp, struct library *lib)
 	retp->arch = lib->arch;
 }
 
+enum {
+	/* How many (double) VFP registers the AAPCS uses for
+	 * parameter passing.  */
+	NUM_VFP_REGS = 8,
+};
+
 struct fetch_context {
 	struct pt_regs regs;
+
 	struct {
 		union {
 			double d[32];
@@ -233,6 +240,16 @@ struct fetch_context {
 		};
 		uint32_t fpscr;
 	} fpregs;
+
+	/* VFP register allocation.  ALLOC.S tracks whether the
+	 * corresponding FPREGS.S register is taken, ALLOC.D the same
+	 * for FPREGS.D.  We only track 8 (16) registers, because
+	 * that's what the ABI uses for parameter passing.  */
+	union {
+		int16_t d[NUM_VFP_REGS];
+		int8_t s[NUM_VFP_REGS * 2];
+	} alloc;
+
 	unsigned ncrn;
 	arch_addr_t sp;
 	arch_addr_t nsaa;
@@ -253,6 +270,7 @@ fetch_register_banks(struct process *proc, struct fetch_context *context)
 
 	context->ncrn = 0;
 	context->nsaa = context->sp = get_stack_pointer(proc);
+	memset(&context->alloc, 0, sizeof(context->alloc));
 
 	return 0;
 }
@@ -302,6 +320,67 @@ arch_fetch_arg_clone(struct process *proc,
 	return clone;
 }
 
+/* 0 is success, 1 is failure, negative value is an error.  */
+static int
+pass_in_vfp(struct fetch_context *ctx, struct process *proc,
+	    enum arg_type type, size_t count, struct value *valuep)
+{
+	assert(type == ARGTYPE_FLOAT || type == ARGTYPE_DOUBLE);
+	unsigned max = type == ARGTYPE_DOUBLE ? NUM_VFP_REGS : 2 * NUM_VFP_REGS;
+	if (count > max)
+		return 1;
+
+	size_t i;
+	size_t j;
+	for (i = 0; i < max; ++i) {
+		for (j = i; j < i + count; ++j)
+			if ((type == ARGTYPE_DOUBLE && ctx->alloc.d[j] != 0)
+			    || (type == ARGTYPE_FLOAT && ctx->alloc.s[j] != 0))
+				goto next;
+
+		/* Found COUNT consecutive unallocated registers at I.  */
+		const size_t sz = (type == ARGTYPE_FLOAT ? 4 : 8) * count;
+		unsigned char *data = value_reserve(valuep, sz);
+		if (data == NULL)
+			return -1;
+
+		for (j = i; j < i + count; ++j)
+			if (type == ARGTYPE_DOUBLE)
+				ctx->alloc.d[j] = -1;
+			else
+				ctx->alloc.s[j] = -1;
+
+		if (type == ARGTYPE_DOUBLE)
+			memcpy(data, ctx->fpregs.d + i, sz);
+		else
+			memcpy(data, ctx->fpregs.s + i, sz);
+
+		return 0;
+
+	next:
+		continue;
+	}
+	return 1;
+}
+
+/* 0 is success, 1 is failure, negative value is an error.  */
+static int
+consider_vfp(struct fetch_context *ctx, struct process *proc,
+	     struct arg_type_info *info, struct value *valuep)
+{
+	struct arg_type_info *float_info = NULL;
+	size_t hfa_size = 1;
+	if (info->type == ARGTYPE_FLOAT || info->type == ARGTYPE_DOUBLE)
+		float_info = info;
+	else
+		float_info = type_get_hfa_type(info, &hfa_size);
+
+	if (float_info != NULL && hfa_size <= 4)
+		return pass_in_vfp(ctx, proc, float_info->type,
+				   hfa_size, valuep);
+	return 1;
+}
+
 int
 arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 		    struct process *proc,
@@ -309,6 +388,12 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 {
 	const size_t sz = type_sizeof(proc, info);
 	assert(sz != (size_t)-1);
+
+	if (ctx->hardfp) {
+		int rc;
+		if ((rc = consider_vfp(ctx, proc, info, valuep)) != 1)
+			return rc;
+	}
 
 	/* IHI0042E_aapcs: If the argument requires double-word
 	 * alignment (8-byte), the NCRN is rounded up to the next even
@@ -365,6 +450,12 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 {
 	if (fetch_register_banks(proc, ctx) < 0)
 		return -1;
+
+	if (ctx->hardfp) {
+		int rc;
+		if ((rc = consider_vfp(ctx, proc, info, valuep)) != 1)
+			return rc;
+	}
 
 	size_t sz = type_sizeof(proc, info);
 	assert(sz != (size_t)-1);
