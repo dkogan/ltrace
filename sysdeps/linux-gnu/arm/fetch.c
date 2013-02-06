@@ -438,6 +438,8 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	if (al == 8)
 		/* XXX double cast.  */
 		ctx->nsaa = (arch_addr_t)((((uintptr_t)ctx->nsaa + 7) / 8) * 8);
+	else
+		ctx->nsaa = (arch_addr_t)((((uintptr_t)ctx->nsaa + 3) / 4) * 4);
 
 	value_in_inferior(valuep, ctx->nsaa);
 	ctx->nsaa += sz;
