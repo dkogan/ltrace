@@ -254,7 +254,9 @@ struct fetch_context {
 	arch_addr_t sp;
 	arch_addr_t nsaa;
 	arch_addr_t ret_struct;
+
 	bool hardfp:1;
+	bool in_varargs:1;
 };
 
 static int
@@ -389,7 +391,7 @@ arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
 	const size_t sz = type_sizeof(proc, info);
 	assert(sz != (size_t)-1);
 
-	if (ctx->hardfp) {
+	if (ctx->hardfp && !ctx->in_varargs) {
 		int rc;
 		if ((rc = consider_vfp(ctx, proc, info, valuep)) != 1)
 			return rc;
@@ -451,7 +453,7 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 	if (fetch_register_banks(proc, ctx) < 0)
 		return -1;
 
-	if (ctx->hardfp) {
+	if (ctx->hardfp && !ctx->in_varargs) {
 		int rc;
 		if ((rc = consider_vfp(ctx, proc, info, valuep)) != 1)
 			return rc;
@@ -468,7 +470,7 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
-		if (ctx->hardfp) {
+		if (ctx->hardfp && !ctx->in_varargs) {
 			unsigned char *data = value_reserve(valuep, sz);
 			if (data == NULL)
 				return -1;
@@ -507,4 +509,19 @@ void
 arch_fetch_arg_done(struct fetch_context *context)
 {
 	free(context);
+}
+
+int
+arch_fetch_param_pack_start(struct fetch_context *context,
+			    enum param_pack_flavor ppflavor)
+{
+	if (ppflavor == PARAM_PACK_VARARGS)
+		context->in_varargs = true;
+	return 0;
+}
+
+void
+arch_fetch_param_pack_end(struct fetch_context *context)
+{
+	context->in_varargs = false;
 }
