@@ -462,13 +462,6 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 
 	switch (info->type) {
 		unsigned char *data;
-		union {
-			struct {
-				uint32_t r0;
-				uint32_t r1;
-			} s;
-			unsigned char buf[8];
-		} u;
 
 	case ARGTYPE_VOID:
 		return 0;
@@ -501,12 +494,9 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 	case ARGTYPE_ULONG:
 	case ARGTYPE_POINTER:
 	pass_in_registers:
-		if (arm_get_register(proc, ARM_REG_R3, &u.s.r0) < 0
-		    || (sz > 4 && arm_get_register(proc, ARM_REG_R1,
-						   &u.s.r1) < 0)
-		    || (data = value_reserve(valuep, sz)) == NULL)
+		if ((data = value_reserve(valuep, sz)) == NULL)
 			return -1;
-		memmove(data, u.buf, sz);
+		memmove(data, ctx->regs.uregs, sz);
 		return 0;
 	}
 	assert(info->type != info->type);
