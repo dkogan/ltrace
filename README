@@ -24,6 +24,8 @@ The following targets are currently (at least somewhat) supported.
 Some of them may be more or less broken in reality, it is not feasible
 to test each release comprehensively on each target.
 
+	armv6l-*-linux-gnueabi
+	armv7l-*-linux-gnueabihf
 	i[4567]86-*-linux-gnu
 	ia64-*-linux-gnu
 	m68k-*-linux-gnu
@@ -40,11 +42,6 @@ current status is unknown:
 	sparc*-*-linux-gnu
 	sparc64*-*-linux-gnu
 	alpha*-*-linux-gnu
-
-Support of the following systems is known to be broken and requires
-fixing:
-
-	arm-*-linux-gnueabi
 
 
 Bug Reports
@@ -83,7 +80,7 @@ quick one-liner), it is advisable to send an e-mail beforehand.
 
 
 -------------------------------------------------------------------------------
-Copyright (C) 2012 Petr Machata <pmachata@redhat.com>
+Copyright (C) 2012,2013 Petr Machata <pmachata@redhat.com>
 Copyright (C) 1997-2009 Juan Cespedes <cespedes@debian.org>
 This file is part of ltrace.
 
