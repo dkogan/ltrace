@@ -36,8 +36,8 @@ memstream_init(struct memstream *memstream)
 					   &memstream->size);
 #else
 	memstream->stream = tmpfile();
-#endif
 	memstream->buf = NULL;
+#endif
 	return memstream->stream != NULL ? 0 : -1;
 }
 
