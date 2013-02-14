@@ -291,7 +291,7 @@ parse_filter(struct filter *filt, char *expr, int operators)
 	enum filter_rule_type type = FR_ADD;
 
 	while (*expr != 0) {
-		size_t s = strcspn(expr, "-+@" + (operators ? 0 : 2));
+		size_t s = strcspn(expr, &"-+@"[operators ? 0 : 2]);
 		char *symname = expr;
 		char *libname;
 		char *next = expr + s + 1;
@@ -310,7 +310,7 @@ parse_filter(struct filter *filt, char *expr, int operators)
 		} else {
 			assert(expr[s] == '@');
 			expr[s] = 0;
-			s = strcspn(next, "-+" + (operators ? 0 : 2));
+			s = strcspn(next, &"-+"[operators ? 0 : 2]);
 			if (s == 0) {
 				libname = "*";
 				expr = next;

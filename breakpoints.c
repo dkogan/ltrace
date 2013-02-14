@@ -382,7 +382,7 @@ breakpoints_init(struct process *proc)
 	struct entry_breakpoint *entry_bp = NULL;
 	int bp_state = 0;
 	int result = -1;
-	switch (lib != NULL) {
+	switch ((int)(lib != NULL)) {
 	fail:
 		switch (bp_state) {
 		case 2:

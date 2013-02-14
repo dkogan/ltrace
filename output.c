@@ -95,7 +95,8 @@ begin_of_line(struct process *proc, int is_func, int indent)
 		old_tv.tv_sec = tv.tv_sec;
 		old_tv.tv_usec = tv.tv_usec;
 		current_column += fprintf(options.output, "%3lu.%06d ",
-					  diff.tv_sec, (int)diff.tv_usec);
+					  (unsigned long)diff.tv_sec,
+					  (int)diff.tv_usec);
 	}
 	if (opt_t) {
 		struct timeval tv;
@@ -104,7 +105,8 @@ begin_of_line(struct process *proc, int is_func, int indent)
 		gettimeofday(&tv, &tz);
 		if (opt_t > 2) {
 			current_column += fprintf(options.output, "%lu.%06d ",
-						  tv.tv_sec, (int)tv.tv_usec);
+						  (unsigned long)tv.tv_sec,
+						  (int)tv.tv_usec);
 		} else if (opt_t > 1) {
 			struct tm *tmp = localtime(&tv.tv_sec);
 			current_column +=
@@ -597,7 +599,7 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
 
 	if (opt_T) {
 		fprintf(options.output, " <%lu.%06d>",
-			current_time_spent.tv_sec,
+			(unsigned long)current_time_spent.tv_sec,
 			(int)current_time_spent.tv_usec);
 	}
 	fprintf(options.output, "\n");

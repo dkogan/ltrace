@@ -27,7 +27,7 @@
 static ssize_t
 match_character_class(const char *glob, size_t length, size_t from)
 {
-	size_t i;
+	size_t i = 0;
 	if (length > 0)
 		for (i = from + 2; i < length - 1 && glob[++i] != ':'; )
 			;
