@@ -673,7 +673,7 @@ bitvect_lens_format_cb(struct lens *lens, FILE *stream,
 	unsigned neg = bits > sz * 4 ? 0xff : 0x00;
 
 	int o = 0;
-	if (acc_fprintf(&o, stream, "%s<", "~" + (neg == 0x00)) < 0)
+	if (acc_fprintf(&o, stream, "%s<", &"~"[neg == 0x00]) < 0)
 		return -1;
 
 	size_t bitno = 0;
