@@ -34,7 +34,7 @@
 #include "backend.h"
 #include "common.h"
 #include "debug.h"
-#include "mipsel.h"
+#include "mips.h"
 #include "proc.h"
 #include "type.h"
 
@@ -48,7 +48,7 @@
 
 
 /**
-   \addtogroup mipsel Mipsel specific functions.
+   \addtogroup mips Mips specific functions.
 
    These are the functions that it looks like I need to implement in
    order to get ltrace to work on our target.
@@ -79,7 +79,7 @@ get_arch_dep(struct process *proc)
 
    It seems that the ptrace call trips twice on a system call, once
    just before the system call and once when it returns. Both times,
-   the pc points at the instruction just after the mipsel "syscall"
+   the pc points at the instruction just after the mips "syscall"
    instruction.
 
    There are several possiblities for system call sets, each is offset
@@ -98,7 +98,7 @@ syscall_p(struct process *proc, int status, int *sysnum)
 		int num = ptrace(PTRACE_PEEKTEXT, proc->pid, pc - 8, 0);
 
 		/*
-		   On a mipsel,  syscall looks like:
+		   On a mips,  syscall looks like:
 		   24040fa1    li v0, 0x0fa1   # 4001 --> _exit syscall
 		   0000000c    syscall
 		 */
@@ -306,7 +306,7 @@ arch_sw_singlestep(struct process *proc, struct breakpoint *bp,
 -   I'm only displaying the first 4 args (Registers a0..a3). Good
    enough for now.
 
-  Mipsel conventions seem to be:
+  Mips conventions seem to be:
 - syscall parameters: r4...r9
 - syscall return: if(!a3){ return v0;} else{ errno=v0;return -1;}
 - function call: r4..r7. Not sure how to get arg number 5.

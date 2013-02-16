@@ -21,7 +21,7 @@
 #---------------------------------------------------------------------------
 # Project related configuration options
 #---------------------------------------------------------------------------
-PROJECT_NAME           = ltrace-mipsel
+PROJECT_NAME           = ltrace-mips
 PROJECT_NUMBER         = 
 OUTPUT_DIRECTORY       = 
 CREATE_SUBDIRS         = NO

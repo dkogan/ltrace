@@ -28,7 +28,7 @@
 
 #include "proc.h"
 #include "common.h"
-#include "mipsel.h"
+#include "mips.h"
 
 #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
 # define PTRACE_PEEKUSER PTRACE_PEEKUSR
@@ -39,7 +39,7 @@
 #endif
 
 /**
-   \addtogroup mipsel
+   \addtogroup mips
    @{
  */
 

@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-DIST_SUBDIRS = alpha arm cris ia64 m68k mipsel ppc s390 sparc x86
+DIST_SUBDIRS = alpha arm cris ia64 m68k mips ppc s390 sparc x86
 
 SUBDIRS = \
 	$(HOST_CPU)
