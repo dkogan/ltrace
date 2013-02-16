@@ -26,7 +26,7 @@ ___libcpu_la_SOURCES = \
 
 noinst_HEADERS = \
 	arch.h \
-	mipsel.h \
+	mips.h \
 	ptrace.h \
 	signalent.h \
 	syscallent.h

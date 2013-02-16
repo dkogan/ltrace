@@ -35,7 +35,7 @@
 #include "backend.h"
 
 /**
-   \addtogroup mipsel
+   \addtogroup mips
    @{
  */
 

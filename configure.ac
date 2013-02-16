@@ -41,7 +41,6 @@ AC_SUBST(HOST_OS)
 case "${host_cpu}" in
     arm*|sa110)		HOST_CPU="arm" ;;
     cris*)		HOST_CPU="cris" ;;
-    mips*el)		HOST_CPU="mipsel" ;;
     mips*)		HOST_CPU="mips" ;;
     powerpc|powerpc64)	HOST_CPU="ppc" ;;
     sun4u|sparc64)	HOST_CPU="sparc" ;;
@@ -315,7 +314,7 @@ AC_CONFIG_FILES([
 	sysdeps/linux-gnu/cris/Makefile
 	sysdeps/linux-gnu/ia64/Makefile
 	sysdeps/linux-gnu/m68k/Makefile
-	sysdeps/linux-gnu/mipsel/Makefile
+	sysdeps/linux-gnu/mips/Makefile
 	sysdeps/linux-gnu/ppc/Makefile
 	sysdeps/linux-gnu/s390/Makefile
 	sysdeps/linux-gnu/sparc/Makefile
