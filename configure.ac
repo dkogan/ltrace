@@ -1,6 +1,6 @@
 # -*- Autoconf -*-
 # This file is part of ltrace.
-# Copyright (C) 2010,2012 Petr Machata, Red Hat Inc.
+# Copyright (C) 2010,2012,2013 Petr Machata, Red Hat Inc.
 # Copyright (C) 2010,2011 Joe Damato
 # Copyright (C) 2010 Marc Kleine-Budde
 # Copyright (C) 2010 Zachary T Welch
@@ -56,6 +56,15 @@ LT_INIT
 # libtool-2:  LT_INIT()
 AM_INIT_AUTOMAKE([foreign no-exeext dist-bzip2])
 AM_MAINTAINER_MODE
+
+#
+# We use stat(2).  Even though we don't care about the file size or
+# inode number, stat will fail with EOVERFLOW if either of these
+# exceeds 32 bits.  We therefore ask for stat64 if available.  Do this
+# test as soon as possible, as large file support may influence
+# whether other headers are available.
+#
+AC_SYS_LARGEFILE
 
 AC_ARG_WITH([libelf],
   AS_HELP_STRING([--with-libelf], [Prefix of libelf headers/library]),
