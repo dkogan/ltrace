@@ -907,18 +907,11 @@ continue_after_breakpoint(struct process *proc, struct breakpoint *sbp)
 
 	if (sbp->enabled == 0) {
 		continue_process(proc->pid);
-	} else {
-#if defined __sparc__  || defined __ia64___
-		/* we don't want to singlestep here */
+	} else if (process_install_stopping_handler
+			(proc, sbp, NULL, NULL, NULL) < 0) {
+		perror("process_stopping_handler_create");
+		/* Carry on not bothering to re-enable.  */
 		continue_process(proc->pid);
-#else
-		if (process_install_stopping_handler
-		    (proc, sbp, NULL, NULL, NULL) < 0) {
-			perror("process_stopping_handler_create");
-			/* Carry on not bothering to re-enable.  */
-			continue_process(proc->pid);
-		}
-#endif
 	}
 }
 
