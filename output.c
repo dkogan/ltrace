@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1997,1998,1999,2001,2002,2003,2004,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Paul Gilliam, IBM Corporation
@@ -532,8 +532,9 @@ again:
 				  dict_hash_string, dict_eq_string, NULL);
 		}
 
-		struct opt_c_struct *st = DICT_FIND(dict_opt_c, &function_name,
-						    struct opt_c_struct);
+		struct opt_c_struct *st
+			= DICT_FIND_REF(dict_opt_c, &function_name,
+					struct opt_c_struct);
 		if (st == NULL) {
 			const char *na = strdup(function_name);
 			struct opt_c_struct new_st = {.count = 0, .tv = {0, 0}};
@@ -545,8 +546,8 @@ again:
 					     free_stringp_cb, NULL, NULL);
 				goto oom;
 			}
-			st = DICT_FIND(dict_opt_c, &function_name,
-				       struct opt_c_struct);
+			st = DICT_FIND_REF(dict_opt_c, &function_name,
+					   struct opt_c_struct);
 			assert(st != NULL);
 		}
 

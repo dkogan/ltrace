@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,1999,2003,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -49,19 +49,17 @@ my_demangle(const char *function_name) {
 				  dict_hash_string, dict_eq_string, NULL);
 	}
 
-	const char **found = NULL;
-	if (name_cache != NULL)
-		found = DICT_FIND(name_cache, &function_name, const char *);
-
-	if (found != NULL)
-		return *found;
+	const char *tmp = NULL;
+	if (name_cache != NULL
+	    && DICT_FIND_VAL(name_cache, &function_name, &tmp) == 0)
+		return tmp;
 
 #ifdef HAVE_LIBIBERTY
-	const char *tmp = cplus_demangle(function_name,
+	tmp = cplus_demangle(function_name,
 					 DMGL_ANSI | DMGL_PARAMS);
 #elif defined USE_CXA_DEMANGLE
 	int status = 0;
-	const char *tmp = __cxa_demangle(function_name, NULL, NULL, &status);
+	tmp = __cxa_demangle(function_name, NULL, NULL, &status);
 #endif
 	if (name_cache == NULL || tmp == NULL) {
 	fail:

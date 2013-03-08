@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -550,7 +550,7 @@ test1(void)
 		int key = i;
 		int value = 2 * i + 1;
 		DICT_INSERT(&di, &key, &value);
-		int *valp = DICT_FIND(&di, &key, int);
+		int *valp = DICT_FIND_REF(&di, &key, int);
 		assert(valp != NULL);
 		assert(*valp == value);
 		assert(dict_size(&di) == i + 1);
@@ -607,7 +607,7 @@ test_erase(void)
 		int j;
 		for (j = 0; j < limit; ++j) {
 			key = 2 * j + 1;
-			int *valp = DICT_FIND(&copy, &key, int);
+			int *valp = DICT_FIND_REF(&copy, &key, int);
 			if (i != j) {
 				assert(valp != NULL);
 				assert(*valp == 2 * key + 1);

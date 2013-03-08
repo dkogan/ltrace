@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -127,12 +127,31 @@ int dict_insert(struct dict *dict, void *key, void *value);
  * it.  Returns NULL if the key was not found.  */
 void *dict_find(struct dict *dict, const void *key);
 
+/* Look into DICTP for a key *KEYP.  Return 0 if it was found, or a
+ * negative value if not.  */
+#define DICT_HAS_KEY(DICTP, KEYP)				\
+	(assert((DICTP)->keys.elt_size == sizeof(*(KEYP))),	\
+	 dict_find((DICTP), (KEYP)) != NULL)
+
 /* Find in DICTP a value of type VALUE_TYPE corresponding to KEYP and
  * return a pointer (VALUE_TYPE *) to it.  Returns NULL if the key was
  * not found.  */
-#define DICT_FIND(DICTP, KEYP, VALUE_TYPE)			\
+#define DICT_FIND_REF(DICTP, KEYP, VALUE_TYPE)			\
 	(assert((DICTP)->keys.elt_size == sizeof(*(KEYP))),	\
 	 (VALUE_TYPE *)dict_find((DICTP), (KEYP)))
+
+/* Find in DICTP a value of type VALUE_TYPE corresponding to KEYP and
+ * copy it to the memory pointed-to by VAR.  Returns 0 on success, or
+ * a negative value if the key was not found.  */
+#define DICT_FIND_VAL(DICTP, KEYP, VAR)					\
+	({								\
+		assert((DICTP)->keys.elt_size == sizeof(*(KEYP)));	\
+		assert((DICTP)->values.elt_size == sizeof((VAR)));	\
+		void *_ptr = dict_find((DICTP), (KEYP));		\
+		if (_ptr != NULL)					\
+			memcpy((VAR), _ptr, (DICTP)->values.elt_size);	\
+		_ptr != NULL ? 0 : -1;					\
+	})
 
 /* Erase from DICT the entry corresponding to KEY.  Returns a negative
  * value if the key was not found, or 0 on success.  DTOR_KEY and

@@ -324,12 +324,13 @@ static void
 ugly_workaround(struct process *proc)
 {
 	arch_addr_t ip = get_instruction_pointer(proc);
-	struct breakpoint **found = DICT_FIND(proc->leader->breakpoints, &ip,
-					      struct breakpoint *);
-	if (found != NULL)
-		enable_breakpoint(proc, *found);
-	else
+	struct breakpoint *found;
+	if (DICT_FIND_VAL(proc->leader->breakpoints, &ip, &found) < 0) {
 		insert_breakpoint(proc, ip, NULL);
+	} else {
+		assert(found != NULL);
+		enable_breakpoint(proc, found);
+	}
 	ptrace(PTRACE_CONT, proc->pid, 0, 0);
 }
 
@@ -1058,12 +1059,10 @@ process_vfork_on_event(struct event_handler *super, Event *event)
 		/* Smuggle back in the vfork return breakpoint, so
 		 * that our parent can trip over it once again.  */
 		if (self->bp_addr != 0) {
-			struct breakpoint **found
-				= DICT_FIND(event->proc->leader->breakpoints,
-					    &self->bp_addr,
-					    struct breakpoint *);
-			if (found != NULL)
-				assert((*found)->libsym == NULL);
+			struct breakpoint *found;
+			if (DICT_FIND_VAL(event->proc->leader->breakpoints,
+					  &self->bp_addr, &found) == 0)
+				assert(found->libsym == NULL);
 			/* We don't mind failing that, it's not a big
 			 * deal to not display one extra vfork return.  */
 			insert_breakpoint(event->proc->parent,

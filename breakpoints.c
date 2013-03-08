@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2006,2007,2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2006,2007,2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009 Juan Cespedes
  * Copyright (C) 1998,2001,2002,2003,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -95,11 +95,10 @@ address2bpstruct(struct process *proc, arch_addr_t addr)
 	assert(proc->leader == proc);
 	debug(DEBUG_FUNCTION, "address2bpstruct(pid=%d, addr=%p)", proc->pid, addr);
 
-	struct breakpoint **found
-		= DICT_FIND(proc->breakpoints, &addr, struct breakpoint *);
-	if (found == NULL)
+	struct breakpoint *found;
+	if (DICT_FIND_VAL(proc->breakpoints, &addr, &found) < 0)
 		return NULL;
-	return *found;
+	return found;
 }
 
 #ifndef ARCH_HAVE_BREAKPOINT_DATA
@@ -223,10 +222,8 @@ insert_breakpoint(struct process *proc, arch_addr_t addr,
 	 * will suffice, about the only realistic case where we need
 	 * to have more than one breakpoint per address is return from
 	 * a recursive library call.  */
-	struct breakpoint **found
-		= DICT_FIND(leader->breakpoints, &addr, struct breakpoint *);
 	struct breakpoint *bp;
-	if (found == NULL) {
+	if (DICT_FIND_VAL(leader->breakpoints, &addr, &bp) < 0) {
 		bp = malloc(sizeof(*bp));
 		if (bp == NULL
 		    || breakpoint_init(bp, proc, addr, libsym) < 0) {
@@ -239,8 +236,6 @@ insert_breakpoint(struct process *proc, arch_addr_t addr,
 			free(bp);
 			return NULL;
 		}
-	} else {
-		bp = *found;
 	}
 
 	if (breakpoint_turn_on(bp, proc) < 0) {
@@ -259,10 +254,8 @@ delete_breakpoint(struct process *proc, arch_addr_t addr)
 	struct process *leader = proc->leader;
 	assert(leader != NULL);
 
-	struct breakpoint **found
-		= DICT_FIND(leader->breakpoints, &addr, struct breakpoint *);
-	assert(found != NULL);
-	struct breakpoint *sbp = *found;
+	struct breakpoint *sbp = NULL;
+	DICT_FIND_VAL(leader->breakpoints, &addr, &sbp);
 	assert(sbp != NULL);
 
 	if (breakpoint_turn_off(sbp, proc) < 0) {

@@ -751,9 +751,8 @@ breakpoint_for_symbol(struct library_symbol *libsym, struct process *proc)
 	 * be also custom-allocated, and we would really need to swap
 	 * the two: delete the one now in the dictionary, swap values
 	 * around, and put the new breakpoint back in.  */
-	struct breakpoint **found = DICT_FIND(proc->breakpoints,
-					      &bp_addr, struct breakpoint *);
-	if (found != NULL) {
+	struct breakpoint *bp;
+	if (DICT_FIND_VAL(proc->breakpoints, &bp_addr, &bp) == 0) {
 		/* MIPS backend makes duplicate requests.  This is
 		 * likely a bug in the backend.  Currently there's no
 		 * point assigning more than one symbol to a
@@ -767,13 +766,13 @@ breakpoint_for_symbol(struct library_symbol *libsym, struct process *proc)
 		 *   http://lists.alioth.debian.org/pipermail/ltrace-devel/2012-November/000770.html
 		 */
 #ifndef __mips__
-		assert((*found)->libsym == NULL);
-		(*found)->libsym = libsym;
+		assert(bp->libsym == NULL);
+		bp->libsym = libsym;
 #endif
 		return 0;
 	}
 
-	struct breakpoint *bp = malloc(sizeof(*bp));
+	bp = malloc(sizeof(*bp));
 	if (bp == NULL
 	    || breakpoint_init(bp, proc, bp_addr, libsym) < 0) {
 	fail:
