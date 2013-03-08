@@ -127,8 +127,8 @@ int dict_insert(struct dict *dict, void *key, void *value);
  * it.  Returns NULL if the key was not found.  */
 void *dict_find(struct dict *dict, const void *key);
 
-/* Look into DICTP for a key *KEYP.  Return 0 if it was found, or a
- * negative value if not.  */
+/* Look into DICTP for a key *KEYP.  Return a boolean indicating
+ * whether the key was found.  */
 #define DICT_HAS_KEY(DICTP, KEYP)				\
 	(assert((DICTP)->keys.elt_size == sizeof(*(KEYP))),	\
 	 dict_find((DICTP), (KEYP)) != NULL)
