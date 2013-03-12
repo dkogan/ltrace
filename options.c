@@ -368,9 +368,9 @@ parse_filter(struct filter *filt, char *expr, int operators)
 		if (*libname == 0) /* /aa@/ */
 			libname = "*";
 
-		return add_filter_rule(filt, expr, this_type,
-				       symname, sym_is_re,
-				       libname, lib_is_re);
+		add_filter_rule(filt, expr, this_type,
+				symname, sym_is_re,
+				libname, lib_is_re);
 	}
 
 	return 0;
