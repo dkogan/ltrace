@@ -464,7 +464,7 @@ dict_each(struct dict *dict, void *start_after,
 size_t
 dict_hash_int(const int *key)
 {
-	return (size_t)(*key * 2654435761);
+	return (size_t)(*key * 2654435761U);
 }
 
 int

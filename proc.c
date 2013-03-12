@@ -156,11 +156,10 @@ process_bare_init(struct process *proc, const char *filename,
 		proc->breakpoints = NULL;
 	}
 
-	if (options.bt_depth > 0) {
 #if defined(HAVE_LIBUNWIND)
+	if (options.bt_depth > 0) {
 		proc->unwind_priv = _UPT_create(pid);
 		proc->unwind_as = unw_create_addr_space(&_UPT_accessors, 0);
-#endif /* defined(HAVE_LIBUNWIND) */
 
 		if (proc->unwind_priv == NULL || proc->unwind_as == NULL) {
 			fprintf(stderr,
@@ -171,6 +170,7 @@ process_bare_init(struct process *proc, const char *filename,
 			proc->unwind_as = NULL;
 		}
 	}
+#endif /* defined(HAVE_LIBUNWIND) */
 
 	return 0;
 }
