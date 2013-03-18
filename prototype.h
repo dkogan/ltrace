@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -222,6 +222,5 @@ int protolib_cache_protolib(struct protolib_cache *cache,
 extern struct protolib_cache g_protocache;
 
 void init_global_config(void);
-void destroy_global_config(void);
 
 #endif /* _PROTOTYPE_H_ */

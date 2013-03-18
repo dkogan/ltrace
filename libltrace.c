@@ -96,7 +96,6 @@ normal_exit(void)
 		fclose(options.output);
 		options.output = NULL;
 	}
-	destroy_global_config();
 }
 
 void

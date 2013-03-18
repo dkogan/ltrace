@@ -621,6 +621,13 @@ protolib_cache_protolib(struct protolib_cache *cache,
 	return rc;
 }
 
+static void
+destroy_global_config(void)
+{
+	protolib_cache_destroy(&g_protocache);
+	protolib_destroy(&legacy_typedefs);
+}
+
 void
 init_global_config(void)
 {
@@ -641,22 +648,13 @@ init_global_config(void)
 		fprintf(stderr,
 			"Couldn't initialize aliases `addr' and `file'.\n");
 
-		/* Since global config was not yet initialized, do an
-		 * early exit.  */
-		fflush(stderr);
-		_Exit(1);
+		exit(1);
 	}
 
 	if (protolib_cache_init(&g_protocache, NULL) < 0) {
 		fprintf(stderr, "Couldn't init prototype cache\n");
-		fflush(stderr);
-		_Exit(1);
+		exit(1);
 	}
-}
 
-void
-destroy_global_config(void)
-{
-	protolib_cache_destroy(&g_protocache);
-	protolib_destroy(&legacy_typedefs);
+	atexit(destroy_global_config);
 }
