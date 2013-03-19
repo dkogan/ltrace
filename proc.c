@@ -508,6 +508,25 @@ start_one_pid(struct process *proc, void *data)
 	return CBS_CONT;
 }
 
+static enum callback_status
+is_main(struct process *proc, struct library *lib, void *data)
+{
+	return CBS_STOP_IF(lib->type == LT_LIBTYPE_MAIN);
+}
+
+void
+process_hit_start(struct process *proc)
+{
+	struct process *leader = proc->leader;
+	assert(leader != NULL);
+
+	struct library *mainlib
+		= proc_each_library(leader, NULL, is_main, NULL);
+	assert(mainlib != NULL);
+	linkmap_init(leader, mainlib->dyn_addr);
+	arch_dynlink_done(leader);
+}
+
 void
 open_pid(pid_t pid)
 {
@@ -564,7 +583,7 @@ open_pid(pid_t pid)
 
 	/* XXX Is there a way to figure out whether _start has
 	 * actually already been hit?  */
-	arch_dynlink_done(leader);
+	process_hit_start(leader);
 
 	/* Done.  Continue everyone.  */
 	each_task(leader, NULL, start_one_pid, NULL);

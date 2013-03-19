@@ -343,45 +343,29 @@ disable_all_breakpoints(struct process *proc)
 		  NULL, disable_bp_cb, proc);
 }
 
-/* XXX This is not currently properly supported.  On clone, this is
- * just sliced.  Hopefully at the point that clone is done, this
- * breakpoint is not necessary anymore.  If this use case ends up
- * being important, we need to add a clone and destroy callbacks to
- * breakpoints, and we should also probably drop arch_breakpoint_data
- * so that we don't end up with two different customization mechanisms
- * for one structure.  */
-struct entry_breakpoint {
-	struct breakpoint super;
-	arch_addr_t dyn_addr;
-};
-
 static void
-entry_breakpoint_on_hit(struct breakpoint *a, struct process *proc)
+entry_breakpoint_on_hit(struct breakpoint *bp, struct process *proc)
 {
-	struct entry_breakpoint *bp = (void *)a;
 	if (proc == NULL || proc->leader == NULL)
 		return;
-	arch_addr_t dyn_addr = bp->dyn_addr;
-	delete_breakpoint(proc, bp->super.addr);
-	linkmap_init(proc, dyn_addr);
-	arch_dynlink_done(proc);
+	delete_breakpoint(proc, bp->addr);
+	process_hit_start(proc);
 }
 
 int
 entry_breakpoint_init(struct process *proc,
-		      struct entry_breakpoint *bp, arch_addr_t addr,
+		      struct breakpoint *bp, arch_addr_t addr,
 		      struct library *lib)
 {
 	assert(addr != 0);
-	int err = breakpoint_init(&bp->super, proc, addr, NULL);
+	int err = breakpoint_init(bp, proc, addr, NULL);
 	if (err < 0)
 		return err;
 
 	static struct bp_callbacks entry_callbacks = {
 		.on_hit = entry_breakpoint_on_hit,
 	};
-	bp->super.cbs = &entry_callbacks;
-	bp->dyn_addr = lib->dyn_addr;
+	bp->cbs = &entry_callbacks;
 	return 0;
 }
 
@@ -402,7 +386,7 @@ breakpoints_init(struct process *proc)
 	assert(proc->filename != NULL);
 
 	struct library *lib = ltelf_read_main_binary(proc, proc->filename);
-	struct entry_breakpoint *entry_bp = NULL;
+	struct breakpoint *entry_bp = NULL;
 	int bp_state = 0;
 	int result = -1;
 	switch ((int)(lib != NULL)) {
@@ -410,9 +394,9 @@ breakpoints_init(struct process *proc)
 		switch (bp_state) {
 		case 2:
 			proc_remove_library(proc, lib);
-			proc_remove_breakpoint(proc, &entry_bp->super);
+			proc_remove_breakpoint(proc, entry_bp);
 		case 1:
-			breakpoint_destroy(&entry_bp->super);
+			breakpoint_destroy(entry_bp);
 		}
 		library_destroy(lib);
 		free(entry_bp);
@@ -432,11 +416,11 @@ breakpoints_init(struct process *proc)
 	} else {
 		++bp_state;
 
-		if ((result = proc_add_breakpoint(proc, &entry_bp->super)) < 0)
+		if ((result = proc_add_breakpoint(proc, entry_bp)) < 0)
 			goto fail;
 		++bp_state;
 
-		if ((result = breakpoint_turn_on(&entry_bp->super, proc)) < 0)
+		if ((result = breakpoint_turn_on(entry_bp, proc)) < 0)
 			goto fail;
 	}
 	proc_add_library(proc, lib);

@@ -181,6 +181,10 @@ struct process *each_task(struct process *proc, struct process *start_after,
 
 void change_process_leader(struct process *proc, struct process *leader);
 
+/* Prepare those parts of process initialization that need to be done
+ * after _start is hit (i.e. after dynamic linking was done).  */
+void process_hit_start(struct process *proc);
+
 /* Remove process from the list of traced processes, drop any events
  * in the event queue, destroy it and free memory.  */
 void remove_process(struct process *proc);
