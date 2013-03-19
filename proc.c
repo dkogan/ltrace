@@ -573,8 +573,7 @@ open_pid(pid_t pid)
 static enum callback_status
 find_proc(struct process *proc, void *data)
 {
-	pid_t pid = (pid_t)(uintptr_t)data;
-	return proc->pid == pid ? CBS_STOP : CBS_CONT;
+	return CBS_STOP_IF(proc->pid == (pid_t)(uintptr_t)data);
 }
 
 struct process *
@@ -818,7 +817,7 @@ breakpoint_for_symbol(struct library_symbol *libsym, struct process *proc)
 static enum callback_status
 cb_breakpoint_for_symbol(struct library_symbol *libsym, void *data)
 {
-	return breakpoint_for_symbol(libsym, data) < 0 ? CBS_FAIL : CBS_CONT;
+	return CBS_STOP_IF(breakpoint_for_symbol(libsym, data) < 0);
 }
 
 static int
