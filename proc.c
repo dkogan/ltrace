@@ -518,7 +518,7 @@ open_pid(pid_t pid)
 		return;
 
 	/* First, see if we can attach the requested PID itself.  */
-	if (open_one_pid(pid)) {
+	if (open_one_pid(pid) < 0) {
 		fprintf(stderr, "Cannot attach to pid %u: %s\n",
 			pid, strerror(errno));
 		trace_fail_warning(pid);
@@ -550,7 +550,7 @@ open_pid(pid_t pid)
 		have_all = 1;
 		for (i = 0; i < ntasks; ++i)
 			if (pid2proc(tasks[i]) == NULL
-			    && open_one_pid(tasks[i]))
+			    && open_one_pid(tasks[i]) < 0)
 				have_all = 0;
 
 		free(tasks);
