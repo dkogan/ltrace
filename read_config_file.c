@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,1999,2003,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  * Copyright (C) 2006 Steve Fink
@@ -124,7 +124,7 @@ parse_arg_type(char **name, enum arg_type *ret)
 #undef KEYWORD
 
 ok:
-	if (isalnum(CTYPE_CONV(*rest)))
+	if (isalnum(CTYPE_CONV(*rest)) || *rest == '_')
 		return -1;
 
 	*name = rest;
