@@ -350,6 +350,7 @@ AC_CONFIG_FILES([
 	sysdeps/linux-gnu/cris/Makefile
 	sysdeps/linux-gnu/ia64/Makefile
 	sysdeps/linux-gnu/m68k/Makefile
+	sysdeps/linux-gnu/metag/Makefile
 	sysdeps/linux-gnu/mips/Makefile
 	sysdeps/linux-gnu/ppc/Makefile
 	sysdeps/linux-gnu/s390/Makefile

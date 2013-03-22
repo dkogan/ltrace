@@ -29,6 +29,7 @@ to test each release comprehensively on each target.
 	i[4567]86-*-linux-gnu
 	ia64-*-linux-gnu
 	m68k-*-linux-gnu
+	metag-*-linux-uclibc
 	mips-*-linux-gnu
 	powerpc-*-linux-gnu
 	powerpc64-*-linux-gnu
