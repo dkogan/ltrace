@@ -65,6 +65,9 @@ set_instruction_pointer(struct process *proc, arch_addr_t addr)
 	if (proc->mask_32bit)
 		/* XXX double cast.  */
 		addr = (arch_addr_t)((uintptr_t)addr & PSW_MASK31);
+#else
+	/* XXX double cast.  */
+	addr = (arch_addr_t)((uintptr_t)addr | ~PSW_MASK);
 #endif
 	ptrace(PTRACE_POKEUSER, proc->pid, PT_PSWADDR, addr);
 }
