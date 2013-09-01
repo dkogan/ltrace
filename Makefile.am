@@ -68,7 +68,6 @@ dist_sysconf_DATA = \
 	etc/ltrace.conf
 
 EXTRA_DIST = \
-	ltrace.spec \
 	debian/changelog \
 	debian/compat \
 	debian/control \
