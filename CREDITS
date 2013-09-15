@@ -95,6 +95,10 @@ N: Andreas Schwab
 E: schwab@linux-m68k.org
 D: m68k fixes, fetch backend
 
+N: Oliver Spornitz
+E: ospornit@rz-online.de
+D: Fixes and testing for MIPS big endian
+
 N: César Sánchez
 E: cesar.sanchez@imdea.org
 

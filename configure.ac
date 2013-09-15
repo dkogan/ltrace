@@ -1,6 +1,6 @@
 # -*- Autoconf -*-
 # This file is part of ltrace.
-# Copyright (C) 2010,2012 Petr Machata, Red Hat Inc.
+# Copyright (C) 2010,2013 Petr Machata, Red Hat Inc.
 # Copyright (C) 2010,2011 Joe Damato
 # Copyright (C) 2010 Marc Kleine-Budde
 # Copyright (C) 2010 Zachary T Welch
@@ -23,7 +23,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.65)
 
-AC_INIT([ltrace],[0.7.2],[ltrace-devel@lists.alioth.debian.org])
+AC_INIT([ltrace],[0.7.3],[ltrace-devel@lists.alioth.debian.org])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR(libltrace.c)
 AC_CONFIG_MACRO_DIR([config/m4])
@@ -146,7 +146,7 @@ case "${enable_libunwind}" in
     enable_libunwind=no
   else
     AC_MSG_RESULT([$enable_libunwind])
-    AC_MSG_ERROR([libunwind.h or libunwind-ptrace.h cannot be found])	
+    AC_MSG_ERROR([libunwind.h or libunwind-ptrace.h cannot be found])
   fi
   ;;
 (*) ;;
