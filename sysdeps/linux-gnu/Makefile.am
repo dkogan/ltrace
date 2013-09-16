@@ -40,8 +40,7 @@ EXTRA_DIST = \
 	arch_mksyscallent \
 	mksignalent \
 	mksyscallent \
-	mksyscallent_s390 \
-	mips
+	mksyscallent_s390
 
 MAINTAINERCLEANFILES = \
 	Makefile.in
