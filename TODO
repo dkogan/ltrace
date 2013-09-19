@@ -3,13 +3,11 @@
 ** Automatic prototype discovery:
 *** Use debuginfo if available
     Alternatively, use debuginfo to generate configure file.
-*** Demangled identifiers contain partial prototypes themselves
+*** Mangled identifiers contain partial prototypes themselves
+    They don't contain return type info, which can change the
+    parameter passing convention.  We could use it and hope for the
+    best.
 ** Automatically update list of syscalls?
-** Update /etc/ltrace.conf
-   In particular, we could use a config directory, where packages
-   would install their ltrace config scripts.  The config file could
-   be named after SONAME, and automatically read when corresponding
-   library is mapped.
 ** More operating systems (solaris?)
 ** Get rid of EVENT_ARCH_SYSCALL and EVENT_ARCH_SYSRET
 ** Implement displaced tracing
@@ -21,6 +19,10 @@
    reenablement.
 ** Create different ltrace processes to trace different children
 ** Config file syntax
+*** mark some symbols as exported
+    For PLT hits, only exported prototypes would be considered.  For
+    symtab entry point hits, all would be.
+
 *** named arguments
     This would be useful for replacing the arg1, emt2 etc.
 
@@ -129,10 +131,14 @@
    according to architecture rules.  Maybe this could be achieved by a
    per-arch config file with typedefs such as:
 
-   | typedef ulong = uint8_t |
+   | typedef ulong = uint8_t; |
 
 ** Some more functions in vect might be made to take const*
    Or even marked __attribute__((pure)).
+
+** pretty printer support
+   GDB supports python pretty printers.  We migh want to hook this in
+   and use it to format certain types.
 
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
