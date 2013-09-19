@@ -161,7 +161,7 @@ again:
 		VECT_DESTROY(&v, struct opt_F_t, destroy_opt_F_cb, NULL);
 	}
 
-	/* SYSCONFDIF is passed via -D when compiling.  */
+	/* SYSCONFDIR is passed via -D when compiling.  */
 	const char *sysconfdir = SYSCONFDIR;
 	if (sysconfdir != NULL)
 		add_dir(&dirs, sysconfdir, "");
