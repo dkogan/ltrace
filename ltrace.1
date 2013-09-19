@@ -39,7 +39,7 @@ ltrace \- A library call tracer
 .\"
 .\" Output formatting:
 .\"
-[\-F \fIfilename\fR]
+[\-F \fIpathlist\fR]
 [\-A \fImaxelts\fR] [\-s \fIstrsize\fR] [\-C|\-\-demangle]
 [\-a|\-\-align \fIcolumn\fR] [\-n|\-\-indent \fInr\fR]
 [\-o|\-\-output \fIfilename\fR]
@@ -89,6 +89,14 @@ It can also intercept and print the system calls executed by the program.
 Its use is very similar to
 .BR strace(1) .
 
+.B ltrace
+shows parameters of invoked functions and system calls.  To determine
+what arguments each function has, it needs external declaration of
+function prototypes.  Those are stored in files called \fIprototype
+libraries\fR--see ltrace.conf(5) for details on the syntax of these
+files.  See the section \fBPROTOTYPE LIBRARY DISCOVERY\fR to learn how
+\fBltrace\fR finds prototype libraries.
+
 .SH OPTIONS
 .PP
 .IP "\-a, \-\-align \fIcolumn"
@@ -124,12 +132,12 @@ Trace child processes as they are created by
 currently traced processes as a result of the fork(2)
 or clone(2) system calls.
 The new process is attached immediately.
-.IP "\-F \fIfilename"
-Load an alternate config file. Normally, /etc/ltrace.conf and
-~/.ltrace.conf will be read (the latter only if it exists).  Use this
-option to load the given file or files instead of those two default
-files.  See ltrace.conf(5) for details on the syntax of ltrace
-configuration files.
+.IP "\-F \fIpathlist"
+Contains a colon-separated list of paths.  If a path refers to a
+directory, that directory is considered when prototype libraries are
+searched (see the section \fBPROTOTYPE LIBRARY DISCOVERY\fR).  If it refers to
+a file, that file is imported implicitly to all loaded prototype
+libraries.
 .IP "\-h, \-\-help"
 Show a summary of the options to ltrace and exit.
 .IP \-i
@@ -254,6 +262,52 @@ Initially, the symbol is \fIunmarked\fR.  If it matches a \fB+\fR
 rule, it becomes \fImarked\fR, if it matches a \fB-\fR rule, it
 becomes \fIunmarked\fR again.  If, after applying all rules, the
 symbol is \fImarked\fR, it will be traced.
+
+.SH PROTOTYPE LIBRARY DISCOVERY
+
+When a library is mapped into the address space of a traced process,
+ltrace needs to know what the prototypes are of functions that this
+library implements.  For purposes of ltrace, prototype really is a bit
+more than just type signature: it's also formatting of individual
+parameters and of return value.  These prototypes are stored in files
+called prototype libraries.
+
+After a library is mapped, ltrace finds out what its SONAME is.  It
+then looks for a file named SONAME.conf--e.g. protolib for libc.so.6
+would be in a file called libc.so.6.conf.  When such file is found
+(more about where ltrace looks for these files is below), ltrace reads
+all prototypes stored therein.  When a symbol table entry point (such
+as those traced by -x) is hit, the prototype is looked up in a
+prototype library corresponding to the library where the hit occured.
+When a library call (such as those traced by -e and -l) is hit, the
+prototype is looked up in all prototype libraries loaded for given
+process.  That is necessary, because a library call is traced in a PLT
+table of a caller library, but the prototype is described at callee
+library.
+
+If a library has no SONAME, basename of library file is considered
+instead.  For the main program binary, basename is considered as well
+(e.g. protolib for /bin/echo would be called echo.conf).
+
+When looking for a prototype library, ltrace potentially looks into
+several directories.  On Linux, those are $XDG_CONFIG_HOME/ltrace,
+$HOME/.ltrace, \fIX\fR/ltrace for each \fIX\fR in $XDG_CONFIG_DIRS,
+and /etc/ltrace (XXX but that should probably be /usr/lib/ltrace).  If
+the environment variable XDG_CONFIG_HOME is not defined, ltrace looks
+into $HOME/.config/ltrace instead.
+
+There's also a mechanism for loading legacy config files.  If
+$HOME/.ltrace.conf exists it is imported to every loaded prototype
+library.  Similarly for /etc/ltrace.conf.  If both exist, both are
+imported, and $HOME/.ltrace.conf is consulted before /etc/ltrace.conf.
+
+If -F contains any directories, those are searched in precedence to
+the above system directories, in the same order in which they are
+mentioned in -F.  Any files passed in -F are imported similarly to
+above legacy config files, before them.
+
+See ltrace.conf(5) for details on the syntax of ltrace prototype
+library files.
 
 .SH BUGS
 It has most of the bugs stated in
