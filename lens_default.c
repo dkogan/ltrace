@@ -345,7 +345,7 @@ format_array(FILE *stream, struct value *value, struct value_dict *arguments,
 {
 	/* We need "long" to be long enough to cover the whole address
 	 * space.  */
-	typedef char assert__long_enough_long[-(sizeof(long) < sizeof(void *))];
+	(void)sizeof(char[1 - 2*(sizeof(long) < sizeof(void *))]);
 	long l;
 	if (expr_eval_word(length, value, arguments, &l) < 0)
 		return -1;
