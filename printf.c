@@ -168,7 +168,7 @@ form_next_param(struct param_enum *self,
 		type_init_pointer(infop, array, 1);
 
 	} else if (format_type == ARGTYPE_POINTER) {
-		type_init_pointer(infop, elt_info, 1);
+		type_init_pointer(infop, elt_info, 0);
 
 	} else {
 		*infop = *type_get_simple(format_type);
