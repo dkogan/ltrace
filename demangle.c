@@ -47,7 +47,7 @@ my_demangle(const char *function_name) {
 	if (name_cache == NULL) {
 		name_cache = malloc(sizeof(*name_cache));
 		if (name_cache != NULL)
-			DICT_INIT(name_cache, const char *, const char *,
+			DICT_INIT(name_cache, char *, const char *,
 				  dict_hash_string, dict_eq_string, NULL);
 	}
 

@@ -568,7 +568,7 @@ again:
 				options.summary = 0;
 				goto again;
 			}
-			DICT_INIT(dict_opt_c, const char *, struct opt_c_struct,
+			DICT_INIT(dict_opt_c, char *, struct opt_c_struct,
 				  dict_hash_string, dict_eq_string, NULL);
 		}
 

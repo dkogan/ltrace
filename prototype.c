@@ -136,10 +136,10 @@ named_type_destroy(struct named_type *named)
 void
 protolib_init(struct protolib *plib)
 {
-	DICT_INIT(&plib->prototypes, const char *, struct prototype,
+	DICT_INIT(&plib->prototypes, char *, struct prototype,
 		  dict_hash_string, dict_eq_string, NULL);
 
-	DICT_INIT(&plib->named_types, const char *, struct named_type,
+	DICT_INIT(&plib->named_types, char *, struct named_type,
 		  dict_hash_string, dict_eq_string, NULL);
 
 	VECT_INIT(&plib->imports, struct protolib *);
@@ -444,7 +444,7 @@ add_imports_cb(struct opt_F_t *entry, void *data)
 int
 protolib_cache_init(struct protolib_cache *cache, struct protolib *import)
 {
-	DICT_INIT(&cache->protolibs, const char *, struct protolib *,
+	DICT_INIT(&cache->protolibs, char *, struct protolib *,
 		  dict_hash_string, dict_eq_string, NULL);
 	protolib_init(&cache->imports);
 
