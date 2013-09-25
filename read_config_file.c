@@ -256,7 +256,7 @@ static struct expr_node *parse_argnum(struct locus *loc,
 				      char **str, int *ownp, int zero);
 
 static struct expr_node *
-parse_zero(struct locus *loc, char **str, struct expr_node *ret, int *ownp)
+parse_zero(struct locus *loc, char **str, int *ownp)
 {
 	eat_spaces(str);
 	if (**str == '(') {
@@ -279,7 +279,6 @@ parse_zero(struct locus *loc, char **str, struct expr_node *ret, int *ownp)
 		return ret;
 
 	} else {
-		free(ret);
 		*ownp = 0;
 		return expr_node_zero();
 	}
@@ -366,9 +365,10 @@ parse_argnum(struct locus *loc, char **str, int *ownp, int zero)
 
 		} else if (strcmp(name, "zero") == 0) {
 			struct expr_node *ret
-				= parse_zero(loc, str, expr, ownp);
+				= parse_zero(loc, str, ownp);
 			if (ret == NULL)
 				goto fail_ident;
+			free(expr);
 			free(name);
 			return ret;
 
