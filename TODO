@@ -133,6 +133,20 @@
 
    | typedef ulong = uint8_t; |
 
+** Support for ARM/AARCH64 types
+   - ARM and AARCH64 both support half-precision floating point
+     - there are two different half-precision formats, IEEE 754-2008
+       and "alternative".  Both have 10 bits of mantissa and 5 bits of
+       exponent, and differ only in how exponent==0x1F is handled.  In
+       IEEE format, we get NaN's and infinities; in alternative
+       format, this encodes normalized value -1S × 2¹⁶ × (1.mant)
+     - The Floating-Point Control Register, FPCR, controls: — The
+       half-precision format where applicable, FPCR.AHP bit.
+   - AARCH64 supports fixed-point interpretation of {,double}words
+     - e.g. fixed(int, X) (int interpreted as a decimal number with X
+       binary digits of fraction).
+   - AARCH64 supports 128-bit quad words in SIMD
+
 ** Some more functions in vect might be made to take const*
    Or even marked __attribute__((pure)).
 
