@@ -215,4 +215,34 @@ ltraceMatch1 [ltraceLibTest {
     -L -x fun
 }] {fun@.*\(\)} == 1
 
+
+# Test that %p format specifier does not crash
+
+ltraceMatch1 [ltraceLibTest {
+    void print_ptr(format);
+} {
+    void print_ptr(const char *format, ...);
+} {
+    void print_ptr(const char *format, ...) { }
+} {
+    void *addr = (void *)0x42;
+    print_ptr("%p\n", addr);
+}] {print_ptr\("%p\\n", 0x42\) *= <void>} == 1
+
+
+# Test that zero(EXPR) does not leak memory (needs valgrind)
+
+ltraceMatch1 [ltraceLibTest {
+    typedef String = string(array(char, zero(256)));
+    String *get_string();
+} {
+    char *get_string();
+} {
+    char *get_string() {
+        return "FOO";
+    }
+} {
+    get_string();
+}] {get_string\(\) *= "FOO"} == 1
+
 ltraceDone
