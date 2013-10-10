@@ -194,3 +194,11 @@ vect_qsort(struct vect *vec, int (*compar)(const void *, const void *))
 {
 	qsort(vec->data, vec->size, vec->elt_size, compar);
 }
+
+const void *
+vect_each_cst(const struct vect *vec, const void *start_after,
+	      enum callback_status (*cb)(const void *, void *), void *data)
+{
+	return vect_each((struct vect *)vec, (void *)start_after,
+			 (void *)cb, data);
+}

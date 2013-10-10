@@ -171,6 +171,26 @@ void *vect_each(struct vect *vec, void *start_after,
 				      DATA);				\
 	})
 
+/* Iterate through vector VEC.  See callback.h for notes on iteration
+ * interfaces.  */
+const void *vect_each_cst(const struct vect *vec, const void *start_after,
+			  enum callback_status (*cb)(const void *, void *),
+			  void *data);
+
+#define VECT_EACH_CST(VECP, ELT_TYPE, START_AFTER, CB, DATA)		\
+	/* xxx GCC-ism necessary to get in the safety latches.  */	\
+	({								\
+		assert((VECP)->elt_size == sizeof(ELT_TYPE));		\
+		/* Check that CB is typed properly.  */			\
+		enum callback_status (*_cb)(const ELT_TYPE *, void *) = CB; \
+		const ELT_TYPE *start_after = (START_AFTER);		\
+		(const ELT_TYPE *)vect_each_cst((VECP), start_after,	\
+						(enum callback_status	\
+						 (*)(const void *,	\
+						     void *))_cb,	\
+						DATA);			\
+	})
+
 /* Call qsort on elements of VECT, with COMPAR as a comparison
  * function.  */
 void vect_qsort(struct vect *vec, int (*compar)(const void *, const void *));
