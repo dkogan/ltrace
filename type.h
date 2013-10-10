@@ -110,6 +110,10 @@ void type_init_pointer(struct arg_type_info *info,
  * itself.  */
 void type_destroy(struct arg_type_info *info);
 
+/* Copy type INFO into the area pointed to by RETP.  Return 0 on
+ * success or a negative value on failure.  */
+int type_clone(struct arg_type_info *retp, const struct arg_type_info *info);
+
 /* Compute a size of given type.  Return (size_t)-1 for error.  */
 size_t type_sizeof(struct process *proc, struct arg_type_info *type);
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -124,6 +124,10 @@ void expr_init_cb2(struct expr_node *node,
 
 /* Release the data inside NODE.  Doesn't free NODE itself.  */
 void expr_destroy(struct expr_node *node);
+
+/* Copy expression NODE into the area pointed to by RETP.  Return 0 on
+ * success or a negative value on failure.  */
+int expr_clone(struct expr_node *retp, const struct expr_node *node);
 
 /* Evaluate the expression NODE in context of VALUE.  ARGUMENTS is a
  * dictionary of named and numbered values that NODE may use.  Returns

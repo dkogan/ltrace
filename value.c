@@ -189,15 +189,30 @@ int
 value_clone(struct value *retp, const struct value *val)
 {
 	*retp = *val;
+
+	if (val->own_type) {
+		retp->type = malloc(sizeof(struct arg_type_info));
+		if (type_clone (retp->type, val->type) < 0) {
+			free(retp->type);
+			return -1;
+		}
+	}
+
 	if (val->where == VAL_LOC_COPY) {
 		assert(val->inferior != NULL);
 		size_t size = type_sizeof(val->inferior, val->type);
-		if (size == (size_t)-1)
+		if (size == (size_t)-1) {
+		fail:
+			if (retp->own_type) {
+				type_destroy(retp->type);
+				free(retp->type);
+			}
 			return -1;
+		}
 
 		retp->u.address = malloc(size);
 		if (retp->u.address == NULL)
-			return -1;
+			goto fail;
 
 		memcpy(retp->u.address, val->u.address, size);
 	}

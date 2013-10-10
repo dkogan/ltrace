@@ -249,6 +249,95 @@ type_destroy(struct arg_type_info *info)
 	}
 }
 
+static int
+type_alloc_and_clone(struct arg_type_info **retpp,
+		     struct arg_type_info *info, int own)
+{
+	*retpp = info;
+	if (own) {
+		*retpp = malloc(sizeof **retpp);
+		if (*retpp == NULL || type_clone(*retpp, info) < 0) {
+			free(*retpp);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static enum callback_status
+clone_struct_add_field(const struct struct_field *field, void *data)
+{
+	struct arg_type_info *retp = data;
+	struct arg_type_info *info;
+	if (type_alloc_and_clone(&info, field->info, field->own_info) < 0) {
+	fail:
+		if (info != field->info)
+			free(info);
+		return CBS_STOP;
+	}
+
+	if (type_struct_add(retp, info, field->own_info) < 0) {
+		if (field->own_info)
+			type_destroy(info);
+		goto fail;
+	}
+
+	return CBS_CONT;
+}
+
+int
+type_clone(struct arg_type_info *retp, const struct arg_type_info *info)
+{
+	switch (info->type) {
+	case ARGTYPE_STRUCT:
+		type_init_struct(retp);
+		if (VECT_EACH_CST(&info->u.entries, struct struct_field, NULL,
+				  clone_struct_add_field, retp) != NULL) {
+			type_destroy(retp);
+			return -1;
+		}
+		break;
+
+	case ARGTYPE_ARRAY:;
+		struct arg_type_info *elt_type;
+		if (type_alloc_and_clone(&elt_type, info->u.array_info.elt_type,
+					 info->u.array_info.own_info) < 0)
+			return -1;
+
+		assert(!info->u.array_info.own_length); // XXXXXXX
+		type_init_array(retp, elt_type, info->u.array_info.own_info,
+				info->u.array_info.length,
+				info->u.array_info.own_length);
+		break;
+
+	case ARGTYPE_POINTER:;
+		struct arg_type_info *ninfo;
+		if (type_alloc_and_clone(&ninfo, info->u.ptr_info.info,
+					 info->u.ptr_info.own_info) < 0)
+			return -1;
+		type_init_pointer(retp, ninfo, info->u.ptr_info.own_info);
+		break;
+
+	case ARGTYPE_VOID:
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_FLOAT:
+	case ARGTYPE_DOUBLE:
+		*retp = *info;
+		break;
+	}
+
+	assert(!info->own_lens);
+	retp->lens = info->lens;
+	retp->own_lens = info->own_lens;
+	return 0;
+}
+
 #ifdef ARCH_HAVE_SIZEOF
 size_t arch_type_sizeof(struct process *proc, struct arg_type_info *arg);
 #else
