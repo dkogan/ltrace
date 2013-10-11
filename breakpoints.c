@@ -85,6 +85,20 @@ breakpoint_on_retract(struct breakpoint *bp, struct process *proc)
 		(bp->cbs->on_retract)(bp, proc);
 }
 
+int
+breakpoint_get_return_bp(struct breakpoint **ret,
+			 struct breakpoint *bp, struct process *proc)
+{
+	assert(bp != NULL);
+	if (bp->cbs != NULL && bp->cbs->get_return_bp != NULL)
+		return (bp->cbs->get_return_bp)(ret, bp, proc);
+
+	if ((*ret = create_default_return_bp(proc)) == NULL)
+		return -1;
+
+	return 0;
+}
+
 /*****************************************************************************/
 
 struct breakpoint *
@@ -227,6 +241,19 @@ breakpoint_turn_off(struct breakpoint *bp, struct process *proc)
 		disable_breakpoint(proc, bp);
 	assert(bp->enabled >= 0);
 	return 0;
+}
+
+struct breakpoint *
+create_default_return_bp(struct process *proc)
+{
+	struct breakpoint *bp = malloc(sizeof *bp);
+	arch_addr_t return_addr = get_return_addr(proc, proc->stack_pointer);
+	if (return_addr == 0 || bp == NULL
+	    || breakpoint_init(bp, proc, return_addr, NULL) < 0) {
+		free(bp);
+		return NULL;
+	}
+	return bp;
 }
 
 struct breakpoint *
