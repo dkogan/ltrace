@@ -58,14 +58,14 @@ struct breakpoint {
 	struct arch_breakpoint_data arch;
 };
 
-/* Call on-hit handler of BP, if any is set.  */
+/* Call ON_HIT handler of BP, if any is set.  */
 void breakpoint_on_hit(struct breakpoint *bp, struct process *proc);
 
-/* Call on-continue handler of BP.  If none is set, call
+/* Call ON_CONTINUE handler of BP.  If none is set, call
  * continue_after_breakpoint.  */
 void breakpoint_on_continue(struct breakpoint *bp, struct process *proc);
 
-/* Call on-retract handler of BP, if any is set.  This should be
+/* Call ON_RETRACT handler of BP, if any is set.  This should be
  * called before the breakpoints are destroyed.  The reason for a
  * separate interface is that breakpoint_destroy has to be callable
  * without PROC.  ON_DISABLE might be useful as well, but that would

@@ -621,10 +621,10 @@ populate_plt(struct process *proc, const char *filename,
 		case PLT_DEFAULT:
 			if (default_elf_add_plt_entry(proc, lte, name,
 						      &rela, i, &libsym) < 0)
-			/* fall-through */
+			/* Fall through.  */
 		case PLT_FAIL:
 				return -1;
-			/* fall-through */
+			/* Fall through.  */
 		case PLT_OK:
 			if (libsym != NULL) {
 				/* If we are adding those symbols just
