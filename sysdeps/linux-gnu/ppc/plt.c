@@ -764,7 +764,7 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 	 * a store instruction, so moving the breakpoint one
 	 * instruction forward is safe.  */
 	arch_addr_t addr = get_instruction_pointer(proc) + 4;
-	leader->arch.dl_plt_update_bp = insert_breakpoint(proc, addr, NULL);
+	leader->arch.dl_plt_update_bp = insert_breakpoint_at(proc, addr, NULL);
 	if (leader->arch.dl_plt_update_bp == NULL)
 		goto done;
 

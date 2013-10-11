@@ -200,8 +200,8 @@ breakpoint_turn_off(struct breakpoint *bp, struct process *proc)
 }
 
 struct breakpoint *
-insert_breakpoint(struct process *proc, arch_addr_t addr,
-		  struct library_symbol *libsym)
+insert_breakpoint_at(struct process *proc, arch_addr_t addr,
+		     struct library_symbol *libsym)
 {
 	struct process *leader = proc->leader;
 
@@ -210,7 +210,8 @@ insert_breakpoint(struct process *proc, arch_addr_t addr,
 	assert(leader != NULL);
 	assert(leader->breakpoints != NULL);
 
-	debug(DEBUG_FUNCTION, "insert_breakpoint(pid=%d, addr=%p, symbol=%s)",
+	debug(DEBUG_FUNCTION,
+	      "insert_breakpoint_at(pid=%d, addr=%p, symbol=%s)",
 	      proc->pid, addr, libsym ? libsym->name : "NULL");
 
 	assert(addr != 0);
@@ -220,8 +221,8 @@ insert_breakpoint(struct process *proc, arch_addr_t addr,
 	 *
 	 * XXX The real problem here is that to create a return
 	 * breakpoint ltrace calls get_return_addr and then
-	 * insert_breakpoint.  So get_return_addr needs to encode all
-	 * the information necessary for breakpoint_init into the
+	 * insert_breakpoint_at.  So get_return_addr needs to encode
+	 * all the information necessary for breakpoint_init into the
 	 * address itself, so ADDR is potentially mangled.  We filter
 	 * the noise out by first creating the breakpoint on stack,
 	 * and then looking at the address of the created breakpoint.

@@ -326,7 +326,7 @@ ugly_workaround(struct process *proc)
 	arch_addr_t ip = get_instruction_pointer(proc);
 	struct breakpoint *found;
 	if (DICT_FIND_VAL(proc->leader->breakpoints, &ip, &found) < 0) {
-		insert_breakpoint(proc, ip, NULL);
+		insert_breakpoint_at(proc, ip, NULL);
 	} else {
 		assert(found != NULL);
 		enable_breakpoint(proc, found);
@@ -596,7 +596,7 @@ sw_singlestep_add_bp(arch_addr_t addr, struct sw_singlestep_data *data)
 				.on_hit = sw_singlestep_bp_on_hit,
 			};
 			struct breakpoint *bp
-				= insert_breakpoint(proc, addr, NULL);
+				= insert_breakpoint_at(proc, addr, NULL);
 			breakpoint_set_callbacks(bp, &cbs);
 			self->sws_bps[i] = bp;
 			return 0;

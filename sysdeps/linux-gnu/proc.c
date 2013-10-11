@@ -631,7 +631,7 @@ linkmap_init(struct process *proc, arch_addr_t dyn_addr)
 	if (arch_translate_address_dyn(proc, addr, &addr) < 0)
 		return -1;
 
-	struct breakpoint *rdebug_bp = insert_breakpoint(proc, addr, NULL);
+	struct breakpoint *rdebug_bp = insert_breakpoint_at(proc, addr, NULL);
 	if (rdebug_bp == NULL) {
 		/* This is not fatal, the tracing can continue with
 		 * reduced functionality.  */
