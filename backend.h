@@ -238,10 +238,11 @@ int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
 
 /* The following callbacks have to be implemented in backend if arch.h
  * defines ARCH_HAVE_LIBRARY_DATA.  Those are used to init, destroy
- * and clone LIB->arch.  */
-void arch_library_init(struct library *lib);
+ * and clone LIB->arch.  arch_library_init and arch_library_clone
+ * return 0 on success or a negative value on failure.  */
+int arch_library_init(struct library *lib);
 void arch_library_destroy(struct library *lib);
-void arch_library_clone(struct library *retp, struct library *lib);
+int arch_library_clone(struct library *retp, struct library *lib);
 
 /* The following callbacks have to be implemented in backend if arch.h
  * defines ARCH_HAVE_LIBRARY_SYMBOL_DATA.  Those are used to init,

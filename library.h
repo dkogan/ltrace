@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2006 Paul Gilliam, IBM Corporation
  *
  * This program is free software; you can redistribute it and/or
@@ -165,7 +165,7 @@ struct library {
 };
 
 /* Init LIB.  */
-void library_init(struct library *lib, enum library_type type);
+int library_init(struct library *lib, enum library_type type);
 
 /* Initialize RETP to a library identical to LIB.  Symbols are not
  * shared, but copied over.  Returns 0 on success and a negative value

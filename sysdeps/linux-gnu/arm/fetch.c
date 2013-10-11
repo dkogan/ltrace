@@ -208,9 +208,10 @@ arch_elf_destroy(struct ltelf *lte)
 {
 }
 
-void
+int
 arch_library_init(struct library *lib)
 {
+	return 0;
 }
 
 void
@@ -218,10 +219,11 @@ arch_library_destroy(struct library *lib)
 {
 }
 
-void
+int
 arch_library_clone(struct library *retp, struct library *lib)
 {
 	retp->arch = lib->arch;
+	return 0;
 }
 
 enum {

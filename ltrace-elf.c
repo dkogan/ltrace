@@ -1007,9 +1007,10 @@ struct library *
 ltelf_read_main_binary(struct process *proc, const char *path)
 {
 	struct library *lib = malloc(sizeof(*lib));
-	if (lib == NULL)
+	if (lib == NULL || library_init(lib, LT_LIBTYPE_MAIN) < 0) {
+		free(lib);
 		return NULL;
-	library_init(lib, LT_LIBTYPE_MAIN);
+	}
 	library_set_pathname(lib, path, 0);
 
 	/* There is a race between running the process and reading its

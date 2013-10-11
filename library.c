@@ -32,9 +32,10 @@
 #include "backend.h" // for arch_library_symbol_init, arch_library_init
 
 #ifndef ARCH_HAVE_LIBRARY_DATA
-void
+int
 arch_library_init(struct library *lib)
 {
+	return 0;
 }
 
 void
@@ -42,9 +43,10 @@ arch_library_destroy(struct library *lib)
 {
 }
 
-void
+int
 arch_library_clone(struct library *retp, struct library *lib)
 {
+	return 0;
 }
 #endif
 
@@ -238,11 +240,11 @@ private_library_init(struct library *lib, enum library_type type)
 	lib->type = type;
 }
 
-void
+int
 library_init(struct library *lib, enum library_type type)
 {
 	private_library_init(lib, type);
-	arch_library_init(lib);
+	return arch_library_init(lib);
 }
 
 static int
@@ -275,7 +277,6 @@ library_clone(struct library *retp, struct library *lib)
 	private_library_init(retp, lib->type);
 	library_set_soname(retp, soname, lib->own_soname);
 	library_set_pathname(retp, pathname, lib->own_pathname);
-	arch_library_clone(retp, lib);
 
 	retp->key = lib->key;
 
@@ -316,6 +317,9 @@ library_clone(struct library *retp, struct library *lib)
 		}
 		*nnamep = NULL;
 	}
+
+	if (arch_library_clone(retp, lib) < 0)
+		goto fail;
 
 	return 0;
 }

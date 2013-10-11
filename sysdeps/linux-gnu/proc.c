@@ -534,16 +534,19 @@ crawl_linkmap(struct process *proc, struct lt_r_debug_64 *dbg)
 		struct library *lib = malloc(sizeof(*lib));
 		if (lib == NULL) {
 		fail:
-			if (lib != NULL)
-				library_destroy(lib);
+			free(lib);
 			fprintf(stderr, "Couldn't load ELF object %s: %s\n",
 				lib_name, strerror(errno));
 			continue;
 		}
-		library_init(lib, LT_LIBTYPE_DSO);
 
-		if (ltelf_read_library(lib, proc, lib_name, rlm.l_addr) < 0)
+		if (library_init(lib, LT_LIBTYPE_DSO) < 0)
 			goto fail;
+
+		if (ltelf_read_library(lib, proc, lib_name, rlm.l_addr) < 0) {
+			library_destroy(lib);
+			goto fail;
+		}
 
 		lib->key = key;
 		proc_add_library(proc, lib);
