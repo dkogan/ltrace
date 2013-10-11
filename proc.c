@@ -42,31 +42,6 @@
 #include "proc.h"
 #include "value_dict.h"
 
-#ifndef ARCH_HAVE_PROCESS_DATA
-int
-arch_process_init(struct process *proc)
-{
-	return 0;
-}
-
-void
-arch_process_destroy(struct process *proc)
-{
-}
-
-int
-arch_process_clone(struct process *retp, struct process *proc)
-{
-	return 0;
-}
-
-int
-arch_process_exec(struct process *proc)
-{
-	return 0;
-}
-#endif
-
 #ifndef OS_HAVE_PROCESS_DATA
 int
 os_process_init(struct process *proc)
@@ -87,6 +62,31 @@ os_process_clone(struct process *retp, struct process *proc)
 
 int
 os_process_exec(struct process *proc)
+{
+	return 0;
+}
+#endif
+
+#ifndef ARCH_HAVE_PROCESS_DATA
+int
+arch_process_init(struct process *proc)
+{
+	return 0;
+}
+
+void
+arch_process_destroy(struct process *proc)
+{
+}
+
+int
+arch_process_clone(struct process *retp, struct process *proc)
+{
+	return 0;
+}
+
+int
+arch_process_exec(struct process *proc)
 {
 	return 0;
 }

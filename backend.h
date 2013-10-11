@@ -281,6 +281,15 @@ void arch_library_symbol_destroy(struct library_symbol *libsym);
 int arch_library_symbol_clone(struct library_symbol *retp,
 			      struct library_symbol *libsym);
 
+/* The following callbacks have to be implemented in OS backend if
+ * os.h defines OS_HAVE_PROCESS_DATA.  The protocol is same as for,
+ * respectively, arch_process_init, arch_process_destroy,
+ * arch_process_clone and arch_process_exec.  */
+int os_process_init(struct process *proc);
+void os_process_destroy(struct process *proc);
+int os_process_clone(struct process *retp, struct process *proc);
+int os_process_exec(struct process *proc);
+
 /* The following callbacks have to be implemented in backend if arch.h
  * defines ARCH_HAVE_PROCESS_DATA.  Those are used to init, destroy
  * and clone PROC->arch.  arch_process_exec is called to update
@@ -291,15 +300,6 @@ int arch_process_init(struct process *proc);
 void arch_process_destroy(struct process *proc);
 int arch_process_clone(struct process *retp, struct process *proc);
 int arch_process_exec(struct process *proc);
-
-/* The following callbacks have to be implemented in OS backend if
- * os.h defines OS_HAVE_PROCESS_DATA.  The protocol is same as for,
- * respectively, arch_process_init, arch_process_destroy,
- * arch_process_clone and arch_process_exec.  */
-int os_process_init(struct process *proc);
-void os_process_destroy(struct process *proc);
-int os_process_clone(struct process *retp, struct process *proc);
-int os_process_exec(struct process *proc);
 
 /* The following callback has to be implemented in backend if arch.h
  * defines ARCH_HAVE_GET_SYM_INFO.
