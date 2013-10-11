@@ -236,6 +236,14 @@ int arch_breakpoint_init(struct process *proc, struct breakpoint *sbp);
 void arch_breakpoint_destroy(struct breakpoint *sbp);
 int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
 
+/* The following callbacks have to be implemented in OS backend if
+ * os.h defines OS_HAVE_LIBRARY_DATA.  Those are used to init, destroy
+ * and clone LIB->os.  os_library_init and os_library_clone return 0
+ * on success or a negative value on failure.  */
+int os_library_init(struct library *lib);
+void os_library_destroy(struct library *lib);
+int os_library_clone(struct library *retp, struct library *lib);
+
 /* The following callbacks have to be implemented in backend if arch.h
  * defines ARCH_HAVE_LIBRARY_DATA.  Those are used to init, destroy
  * and clone LIB->arch.  arch_library_init and arch_library_clone
@@ -243,6 +251,16 @@ int arch_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
 int arch_library_init(struct library *lib);
 void arch_library_destroy(struct library *lib);
 int arch_library_clone(struct library *retp, struct library *lib);
+
+/* The following callbacks have to be implemented in OS backend if
+ * os.h defines OS_HAVE_LIBRARY_SYMBOL_DATA.  Those are used to init,
+ * destroy and clone LIBSYM->os.  os_library_symbol_init and
+ * os_library_symbol_clone return 0 on success or a negative value on
+ * failure.  */
+int os_library_symbol_init(struct library_symbol *libsym);
+void os_library_symbol_destroy(struct library_symbol *libsym);
+int os_library_symbol_clone(struct library_symbol *retp,
+			    struct library_symbol *libsym);
 
 /* The following callbacks have to be implemented in backend if arch.h
  * defines ARCH_HAVE_LIBRARY_SYMBOL_DATA.  Those are used to init,

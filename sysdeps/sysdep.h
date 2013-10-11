@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -44,8 +44,18 @@ struct arch_breakpoint_data {
 };
 #endif
 
+#ifndef OS_HAVE_LIBRARY_SYMBOL_DATA
+struct os_library_symbol_data {
+};
+#endif
+
 #ifndef ARCH_HAVE_LIBRARY_SYMBOL_DATA
 struct arch_library_symbol_data {
+};
+#endif
+
+#ifndef OS_HAVE_LIBRARY_DATA
+struct os_library_data {
 };
 #endif
 

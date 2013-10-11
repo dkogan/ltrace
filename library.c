@@ -31,6 +31,25 @@
 #include "dict.h"
 #include "backend.h" // for arch_library_symbol_init, arch_library_init
 
+#ifndef OS_HAVE_LIBRARY_DATA
+int
+os_library_init(struct library *lib)
+{
+	return 0;
+}
+
+void
+os_library_destroy(struct library *lib)
+{
+}
+
+int
+os_library_clone(struct library *retp, struct library *lib)
+{
+	return 0;
+}
+#endif
+
 #ifndef ARCH_HAVE_LIBRARY_DATA
 int
 arch_library_init(struct library *lib)
@@ -45,6 +64,26 @@ arch_library_destroy(struct library *lib)
 
 int
 arch_library_clone(struct library *retp, struct library *lib)
+{
+	return 0;
+}
+#endif
+
+#ifndef OS_HAVE_LIBRARY_SYMBOL_DATA
+int
+os_library_symbol_init(struct library_symbol *libsym)
+{
+	return 0;
+}
+
+void
+os_library_symbol_destroy(struct library_symbol *libsym)
+{
+}
+
+int
+os_library_symbol_clone(struct library_symbol *retp,
+			struct library_symbol *libsym)
 {
 	return 0;
 }
@@ -136,18 +175,28 @@ library_symbol_init(struct library_symbol *libsym,
 	private_library_symbol_init(libsym, addr, name, own_name,
 				    type_of_plt, 0, 0);
 
-	/* If arch init fails, we've already set libsym->name and
-	 * own_name.  But we return failure, and the client code isn't
-	 * supposed to call library_symbol_destroy in such a case.  */
-	return arch_library_symbol_init(libsym);
+	if (os_library_symbol_init(libsym) < 0)
+		/* We've already set libsym->name and own_name.  But
+		 * we return failure, and the client code isn't
+		 * supposed to call library_symbol_destroy in such
+		 * case.  */
+		return -1;
+
+	if (arch_library_symbol_init(libsym) < 0) {
+		os_library_symbol_destroy(libsym);
+		return -1;
+	}
+
+	return 0;
 }
 
 void
 library_symbol_destroy(struct library_symbol *libsym)
 {
 	if (libsym != NULL) {
-		private_library_symbol_destroy(libsym);
 		arch_library_symbol_destroy(libsym);
+		os_library_symbol_destroy(libsym);
+		private_library_symbol_destroy(libsym);
 	}
 }
 
@@ -164,9 +213,15 @@ library_symbol_clone(struct library_symbol *retp, struct library_symbol *libsym)
 				    name, libsym->own_name, libsym->plt_type,
 				    libsym->latent, libsym->delayed);
 
-	if (arch_library_symbol_clone(retp, libsym) < 0) {
+	if (os_library_symbol_clone(retp, libsym) < 0) {
+	fail:
 		private_library_symbol_destroy(retp);
 		return -1;
+	}
+
+	if (arch_library_symbol_clone(retp, libsym) < 0) {
+		os_library_symbol_destroy(retp);
+		goto fail;
 	}
 
 	return 0;
@@ -244,7 +299,16 @@ int
 library_init(struct library *lib, enum library_type type)
 {
 	private_library_init(lib, type);
-	return arch_library_init(lib);
+
+	if (os_library_init(lib) < 0)
+		return -1;
+
+	if (arch_library_init(lib) < 0) {
+		os_library_destroy(lib);
+		return -1;
+	}
+
+	return 0;
 }
 
 static int
@@ -318,8 +382,13 @@ library_clone(struct library *retp, struct library *lib)
 		*nnamep = NULL;
 	}
 
-	if (arch_library_clone(retp, lib) < 0)
+	if (os_library_clone(retp, lib) < 0)
 		goto fail;
+
+	if (arch_library_clone(retp, lib) < 0) {
+		os_library_destroy(retp);
+		goto fail;
+	}
 
 	return 0;
 }
@@ -331,6 +400,8 @@ library_destroy(struct library *lib)
 		return;
 
 	arch_library_destroy(lib);
+	os_library_destroy(lib);
+
 	library_set_soname(lib, NULL, 0);
 	library_set_pathname(lib, NULL, 0);
 
