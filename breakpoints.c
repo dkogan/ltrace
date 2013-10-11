@@ -203,34 +203,42 @@ struct breakpoint *
 insert_breakpoint_at(struct process *proc, arch_addr_t addr,
 		     struct library_symbol *libsym)
 {
-	struct process *leader = proc->leader;
-
-	/* Only the group leader should be getting the breakpoints and
-	 * thus have ->breakpoint initialized.  */
-	assert(leader != NULL);
-	assert(leader->breakpoints != NULL);
-
 	debug(DEBUG_FUNCTION,
 	      "insert_breakpoint_at(pid=%d, addr=%p, symbol=%s)",
 	      proc->pid, addr, libsym ? libsym->name : "NULL");
 
 	assert(addr != 0);
 
-	/* We first create the breakpoint to find out what it's real
-	 * address is.  This makes a difference on ARM.
-	 *
-	 * XXX The real problem here is that to create a return
-	 * breakpoint ltrace calls get_return_addr and then
-	 * insert_breakpoint_at.  So get_return_addr needs to encode
-	 * all the information necessary for breakpoint_init into the
-	 * address itself, so ADDR is potentially mangled.  We filter
-	 * the noise out by first creating the breakpoint on stack,
-	 * and then looking at the address of the created breakpoint.
-	 * Replacing get_return_addr with get_return_breakpoint might
-	 * be a better solution.  */
-	struct breakpoint bp;
-	if (breakpoint_init(&bp, proc, addr, libsym) < 0)
+	struct breakpoint *bp = malloc(sizeof *bp);
+	if (bp == NULL || breakpoint_init(bp, proc, addr, libsym) < 0) {
+		free(bp);
 		return NULL;
+	}
+
+	/* N.B. (and XXX): BP->addr might differ from ADDR.  On ARM
+	 * this is a real possibility.  The problem here is that to
+	 * create a return breakpoint ltrace calls get_return_addr and
+	 * then insert_breakpoint_at.  So get_return_addr needs to
+	 * encode all the information necessary for breakpoint_init
+	 * into the address itself, so ADDR is potentially
+	 * mangled.  */
+
+	struct breakpoint *tmp = insert_breakpoint(proc, bp);
+	if (tmp != bp) {
+		breakpoint_destroy(bp);
+		free(bp);
+	}
+	return tmp;
+}
+
+struct breakpoint *
+insert_breakpoint(struct process *proc, struct breakpoint *bp)
+{
+	/* Only the group leader should be getting the breakpoints and
+	 * thus have ->breakpoint initialized.  */
+	struct process *leader = proc->leader;
+	assert(leader != NULL);
+	assert(leader->breakpoints != NULL);
 
 	/* XXX what we need to do instead is have a list of
 	 * breakpoints that are enabled at this address.  The
@@ -239,31 +247,20 @@ insert_breakpoint_at(struct process *proc, arch_addr_t addr,
 	 * will suffice, about the only realistic case where we need
 	 * to have more than one breakpoint per address is return from
 	 * a recursive library call.  */
-	struct breakpoint *sbp;
-	if (DICT_FIND_VAL(leader->breakpoints, &bp.addr, &sbp) >= 0) {
-		breakpoint_destroy(&bp);
-	} else {
-		sbp = malloc(sizeof(*sbp));
-		if (sbp == NULL
-		    || breakpoint_init(sbp, proc, addr, libsym) < 0) {
-			free(sbp);
+	struct breakpoint *ext_bp = bp;
+	if (DICT_FIND_VAL(leader->breakpoints, &bp->addr, &ext_bp) != 0) {
+		if (proc_add_breakpoint(leader, bp) < 0)
 			return NULL;
-		}
-		if (proc_add_breakpoint(leader, sbp) < 0) {
-		fail:
-			free(sbp);
-			breakpoint_destroy(&bp);
-			return NULL;
-		}
-		memcpy(sbp, &bp, sizeof(*sbp));
+		ext_bp = bp;
 	}
 
-	if (breakpoint_turn_on(sbp, proc) < 0) {
-		proc_remove_breakpoint(leader, sbp);
-		goto fail;
+	if (breakpoint_turn_on(ext_bp, proc) < 0) {
+		if (ext_bp != bp)
+			proc_remove_breakpoint(leader, bp);
+		return NULL;
 	}
 
-	return sbp;
+	return ext_bp;
 }
 
 void

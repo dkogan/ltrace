@@ -102,16 +102,18 @@ int breakpoint_turn_on(struct breakpoint *bp, struct process *proc);
  * on failure.  */
 int breakpoint_turn_off(struct breakpoint *bp, struct process *proc);
 
-/* Utility function that does what typically needs to be done when a
- * breakpoint is to be inserted.  It checks whether there is another
- * breakpoint in PROC->LEADER for given ADDR.  If not, it allocates
- * memory for a new breakpoint on the heap, initializes it, and calls
- * PROC_ADD_BREAKPOINT to add the newly-created breakpoint.  For newly
- * added as well as preexisting breakpoints, it then calls
- * BREAKPOINT_TURN_ON.  If anything fails, it cleans up and returns
- * NULL.  Otherwise it returns the breakpoint for ADDR.  */
+/* This allocates and initializes new breakpoint at ADDR, then calls
+ * INSERT_BREAKPOINT.  Returns the new breakpoint or NULL if there are
+ * errors.  */
 struct breakpoint *insert_breakpoint_at(struct process *proc, arch_addr_t addr,
 					struct library_symbol *libsym);
+
+/* Check if there is a breakpoint on this address already.  If yes,
+ * return that breakpoint instead (BP was not added).  If no, try to
+ * PROC_ADD_BREAKPOINT and BREAKPOINT_TURN_ON.  If it all works,
+ * return BP.  Otherwise return NULL.  */
+struct breakpoint *insert_breakpoint(struct process *proc,
+				     struct breakpoint *bp);
 
 /* Name of a symbol associated with BP.  May be NULL.  */
 const char *breakpoint_name(const struct breakpoint *bp);
