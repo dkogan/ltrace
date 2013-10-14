@@ -204,6 +204,66 @@ elf_get_section_named(struct ltelf *lte, const char *name,
 				  &name_p, &data);
 }
 
+static struct elf_each_symbol_t
+each_symbol_in(Elf_Data *symtab, const char *strtab, size_t count,
+	       unsigned i,
+	       enum callback_status (*cb)(GElf_Sym *symbol,
+					  const char *name, void *data),
+	       void *data)
+{
+	for (; i < count; ++i) {
+		GElf_Sym sym;
+		if (gelf_getsym(symtab, i, &sym) == NULL)
+			return (struct elf_each_symbol_t){ i, -2 };
+
+		switch (cb(&sym, strtab + sym.st_name, data)) {
+		case CBS_FAIL:
+			return (struct elf_each_symbol_t){ i, -1 };
+		case CBS_STOP:
+			return (struct elf_each_symbol_t){ i + 1, 0 };
+		case CBS_CONT:
+			break;
+		}
+	}
+
+	return (struct elf_each_symbol_t){ 0, 0 };
+}
+
+/* N.B.: gelf_getsym takes integer argument.  Since negative values
+ * are invalid as indices, we can use the extra bit to encode which
+ * symbol table we are looking into.  ltrace currently doesn't handle
+ * more than two symbol tables anyway, nor does it handle the xindex
+ * stuff.  */
+struct elf_each_symbol_t
+elf_each_symbol(struct ltelf *lte, unsigned start_after,
+		enum callback_status (*cb)(GElf_Sym *symbol,
+					   const char *name, void *data),
+		void *data)
+{
+	unsigned index = start_after == 0 ? 0 : start_after >> 1;
+
+	/* Go through static symbol table first.  */
+	if ((start_after & 0x1) == 0) {
+		struct elf_each_symbol_t st
+			= each_symbol_in(lte->symtab, lte->strtab,
+					 lte->symtab_count, index, cb, data);
+
+		/* If the iteration stopped prematurely, bail out.  */
+		if (st.restart != 0)
+			return ((struct elf_each_symbol_t)
+				{ st.restart << 1, st.status });
+	}
+
+	struct elf_each_symbol_t st
+		= each_symbol_in(lte->dynsym, lte->dynstr, lte->dynsym_count,
+				 index, cb, data);
+	if (st.restart != 0)
+		return ((struct elf_each_symbol_t)
+			{ st.restart << 1 | 0x1, st.status });
+
+	return (struct elf_each_symbol_t){ 0, 0 };
+}
+
 int
 elf_can_read_next(Elf_Data *data, GElf_Xword offset, GElf_Xword size)
 {

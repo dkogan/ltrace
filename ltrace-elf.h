@@ -26,6 +26,7 @@
 
 #include <gelf.h>
 #include <stdlib.h>
+#include <callback.h>
 
 #include "forward.h"
 #include "sysdep.h"
@@ -107,6 +108,17 @@ int elf_get_section_type(struct ltelf *lte, GElf_Word type,
 			 Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
 int elf_get_section_named(struct ltelf *lte, const char *name,
 			  Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
+
+/* Iterate through all symbols in LTE.  See callback.h for notes on
+ * iteration interfaces.  START_AFTER is 0 in initial call.  */
+struct elf_each_symbol_t {
+	unsigned restart;
+	int status;
+} elf_each_symbol(struct ltelf *lte, unsigned start_after,
+		  enum callback_status (*cb)(GElf_Sym *symbol,
+					     const char *name,
+					     void *data),
+		  void *data);
 
 /* Read, respectively, 1, 2, 4, or 8 bytes from Elf data at given
  * OFFSET, and store it in *RETP.  Returns 0 on success or a negative
