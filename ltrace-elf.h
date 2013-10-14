@@ -99,7 +99,7 @@ Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
 /* The following three look for sections based on various criteria.
  * They return 0 if there was no error, or a negative value if there
  * was.  If the section was found, it is returned in *TGT_SEC, and the
- * header is stored te TGT_SHDR.  If it wasn't found, *TGT_SEC is set
+ * header is stored to TGT_SHDR.  If it wasn't found, *TGT_SEC is set
  * to NULL.  */
 int elf_get_section_covering(struct ltelf *lte, GElf_Addr addr,
 			     Elf_Scn **tgt_sec, GElf_Shdr *tgt_shdr);
