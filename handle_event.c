@@ -796,6 +796,7 @@ callstack_pop(struct process *proc)
 		struct breakpoint *bp
 			= address2bpstruct(proc->leader, elem->return_addr);
 		if (bp != NULL) {
+			breakpoint_on_hit(bp, proc);
 			delete_breakpoint(proc, bp);
 		}
 	}
