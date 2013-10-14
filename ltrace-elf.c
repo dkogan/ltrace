@@ -669,7 +669,7 @@ symbol_with_address(struct library_symbol *sym, void *addrptr)
 static int
 populate_this_symtab(struct process *proc, const char *filename,
 		     struct ltelf *lte, struct library *lib,
-		     Elf_Data *symtab, const char *strtab, size_t size,
+		     Elf_Data *symtab, const char *strtab, size_t count,
 		     struct library_exported_name **names)
 {
 	/* If a valid NAMES is passed, we pass in *NAMES a list of
@@ -681,7 +681,7 @@ populate_this_symtab(struct process *proc, const char *filename,
 	 * should be well enough for the number of symbols that we
 	 * typically deal with.  */
 	size_t num_symbols = 0;
-	struct unique_symbol *symbols = malloc(sizeof(*symbols) * size);
+	struct unique_symbol *symbols = malloc(sizeof(*symbols) * count);
 	if (symbols == NULL) {
 		fprintf(stderr, "couldn't insert symbols for -x: %s\n",
 			strerror(errno));
@@ -699,7 +699,7 @@ populate_this_symtab(struct process *proc, const char *filename,
 			secflags[i] = shdr.sh_flags;
 	}
 
-	for (i = 0; i < size; ++i) {
+	for (i = 0; i < count; ++i) {
 		GElf_Sym sym;
 		if (gelf_getsym(symtab, i, &sym) == NULL) {
 		fail:
