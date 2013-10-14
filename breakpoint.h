@@ -145,7 +145,8 @@ struct library *breakpoint_library(const struct breakpoint *bp);
  *  - proc_remove_breakpoint
  *  - breakpoint_destroy
  * XXX */
-void delete_breakpoint(struct process *proc, void *addr);
+void delete_breakpoint_at(struct process *proc, void *addr);
+int delete_breakpoint(struct process *proc, struct breakpoint *bp);
 
 /* XXX some of the following belongs to proc.h/proc.c.  */
 struct breakpoint *address2bpstruct(struct process *proc, void *addr);

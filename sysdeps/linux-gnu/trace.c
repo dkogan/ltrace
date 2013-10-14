@@ -567,7 +567,7 @@ remove_sw_breakpoints(struct process *proc)
 	int i;
 	for (i = 0; i < ct; ++i)
 		if (self->sws_bps[i] != NULL) {
-			delete_breakpoint(proc, self->sws_bps[i]->addr);
+			delete_breakpoint_at(proc, self->sws_bps[i]->addr);
 			self->sws_bps[i] = NULL;
 		}
 }
@@ -659,7 +659,7 @@ singlestep_error(struct process_stopping_handler *self)
 	fprintf(stderr, "%d couldn't continue when handling %s (%p) at %p\n",
 		teb->pid, breakpoint_name(sbp),	sbp->addr,
 		get_instruction_pointer(teb));
-	delete_breakpoint(teb->leader, sbp->addr);
+	delete_breakpoint_at(teb->leader, sbp->addr);
 }
 
 static void

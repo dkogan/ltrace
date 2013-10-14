@@ -792,8 +792,13 @@ callstack_pop(struct process *proc)
 
 	debug(DEBUG_FUNCTION, "callstack_pop(pid=%d)", proc->pid);
 	elem = &proc->callstack[proc->callstack_depth - 1];
-	if (!elem->is_syscall && elem->return_addr)
-		delete_breakpoint(proc, elem->return_addr);
+	if (!elem->is_syscall && elem->return_addr) {
+		struct breakpoint *bp
+			= address2bpstruct(proc->leader, elem->return_addr);
+		if (bp != NULL) {
+			delete_breakpoint(proc, bp);
+		}
+	}
 
 	if (elem->fetch_context != NULL)
 		fetch_arg_done(elem->fetch_context);

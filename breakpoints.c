@@ -321,27 +321,40 @@ insert_breakpoint(struct process *proc, struct breakpoint *bp)
 }
 
 void
-delete_breakpoint(struct process *proc, arch_addr_t addr)
+delete_breakpoint_at(struct process *proc, arch_addr_t addr)
 {
-	debug(DEBUG_FUNCTION, "delete_breakpoint(pid=%d, addr=%p)", proc->pid, addr);
+	debug(DEBUG_FUNCTION, "delete_breakpoint_at(pid=%d, addr=%p)",
+	      proc->pid, addr);
 
 	struct process *leader = proc->leader;
 	assert(leader != NULL);
 
-	struct breakpoint *sbp = NULL;
-	DICT_FIND_VAL(leader->breakpoints, &addr, &sbp);
-	assert(sbp != NULL);
+	struct breakpoint *bp = NULL;
+	DICT_FIND_VAL(leader->breakpoints, &addr, &bp);
+	assert(bp != NULL);
 
-	if (breakpoint_turn_off(sbp, proc) < 0) {
+	if (delete_breakpoint(proc, bp) < 0) {
 		fprintf(stderr, "Couldn't turn off the breakpoint %s@%p\n",
-			breakpoint_name(sbp), sbp->addr);
-		return;
+			breakpoint_name(bp), bp->addr);
 	}
-	if (sbp->enabled == 0) {
-		proc_remove_breakpoint(leader, sbp);
-		breakpoint_destroy(sbp);
-		free(sbp);
+}
+
+int
+delete_breakpoint(struct process *proc, struct breakpoint *bp)
+{
+	struct process *leader = proc->leader;
+	assert(leader != NULL);
+
+	if (breakpoint_turn_off(bp, proc) < 0)
+		return -1;
+
+	if (bp->enabled == 0) {
+		proc_remove_breakpoint(leader, bp);
+		breakpoint_destroy(bp);
+		free(bp);
 	}
+
+	return 0;
 }
 
 const char *
@@ -403,7 +416,7 @@ entry_breakpoint_on_hit(struct breakpoint *bp, struct process *proc)
 {
 	if (proc == NULL || proc->leader == NULL)
 		return;
-	delete_breakpoint(proc, bp->addr);
+	delete_breakpoint_at(proc, bp->addr);
 	process_hit_start(proc);
 }
 
