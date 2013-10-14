@@ -277,17 +277,17 @@ int os_process_exec(struct process *proc);
 /* The following callback has to be implemented in backend if arch.h
  * defines ARCH_HAVE_GET_SYM_INFO.
  *
- * This is called for every PLT relocation R in ELF file LTE, that
- * ltrace is about to add to it's internal representation of the
- * program under trace.
- * The corresponding PLT entry is for SYM_INDEX-th relocation in the file.
+ * This is called for every PLT relocation RELA in ELF file LTE (which
+ * is named FILENAME), that ltrace is about to add.  The corresponding
+ * PLT entry is for SYM_INDEX-th relocation in the file.  This call is
+ * supposed to initialize SYM and RELA.  It returns 0 if there were no
+ * errors and given symbol should be used, 1 if the symbol should not
+ * be used, or a negative value if there were errors.
  *
- * The callback is responsible for initializing RELA and SYM.
- *
- * Return 0 if OK.
- * Return a negative value if this symbol (SYM_INDEX) should be ignored.  */
-int arch_get_sym_info(struct ltelf *lte, const char *filename,
-		      size_t sym_index, GElf_Rela *rela, GElf_Sym *sym);
+ * The backend implementation can delegate some of the work to default
+ * implementation in elf_get_sym_info.  */
+int arch_get_sym_info(struct ltelf *lte, const char *filename, size_t sym_index,
+		      GElf_Rela *rela, GElf_Sym *sym);
 
 enum plt_status {
 	PLT_FAIL,

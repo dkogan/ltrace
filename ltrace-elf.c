@@ -548,28 +548,23 @@ int
 elf_get_sym_info(struct ltelf *lte, const char *filename,
 		 size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
 {
-	int i = sym_index;
 	GElf_Rel rel;
-	void *ret;
 
 	if (lte->relplt->d_type == ELF_T_REL) {
-		ret = gelf_getrel(lte->relplt, i, &rel);
+		if (gelf_getrel(lte->relplt, sym_index, &rel) == NULL)
+			return -1;
 		rela->r_offset = rel.r_offset;
 		rela->r_info = rel.r_info;
 		rela->r_addend = 0;
-	} else {
-		ret = gelf_getrela(lte->relplt, i, rela);
+
+	} else if (gelf_getrela(lte->relplt, sym_index, rela) == NULL) {
+		return -1;
 	}
 
-	if (ret == NULL
-	    || ELF64_R_SYM(rela->r_info) >= lte->dynsym_count
-	    || gelf_getsym(lte->dynsym, ELF64_R_SYM(rela->r_info),
-			   sym) == NULL) {
-		fprintf(stderr,
-			"Couldn't get relocation from \"%s\": %s\n",
-			filename, elf_errmsg(-1));
-		exit(EXIT_FAILURE);
-	}
+	if (ELF64_R_SYM(rela->r_info) >= lte->dynsym_count
+	    || gelf_getsym(lte->dynsym,
+			   ELF64_R_SYM(rela->r_info), sym) == NULL)
+		return -1;
 
 	return 0;
 }
@@ -602,8 +597,18 @@ populate_plt(struct process *proc, const char *filename,
 		GElf_Rela rela;
 		GElf_Sym sym;
 
-		if (arch_get_sym_info(lte, filename, i, &rela, &sym) < 0)
+		switch (arch_get_sym_info(lte, filename, i, &rela, &sym)) {
+		default:
+			fprintf(stderr,
+				"Couldn't get relocation for symbol #%zd"
+				" from \"%s\": %s\n",
+				i, filename, elf_errmsg(-1));
+			/* Fall through.  */
+		case 1:
 			continue; /* Skip this entry.  */
+		case 0:
+			break;
+		}
 
 		char const *name = lte->dynstr + sym.st_name;
 

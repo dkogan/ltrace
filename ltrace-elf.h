@@ -91,8 +91,8 @@ int default_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 /* The base implementation of backend.h (arch_get_sym_info).
  * See backend.h for details.  */
-int elf_get_sym_info(struct ltelf *lte, const char *filename,
-		     size_t sym_index, GElf_Rela *rela, GElf_Sym *sym);
+int elf_get_sym_info(struct ltelf *lte, const char *filename, size_t sym_index,
+		     GElf_Rela *rela, GElf_Sym *sym);
 
 Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
 

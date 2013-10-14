@@ -1,7 +1,7 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2012 Edgar E. Iglesias, Axis Communications
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
  * Copyright (C) 2008,2009 Juan Cespedes
  * Copyright (C) 2006 Eric Vaitl, Cisco Systems, Inc.
  *
@@ -157,24 +157,19 @@ int
 arch_get_sym_info(struct ltelf *lte, const char *filename,
 		  size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
 {
-	const char *name;
-
-	if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+	if (mips_elf_is_cpic(lte->ehdr.e_flags))
 		return elf_get_sym_info(lte, filename, sym_index, rela, sym);
-	}
 
 	/* Fixup the offset.  */
 	sym_index += lte->arch.mips_gotsym;
 
-	if (gelf_getsym(lte->dynsym, sym_index, sym) == NULL){
-		error(EXIT_FAILURE, 0,
-			"Couldn't get relocation from \"%s\"", filename);
-	}
-
-	name = lte->dynstr + sym->st_name;
-	if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC) {
-		debug(2, "sym %s not a function", name);
+	if (gelf_getsym(lte->dynsym, sym_index, sym) == NULL)
 		return -1;
+
+	if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC) {
+		const char *name = lte->dynstr + sym->st_name;
+		debug(2, "sym %s not a function", name);
+		return 1;
 	}
 
 	return 0;
