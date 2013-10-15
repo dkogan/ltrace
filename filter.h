@@ -27,8 +27,7 @@
 #include <sys/types.h>
 #include <regex.h>
 
-struct library;
-struct library_symbol;
+#include "forward.h"
 
 enum filter_lib_matcher_type {
 	/* Match by soname.  */
