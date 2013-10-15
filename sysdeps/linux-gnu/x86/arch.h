@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011, 2012 Petr Machata
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2006 Ian Wienand
  * Copyright (C) 2004 Juan Cespedes
  *
@@ -27,6 +27,8 @@
 #define ARCH_HAVE_SIZEOF
 #define ARCH_HAVE_ALIGNOF
 #define ARCH_ENDIAN_LITTLE
+
+#define ARCH_HAVE_ADD_PLT_ENTRY
 
 #ifdef __x86_64__
 #define LT_ELFCLASS	ELFCLASS64
