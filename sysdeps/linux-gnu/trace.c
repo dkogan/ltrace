@@ -24,25 +24,28 @@
 #include "config.h"
 
 #include <asm/unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <assert.h>
 #include <errno.h>
+#include <gelf.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #ifdef HAVE_LIBSELINUX
 # include <selinux/selinux.h>
 #endif
 
-#include "linux-gnu/trace.h"
 #include "linux-gnu/trace-defs.h"
+#include "linux-gnu/trace.h"
 #include "backend.h"
 #include "breakpoint.h"
 #include "debug.h"
 #include "events.h"
+#include "ltrace-elf.h"
 #include "options.h"
 #include "proc.h"
 #include "ptrace.h"
@@ -1219,4 +1222,62 @@ umovebytes(struct process *proc, void *addr, void *laddr, size_t len)
 	}
 
 	return bytes_read;
+}
+
+struct irelative_name_data_t {
+	GElf_Addr addr;
+	const char *found_name;
+};
+
+static enum callback_status
+irelative_name_cb(GElf_Sym *symbol, const char *name, void *d)
+{
+	struct irelative_name_data_t *data = d;
+
+	if (symbol->st_value == data->addr) {
+		bool is_ifunc = false;
+#ifdef STT_GNU_IFUNC
+		is_ifunc = GELF_ST_TYPE(symbol->st_info) == STT_GNU_IFUNC;
+#endif
+		data->found_name = name;
+
+		/* Keep looking, unless we found the actual IFUNC
+		 * symbol.  What we matched may have been a symbol
+		 * denoting the resolver function, which would have
+		 * the same address.  */
+		return CBS_STOP_IF(is_ifunc);
+	}
+
+	return CBS_CONT;
+}
+
+enum plt_status
+linux_elf_add_plt_entry_irelative(struct process *proc, struct ltelf *lte,
+				  GElf_Rela *rela, size_t ndx,
+				  struct library_symbol **ret)
+
+{
+	struct irelative_name_data_t data = { rela->r_addend, NULL };
+	if (rela->r_addend != 0
+	    && elf_each_symbol(lte, 0,
+			       irelative_name_cb, &data).status < 0)
+		return -1;
+
+	const char *name;
+	if (data.found_name != NULL) {
+		name = data.found_name;
+	} else {
+#define NAME "IREL."
+		/* NAME\0 + 0x + digits.  */
+		char *tmp_name = alloca(sizeof NAME + 2 + 16);
+		sprintf(tmp_name, NAME "%#" PRIx64,
+			(uint64_t)rela->r_addend);
+		name = tmp_name;
+#undef NAME
+	}
+
+	if (default_elf_add_plt_entry(proc, lte, name, rela, ndx, ret) < 0)
+		return PLT_FAIL;
+
+	return PLT_OK;
 }

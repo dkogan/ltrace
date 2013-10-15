@@ -118,4 +118,22 @@ int process_install_stopping_handler
 void linux_ptrace_disable_and_singlestep(struct process_stopping_handler *self);
 void linux_ptrace_disable_and_continue(struct process_stopping_handler *self);
 
+/* When main binary needs to call an IFUNC function defined in the
+ * binary itself, a PLT entry is set up so that dynamic linker can get
+ * involved and resolve the symbol.  But unlike other PLT relocation,
+ * this one can't rely on symbol table being available.  So it doesn't
+ * reference the symbol by its name, but by its address, and
+ * correspondingly, has another type.  When arch backend wishes to
+ * support these IRELATIVE relocations, it should override
+ * arch_elf_add_plt_entry and dispatch to this function for IRELATIVE
+ * relocations.
+ *
+ * This function behaves as arch_elf_add_plt_entry, except that it
+ * doesn't take name for a parameter, but instead looks up the name in
+ * symbol tables in LTE.  */
+enum plt_status linux_elf_add_plt_entry_irelative(struct process *proc,
+						  struct ltelf *lte,
+						  GElf_Rela *rela, size_t ndx,
+						  struct library_symbol **ret);
+
 #endif /* _LTRACE_LINUX_TRACE_H_ */
