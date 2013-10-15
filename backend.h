@@ -338,6 +338,23 @@ enum plt_status arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 				       const char *name, GElf_Rela *rela,
 				       size_t i, struct library_symbol **ret);
 
+/* The following callback has to be implemented in backend if arch.h
+ * defines OS_HAVE_ADD_FUNC_ENTRY.
+ *
+ * This is called for every symbol in ltrace is about to add to the
+ * library constructed for LTE in process PROC.
+ *
+ * If this function returns PLT_DEFAULT, then if there is a
+ * pre-existing symbol, its name may be updated if the newly-found
+ * name is shorter.  Otherwise a new symbol is created.
+ *
+ * If PLT_OK or PLT_DEFAULT are returned, the chain of symbols passed
+ * back in RET is added to library under construction.  */
+enum plt_status os_elf_add_func_entry(struct process *proc, struct ltelf *lte,
+				      const GElf_Sym *sym,
+				      arch_addr_t addr, const char *name,
+				      struct library_symbol **ret);
+
 /* This callback needs to be implemented if arch.h defines
  * ARCH_HAVE_DYNLINK_DONE.  It is called after the dynamic linker is
  * done with the process start-up.  */

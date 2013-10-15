@@ -110,6 +110,22 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 }
 #endif
 
+#ifndef OS_HAVE_ADD_FUNC_ENTRY
+enum plt_status
+os_elf_add_func_entry(struct process *proc, struct ltelf *lte,
+		      const GElf_Sym *sym,
+		      arch_addr_t addr, const char *name,
+		      struct library_symbol **ret)
+{
+	if (GELF_ST_TYPE(sym->st_info) != STT_FUNC) {
+		*ret = NULL;
+		return PLT_OK;
+	} else {
+		return PLT_DEFAULT;
+	}
+}
+#endif
+
 Elf_Data *
 elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr)
 {
@@ -686,6 +702,17 @@ filter_symbol_chain(struct filter *filter,
 	}
 }
 
+static void
+delete_symbol_chain(struct library_symbol *libsym)
+{
+	while (libsym != NULL) {
+		struct library_symbol *tmp = libsym->next;
+		library_symbol_destroy(libsym);
+		free(libsym);
+		libsym = tmp;
+	}
+}
+
 static int
 populate_plt(struct process *proc, const char *filename,
 	     struct ltelf *lte, struct library *lib,
@@ -718,7 +745,7 @@ populate_plt(struct process *proc, const char *filename,
 		switch (arch_elf_add_plt_entry(proc, lte, name,
 					       &rela, i, &libsym)) {
 		case PLT_FAIL:
-				return -1;
+			return -1;
 
 		case PLT_DEFAULT:
 			/* Add default entry to the beginning of LIBSYM.  */
@@ -812,16 +839,16 @@ populate_this_symtab(struct process *proc, const char *filename,
 	for (i = 0; i < count; ++i) {
 		GElf_Sym sym;
 		if (gelf_getsym(symtab, i, &sym) == NULL) {
-		fail:
 			fprintf(stderr,
 				"couldn't get symbol #%zd from %s: %s\n",
 				i, filename, elf_errmsg(-1));
 			continue;
 		}
 
-		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC
-		    || sym.st_value == 0
-		    || sym.st_shndx == STN_UNDEF)
+		if (sym.st_value == 0 || sym.st_shndx == STN_UNDEF
+		    /* Also ignore any special values besides direct
+		     * section references.  */
+		    || sym.st_shndx >= lte->ehdr.e_shnum)
 			continue;
 
 		/* Find symbol name and snip version.  */
@@ -835,14 +862,14 @@ populate_this_symtab(struct process *proc, const char *filename,
 		name[len] = 0;
 
 		/* If we are interested in exports, store this name.  */
-		char *name_copy = NULL;
 		if (names != NULL) {
-			struct library_exported_name *export = NULL;
-			name_copy = strdup(name);
+			struct library_exported_name *export
+				= malloc(sizeof *export);
+			char *name_copy = strdup(name);
 
-			if (name_copy == NULL
-			    || (export = malloc(sizeof(*export))) == NULL) {
+			if (name_copy == NULL || export == NULL) {
 				free(name_copy);
+				free(export);
 				fprintf(stderr, "Couldn't store symbol %s.  "
 					"Tracing may be incomplete.\n", name);
 			} else {
@@ -875,42 +902,78 @@ populate_this_symtab(struct process *proc, const char *filename,
 			continue;
 		}
 
-		char *full_name;
-		int own_full_name = 1;
-		if (name_copy == NULL) {
-			full_name = strdup(name);
-			if (full_name == NULL)
-				goto fail;
-		} else {
-			full_name = name_copy;
-			own_full_name = 0;
+		char *full_name = strdup(name);
+		if (full_name == NULL) {
+			fprintf(stderr, "couldn't copy name of %s@%s: %s\n",
+				name, lib->soname, strerror(errno));
+			continue;
 		}
 
-		/* Look whether we already have a symbol for this
-		 * address.  If not, add this one.  */
-		struct unique_symbol key = { naddr, NULL };
-		struct unique_symbol *unique
-			= lsearch(&key, symbols, &num_symbols,
-				  sizeof(*symbols), &unique_symbol_cmp);
-
-		if (unique->libsym == NULL) {
-			struct library_symbol *libsym = malloc(sizeof(*libsym));
-			if (libsym == NULL
-			    || library_symbol_init(libsym, naddr,
-						   full_name, own_full_name,
+		struct library_symbol *libsym = NULL;
+		switch (os_elf_add_func_entry(proc, lte, &sym,
+					      naddr, full_name, &libsym)) {
+		case PLT_DEFAULT:;
+			/* Put the default symbol to the chain.  */
+			struct library_symbol *tmp = malloc(sizeof *tmp);
+			if (tmp == NULL
+			    || library_symbol_init(tmp, naddr, full_name, 1,
 						   LS_TOPLT_NONE) < 0) {
-				--num_symbols;
-				goto fail;
+				free(tmp);
+
+				/* Either add the whole bunch, or none
+				 * of it.  Note that for PLT_FAIL we
+				 * don't do this--it's the callee's
+				 * job to clean up after itself before
+				 * it bails out.  */
+				delete_symbol_chain(libsym);
+				libsym = NULL;
+
+		case PLT_FAIL:
+				fprintf(stderr, "Couldn't add symbol %s@%s "
+					"for tracing.\n", name, lib->soname);
+
+				break;
 			}
-			unique->libsym = libsym;
-			unique->addr = naddr;
 
-		} else if (strlen(full_name) < strlen(unique->libsym->name)) {
-			library_symbol_set_name(unique->libsym,
-						full_name, own_full_name);
+			full_name = NULL;
+			tmp->next = libsym;
+			libsym = tmp;
+			break;
 
-		} else if (own_full_name) {
-			free(full_name);
+		case PLT_OK:
+			break;
+		}
+
+		free(full_name);
+
+		struct library_symbol *tmp;
+		for (tmp = libsym; tmp != NULL; ) {
+			/* Look whether we already have a symbol for
+			 * this address.  If not, add this one.  If
+			 * yes, look if we should pick the new symbol
+			 * name.  */
+
+			struct unique_symbol key = { tmp->enter_addr, NULL };
+			struct unique_symbol *unique
+				= lsearch(&key, symbols, &num_symbols,
+					  sizeof *symbols, &unique_symbol_cmp);
+
+			if (unique->libsym == NULL) {
+				unique->libsym = tmp;
+				unique->addr = tmp->enter_addr;
+				tmp = tmp->next;
+			} else {
+				if (strlen(tmp->name)
+				    < strlen(unique->libsym->name)) {
+					library_symbol_set_name
+						(unique->libsym, tmp->name, 1);
+					tmp->name = NULL;
+				}
+				struct library_symbol *next = tmp->next;
+				library_symbol_destroy(tmp);
+				free(tmp);
+				tmp = next;
+			}
 		}
 	}
 
