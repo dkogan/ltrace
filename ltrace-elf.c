@@ -555,7 +555,28 @@ elf_get_sym_info(struct ltelf *lte, const char *filename,
 			return -1;
 		rela->r_offset = rel.r_offset;
 		rela->r_info = rel.r_info;
-		rela->r_addend = 0;
+
+		Elf_Scn *sec;
+		GElf_Shdr shdr;
+		if (elf_get_section_covering(lte, rel.r_offset, &sec, &shdr) < 0
+		    || sec == NULL)
+			return -1;
+
+		Elf_Data *data = elf_loaddata(sec, &shdr);
+		if (data == NULL)
+			return -1;
+		GElf_Xword offset = rel.r_offset - shdr.sh_addr - data->d_off;
+		uint64_t value;
+		if (lte->ehdr.e_ident[EI_CLASS] == ELFCLASS32) {
+			uint32_t tmp;
+			if (elf_read_u32(data, offset, &tmp) < 0)
+				return -1;
+			value = tmp;
+		} else if (elf_read_u64(data, offset, &value) < 0) {
+			return -1;
+		}
+
+		rela->r_addend = value;
 
 	} else if (gelf_getrela(lte->relplt, sym_index, rela) == NULL) {
 		return -1;
