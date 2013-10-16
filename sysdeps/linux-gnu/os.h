@@ -23,3 +23,17 @@ struct os_process_data {
 	arch_addr_t debug_addr;
 	int debug_state;
 };
+
+#define OS_HAVE_LIBRARY_SYMBOL_DATA
+struct os_library_symbol_data {
+	unsigned is_ifunc : 1;
+};
+
+#define OS_HAVE_BREAKPOINT_DATA
+struct os_breakpoint_data {
+	/* For breakpoints that track return from IFUNC functions, we
+	 * keep here the IFUNC symbol itself.  */
+	struct library_symbol *ret_libsym;
+};
+
+#define OS_HAVE_ADD_FUNC_ENTRY
