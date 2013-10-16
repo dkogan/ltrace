@@ -227,6 +227,15 @@ int process_get_entry(struct process *proc,
 int arch_elf_init(struct ltelf *lte, struct library *lib);
 void arch_elf_destroy(struct ltelf *lte);
 
+/* The following callbacks have to be implemented in OS backend if
+ * os.h defines OS_HAVE_BREAKPOINT_DATA.  Those are used to init,
+ * destroy, and clone SBP->os.  os_breakpoint_init and
+ * os_breakpoint_clone return 0 on success or a negative value on
+ * failure.  */
+int os_breakpoint_init(struct process *proc, struct breakpoint *sbp);
+void os_breakpoint_destroy(struct breakpoint *sbp);
+int os_breakpoint_clone(struct breakpoint *retp, struct breakpoint *sbp);
+
 /* The following callbacks have to be implemented in backend if arch.h
  * defines ARCH_HAVE_BREAKPOINT_DATA.  Those are used to init,
  * destroy, and clone SBP->arch.  arch_breakpoint_init and

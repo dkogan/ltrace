@@ -39,6 +39,11 @@ struct arch_ltelf_data {
 };
 #endif
 
+#ifndef OS_HAVE_BREAKPOINT_DATA
+struct os_breakpoint_data {
+};
+#endif
+
 #ifndef ARCH_HAVE_BREAKPOINT_DATA
 struct arch_breakpoint_data {
 };

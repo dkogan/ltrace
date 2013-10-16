@@ -56,6 +56,7 @@ struct breakpoint {
 	unsigned char orig_value[BREAKPOINT_LENGTH];
 	int enabled;
 	struct arch_breakpoint_data arch;
+	struct os_breakpoint_data os;
 };
 
 /* Call ON_HIT handler of BP, if any is set.  */
