@@ -1,0 +1,50 @@
+# This file is part of ltrace.
+# Copyright (C) 2013 Petr Machata, Red Hat Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301 USA
+
+set bin [ltraceCompile {} [ltraceSource c {
+    int abc (int a) { return a + 1; }
+    static int (*resolve_xyz (void)) (int) { return abc; }
+    int xyz (int a) __attribute__ ((ifunc ("resolve_xyz")));
+
+    int
+    main(int argc, char *argv[])
+    {
+      return xyz (xyz (argc));
+    }
+}]]
+
+ltraceMatch1 [ltraceRun -e xyz -- $bin] {xyz\(} == 2
+
+# If the actual entry point that xyz resolves to is not traced, it
+# should get xyz's name.  But we don't mind if somebody implements the
+# late lookup and actually names the symbol properly.
+
+ltraceMatch [ltraceRun -L -x xyz -- $bin] {
+    {{xyz\.IFUNC\(\)} == 1}
+    {{(xyz|abc)\(} == 2}
+}
+
+# If we request abc's tracing explicitly, than it definitely needs to
+# be presented as abc, not as xyz.
+
+ltraceMatch [ltraceRun -L -x xyz+abc -- $bin] {
+    {{xyz\.IFUNC\(\)} == 1}
+    {{abc\(} == 2}
+}
+
+ltraceDone
