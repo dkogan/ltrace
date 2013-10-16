@@ -159,6 +159,7 @@ private_library_symbol_init(struct library_symbol *libsym,
 	libsym->latent = latent;
 	libsym->delayed = delayed;
 	libsym->enter_addr = (void *)(uintptr_t)addr;
+	libsym->proto = NULL;
 }
 
 static void

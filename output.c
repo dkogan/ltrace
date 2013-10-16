@@ -211,6 +211,9 @@ find_proto_cb(struct process *proc, struct library *lib, void *d)
 static struct prototype *
 lookup_symbol_prototype(struct process *proc, struct library_symbol *libsym)
 {
+	if (libsym->proto != NULL)
+		return libsym->proto;
+
 	struct library *lib = libsym->lib;
 	if (lib != NULL) {
 		struct find_proto_data data = { libsym->name };
