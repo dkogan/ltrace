@@ -645,12 +645,10 @@ void
 init_global_config(void)
 {
 	protolib_init(&legacy_typedefs);
-	struct arg_type_info *void_info = type_get_simple(ARGTYPE_VOID);
-	static struct arg_type_info ptr_info;
-	type_init_pointer(&ptr_info, void_info, 0);
 
+	struct arg_type_info *ptr_info = type_get_voidptr();
 	static struct named_type voidptr_type;
-	named_type_init(&voidptr_type, &ptr_info, 0);
+	named_type_init(&voidptr_type, ptr_info, 0);
 
 	/* Build legacy typedefs first.  This is used by
 	 * protolib_cache_init call below.  */

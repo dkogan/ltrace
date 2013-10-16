@@ -59,6 +59,19 @@ type_get_simple(enum arg_type type)
 	abort();
 }
 
+struct arg_type_info *
+type_get_voidptr(void)
+{
+	struct arg_type_info *void_info = type_get_simple(ARGTYPE_VOID);
+	static struct arg_type_info *ret;
+	if (ret == NULL) {
+		static struct arg_type_info ptr_info;
+		type_init_pointer(&ptr_info, void_info, 0);
+		ret = &ptr_info;
+	}
+	return ret;
+}
+
 static void
 type_init_common(struct arg_type_info *info, enum arg_type type)
 {

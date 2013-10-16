@@ -70,6 +70,7 @@ struct arg_type_info {
  * struct, or pointer.  Each call with the same TYPE yields the same
  * arg_type_info pointer.  */
 struct arg_type_info *type_get_simple(enum arg_type type);
+struct arg_type_info *type_get_voidptr(void);
 
 /* Initialize INFO so it becomes ARGTYPE_STRUCT.  The created
  * structure contains no fields.  Use type_struct_add to populate the
