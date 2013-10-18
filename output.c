@@ -670,16 +670,46 @@ again:
 	    && proc->unwind_priv != NULL
 	    && proc->unwind_as != NULL) {
 		unw_cursor_t cursor;
-		unw_word_t ip, sp;
+		arch_addr_t ip, function_offset;
+		unw_word_t sp;
+		struct library *lib = NULL;
 		int unwind_depth = options.bt_depth;
 		char fn_name[100];
+		const char *lib_name;
+		size_t distance;
 
+		/* Verify that we can safely cast arch_addr_t* to
+		 * unw_word_t*.  */
+		(void)sizeof(char[1 - 2*(sizeof(unw_word_t)
+					!= sizeof(arch_addr_t))]);
 		unw_init_remote(&cursor, proc->unwind_as, proc->unwind_priv);
 		while (unwind_depth) {
-			unw_get_reg(&cursor, UNW_REG_IP, &ip);
+			unw_get_reg(&cursor, UNW_REG_IP, (unw_word_t *) &ip);
 			unw_get_reg(&cursor, UNW_REG_SP, &sp);
-			unw_get_proc_name(&cursor, fn_name, 100, NULL);
-			fprintf(options.output, "\t\t\t%s (ip = 0x%lx)\n", fn_name, (long) ip);
+			unw_get_proc_name(&cursor, fn_name, sizeof(fn_name),
+					(unw_word_t *) &function_offset);
+
+			/* We are looking for the library with the base address
+			 * closest to the current ip.  */
+			lib_name = "unmapped_area";
+			distance = (size_t) -1;
+			lib = proc->libraries;
+			while (lib != NULL) {
+				/* N.B.: Assumes sizeof(size_t) ==
+				 * sizeof(arch_addr_t).
+				 * Keyword: double cast.  */
+				if ((ip >= lib->base) &&
+					    ((size_t)(ip - lib->base)
+					    < distance)) {
+					distance = ip - lib->base;
+					lib_name = lib->pathname;
+				}
+				lib = lib->next;
+			}
+
+			fprintf(options.output, " > %s(%s+0x%p) [%p]\n",
+					lib_name, fn_name, function_offset, ip);
+
 			if (unw_step(&cursor) <= 0)
 				break;
 			unwind_depth--;
