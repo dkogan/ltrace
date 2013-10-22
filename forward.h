@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,17 +21,19 @@
 /* Important types defined in other header files are declared
    here.  */
 struct Event;
-struct process;
 struct arg_type_info;
 struct breakpoint;
+struct dict;
 struct expr_node;
+struct filter;
 struct library;
 struct library_symbol;
 struct ltelf;
 struct param;
 struct param_enum;
+struct process;
 struct protolib;
 struct prototype;
 struct value;
 struct value_dict;
-struct filter;
+struct vect;
