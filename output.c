@@ -675,7 +675,6 @@ again:
 	    && proc->unwind_as != NULL) {
 		unw_cursor_t cursor;
 		arch_addr_t ip, function_offset;
-		unw_word_t sp;
 		struct library *lib = NULL;
 		int unwind_depth = options.bt_depth;
 		char fn_name[100];
@@ -689,7 +688,6 @@ again:
 		unw_init_remote(&cursor, proc->unwind_as, proc->unwind_priv);
 		while (unwind_depth) {
 			unw_get_reg(&cursor, UNW_REG_IP, (unw_word_t *) &ip);
-			unw_get_reg(&cursor, UNW_REG_SP, &sp);
 			unw_get_proc_name(&cursor, fn_name, sizeof(fn_name),
 					(unw_word_t *) &function_offset);
 
