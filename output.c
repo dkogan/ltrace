@@ -191,7 +191,8 @@ library_get_prototype(struct library *lib, const char *name)
 	if (lib->protolib == NULL)
 		return NULL;
 
-	return protolib_lookup_prototype(lib->protolib, name);
+	return protolib_lookup_prototype(lib->protolib, name,
+					 lib->type != LT_LIBTYPE_SYSCALL);
 }
 
 struct find_proto_data {

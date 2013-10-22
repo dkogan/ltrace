@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <stdbool.h>
 
 #include "backend.h"
 #include "breakpoint.h"
@@ -41,6 +42,7 @@
 #include "library.h"
 #include "proc.h"
 #include "value_dict.h"
+#include "prototype.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);
@@ -379,9 +381,7 @@ sysname(struct process *proc, int sysnum)
 		sprintf(result, "SYS_%d", sysnum);
 		return result;
 	} else {
-		sprintf(result, "SYS_%s",
-			syscallents[proc->personality][sysnum]);
-		return result;
+		return syscallents[proc->personality][sysnum];
 	}
 }
 
@@ -445,8 +445,40 @@ output_syscall(struct process *proc, const char *name, enum tof tof,
 	       void (*output)(enum tof, struct process *,
 			      struct library_symbol *))
 {
+	static struct library syscall_lib;
+	if (syscall_lib.protolib == NULL) {
+		struct protolib *protolib
+			= protolib_cache_search(&g_protocache, "syscalls", 0, 1);
+		if (protolib == NULL) {
+			fprintf(stderr, "Couldn't load system call prototypes:"
+				" %s.\n", strerror(errno));
+
+			/* Instead, get a fake one just so we can
+			 * carry on, limping.  */
+			protolib = malloc(sizeof *protolib);
+			if (protolib == NULL) {
+				fprintf(stderr, "Couldn't even allocate a fake "
+					"prototype library: %s.\n",
+					strerror(errno));
+				abort();
+			}
+			protolib_init(protolib);
+		}
+
+		assert(protolib != NULL);
+		if (library_init(&syscall_lib, LT_LIBTYPE_SYSCALL) < 0) {
+			fprintf(stderr, "Couldn't initialize system call "
+				"library: %s.\n", strerror(errno));
+			abort();
+		}
+
+		library_set_soname(&syscall_lib, "SYS", 0);
+		syscall_lib.protolib = protolib;
+	}
+
 	struct library_symbol syscall;
 	if (library_symbol_init(&syscall, 0, name, 0, LS_TOPLT_NONE) >= 0) {
+		syscall.lib = &syscall_lib;
 		(*output)(tof, proc, &syscall);
 		library_symbol_destroy(&syscall);
 	}

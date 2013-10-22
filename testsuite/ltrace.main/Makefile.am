@@ -1,4 +1,4 @@
-# Copyright (C) 1992 - 2001, 2012 Free Software Foundation, Inc.
+# Copyright (C) 1992 - 2001, 2012, 2013 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ EXTRA_DIST = branch_func.c branch_func.exp filters.exp hello-vfork.c	\
 	main-threaded.c main-threaded.exp main-vfork.c main-vfork.exp	\
 	parameters.c parameters.conf parameters.exp parameters-lib.c	\
 	parameters2.exp parameters3.exp signals.c signals.exp		\
-	system_calls.c system_calls.exp
+	system_calls.c system_calls.exp system_call_params.exp
 
 CLEANFILES = *.o *.so *.log *.sum *.ltrace setval.tmp \
 	main main-internal parameters signals system_calls

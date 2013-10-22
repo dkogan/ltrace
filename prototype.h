@@ -21,6 +21,8 @@
 #ifndef _PROTOTYPE_H_
 #define _PROTOTYPE_H_
 
+#include <stdbool.h>
+
 #include "forward.h"
 #include "dict.h"
 #include "vect.h"
@@ -122,21 +124,21 @@ int protolib_add_named_type(struct protolib *plib,
 			    const char *name, int own_name,
 			    struct named_type *named);
 
-/* Lookup prototype named NAME in PLIB.  If none is found, look
- * recursively in each of the imports.  Returns the corresponding
- * prototype, or NULL if none was found.  */
+/* Lookup prototype named NAME in PLIB.  If none is found and IMPORTS
+ * is true, look recursively in each of the imports.  Returns the
+ * corresponding prototype, or NULL if none was found.  */
 struct prototype *protolib_lookup_prototype(struct protolib *plib,
-					    const char *name);
+					    const char *name, bool imports);
 
 /* Add a named type NAMED to PLIB.  Returns 0 on success or a negative
  * value on failure.  */
 int protolib_add_type(struct protolib *plib, struct named_type *named);
 
-/* Lookup type named NAME in PLIB.  If none is found, look recursively
- * in each of the imports.  Returns the corresponding type, or NULL if
- * none was found.  */
+/* Lookup type named NAME in PLIB.  If none is found and IMPORTS is
+ * true, look recursively in each of the imports.  Returns the
+ * corresponding type, or NULL if none was found.  */
 struct named_type *protolib_lookup_type(struct protolib *plib,
-					const char *name);
+					const char *name, bool imports);
 
 /* A cache of prototype libraries.  Can load prototype libraries on
  * demand.

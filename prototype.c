@@ -244,8 +244,9 @@ protolib_add_named_type(struct protolib *plib, const char *name, int own_name,
 
 struct lookup {
 	const char *name;
-	void *result;
 	struct dict *(*getter)(struct protolib *plib);
+	bool imports;
+	void *result;
 };
 
 static struct dict *
@@ -274,7 +275,8 @@ protolib_lookup_rec(struct protolib **plibp, void *data)
 	if (lookup->result != NULL)
 		return CBS_STOP;
 
-	if (each_import(*plibp, NULL, &protolib_lookup_rec, lookup) != NULL) {
+	if (lookup->imports && each_import(*plibp, NULL, &protolib_lookup_rec,
+					   lookup) != NULL) {
 		assert(lookup->result != NULL);
 		return CBS_STOP;
 	}
@@ -284,10 +286,11 @@ protolib_lookup_rec(struct protolib **plibp, void *data)
 
 static void *
 protolib_lookup(struct protolib *plib, const char *name,
-		struct dict *(*getter)(struct protolib *))
+		struct dict *(*getter)(struct protolib *),
+		bool imports)
 {
 	assert(plib != NULL);
-	struct lookup lookup = { name, NULL, getter };
+	struct lookup lookup = { name, getter, imports, NULL };
 	if (protolib_lookup_rec(&plib, &lookup) == CBS_STOP)
 		assert(lookup.result != NULL);
 	else
@@ -296,17 +299,17 @@ protolib_lookup(struct protolib *plib, const char *name,
 }
 
 struct prototype *
-protolib_lookup_prototype(struct protolib *plib, const char *name)
+protolib_lookup_prototype(struct protolib *plib, const char *name, bool imports)
 {
 	assert(plib != NULL);
-	return protolib_lookup(plib, name, &get_prototypes);
+	return protolib_lookup(plib, name, &get_prototypes, imports);
 }
 
 struct named_type *
-protolib_lookup_type(struct protolib *plib, const char *name)
+protolib_lookup_type(struct protolib *plib, const char *name, bool imports)
 {
 	assert(plib != NULL);
-	return protolib_lookup(plib, name, &get_named_types);
+	return protolib_lookup(plib, name, &get_named_types, imports);
 }
 
 static void

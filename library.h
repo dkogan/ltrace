@@ -115,6 +115,7 @@ enum callback_status library_symbol_delayed_cb(struct library_symbol *libsym,
 enum library_type {
 	LT_LIBTYPE_MAIN,
 	LT_LIBTYPE_DSO,
+	LT_LIBTYPE_SYSCALL,
 };
 
 /* XXX we might consider sharing libraries across processes.  Things

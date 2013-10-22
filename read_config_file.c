@@ -406,7 +406,7 @@ parse_typedef_name(struct protolib *plib, char **str)
 	*str += len;
 	buf[len] = 0;
 
-	struct named_type *nt = protolib_lookup_type(plib, buf);
+	struct named_type *nt = protolib_lookup_type(plib, buf, true);
 	if (nt == NULL)
 		return NULL;
 	return nt->info;
@@ -422,7 +422,7 @@ parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 	/* Look through the typedef list whether we already have a
 	 * forward of this type.  If we do, it must be forward
 	 * structure.  */
-	struct named_type *forward = protolib_lookup_type(plib, name);
+	struct named_type *forward = protolib_lookup_type(plib, name, true);
 	if (forward != NULL
 	    && (forward->info->type != ARGTYPE_STRUCT
 		|| !forward->forward)) {

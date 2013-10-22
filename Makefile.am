@@ -64,8 +64,7 @@ dist_man5_MANS = ltrace.conf.5
 
 dist_doc_DATA = COPYING CREDITS INSTALL README TODO
 
-dist_sysconf_DATA = \
-	etc/ltrace.conf
+dist_pkgdata_DATA = etc/syscalls.conf etc/ltrace.conf
 
 EXTRA_DIST = \
 	debian/changelog \
