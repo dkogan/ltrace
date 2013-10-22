@@ -1114,7 +1114,7 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 	eat_spaces(&str);
 
 	/* A comment or empty line.  */
-	if (*str == ';' || *str == 0 || *str == '\n')
+	if (*str == ';' || *str == 0 || *str == '\n' || *str == '#')
 		return 0;
 
 	if (strncmp(str, "typedef", 7) == 0) {
