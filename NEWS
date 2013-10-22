@@ -4,6 +4,8 @@
    - MIPS and MIPSel are now handled by the same backend.
    - ARMv6 and ARMv7 are supported, including full fetch backend.
    - Imagination Technologies Meta is now supported.
+   - On Linux, tracing of IFUNC symbols and IRELATIVE PLT slots is
+     supported.
 
 ** -w output now shows full library path
     The output format is similar to glibc's backtrace_symbols, e.g.:
@@ -325,7 +327,7 @@
 
 * License
 -------------------------------------------------------------------------------
-Copyright (C) 2012 Petr Machata <pmachata@redhat.com>
+Copyright (C) 2012,2013 Petr Machata <pmachata@redhat.com>
 This file is part of ltrace.
 
 ltrace is free software; you can redistribute it and/or modify it
