@@ -400,28 +400,38 @@ load_config(struct protolib_cache *cache,
 	return 0;
 }
 
+static enum callback_status
+import_legacy_file(char **fnp, void *data)
+{
+	struct protolib_cache *cache = data;
+	struct protolib *plib = protolib_cache_file(cache, *fnp, 1);
+	if (plib != NULL) {
+		/* The cache now owns the file name.  */
+		*fnp = NULL;
+		if (protolib_add_import(&cache->imports, plib) < 0)
+			return CBS_STOP;
+	}
+
+	return CBS_CONT;
+}
+
 static int
 add_ltrace_conf(struct protolib_cache *cache)
 {
 	/* Look into private config directories for .ltrace.conf and
 	 * into system config directories for ltrace.conf.  If it's
 	 * found, add it to implicit import module.  */
-	struct protolib *plib = NULL;
-	const char *home = NULL;
-	if (os_get_ltrace_conf_filename(&home) < 0
-	    || (home != NULL
-		&& (plib = consider_config_dir(cache, home, ".ltrace")) != NULL
-		&& protolib_add_import(&cache->imports, plib) < 0)
-	    || (plib == NULL && load_config(cache, "ltrace", 0, &plib) < 0)
-	    || (plib != NULL && protolib_add_import(&cache->imports, plib) < 0))
-		/* N.B. If plib is non-NULL, it has been already
-		 * cached.  We don't therefore destroy it on
-		 * failures.  */
+	struct vect legacy_files;
+	VECT_INIT(&legacy_files, char *);
+	if (os_get_ltrace_conf_filenames(&legacy_files) < 0) {
+		vect_destroy(&legacy_files, NULL, NULL);
 		return -1;
+	}
 
-	/* Never mind whether we've found anything.  It's fine if the
-	 * config is absent.  */
-	return 0;
+	int ret = VECT_EACH(&legacy_files, char *, NULL,
+			    import_legacy_file, cache) == NULL ? 0 : -1;
+	VECT_DESTROY(&legacy_files, char *, vect_dtor_string, NULL);
+	return ret;
 }
 
 static enum callback_status

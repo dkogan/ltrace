@@ -204,4 +204,8 @@ void vect_qsort(struct vect *vec, int (*compar)(const void *, const void *));
 			   (int (*)(const void *, const void *))_compar); \
 	} while (0)
 
+
+/* A dtor which calls 'free' on elements of a vector.  */
+void vect_dtor_string(char **key, void *data);
+
 #endif /* VECT_H */

@@ -161,10 +161,10 @@ again:
 		VECT_DESTROY(&v, struct opt_F_t, destroy_opt_F_cb, NULL);
 	}
 
-	/* SYSCONFDIR is passed via -D when compiling.  */
-	const char *sysconfdir = SYSCONFDIR;
-	if (sysconfdir != NULL)
-		add_dir(&dirs, sysconfdir, "");
+	/* PKGDATADIR is passed via -D when compiling.  */
+	const char *pkgdatadir = PKGDATADIR;
+	if (pkgdatadir != NULL)
+		add_dir(&dirs, pkgdatadir, "");
 
 	if (VECT_PUSHBACK(&dirs, &delim) < 0)
 		goto fail;
@@ -173,10 +173,39 @@ again:
 }
 
 int
-os_get_ltrace_conf_filename(const char **retp)
+os_get_ltrace_conf_filenames(struct vect *retp)
 {
+	char *homepath = NULL;
+	char *syspath = NULL;
+
+#define FN ".ltrace.conf"
 	if (g_home_dir == NULL)
 		os_get_config_dirs(0, NULL);
-	*retp = g_home_dir;
-	return g_home_dir != NULL ? 0 : -1;
+
+	if (g_home_dir != NULL) {
+		homepath = malloc(strlen(g_home_dir) + 1 + sizeof FN);
+		if (homepath == NULL
+		    || sprintf(homepath, "%s/%s", g_home_dir, FN) < 0) {
+		fail:
+			free(syspath);
+			free(homepath);
+			return -1;
+		}
+	}
+
+	/* SYSCONFDIR is passed via -D when compiling.  */
+	const char *sysconfdir = SYSCONFDIR;
+	if (sysconfdir != NULL && *sysconfdir != '\0') {
+		/* No +1, we skip the initial period.  */
+		syspath = malloc(strlen(sysconfdir) + sizeof FN);
+		if (syspath == NULL
+		    || sprintf(syspath, "%s/%s", sysconfdir, FN + 1) < 0)
+			goto fail;
+	}
+
+	if (VECT_PUSHBACK(retp, &homepath) < 0
+	    || VECT_PUSHBACK(retp, &syspath) < 0)
+		goto fail;
+
+	return 0;
 }

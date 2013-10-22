@@ -347,11 +347,16 @@ int arch_find_dl_debug(struct process *proc, arch_addr_t dyn_addr,
  * concern itself with it.  */
 int os_get_config_dirs(int private, const char ***retp);
 
-/* This is called to obtain the name of legacy config file, if any.
- * Returns 0 on success, in which case *RETP should be set to the file
- * name (it is legitimate to set this to NULL), or a negative value on
- * failure.  It is OK if the file is not present.  */
-int os_get_ltrace_conf_filename(const char **retp);
+/* This is called to obtain list of legacy config files to import, if
+ * any.  A reference to initialized vector of char* is passed in.
+ *
+ * This returns 0 on success, in which case strings from *RETP (if
+ * any) are interpreted as files names.  These files belong to the
+ * caller and will eventually be freed.
+ *
+ * Returns a negative value for failure, in which case *RETP contents
+ * are not consulted in any way.  */
+int os_get_ltrace_conf_filenames(struct vect *retp);
 
 /* If arch.h defines ARCH_HAVE_FETCH_ARG, the following callbacks have
  * to be implemented: arch_fetch_arg_init, arch_fetch_arg_clone,

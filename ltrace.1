@@ -291,10 +291,9 @@ instead.  For the main program binary, basename is considered as well
 
 When looking for a prototype library, ltrace potentially looks into
 several directories.  On Linux, those are $XDG_CONFIG_HOME/ltrace,
-$HOME/.ltrace, \fIX\fR/ltrace for each \fIX\fR in $XDG_CONFIG_DIRS,
-and /etc/ltrace (XXX but that should probably be /usr/lib/ltrace).  If
-the environment variable XDG_CONFIG_HOME is not defined, ltrace looks
-into $HOME/.config/ltrace instead.
+$HOME/.ltrace, \fIX\fR/ltrace for each \fIX\fR in $XDG_CONFIG_DIRS and
+/usr/share/ltrace.  If the environment variable XDG_CONFIG_HOME is not
+defined, ltrace looks into $HOME/.config/ltrace instead.
 
 There's also a mechanism for loading legacy config files.  If
 $HOME/.ltrace.conf exists it is imported to every loaded prototype

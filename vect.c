@@ -202,3 +202,9 @@ vect_each_cst(const struct vect *vec, const void *start_after,
 	return vect_each((struct vect *)vec, (void *)start_after,
 			 (void *)cb, data);
 }
+
+void
+vect_dtor_string(char **key, void *data)
+{
+	free(*key);
+}
