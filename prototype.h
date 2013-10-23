@@ -183,30 +183,45 @@ void protolib_cache_destroy(struct protolib_cache *cache);
  * callback is used to get a list of directories to look into.  In the
  * first round, if ALLOW_PRIVATE, ltrace looks in user's private
  * directories.  If the config file wasn't found, the second round is
- * made through system directories.  If it still wasn't found, an
- * empty protolib (but with the following includes) is provided
- * instead.
+ * made through system directories.  In each directory, ltrace looks
+ * and reads the file named KEY.conf.
  *
- * In each directory, ltrace looks and reads the file named KEY.conf.
- * This file is augmented with the following implicit includes, in
- * this order:
+ * If the config file still wasn't found, an empty (but non-NULL)
+ * protolib is provided instead.  That is augmented with the following
+ * imports:
  *
  * - Legacy typedefs
- * - The INCLUDE argument passed to protolib_cache_init, if non-NULL
- * - The first available, if any, of $HOME/.ltrace.conf and
- *   @sysconfdir@/ltrace.conf
+ * - The IMPORT argument passed to protolib_cache_init, if non-NULL
+ * - $HOME/.ltrace.conf if available
+ * - @sysconfdir@/ltrace.conf if available
  * - Any configure _files_ passed in -F
  *
  * This function returns either the loaded protolib, or NULL when
  * there was an error.  */
-struct protolib *protolib_cache_search(struct protolib_cache *cache,
-				       const char *key, int own_key,
-				       int allow_private);
+struct protolib *protolib_cache_load(struct protolib_cache *cache,
+				     const char *key, int own_key,
+				     bool allow_private);
 
-/* This is similar to above, but instead of looking for the file to
- * load in directories, the filename is given.  */
+/* This is similar to protolib_cache_load, except that if a protolib
+ * is not found NULL is returned instead of a default module.
+ *
+ * It returns 0 for success and a negative value for failure, and the
+ * actual return value is passed via *RET.*/
+int protolib_cache_maybe_load(struct protolib_cache *cache,
+			      const char *key, int own_key,
+			      bool allow_private,
+			      struct protolib **ret);
+
+/* This is similar to protolib_cache_load, but instead of looking for
+ * the file to load in directories, the filename is given.  */
 struct protolib *protolib_cache_file(struct protolib_cache *cache,
 				     const char *filename, int own_filename);
+
+/* This caches a default module.  This is what protolib_cache_load
+ * calls if it fails to find the actual protolib.  Returns default
+ * protolib or NULL if there was an error.  */
+struct protolib *protolib_cache_default(struct protolib_cache *cache,
+					const char *key, int own_key);
 
 /* This is similar to protolib_cache_file, but the library to cache is
  * given in argument.  Returns 0 on success or a negative value on

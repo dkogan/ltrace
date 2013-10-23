@@ -447,7 +447,7 @@ output_syscall(struct process *proc, const char *name, enum tof tof,
 	static struct library syscall_lib;
 	if (syscall_lib.protolib == NULL) {
 		struct protolib *protolib
-			= protolib_cache_search(&g_protocache, "syscalls", 0, 1);
+			= protolib_cache_load(&g_protocache, "syscalls", 0, 1);
 		if (protolib == NULL) {
 			fprintf(stderr, "Couldn't load system call prototypes:"
 				" %s.\n", strerror(errno));

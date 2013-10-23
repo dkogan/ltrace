@@ -540,39 +540,77 @@ attempt_to_cache(struct protolib_cache *cache,
 	 * that protolib, but perhaps it's less bad then giving up
 	 * outright.  At least print an error message.  */
 	fprintf(stderr, "Couldn't cache prototype library for %s\n", key);
+	free((void *) key);
 }
 
-struct protolib *
-protolib_cache_search(struct protolib_cache *cache,
-		      const char *key, int own_key, int allow_private)
+int
+protolib_cache_maybe_load(struct protolib_cache *cache,
+			  const char *key, int own_key, bool allow_private,
+			  struct protolib **retp)
 {
-	struct protolib *plib = NULL;
-	if (DICT_FIND_VAL(&cache->protolibs, &key, &plib) == 0)
-		return plib;
+	if (DICT_FIND_VAL(&cache->protolibs, &key, retp) == 0)
+		return 0;
 
 	if (strdup_if(&key, key, !own_key) < 0) {
 		fprintf(stderr, "Couldn't cache %s: %s\n",
 			key, strerror(errno));
-		return NULL;
+		return -1;
 	}
 
-	/* The order is: -F directories, private directories, system
-	 * directories.  If the config file is not found anywhere,
-	 * build a default one.  */
-	if (load_dash_F_dirs(cache, key, &plib) < 0
-	    || (plib == NULL && allow_private
-		&& load_config(cache, key, 1, &plib) < 0)
-	    || (plib == NULL
-		&& load_config(cache, key, 0, &plib) < 0)
-	    || (plib == NULL
-		&& (plib = build_default_config(cache, key)) == NULL))
+	*retp = NULL;
+	if (load_dash_F_dirs(cache, key, retp) < 0
+	    || (*retp == NULL && allow_private
+		&& load_config(cache, key, 1, retp) < 0)
+	    || (*retp == NULL
+		&& load_config(cache, key, 0, retp) < 0))
+	{
+		if (!own_key)
+			free((void *) key);
 		fprintf(stderr,
 			"Error occurred when attempting to load a prototype "
 			"library for %s.\n", key);
+		return -1;
+	}
 
-	/* Whatever came out of this (even NULL), store it in the
-	 * cache.  */
+	if (*retp != NULL)
+		attempt_to_cache(cache, key, *retp);
+	else if (!own_key)
+		free((void *) key);
+
+	return 0;
+}
+
+struct protolib *
+protolib_cache_load(struct protolib_cache *cache,
+		    const char *key, int own_key, bool allow_private)
+{
+	struct protolib *plib;
+	if (protolib_cache_maybe_load(cache, key, own_key,
+				      allow_private, &plib) < 0)
+		return NULL;
+
+	if (plib == NULL)
+		plib = protolib_cache_default(cache, key, own_key);
+
+	return plib;
+}
+
+struct protolib *
+protolib_cache_default(struct protolib_cache *cache,
+		       const char *key, int own_key)
+{
+	if (strdup_if(&key, key, !own_key) < 0) {
+		fprintf(stderr, "Couldn't cache default %s: %s\n",
+			key, strerror(errno));
+		return NULL;
+	}
+
+	struct protolib *plib = build_default_config(cache, key);
+
+	/* Whatever came out of this (even NULL), store it in
+	 * the cache.  */
 	attempt_to_cache(cache, key, plib);
+
 	return plib;
 }
 
@@ -602,7 +640,7 @@ protolib_cache_file(struct protolib_cache *cache,
 	    || read_config_file(stream, filename, new_plib) < 0) {
 		fclose(stream);
 		if (own_filename)
-			free((char *)filename);
+			free((char *) filename);
 		if (new_plib != NULL) {
 			protolib_destroy(new_plib);
 			free(new_plib);
@@ -628,7 +666,7 @@ protolib_cache_protolib(struct protolib_cache *cache,
 
 	int rc = DICT_INSERT(&cache->protolibs, &filename, &plib);
 	if (rc < 0 && own_filename)
-		free((char *)filename);
+		free((char *) filename);
 	if (rc == 0 && plib != NULL)
 		plib->refs++;
 	return rc;

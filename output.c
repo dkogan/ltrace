@@ -182,12 +182,38 @@ build_default_prototype(void)
 	return ret;
 }
 
+static bool
+snip_period(char *buf)
+{
+	char *period = strrchr(buf, '.');
+	if (period != NULL && strcmp(period, ".so") != 0) {
+		*period = 0;
+		return true;
+	} else {
+		return false;
+	}
+}
+
 static struct prototype *
 library_get_prototype(struct library *lib, const char *name)
 {
-	if (lib->protolib == NULL)
-		lib->protolib = protolib_cache_search(&g_protocache,
-						      lib->soname, 0, 1);
+	if (lib->protolib == NULL) {
+		size_t sz = strlen(lib->soname);
+		char buf[sz + 1];
+		memcpy(buf, lib->soname, sz);
+
+		do {
+			if (protolib_cache_maybe_load(&g_protocache, buf, 0,
+						      true, &lib->protolib) < 0)
+				return NULL;
+		} while (lib->protolib == NULL
+			 && lib->type == LT_LIBTYPE_DSO
+			 && snip_period(buf));
+
+		if (lib->protolib == NULL)
+			lib->protolib = protolib_cache_default(&g_protocache,
+							       buf, 0);
+	}
 	if (lib->protolib == NULL)
 		return NULL;
 

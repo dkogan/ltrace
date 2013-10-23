@@ -287,7 +287,12 @@ library.
 
 If a library has no SONAME, basename of library file is considered
 instead.  For the main program binary, basename is considered as well
-(e.g. protolib for /bin/echo would be called echo.conf).
+(e.g. protolib for /bin/echo would be called echo.conf).  If a name
+corresponding to soname (e.g. libc.so.6.conf) is not found, and the
+module under consideration is a shared library, ltrace also tries
+partial matches.  Ltrace snips one period after another, retrying the
+search, until either a protolib is found, or X.so is all that's left.
+Thus libc.so.conf would be considered, but libc.conf not.
 
 When looking for a prototype library, ltrace potentially looks into
 several directories.  On Linux, those are $XDG_CONFIG_HOME/ltrace,
