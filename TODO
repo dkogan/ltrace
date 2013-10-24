@@ -59,9 +59,29 @@
 
     Perhaps we should hook to something after all.
 
+*** system call error returns
+
+    This is closely related to above.  Take the following syscall
+    prototype:
+
+    | long read(int,+string0,ulong);
+
+    string0 means the same as string(array(char, zero(retval))*).  But
+    if read returns a negative value, that signifies errno.  But zero
+    takes this at face value and is suspicious:
+
+    | read@SYS(3 <no return ...>
+    | error: maximum array length seems negative
+    | , "\n\003\224\003\n", 4096)                  = -11
+
+    Ideally we would do what strace does, e.g.:
+
+    | read@SYS(3, 0x12345678, 4096)                = -EAGAIN
+
 *** errno tracking
     Some calls result in setting errno.  Somehow mark those, and on
-    failure, show errno.
+    failure, show errno.  System calls return errno as a negative
+    value (see the previous point).
 
 *** second conversions?
     This definitely calls for some general scripting.  The goal is to
