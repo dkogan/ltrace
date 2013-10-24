@@ -200,7 +200,7 @@ library_get_prototype(struct library *lib, const char *name)
 	if (lib->protolib == NULL) {
 		size_t sz = strlen(lib->soname);
 		char buf[sz + 1];
-		memcpy(buf, lib->soname, sz);
+		memcpy(buf, lib->soname, sz + 1);
 
 		do {
 			if (protolib_cache_maybe_load(&g_protocache, buf, 0,
