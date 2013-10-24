@@ -1,32 +1,33 @@
 -*-org-*-
 * Version 0.8.0
+** Prototype libraries
+   - Each DSO can now ship an ltrace config file (called prototype
+     library) that ltrace will open when that DSO is loaded to process
+     image.  See ltrace(1) for details.
+
+   - ltrace.conf is no longer part of installation tarball.  Instead,
+     we now ship libc.so.conf, libm.so.conf, libacl.so.conf, and
+     syscalls.conf.  Those are now istalled to /usr/share/ltrace by
+     default.  /etc/ltrace.conf and $HOME/.ltrace.conf are still
+     loaded if present, and can contain arbitrary user configuration.
+
+   - The option -F was retrofitted to be a colon-separated list of
+     prototype libraries, and directories to look for prototype
+     libraries in.  On Linux, ltrace looks into XDG_CONFIG_HOME,
+     XDG_CONFIG_DIRS, and /usr/share/ltrace as well.
+
 ** Architectural support
    - MIPS and MIPSel are now handled by the same backend.
    - ARMv6 and ARMv7 are supported, including full fetch backend.
    - Imagination Technologies Meta is now supported.
-   - On Linux, tracing of IFUNC symbols and IRELATIVE PLT slots is
-     supported.
+   - On Linux, tracing of IFUNC symbols is supported.  On i386 and
+     x86_64, IRELATIVE PLT slots are traced as well.
 
 ** -w output now shows full library path
     The output format is similar to glibc's backtrace_symbols, e.g.:
      > /bin/ls(_init+0x19be) [0x40398e]
      > /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xed) [0x7f50cbc3676d]
      > /bin/ls(_init+0x25fd) [0x4045cd]
-
-** Prototype libraries
-   - Each DSO can now ship an ltrace config file (called prototype
-     library) that ltrace will open when that DSO is loaded to process
-     image.  See ltrace(1) for details.
-   - The option -F was retrofitted to be a colon-separated list of
-     config files and directories to look for prototype libraries in.
-   - On Linux, ltrace looks into XDG_CONFIG_HOME, XDG_CONFIG_DIRS, and
-     /usr/share/ltrace as well.
-
-** The following prototypes in ltrace.conf were added or updated
-   rand, srand, random, srandom, initstate, setstate, drand48,
-   erand48, lrand48, nrand48, mrand48, jrand48, srand48, seed48,
-   lcong48, readdir, readdir64, closedir, opendir, fdopendir, dirfd,
-   rewinddir, telldir, seekdir
 
 * Version 0.7.3 [2013-09-15 Sun]
 ** Bugfixes
