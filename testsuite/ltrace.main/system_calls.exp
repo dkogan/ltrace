@@ -29,39 +29,39 @@ if [regexp {ELF from incompatible architecture} $exec_output] {
 }
 
 
-set pattern "munmap@SYS"
+set pattern "^munmap@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 2
-set pattern "write@SYS"
+set pattern "^write@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "unlink@SYS"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "brk@SYS"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "open@SYS"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "(new)?fstat@SYS"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1 egrep
-set pattern "(old_)?mmap@SYS"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1 egrep
-set pattern "close@SYS"
+set pattern "^unlink@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "getcwd@SYS"
+set pattern "^brk@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "chdir@SYS"
+set pattern "^open@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "symlink@SYS"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "unlink@SYS"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "(new)?stat@SYS"
+set pattern "^(new)?fstat(64)?@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1 egrep
-set pattern "access@SYS"
+set pattern "^(old_)?mmap2?@SYS"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1 egrep
+set pattern "^close@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "rename@SYS"
+
+set pattern "^getcwd@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "mkdir@SYS"
+set pattern "^chdir@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-set pattern "rmdir@SYS"
+set pattern "^symlink@SYS"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+set pattern "^unlink@SYS"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+set pattern "^(new)?stat(64)?@SYS"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1 egrep
+set pattern "^access@SYS"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+set pattern "^rename@SYS"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+set pattern "^mkdir@SYS"
+ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
+set pattern "^rmdir@SYS"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1

@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata
+ * Copyright (C) 2011,2012,2013 Petr Machata
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -61,6 +61,7 @@ struct fetch_context
 	arch_addr_t stack_pointer;
 	size_t ireg;	/* Used-up integer registers.  */
 	size_t freg;	/* Used-up floating registers.  */
+	int machine;
 
 	union {
 		struct {
@@ -238,20 +239,41 @@ allocate_integer(struct fetch_context *context, struct value *valuep,
 
 	case POOL_SYSCALL:
 #ifdef __x86_64__
-		switch (context->ireg) {
-			HANDLE(0, rdi);
-			HANDLE(1, rsi);
-			HANDLE(2, rdx);
-			HANDLE(3, r10);
-			HANDLE(4, r8);
-			HANDLE(5, r9);
-		default:
-			assert(!"More than six syscall arguments???");
-			abort();
+		if (context->machine == EM_X86_64) {
+			switch (context->ireg) {
+				HANDLE(0, rdi);
+				HANDLE(1, rsi);
+				HANDLE(2, rdx);
+				HANDLE(3, r10);
+				HANDLE(4, r8);
+				HANDLE(5, r9);
+			default:
+				assert(!"More than six syscall arguments???");
+				abort();
+			}
 		}
-#else
-		i386_unreachable();
 #endif
+		if (context->machine == EM_386) {
+
+#ifdef __x86_64__
+# define HANDLE32(NUM, WHICH) HANDLE(NUM, r##WHICH)
+#else
+# define HANDLE32(NUM, WHICH) HANDLE(NUM, e##WHICH)
+#endif
+
+			switch (context->ireg) {
+				HANDLE32(0, bx);
+				HANDLE32(1, cx);
+				HANDLE32(2, dx);
+				HANDLE32(3, si);
+				HANDLE32(4, di);
+				HANDLE32(5, bp);
+			default:
+				assert(!"More than six syscall arguments???");
+				abort();
+			}
+#undef HANDLE32
+		}
 
 	case POOL_RETVAL:
 		switch (context->ireg) {
@@ -572,6 +594,15 @@ arch_fetch_arg_next_32(struct fetch_context *context, enum tof type,
 	size_t sz = type_sizeof(proc, info);
 	if (sz == (size_t)-1)
 		return -1;
+	if (value_reserve(valuep, sz) == NULL)
+		return -1;
+
+	if (type == LT_TOF_SYSCALL || type == LT_TOF_SYSCALLR) {
+		int cls = allocate_integer(context, valuep,
+					   sz, 0, POOL_SYSCALL);
+		assert(cls == CLASS_INTEGER);
+		return 0;
+	}
 
 	allocate_stack_slot(context, valuep, sz, 0, 4);
 
@@ -704,6 +735,7 @@ arch_fetch_arg_init(enum tof type, struct process *proc,
 	struct fetch_context *ctx = malloc(sizeof(*ctx));
 	if (ctx == NULL)
 		return NULL;
+	ctx->machine = proc->e_machine;
 
 	assert(type != LT_TOF_FUNCTIONR
 	       && type != LT_TOF_SYSCALLR);

@@ -22,12 +22,16 @@ set bin [ltraceCompile {} [ltraceSource c {
     #include <fcntl.h>
     int main(void) {
 	open("/some/path", O_RDONLY);
+	write(1, "something", 10);
+	mount("source", "target", "filesystemtype", 0, 0);
     }
 }]]
 
 set dir [ltraceDir]
 set conf [ltraceNamedSource "$dir/syscalls.conf" {
     int open(string, int);
+    long write(int, string[arg3], ulong);
+    int mount(string, string, string, ulong, addr);
 }]
 
 # When given the file directly via -F, ltrace should not use it for
@@ -39,11 +43,15 @@ set conf [ltraceNamedSource "$dir/syscalls.conf" {
 # doesn't list readdir, that would be taken from somelib.conf with a
 # wrong prototype.
 
-ltraceMatch1 [ltraceRun -L -S -F $conf -- $bin] {open@SYS\("/some/path"} == 0
+ltraceMatch1 [ltraceRun -L -S -F $conf -- $bin] {^open@SYS\("/some/path"} == 0
 
 # On the other hand, if -F somedir/ is given, we want to accept
 # syscalls.conf found there.
 
-ltraceMatch1 [ltraceRun -L -S -F $dir -- $bin] {open@SYS\("/some/path"} == 1
+ltraceMatch [ltraceRun -L -S -F $dir -- $bin] {
+    {{^open@SYS\("/some/path"} == 1}
+    {{^write@SYS\(1, "something", 10\)} == 1}
+    {{^mount@SYS\("source", "target", "filesystemtype"} == 1}
+}
 
 ltraceDone
