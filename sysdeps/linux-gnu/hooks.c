@@ -335,6 +335,11 @@ ifunc_ret_hit(struct breakpoint *bp, struct process *proc)
 		u.a = (arch_addr_t)(uintptr_t)u.u32;
 	else
 		u.a = (arch_addr_t)(uintptr_t)u.u64;
+	if (arch_translate_address_dyn(proc, u.a, &u.a) < 0) {
+		fprintf(stderr, "Couldn't OPD-translate the address returned"
+			" by the IFUNC resolver.\n");
+		goto done;
+	}
 
 	assert(bp->os.ret_libsym != NULL);
 
