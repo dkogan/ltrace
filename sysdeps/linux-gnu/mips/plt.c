@@ -157,8 +157,10 @@ int
 arch_get_sym_info(struct ltelf *lte, const char *filename,
 		  size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
 {
-	if (mips_elf_is_cpic(lte->ehdr.e_flags))
-		return elf_get_sym_info(lte, filename, sym_index, rela, sym);
+	if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+		return gelf_getsym(lte->dynsym, ELF64_R_SYM(rela->r_info),
+				   sym) != NULL ? 0 : -1;
+	}
 
 	/* Fixup the offset.  */
 	sym_index += lte->arch.mips_gotsym;

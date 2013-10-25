@@ -309,10 +309,7 @@ int arch_process_exec(struct process *proc);
  * PLT entry is for SYM_INDEX-th relocation in the file.  This call is
  * supposed to initialize SYM and RELA.  It returns 0 if there were no
  * errors and given symbol should be used, 1 if the symbol should not
- * be used, or a negative value if there were errors.
- *
- * The backend implementation can delegate some of the work to default
- * implementation in elf_get_sym_info.  */
+ * be used, or a negative value if there were errors.  */
 int arch_get_sym_info(struct ltelf *lte, const char *filename, size_t sym_index,
 		      GElf_Rela *rela, GElf_Sym *sym);
 

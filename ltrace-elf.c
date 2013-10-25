@@ -371,8 +371,9 @@ elf_read_uleb128(Elf_Data *data, GElf_Xword offset, uint64_t *retp)
 }
 
 int
-open_elf(struct ltelf *lte, const char *filename)
+ltelf_init(struct ltelf *lte, const char *filename)
 {
+	memset(lte, 0, sizeof *lte);
 	lte->fd = open(filename, O_RDONLY);
 	if (lte->fd == -1)
 		return 1;
@@ -422,7 +423,18 @@ open_elf(struct ltelf *lte, const char *filename)
 		exit(EXIT_FAILURE);
 	}
 
+	VECT_INIT(&lte->plt_relocs, GElf_Rela);
+
 	return 0;
+}
+
+void
+ltelf_destroy(struct ltelf *lte)
+{
+	debug(DEBUG_FUNCTION, "close_elf()");
+	elf_end(lte->elf);
+	close(lte->fd);
+	VECT_DESTROY(&lte->plt_relocs, GElf_Rela, NULL, NULL);
 }
 
 static void
@@ -462,13 +474,86 @@ read_symbol_table(struct ltelf *lte, const char *filename,
 }
 
 static int
-do_init_elf(struct ltelf *lte, const char *filename)
+rel_to_rela(struct ltelf *lte, const GElf_Rel *rel, GElf_Rela *rela)
+{
+	rela->r_offset = rel->r_offset;
+	rela->r_info = rel->r_info;
+
+	Elf_Scn *sec;
+	GElf_Shdr shdr;
+	if (elf_get_section_covering(lte, rel->r_offset, &sec, &shdr) < 0
+	    || sec == NULL)
+		return -1;
+
+	Elf_Data *data = elf_loaddata(sec, &shdr);
+	if (data == NULL)
+		return -1;
+
+	GElf_Xword offset = rel->r_offset - shdr.sh_addr - data->d_off;
+	uint64_t value;
+	if (lte->ehdr.e_ident[EI_CLASS] == ELFCLASS32) {
+		uint32_t tmp;
+		if (elf_read_u32(data, offset, &tmp) < 0)
+			return -1;
+		value = tmp;
+	} else if (elf_read_u64(data, offset, &value) < 0) {
+		return -1;
+	}
+
+	rela->r_addend = value;
+	return 0;
+}
+
+int
+read_relplt(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
+	    struct vect *rela_vec)
+{
+	if (vect_reserve_additional(rela_vec, lte->ehdr.e_shnum) < 0)
+		return -1;
+
+	Elf_Data *relplt = elf_loaddata(scn, shdr);
+	if (relplt == NULL) {
+		fprintf(stderr, "Couldn't load .rel*.plt data.\n");
+		return -1;
+	}
+
+	if ((shdr->sh_size % shdr->sh_entsize) != 0) {
+		fprintf(stderr, ".rel*.plt size (%" PRIx64 "d) not a multiple "
+			"of its sh_entsize (%" PRIx64 "d).\n",
+			shdr->sh_size, shdr->sh_entsize);
+		return -1;
+	}
+
+	GElf_Xword relplt_count = shdr->sh_size / shdr->sh_entsize;
+	GElf_Xword i;
+	for (i = 0; i < relplt_count; ++i) {
+		GElf_Rela rela;
+		if (relplt->d_type == ELF_T_REL) {
+			GElf_Rel rel;
+			if (gelf_getrel(relplt, i, &rel) == NULL
+			    || rel_to_rela(lte, &rel, &rela) < 0)
+				return -1;
+
+		} else if (gelf_getrela(relplt, i, &rela) == NULL) {
+			return -1;
+		}
+
+		if (VECT_PUSHBACK(rela_vec, &rela) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int
+ltelf_read_elf(struct ltelf *lte, const char *filename)
 {
 	int i;
 	GElf_Addr relplt_addr = 0;
 	GElf_Addr soname_offset = 0;
+	GElf_Xword relplt_size = 0;
 
-	debug(DEBUG_FUNCTION, "do_init_elf(filename=%s)", filename);
+	debug(DEBUG_FUNCTION, "ltelf_read_elf(filename=%s)", filename);
 	debug(1, "Reading ELF from %s...", filename);
 
 	for (i = 1; i < lte->ehdr.e_shnum; ++i) {
@@ -527,7 +612,7 @@ do_init_elf(struct ltelf *lte, const char *filename)
 				if (dyn.d_tag == DT_JMPREL)
 					relplt_addr = dyn.d_un.d_ptr;
 				else if (dyn.d_tag == DT_PLTRELSZ)
-					lte->relplt_size = dyn.d_un.d_val;
+					relplt_size = dyn.d_un.d_val;
 				else if (dyn.d_tag == DT_SONAME)
 					soname_offset = dyn.d_un.d_val;
 			}
@@ -560,14 +645,9 @@ do_init_elf(struct ltelf *lte, const char *filename)
 
 	if (!relplt_addr || !lte->plt_addr) {
 		debug(1, "%s has no PLT relocations", filename);
-		lte->relplt = NULL;
-		lte->relplt_count = 0;
-	} else if (lte->relplt_size == 0) {
+	} else if (relplt_size == 0) {
 		debug(1, "%s has unknown PLT size", filename);
-		lte->relplt = NULL;
-		lte->relplt_count = 0;
 	} else {
-
 		for (i = 1; i < lte->ehdr.e_shnum; ++i) {
 			Elf_Scn *scn;
 			GElf_Shdr shdr;
@@ -580,12 +660,9 @@ do_init_elf(struct ltelf *lte, const char *filename)
 				exit(EXIT_FAILURE);
 			}
 			if (shdr.sh_addr == relplt_addr
-			    && shdr.sh_size == lte->relplt_size) {
-				lte->relplt = elf_getdata(scn, NULL);
-				lte->relplt_count =
-				    shdr.sh_size / shdr.sh_entsize;
-				if (lte->relplt == NULL
-				    || elf_getdata(scn, lte->relplt) != NULL) {
+			    && shdr.sh_size == relplt_size) {
+				if (read_relplt(lte, scn, &shdr,
+						&lte->plt_relocs) < 0) {
 					fprintf(stderr, "Couldn't get .rel*.plt"
 						" data from \"%s\": %s\n",
 						filename, elf_errmsg(-1));
@@ -601,67 +678,12 @@ do_init_elf(struct ltelf *lte, const char *filename)
 				filename);
 			exit(EXIT_FAILURE);
 		}
-
-		debug(1, "%s %zd PLT relocations", filename, lte->relplt_count);
 	}
+	debug(1, "%s %zd PLT relocations", filename,
+	      vect_size(&lte->plt_relocs));
 
 	if (soname_offset != 0)
 		lte->soname = lte->dynstr + soname_offset;
-
-	return 0;
-}
-
-void
-do_close_elf(struct ltelf *lte)
-{
-	debug(DEBUG_FUNCTION, "do_close_elf()");
-	arch_elf_destroy(lte);
-	elf_end(lte->elf);
-	close(lte->fd);
-}
-
-int
-elf_get_sym_info(struct ltelf *lte, const char *filename,
-		 size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
-{
-	GElf_Rel rel;
-
-	if (lte->relplt->d_type == ELF_T_REL) {
-		if (gelf_getrel(lte->relplt, sym_index, &rel) == NULL)
-			return -1;
-		rela->r_offset = rel.r_offset;
-		rela->r_info = rel.r_info;
-
-		Elf_Scn *sec;
-		GElf_Shdr shdr;
-		if (elf_get_section_covering(lte, rel.r_offset, &sec, &shdr) < 0
-		    || sec == NULL)
-			return -1;
-
-		Elf_Data *data = elf_loaddata(sec, &shdr);
-		if (data == NULL)
-			return -1;
-		GElf_Xword offset = rel.r_offset - shdr.sh_addr - data->d_off;
-		uint64_t value;
-		if (lte->ehdr.e_ident[EI_CLASS] == ELFCLASS32) {
-			uint32_t tmp;
-			if (elf_read_u32(data, offset, &tmp) < 0)
-				return -1;
-			value = tmp;
-		} else if (elf_read_u64(data, offset, &value) < 0) {
-			return -1;
-		}
-
-		rela->r_addend = value;
-
-	} else if (gelf_getrela(lte->relplt, sym_index, rela) == NULL) {
-		return -1;
-	}
-
-	if (ELF64_R_SYM(rela->r_info) >= lte->dynsym_count
-	    || gelf_getsym(lte->dynsym,
-			   ELF64_R_SYM(rela->r_info), sym) == NULL)
-		return -1;
 
 	return 0;
 }
@@ -671,7 +693,8 @@ int
 arch_get_sym_info(struct ltelf *lte, const char *filename,
 		  size_t sym_index, GElf_Rela *rela, GElf_Sym *sym)
 {
-	return elf_get_sym_info(lte, filename, sym_index, rela, sym);
+	return gelf_getsym(lte->dynsym,
+			   ELF64_R_SYM(rela->r_info), sym) != NULL ? 0 : -1;
 }
 #endif
 
@@ -718,12 +741,13 @@ populate_plt(struct process *proc, const char *filename,
 	     struct ltelf *lte, struct library *lib,
 	     int latent_plts)
 {
+	size_t count = vect_size(&lte->plt_relocs);
 	size_t i;
-	for (i = 0; i < lte->relplt_count; ++i) {
-		GElf_Rela rela;
+	for (i = 0; i < count; ++i) {
+		GElf_Rela *rela = VECT_ELEMENT(&lte->plt_relocs, GElf_Rela, i);
 		GElf_Sym sym;
 
-		switch (arch_get_sym_info(lte, filename, i, &rela, &sym)) {
+		switch (arch_get_sym_info(lte, filename, i, rela, &sym)) {
 		default:
 			fprintf(stderr,
 				"Couldn't get relocation for symbol #%zd"
@@ -743,14 +767,14 @@ populate_plt(struct process *proc, const char *filename,
 
 		struct library_symbol *libsym = NULL;
 		switch (arch_elf_add_plt_entry(proc, lte, name,
-					       &rela, i, &libsym)) {
+					       rela, i, &libsym)) {
 		case PLT_FAIL:
 			return -1;
 
 		case PLT_DEFAULT:
 			/* Add default entry to the beginning of LIBSYM.  */
 			if (default_elf_add_plt_entry(proc, lte, name,
-						      &rela, i, &libsym) < 0)
+						      rela, i, &libsym) < 0)
 				return -1;
 			/* Fall through.  */
 		case PLT_OK:
@@ -1029,8 +1053,8 @@ static int
 read_module(struct library *lib, struct process *proc,
 	    const char *filename, GElf_Addr bias, int main)
 {
-	struct ltelf lte = {};
-	if (open_elf(&lte, filename) < 0)
+	struct ltelf lte;
+	if (ltelf_init(&lte, filename) < 0)
 		return -1;
 
 	/* XXX When we abstract ABI into a module, this should instead
@@ -1038,8 +1062,8 @@ read_module(struct library *lib, struct process *proc,
 	 *
 	 *    proc->abi = arch_get_abi(lte.ehdr);
 	 *
-	 * The code in open_elf needs to be replaced by this logic.
-	 * Be warned that libltrace.c calls open_elf as well to
+	 * The code in ltelf_init needs to be replaced by this logic.
+	 * Be warned that libltrace.c calls ltelf_init as well to
 	 * determine whether ABI is supported.  This is to get
 	 * reasonable error messages when trying to run 64-bit binary
 	 * with 32-bit ltrace.  It is desirable to preserve this.  */
@@ -1054,6 +1078,8 @@ read_module(struct library *lib, struct process *proc,
 		if (process_get_entry(proc, &entry, NULL) < 0) {
 			fprintf(stderr, "Couldn't find entry of PIE %s\n",
 				filename);
+		fail:
+			ltelf_destroy(&lte);
 			return -1;
 		}
 		/* XXX The double cast should be removed when
@@ -1078,19 +1104,18 @@ read_module(struct library *lib, struct process *proc,
 			fprintf(stderr,
 				"Couldn't determine base address of %s\n",
 				filename);
-			return -1;
+			goto fail;
 		}
 	}
 
-	if (do_init_elf(&lte, filename) < 0)
-		return -1;
+	if (ltelf_read_elf(&lte, filename) < 0)
+		goto fail;
 
 	if (arch_elf_init(&lte, lib) < 0) {
 		fprintf(stderr, "Backend initialization failed.\n");
-		return -1;
+		goto fail;
 	}
 
-	int status = 0;
 	if (lib == NULL)
 		goto fail;
 
@@ -1158,13 +1183,9 @@ read_module(struct library *lib, struct process *proc,
 			       symtabs, exports) < 0)
 		goto fail;
 
-done:
-	do_close_elf(&lte);
-	return status;
-
-fail:
-	status = -1;
-	goto done;
+	arch_elf_destroy(&lte);
+	ltelf_destroy(&lte);
+	return 0;
 }
 
 int

@@ -30,6 +30,7 @@
 
 #include "forward.h"
 #include "sysdep.h"
+#include "vect.h"
 
 /* XXX Ok, the original idea was to separate the low-level ELF data
  * from the abstract "struct library" object, but we use some of the
@@ -47,9 +48,11 @@ struct ltelf {
 	GElf_Addr plt_addr;
 	GElf_Word plt_flags;
 	size_t plt_size;
-	Elf_Data *relplt;
 	Elf_Data *plt_data;
-	size_t relplt_count;
+
+	/* Vector of GElf_Rela with PLT relocations.  */
+	struct vect plt_relocs;
+
 	Elf_Data *symtab;
 	const char *strtab;
 	const char *soname;
@@ -59,15 +62,14 @@ struct ltelf {
 	size_t opd_size;
 	GElf_Addr dyn_addr;
 	size_t dyn_sz;
-	size_t relplt_size;
 	GElf_Addr bias;
 	GElf_Addr entry_addr;
 	GElf_Addr base_addr;
 	struct arch_ltelf_data arch;
 };
 
-int open_elf(struct ltelf *lte, const char *filename);
-void do_close_elf(struct ltelf *lte);
+int ltelf_init(struct ltelf *lte, const char *filename);
+void ltelf_destroy(struct ltelf *lte);
 
 /* XXX is it possible to put breakpoints in VDSO and VSYSCALL
  * pseudo-libraries?  For now we assume that all libraries can be
@@ -89,11 +91,6 @@ struct library *ltelf_read_main_binary(struct process *proc, const char *path);
 int default_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 			      const char *a_name, GElf_Rela *rela, size_t ndx,
 			      struct library_symbol **ret);
-
-/* The base implementation of backend.h (arch_get_sym_info).
- * See backend.h for details.  */
-int elf_get_sym_info(struct ltelf *lte, const char *filename, size_t sym_index,
-		     GElf_Rela *rela, GElf_Sym *sym);
 
 Elf_Data *elf_loaddata(Elf_Scn *scn, GElf_Shdr *shdr);
 
