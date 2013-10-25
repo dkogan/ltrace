@@ -1252,17 +1252,14 @@ irelative_name_cb(GElf_Sym *symbol, const char *name, void *d)
 	return CBS_CONT;
 }
 
-enum plt_status
-linux_elf_add_plt_entry_irelative(struct process *proc, struct ltelf *lte,
-				  GElf_Rela *rela, size_t ndx,
-				  struct library_symbol **ret)
-
+char *
+linux_elf_find_irelative_name(struct ltelf *lte, GElf_Rela *rela)
 {
 	struct irelative_name_data_t data = { rela->r_addend, NULL };
 	if (rela->r_addend != 0
 	    && elf_each_symbol(lte, 0,
 			       irelative_name_cb, &data).status < 0)
-		return -1;
+		return NULL;
 
 	const char *name;
 	if (data.found_name != NULL) {
@@ -1277,8 +1274,17 @@ linux_elf_add_plt_entry_irelative(struct process *proc, struct ltelf *lte,
 #undef NAME
 	}
 
-	if (default_elf_add_plt_entry(proc, lte, name, rela, ndx, ret) < 0)
-		return PLT_FAIL;
+	return strdup(name);
+}
 
-	return PLT_OK;
+enum plt_status
+linux_elf_add_plt_entry_irelative(struct process *proc, struct ltelf *lte,
+				  GElf_Rela *rela, size_t ndx,
+				  struct library_symbol **ret)
+
+{
+	char *name = linux_elf_find_irelative_name(lte, rela);
+	int i = default_elf_add_plt_entry(proc, lte, name, rela, ndx, ret);
+	free(name);
+	return i < 0 ? PLT_FAIL : PLT_OK;
 }
