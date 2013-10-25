@@ -18,8 +18,14 @@
 
 set bin [ltraceCompile {} [ltraceSource c {
     int abc (int a) { return a + 1; }
-    static int (*resolve_xyz (void)) (int) { return abc; }
-    int xyz (int a) __attribute__ ((ifunc ("resolve_xyz")));
+
+    __asm__(".type xyz, \%gnu_indirect_function");
+
+    int xyz (int a);
+    extern void *xyz_ifunc(void) __asm__("xyz");
+    extern void *xyz_ifunc(void) {
+	return abc;
+    }
 
     int
     main(int argc, char *argv[])
