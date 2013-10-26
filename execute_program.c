@@ -22,10 +22,6 @@
  */
 #include "config.h"
 
-#if defined(HAVE_LIBUNWIND)
-#include <libunwind-ptrace.h>
-#endif /* defined(HAVE_LIBUNWIND) */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
