@@ -767,7 +767,8 @@ callstack_push_symfunc(struct process *proc, struct breakpoint *bp)
 	elem->c_un.libfunc = bp->libsym;
 
 	struct breakpoint *rbp = NULL;
-	if (breakpoint_get_return_bp(&rbp, bp, proc) == 0) {
+	if (breakpoint_get_return_bp(&rbp, bp, proc) == 0
+	    && rbp != NULL) {
 		struct breakpoint *ext_rbp = insert_breakpoint(proc, rbp);
 		if (ext_rbp != rbp) {
 			breakpoint_destroy(rbp);
