@@ -56,6 +56,9 @@ struct arch_ltelf_data {
 	GElf_Addr opd_base;
 	GElf_Xword opd_size;
 	int secure_plt;
+
+	Elf_Data *reladyn;
+	size_t reladyn_count;
 };
 
 #define ARCH_HAVE_LIBRARY_DATA
@@ -79,6 +82,10 @@ enum ppc64_plt_type {
 	 * corresponding PLT entry.  The original is now saved in
 	 * RESOLVED_VALUE.  */
 	PPC_PLT_RESOLVED,
+
+	/* Very similar to PPC_PLT_UNRESOLVED, but for JMP_IREL
+	 * slots.  */
+	PPC_PLT_IRELATIVE,
 };
 
 #define ARCH_HAVE_LIBRARY_SYMBOL_DATA
@@ -92,7 +99,10 @@ struct arch_library_symbol_data {
 
 #define ARCH_HAVE_BREAKPOINT_DATA
 struct arch_breakpoint_data {
-	/* We need this just for arch_breakpoint_init.  */
+	/* This is where we hide symbol for IRELATIVE breakpoint for
+	 * the first time that it hits.  This is NULL for normal
+	 * breakpoints.  */
+	struct library_symbol *irel_libsym;
 };
 
 #define ARCH_HAVE_PROCESS_DATA

@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "proc.h"
@@ -104,6 +105,21 @@
  * through half the dynamic linker, we just let the thread run and hit
  * this breakpoint.  When it hits, we know the PLT entry was resolved.
  *
+ * Another twist comes from tracing slots corresponding to
+ * R_PPC64_JMP_IREL relocations.  These have no dedicated PLT entry.
+ * The calls are done directly from stubs, and the .plt entry
+ * (actually .iplt entry, these live in a special section) is resolved
+ * in advance before the binary starts.  Because there's no PLT entry,
+ * we put the PLT breakpoints directly to the IFUNC resolver code, and
+ * then would like them to behave like ordinary PLT slots, including
+ * catching the point where these get resolved to unresolve them.  So
+ * for the first call (which is the actual resolver call), we pretend
+ * that this breakpoint is artificial and has no associated symbol,
+ * and turn it on fully only after the first hit.  Ideally we would
+ * trace that first call as well, but then the stepper, which tries to
+ * catch the point where the slot is resolved, would hit the return
+ * breakpoint and that's not currently handled well.
+ *
  * XXX TODO If we have hardware watch point, we might put a read watch
  * on .plt slot, and discover the offenders this way.  I don't know
  * the details, but I assume at most a handful (like, one or two, if
@@ -132,10 +148,48 @@ mark_as_resolved(struct library_symbol *libsym, GElf_Addr value)
 	libsym->arch.resolved_value = value;
 }
 
+static void
+ppc32_delayed_symbol(struct library_symbol *libsym)
+{
+	/* arch_dynlink_done is called on attach as well.  In that
+	 * case some slots will have been resolved already.
+	 * Unresolved PLT looks like this:
+	 *
+	 *    <sleep@plt>:	li      r11,0
+	 *    <sleep@plt+4>:	b       "resolve"
+	 *
+	 * "resolve" is another address in PLTGOT (the same block that
+	 * all the PLT slots are it).  When resolved, it looks either
+	 * this way:
+	 *
+	 *    <sleep@plt>:	b       0xfea88d0 <sleep>
+	 *
+	 * Which is easy to detect.  It can also look this way:
+	 *
+	 *    <sleep@plt>:	li      r11,0
+	 *    <sleep@plt+4>:	b       "dispatch"
+	 *
+	 * The "dispatch" address lies in PLTGOT as well.  In current
+	 * GNU toolchain, "dispatch" address is the same as PLTGOT
+	 * address.  We rely on this to figure out whether the address
+	 * is resolved or not.  */
+
+	uint32_t insn1 = libsym->arch.resolved_value >> 32;
+	uint32_t insn2 = (uint32_t) libsym->arch.resolved_value;
+	if ((insn1 & BRANCH_MASK) == B_INSN
+	    || ((insn2 & BRANCH_MASK) == B_INSN
+		/* XXX double cast  */
+		&& (ppc_branch_dest(libsym->enter_addr + 4, insn2)
+		    == (arch_addr_t) (long) libsym->lib->arch.pltgot_addr)))
+	{
+		mark_as_resolved(libsym, libsym->arch.resolved_value);
+	}
+}
+
 void
 arch_dynlink_done(struct process *proc)
 {
-	/* On PPC32 with BSS PLT, we need to enable delayed symbols.  */
+	/* We may need to activate delayed symbols.  */
 	struct library_symbol *libsym = NULL;
 	while ((libsym = proc_each_symbol(proc, libsym,
 					  library_symbol_delayed_cb, NULL))) {
@@ -148,45 +202,35 @@ arch_dynlink_done(struct process *proc)
 			return;
 		}
 
-		/* arch_dynlink_done is called on attach as well.  In
-		 * that case some slots will have been resolved
-		 * already.  Unresolved PLT looks like this:
-		 *
-		 *    <sleep@plt>:	li      r11,0
-		 *    <sleep@plt+4>:	b       "resolve"
-		 *
-		 * "resolve" is another address in PLTGOT (the same
-		 * block that all the PLT slots are it).  When
-		 * resolved, it looks either this way:
-		 *
-		 *    <sleep@plt>:	b       0xfea88d0 <sleep>
-		 *
-		 * Which is easy to detect.  It can also look this
-		 * way:
-		 *
-		 *    <sleep@plt>:	li      r11,0
-		 *    <sleep@plt+4>:	b       "dispatch"
-		 *
-		 * The "dispatch" address lies in PLTGOT as well.  In
-		 * current GNU toolchain, "dispatch" address is the
-		 * same as PLTGOT address.  We rely on this to figure
-		 * out whether the address is resolved or not.  */
-		uint32_t insn1 = libsym->arch.resolved_value >> 32;
-		uint32_t insn2 = (uint32_t)libsym->arch.resolved_value;
-		if ((insn1 & BRANCH_MASK) == B_INSN
-		    || ((insn2 & BRANCH_MASK) == B_INSN
-			/* XXX double cast  */
-			&& (ppc_branch_dest(libsym->enter_addr + 4, insn2)
-			    == (void*)(long)libsym->lib->arch.pltgot_addr)))
-			mark_as_resolved(libsym, libsym->arch.resolved_value);
+		if (proc->e_machine == EM_PPC)
+			ppc32_delayed_symbol(libsym);
 
+		fprintf(stderr, "activating %s\n", libsym->name);
 		if (proc_activate_delayed_symbol(proc, libsym) < 0)
 			return;
 
-		/* XXX double cast  */
-		libsym->arch.plt_slot_addr
-			= (GElf_Addr)(uintptr_t)libsym->enter_addr;
+		if (proc->e_machine == EM_PPC)
+			/* XXX double cast  */
+			libsym->arch.plt_slot_addr
+				= (GElf_Addr) (uintptr_t) libsym->enter_addr;
 	}
+}
+
+static bool
+reloc_is_irelative(int machine, GElf_Rela *rela)
+{
+	bool irelative = false;
+	if (machine == EM_PPC64) {
+#ifdef R_PPC64_JMP_IREL
+		irelative = GELF_R_TYPE(rela->r_info) == R_PPC64_JMP_IREL;
+#endif
+	} else {
+		assert(machine == EM_PPC);
+#ifdef R_PPC_IRELATIVE
+		irelative = GELF_R_TYPE(rela->r_info) == R_PPC_IRELATIVE;
+#endif
+	}
+	return irelative;
 }
 
 GElf_Addr
@@ -199,10 +243,28 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 	} else if (lte->ehdr.e_machine == EM_PPC) {
 		return rela->r_offset;
 
+	/* Beyond this point, we are on PPC64, but don't have stub
+	 * symbols.  */
+
+	} else if (reloc_is_irelative(lte->ehdr.e_machine, rela)) {
+
+		/* Put JMP_IREL breakpoint to resolver, since there's
+		 * no dedicated PLT entry.  */
+
+		assert(rela->r_addend != 0);
+		/* XXX double cast */
+		arch_addr_t res_addr = (arch_addr_t) (uintptr_t) rela->r_addend;
+		if (arch_translate_address(lte, res_addr, &res_addr) < 0) {
+			fprintf(stderr, "Couldn't OPD-translate IRELATIVE "
+				"resolver address.\n");
+			return 0;
+		}
+		/* XXX double cast */
+		return (GElf_Addr) (uintptr_t) res_addr;
+
 	} else {
-		/* If we get here, we don't have stub symbols.  In
-		 * that case we put brakpoints to PLT entries the same
-		 * as the PPC32 secure PLT case does.  */
+		/* We put brakpoints to PLT entries the same as the
+		 * PPC32 secure PLT case does. */
 		assert(lte->arch.plt_stub_vma != 0);
 		return lte->arch.plt_stub_vma + PPC64_PLT_STUB_SIZE * ndx;
 	}
@@ -382,6 +444,15 @@ nonzero_data(Elf_Data *data)
 	return 0;
 }
 
+static enum callback_status
+reloc_copy_if_irelative(GElf_Rela *rela, void *data)
+{
+	struct ltelf *lte = data;
+
+	return CBS_STOP_IF(reloc_is_irelative(lte->ehdr.e_machine, rela)
+			   && VECT_PUSHBACK(&lte->plt_relocs, rela) < 0);
+}
+
 int
 arch_elf_init(struct ltelf *lte, struct library *lib)
 {
@@ -410,8 +481,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 		}
 		GElf_Addr glink_vma = get_glink_vma(lte, ppcgot, lte->plt_data);
 
-		assert(lte->relplt_size % 12 == 0);
-		size_t count = lte->relplt_size / 12; // size of RELA entry
+		size_t count = vect_size(&lte->plt_relocs);
 		lte->arch.plt_stub_vma = glink_vma
 			- (GElf_Addr)count * PPC_PLT_STUB_SIZE;
 		debug(1, "stub_vma is %#" PRIx64, lte->arch.plt_stub_vma);
@@ -513,6 +583,35 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 		}
 	}
 
+	/* On PPC64, IRELATIVE relocations actually relocate .iplt
+	 * section, and as such are stored in .rela.dyn (where all
+	 * non-PLT relocations are stored) instead of .rela.plt.  Add
+	 * these to lte->plt_relocs.  */
+	extern int read_relplt(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
+			       struct vect *ret);
+
+	GElf_Addr rela, relasz;
+	Elf_Scn *rela_sec;
+	GElf_Shdr rela_shdr;
+	if (lte->ehdr.e_machine == EM_PPC64
+	    && load_dynamic_entry(lte, DT_RELA, &rela) == 0
+	    && load_dynamic_entry(lte, DT_RELASZ, &relasz) == 0
+	    && elf_get_section_covering(lte, rela, &rela_sec, &rela_shdr) == 0
+	    && rela_sec != NULL) {
+
+		struct vect v;
+		VECT_INIT(&v, GElf_Rela);
+		int ret = read_relplt(lte, rela_sec, &rela_shdr, &v);
+		if (ret >= 0
+		    && VECT_EACH(&v, GElf_Rela, NULL,
+				 reloc_copy_if_irelative, lte) != NULL)
+			ret = -1;
+
+		VECT_DESTROY(&v, GElf_Rela, NULL, NULL);
+
+		if (ret < 0)
+			return ret;
+	}
 	return 0;
 }
 
@@ -571,7 +670,18 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 		*ret = libsym;
 		return PLT_OK;
+
 	}
+
+	bool is_irelative = reloc_is_irelative(lte->ehdr.e_machine, rela);
+	char *name;
+	if (is_irelative)
+		name = linux_elf_find_irelative_name(lte, rela);
+	else
+		name = strdup(a_name);
+
+	if (name == NULL)
+		return PLT_FAIL;
 
 	/* PPC64.  If we have stubs, we return a chain of breakpoint
 	 * sites, one for each stub that corresponds to this PLT
@@ -580,7 +690,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	struct library_symbol **symp;
 	for (symp = &lte->arch.stubs; *symp != NULL; ) {
 		struct library_symbol *sym = *symp;
-		if (strcmp(sym->name, a_name) != 0) {
+		if (strcmp(sym->name, name) != 0) {
 			symp = &(*symp)->next;
 			continue;
 		}
@@ -593,6 +703,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 	if (chain != NULL) {
 		*ret = chain;
+		free(name);
 		return PLT_OK;
 	}
 
@@ -605,16 +716,18 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 	GElf_Addr plt_entry_addr = arch_plt_sym_val(lte, ndx, rela);
 	GElf_Addr plt_slot_addr = rela->r_offset;
+
 	assert(plt_slot_addr >= lte->plt_addr
 	       || plt_slot_addr < lte->plt_addr + lte->plt_size);
 
 	GElf_Addr plt_slot_value;
-	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0)
+	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0) {
+		free(name);
 		return PLT_FAIL;
+	}
 
-	char *name = strdup(a_name);
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
-	if (name == NULL || libsym == NULL) {
+	if (libsym == NULL) {
 		fprintf(stderr, "allocation for .plt slot: %s\n",
 			strerror(errno));
 	fail:
@@ -626,12 +739,13 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	/* XXX The double cast should be removed when
 	 * arch_addr_t becomes integral type.  */
 	if (library_symbol_init(libsym,
-				(arch_addr_t)(uintptr_t)plt_entry_addr,
+				(arch_addr_t) (uintptr_t) plt_entry_addr,
 				name, 1, LS_TOPLT_EXEC) < 0)
 		goto fail;
 	libsym->arch.plt_slot_addr = plt_slot_addr;
 
-	if (plt_slot_value == plt_entry_addr || plt_slot_value == 0) {
+	if (! is_irelative
+	    && (plt_slot_value == plt_entry_addr || plt_slot_value == 0)) {
 		libsym->arch.type = PPC_PLT_UNRESOLVED;
 		libsym->arch.resolved_value = plt_entry_addr;
 
@@ -649,7 +763,13 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 			library_symbol_destroy(libsym);
 			goto fail;
 		}
-		mark_as_resolved(libsym, plt_slot_value);
+
+		if (! is_irelative) {
+			mark_as_resolved(libsym, plt_slot_value);
+		} else {
+			libsym->arch.type = PPC_PLT_IRELATIVE;
+			libsym->arch.resolved_value = plt_entry_addr;
+		}
 	}
 
 	*ret = libsym;
@@ -796,6 +916,15 @@ jump_to_entry_point(struct process *proc, struct breakpoint *bp)
 static void
 ppc_plt_bp_continue(struct breakpoint *bp, struct process *proc)
 {
+	/* If this is a first call through IREL breakpoint, enable the
+	 * symbol so that it doesn't look like an artificial
+	 * breakpoint anymore.  */
+	if (bp->libsym == NULL) {
+		assert(bp->arch.irel_libsym != NULL);
+		bp->libsym = bp->arch.irel_libsym;
+		bp->arch.irel_libsym = NULL;
+	}
+
 	switch (bp->libsym->arch.type) {
 		struct process *leader;
 		void (*on_all_stopped)(struct process_stopping_handler *);
@@ -808,6 +937,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct process *proc)
 		assert(bp->libsym->lib->arch.bss_plt_prelinked == 0);
 		/* Fall through.  */
 
+	case PPC_PLT_IRELATIVE:
 	case PPC_PLT_UNRESOLVED:
 		on_all_stopped = NULL;
 		keep_stepping_p = NULL;
@@ -936,6 +1066,8 @@ arch_library_symbol_clone(struct library_symbol *retp,
 int
 arch_breakpoint_init(struct process *proc, struct breakpoint *bp)
 {
+	bp->arch.irel_libsym = NULL;
+
 	/* Artificial and entry-point breakpoints are plain.  */
 	if (bp->libsym == NULL || bp->libsym->plt_type != LS_TOPLT_EXEC)
 		return 0;
@@ -955,6 +1087,14 @@ arch_breakpoint_init(struct process *proc, struct breakpoint *bp)
 		.on_retract = ppc_plt_bp_retract,
 	};
 	breakpoint_set_callbacks(bp, &cbs);
+
+	/* For JMP_IREL breakpoints, make the breakpoint look
+	 * artificial by hiding the symbol.  */
+	if (bp->libsym->arch.type == PPC_PLT_IRELATIVE) {
+		bp->arch.irel_libsym = bp->libsym;
+		bp->libsym = NULL;
+	}
+
 	return 0;
 }
 
