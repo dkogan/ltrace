@@ -137,9 +137,9 @@ enum plt_status linux_elf_add_plt_entry_irelative(struct process *proc,
 						  struct library_symbol **ret);
 
 /* Service routine of the above.  Determines a name corresponding to
- * RELA, or invents a new one.  Returns NULL on failures, otherwise it
+ * ADDR, or invents a new one.  Returns NULL on failures, otherwise it
  * returns a malloc'd pointer that the caller is responsible for
  * freeing.  */
-char *linux_elf_find_irelative_name(struct ltelf *lte, GElf_Rela *rela);
+char *linux_elf_find_irelative_name(struct ltelf *lte, GElf_Addr addr);
 
 #endif /* _LTRACE_LINUX_TRACE_H_ */

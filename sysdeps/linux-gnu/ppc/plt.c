@@ -120,6 +120,10 @@
  * catch the point where the slot is resolved, would hit the return
  * breakpoint and that's not currently handled well.
  *
+ * On PPC32 with secure PLT, IFUNC symbols in main binary actually
+ * don't refer to the resolver itself.  Instead they refer to a PLT
+ * slot.
+ *
  * XXX TODO If we have hardware watch point, we might put a read watch
  * on .plt slot, and discover the offenders this way.  I don't know
  * the details, but I assume at most a handful (like, one or two, if
@@ -472,6 +476,34 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 		 * value to something conspicuous.  */
 		lib->arch.bss_plt_prelinked = -1;
 
+	/* On PPC64 and PPC32 secure, IRELATIVE relocations actually
+	 * relocate .iplt section, and as such are stored in .rela.dyn
+	 * (where all non-PLT relocations are stored) instead of
+	 * .rela.plt.  Add these to lte->plt_relocs.  */
+
+	GElf_Addr rela, relasz;
+	Elf_Scn *rela_sec;
+	GElf_Shdr rela_shdr;
+	if ((lte->ehdr.e_machine == EM_PPC64 || lte->arch.secure_plt)
+	    && load_dynamic_entry(lte, DT_RELA, &rela) == 0
+	    && load_dynamic_entry(lte, DT_RELASZ, &relasz) == 0
+	    && elf_get_section_covering(lte, rela, &rela_sec, &rela_shdr) == 0
+	    && rela_sec != NULL) {
+
+		struct vect v;
+		VECT_INIT(&v, GElf_Rela);
+		int ret = elf_read_relocs(lte, rela_sec, &rela_shdr, &v);
+		if (ret >= 0
+		    && VECT_EACH(&v, GElf_Rela, NULL,
+				 reloc_copy_if_irelative, lte) != NULL)
+			ret = -1;
+
+		VECT_DESTROY(&v, GElf_Rela, NULL, NULL);
+
+		if (ret < 0)
+			return ret;
+	}
+
 	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
 		GElf_Addr ppcgot;
 		if (load_dynamic_entry(lte, DT_PPC_GOT, &ppcgot) < 0) {
@@ -582,33 +614,6 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 		}
 	}
 
-	/* On PPC64, IRELATIVE relocations actually relocate .iplt
-	 * section, and as such are stored in .rela.dyn (where all
-	 * non-PLT relocations are stored) instead of .rela.plt.  Add
-	 * these to lte->plt_relocs.  */
-
-	GElf_Addr rela, relasz;
-	Elf_Scn *rela_sec;
-	GElf_Shdr rela_shdr;
-	if (lte->ehdr.e_machine == EM_PPC64
-	    && load_dynamic_entry(lte, DT_RELA, &rela) == 0
-	    && load_dynamic_entry(lte, DT_RELASZ, &relasz) == 0
-	    && elf_get_section_covering(lte, rela, &rela_sec, &rela_shdr) == 0
-	    && rela_sec != NULL) {
-
-		struct vect v;
-		VECT_INIT(&v, GElf_Rela);
-		int ret = elf_read_relocs(lte, rela_sec, &rela_shdr, &v);
-		if (ret >= 0
-		    && VECT_EACH(&v, GElf_Rela, NULL,
-				 reloc_copy_if_irelative, lte) != NULL)
-			ret = -1;
-
-		VECT_DESTROY(&v, GElf_Rela, NULL, NULL);
-
-		if (ret < 0)
-			return ret;
-	}
 	return 0;
 }
 
@@ -651,39 +656,45 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
 		       struct library_symbol **ret)
 {
-	if (lte->ehdr.e_machine == EM_PPC) {
-		if (lte->arch.secure_plt)
-			return PLT_DEFAULT;
-
-		struct library_symbol *libsym = NULL;
-		if (default_elf_add_plt_entry(proc, lte, a_name, rela, ndx,
-					      &libsym) < 0)
-			return PLT_FAIL;
-
-		/* On PPC32 with BSS PLT, delay the symbol until
-		 * dynamic linker is done.  */
-		assert(!libsym->delayed);
-		libsym->delayed = 1;
-
-		*ret = libsym;
-		return PLT_OK;
-
-	}
-
 	bool is_irelative = reloc_is_irelative(lte->ehdr.e_machine, rela);
 	char *name;
-	if (is_irelative)
-		name = linux_elf_find_irelative_name(lte, rela);
-	else
+	if (! is_irelative) {
 		name = strdup(a_name);
+	} else {
+		GElf_Addr addr = lte->ehdr.e_machine == EM_PPC64
+			? (GElf_Addr) rela->r_addend
+			: arch_plt_sym_val(lte, ndx, rela);
+		name = linux_elf_find_irelative_name(lte, addr);
+	}
 
-	if (name == NULL)
+	if (name == NULL) {
+	fail:
+		free(name);
 		return PLT_FAIL;
+	}
+
+	struct library_symbol *chain = NULL;
+	if (lte->ehdr.e_machine == EM_PPC) {
+		if (default_elf_add_plt_entry(proc, lte, name, rela, ndx,
+					      &chain) < 0)
+			goto fail;
+
+		if (! lte->arch.secure_plt) {
+			/* On PPC32 with BSS PLT, delay the symbol
+			 * until dynamic linker is done.  */
+			assert(!chain->delayed);
+			chain->delayed = 1;
+		}
+
+	ok:
+		*ret = chain;
+		free(name);
+		return PLT_OK;
+	}
 
 	/* PPC64.  If we have stubs, we return a chain of breakpoint
 	 * sites, one for each stub that corresponds to this PLT
 	 * entry.  */
-	struct library_symbol *chain = NULL;
 	struct library_symbol **symp;
 	for (symp = &lte->arch.stubs; *symp != NULL; ) {
 		struct library_symbol *sym = *symp;
@@ -698,11 +709,8 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		chain = sym;
 	}
 
-	if (chain != NULL) {
-		*ret = chain;
-		free(name);
-		return PLT_OK;
-	}
+	if (chain != NULL)
+		goto ok;
 
 	/* We don't have stub symbols.  Find corresponding .plt slot,
 	 * and check whether it contains the corresponding PLT address
@@ -718,19 +726,16 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	       || plt_slot_addr < lte->plt_addr + lte->plt_size);
 
 	GElf_Addr plt_slot_value;
-	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0) {
-		free(name);
-		return PLT_FAIL;
-	}
+	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0)
+		goto fail;
 
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
 	if (libsym == NULL) {
 		fprintf(stderr, "allocation for .plt slot: %s\n",
 			strerror(errno));
-	fail:
-		free(name);
+	fail2:
 		free(libsym);
-		return PLT_FAIL;
+		goto fail;
 	}
 
 	/* XXX The double cast should be removed when
@@ -738,7 +743,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	if (library_symbol_init(libsym,
 				(arch_addr_t) (uintptr_t) plt_entry_addr,
 				name, 1, LS_TOPLT_EXEC) < 0)
-		goto fail;
+		goto fail2;
 	libsym->arch.plt_slot_addr = plt_slot_addr;
 
 	if (! is_irelative
@@ -758,7 +763,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 
 		if (unresolve_plt_slot(proc, plt_slot_addr, plt_entry_addr) < 0) {
 			library_symbol_destroy(libsym);
-			goto fail;
+			goto fail2;
 		}
 
 		if (! is_irelative) {

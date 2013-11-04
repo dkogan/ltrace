@@ -1253,10 +1253,10 @@ irelative_name_cb(GElf_Sym *symbol, const char *name, void *d)
 }
 
 char *
-linux_elf_find_irelative_name(struct ltelf *lte, GElf_Rela *rela)
+linux_elf_find_irelative_name(struct ltelf *lte, GElf_Addr addr)
 {
-	struct irelative_name_data_t data = { rela->r_addend, NULL };
-	if (rela->r_addend != 0
+	struct irelative_name_data_t data = { addr, NULL };
+	if (addr != 0
 	    && elf_each_symbol(lte, 0,
 			       irelative_name_cb, &data).status < 0)
 		return NULL;
@@ -1268,8 +1268,7 @@ linux_elf_find_irelative_name(struct ltelf *lte, GElf_Rela *rela)
 #define NAME "IREL."
 		/* NAME\0 + 0x + digits.  */
 		char *tmp_name = alloca(sizeof NAME + 2 + 16);
-		sprintf(tmp_name, NAME "%#" PRIx64,
-			(uint64_t)rela->r_addend);
+		sprintf(tmp_name, NAME "%#" PRIx64, (uint64_t) addr);
 		name = tmp_name;
 #undef NAME
 	}
@@ -1283,7 +1282,7 @@ linux_elf_add_plt_entry_irelative(struct process *proc, struct ltelf *lte,
 				  struct library_symbol **ret)
 
 {
-	char *name = linux_elf_find_irelative_name(lte, rela);
+	char *name = linux_elf_find_irelative_name(lte, rela->r_addend);
 	int i = default_elf_add_plt_entry(proc, lte, name, rela, ndx, ret);
 	free(name);
 	return i < 0 ? PLT_FAIL : PLT_OK;
