@@ -197,6 +197,7 @@ next_event(void)
 		debug(DEBUG_EVENT, "event: NEW: pid=%d", pid);
 		return &event;
 	}
+
 	get_arch_dep(event.proc);
 	debug(3, "event from pid %u", pid);
 	struct process *leader = event.proc->leader;
@@ -313,7 +314,7 @@ next_event(void)
 	   actually seen this on an Itanium machine on RHEL 5, I don't
 	   remember the exact kernel version anymore.  ia64-sigill.s
 	   in the test suite tests this.  Petr Machata 2011-06-08.  */
-	void * break_address
+	arch_addr_t break_address
 		= event.proc->instruction_pointer - DECR_PC_AFTER_BREAK;
 	if ((stop_signal == SIGSEGV || stop_signal == SIGILL)
 	    && leader != NULL

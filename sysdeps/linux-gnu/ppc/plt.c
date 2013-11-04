@@ -205,7 +205,6 @@ arch_dynlink_done(struct process *proc)
 		if (proc->e_machine == EM_PPC)
 			ppc32_delayed_symbol(libsym);
 
-		fprintf(stderr, "activating %s\n", libsym->name);
 		if (proc_activate_delayed_symbol(proc, libsym) < 0)
 			return;
 
@@ -483,7 +482,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 		size_t count = vect_size(&lte->plt_relocs);
 		lte->arch.plt_stub_vma = glink_vma
-			- (GElf_Addr)count * PPC_PLT_STUB_SIZE;
+			- (GElf_Addr) count * PPC_PLT_STUB_SIZE;
 		debug(1, "stub_vma is %#" PRIx64, lte->arch.plt_stub_vma);
 
 	} else if (lte->ehdr.e_machine == EM_PPC64) {
