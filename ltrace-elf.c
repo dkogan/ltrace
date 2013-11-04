@@ -505,8 +505,8 @@ rel_to_rela(struct ltelf *lte, const GElf_Rel *rel, GElf_Rela *rela)
 }
 
 int
-read_relplt(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
-	    struct vect *rela_vec)
+elf_read_relocs(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
+		struct vect *rela_vec)
 {
 	if (vect_reserve_additional(rela_vec, lte->ehdr.e_shnum) < 0)
 		return -1;
@@ -661,8 +661,8 @@ ltelf_read_elf(struct ltelf *lte, const char *filename)
 			}
 			if (shdr.sh_addr == relplt_addr
 			    && shdr.sh_size == relplt_size) {
-				if (read_relplt(lte, scn, &shdr,
-						&lte->plt_relocs) < 0) {
+				if (elf_read_relocs(lte, scn, &shdr,
+						    &lte->plt_relocs) < 0) {
 					fprintf(stderr, "Couldn't get .rel*.plt"
 						" data from \"%s\": %s\n",
 						filename, elf_errmsg(-1));

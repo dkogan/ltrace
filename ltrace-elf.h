@@ -117,6 +117,12 @@ struct elf_each_symbol_t {
 					     void *data),
 		  void *data);
 
+/* Read relocations from relocation section SCN with header SHDR and
+ * add them to RELA_VEC, which is a vector of GElf_Rela.  Return 0 on
+ * success, or a negative value on failure.  */
+int elf_read_relocs(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
+		    struct vect *rela_vec);
+
 /* Read, respectively, 1, 2, 4, or 8 bytes from Elf data at given
  * OFFSET, and store it in *RETP.  Returns 0 on success or a negative
  * value if there's not enough data.  */

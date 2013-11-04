@@ -587,8 +587,6 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 	 * section, and as such are stored in .rela.dyn (where all
 	 * non-PLT relocations are stored) instead of .rela.plt.  Add
 	 * these to lte->plt_relocs.  */
-	extern int read_relplt(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
-			       struct vect *ret);
 
 	GElf_Addr rela, relasz;
 	Elf_Scn *rela_sec;
@@ -601,7 +599,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 		struct vect v;
 		VECT_INIT(&v, GElf_Rela);
-		int ret = read_relplt(lte, rela_sec, &rela_shdr, &v);
+		int ret = elf_read_relocs(lte, rela_sec, &rela_shdr, &v);
 		if (ret >= 0
 		    && VECT_EACH(&v, GElf_Rela, NULL,
 				 reloc_copy_if_irelative, lte) != NULL)
