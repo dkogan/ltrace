@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,2004,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  * Copyright (C) 2006 Steve Fink
@@ -256,11 +256,12 @@ format_struct(FILE *stream, struct value *value, struct value_dict *arguments)
 	return written;
 }
 
+static const char null_message[] = "nil";
 int
 format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
 {
 	if (value_is_zero(value, arguments))
-		return fprintf(stream, "nil");
+		return fprintf(stream, null_message);
 
 	/* The following is for detecting recursion.  We keep track of
 	 * the values that were already displayed.  Each time a
@@ -417,6 +418,8 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 		return format_struct(stream, value, arguments);
 
 	case ARGTYPE_POINTER:
+		if (value_is_zero(value, arguments))
+			return fprintf(stream, null_message);
 		if (value->type->u.array_info.elt_type->type != ARGTYPE_VOID)
 			return format_pointer(stream, value, arguments);
 		return format_integer(stream, value, INT_FMT_x, arguments);

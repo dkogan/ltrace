@@ -245,4 +245,18 @@ ltraceMatch1 [ltraceLibTest {
     get_string();
 }] {get_string\(\) *= "FOO"} == 1
 
+# Test that void* NULL's are displayed as "nil" as well.
+
+ltraceMatch1 [ltraceLibTest {
+    addr somefunc();
+} {
+    void *somefunc(void);
+} {
+    void *somefunc(void) {
+        return 0;
+    }
+} {
+    somefunc();
+}] {somefunc\(\) *= nil} == 1
+
 ltraceDone
