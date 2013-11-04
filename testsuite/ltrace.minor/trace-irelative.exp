@@ -16,7 +16,26 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-set bin [ltraceCompile {} [ltraceSource c {
+proc do_tests {bin appendage} {
+    ltraceMatch1 [ltraceRun -e xyz -- $bin] {xyz\(} == 2
+
+    # If the actual entry point that xyz resolves to is not traced, it
+    # should get xyz's name.  But we don't mind if somebody implements
+    # the late lookup and actually names the symbol properly.
+
+    set log [ltraceRun -L -x xyz -- $bin]
+    ltraceMatch1 $log [format {xyz\.IFUNC%s\(\)} $appendage] == 1
+    ltraceMatch1 $log [format {(xyz|abc)%s\(} $appendage] == 2
+
+    # If we request abc's tracing explicitly, than it definitely needs
+    # to be presented as abc, not as xyz.
+
+    set log [ltraceRun -L -x xyz+abc -- $bin]
+    ltraceMatch1 $log [format {xyz\.IFUNC%s\(\)} $appendage] == 1
+    ltraceMatch1 $log [format {abc%s\(} $appendage] == 2
+}
+
+set src [ltraceSource c {
     int abc (int a) { return a + 1; }
 
     __asm__(".type xyz, \%gnu_indirect_function");
@@ -24,7 +43,7 @@ set bin [ltraceCompile {} [ltraceSource c {
     int xyz (int a);
     extern void *xyz_ifunc(void) __asm__("xyz");
     extern void *xyz_ifunc(void) {
-	return abc;
+	return &abc;
     }
 
     int
@@ -32,25 +51,15 @@ set bin [ltraceCompile {} [ltraceSource c {
     {
       return xyz (xyz (argc));
     }
-}]]
+}]
 
-ltraceMatch1 [ltraceRun -e xyz -- $bin] {xyz\(} == 2
+set bin1 [ltraceCompile {} $src]
 
-# If the actual entry point that xyz resolves to is not traced, it
-# should get xyz's name.  But we don't mind if somebody implements the
-# late lookup and actually names the symbol properly.
+do_tests $bin1 ""
 
-ltraceMatch [ltraceRun -L -x xyz -- $bin] {
-    {{xyz\.IFUNC\(\)} == 1}
-    {{(xyz|abc)\(} == 2}
-}
+set lib [ltraceCompile lib.so $src]
+set bin2 [ltraceCompile {} $lib [ltraceSource c {/* Empty.  */}]]
 
-# If we request abc's tracing explicitly, than it definitely needs to
-# be presented as abc, not as xyz.
-
-ltraceMatch [ltraceRun -L -x xyz+abc -- $bin] {
-    {{xyz\.IFUNC\(\)} == 1}
-    {{abc\(} == 2}
-}
+do_tests $bin2 @lib.so
 
 ltraceDone
