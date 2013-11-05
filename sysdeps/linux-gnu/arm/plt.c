@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Zach Welch, CodeSourcery
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  *
@@ -40,6 +41,19 @@ get_hardfp(uint64_t abi_vfp_args)
 int
 arch_elf_init(struct ltelf *lte, struct library *lib)
 {
+	GElf_Addr jmprel_addr;
+	Elf_Scn *jmprel_sec;
+	GElf_Shdr jmprel_shdr;
+	if (elf_load_dynamic_entry(lte, DT_JMPREL, &jmprel_addr) < 0
+	    || elf_get_section_covering(lte, jmprel_addr,
+					&jmprel_sec, &jmprel_shdr) < 0
+	    || jmprel_sec == NULL)
+		return -1;
+
+	lte->arch.jmprel_data = elf_loaddata(jmprel_sec, &jmprel_shdr);
+	if (lte->arch.jmprel_data == NULL)
+		return -1;
+
 	/* Nothing in this section is strictly critical.  It's not
 	 * that much of a deal if we fail to guess right whether the
 	 * ABI is softfp or hardfp.  */

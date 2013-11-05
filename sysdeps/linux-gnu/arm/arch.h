@@ -22,6 +22,8 @@
 #ifndef LTRACE_ARM_ARCH_H
 #define LTRACE_ARM_ARCH_H
 
+#include <libelf.h>
+
 #define ARCH_HAVE_ENABLE_BREAKPOINT 1
 #define ARCH_HAVE_DISABLE_BREAKPOINT 1
 
@@ -47,7 +49,7 @@ struct arch_breakpoint_data {
 
 #define ARCH_HAVE_LTELF_DATA
 struct arch_ltelf_data {
-	/* We have this only for the hooks.  */
+	Elf_Data *jmprel_data;
 };
 
 #define ARCH_HAVE_LIBRARY_DATA
