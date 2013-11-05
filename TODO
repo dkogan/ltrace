@@ -6,7 +6,8 @@
 *** Mangled identifiers contain partial prototypes themselves
     They don't contain return type info, which can change the
     parameter passing convention.  We could use it and hope for the
-    best.
+    best.  Also they don't include the potentially present hidden this
+    pointer.
 ** Automatically update list of syscalls?
 ** More operating systems (solaris?)
 ** Get rid of EVENT_ARCH_SYSCALL and EVENT_ARCH_SYSRET
