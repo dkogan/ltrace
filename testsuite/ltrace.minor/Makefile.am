@@ -15,32 +15,18 @@
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
 
-EXTRA_DIST = \
-	attach-process.exp \
-	count-record.c \
-	count-record.exp \
-	demangle.cpp \
-	demangle.exp \
-	demangle.h \
-	demangle-lib.cpp \
-	libdl-simple.c \
-	libdl-simple.exp \
-	libdl-simple-lib.c \
-	print-instruction-pointer.c \
-	print-instruction-pointer.exp \
-	time-record.c \
-	time-record-T.exp \
-	time-record-tt.exp \
-	time-record-ttt.exp \
-	trace-clone.c \
-	trace-clone.exp \
-	trace-exec.exp \
-	trace-fork.c \
-	trace-fork.exp
+EXTRA_DIST = attach-process.exp count-record.c count-record.exp		\
+	demangle.cpp demangle.exp demangle.h demangle-lib.cpp		\
+	libdl-simple.c libdl-simple.exp libdl-simple-lib.c		\
+	print-instruction-pointer.c print-instruction-pointer.exp	\
+	time-record.c time-record-T.exp time-record-tt.exp		\
+	time-record-ttt.exp trace-clone.c trace-clone.exp		\
+	trace-exec.exp trace-fork.c trace-fork.exp			\
+	trace-irelative.exp
 
-CLEANFILES = *.o *.so *.log *.sum *.ltrace setval.tmp \
-	attach-process count-record demangle print-instruction-pointer \
-	time-record-T time-record-tt time-record-ttt trace-clone \
-	trace-exec trace-exec1 trace-fork libdl-simple
+CLEANFILES = *.o *.so *.log *.sum *.ltrace setval.tmp attach-process	\
+	count-record demangle print-instruction-pointer time-record-T	\
+	time-record-tt time-record-ttt trace-clone trace-exec		\
+	trace-exec1 trace-fork libdl-simple
 
 MAINTAINERCLEANFILES = Makefile.in
