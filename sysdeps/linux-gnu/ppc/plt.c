@@ -120,9 +120,12 @@
  * catch the point where the slot is resolved, would hit the return
  * breakpoint and that's not currently handled well.
  *
- * On PPC32 with secure PLT, IFUNC symbols in main binary actually
- * don't refer to the resolver itself.  Instead they refer to a PLT
- * slot.
+ * On PPC32 with secure PLT, the address of IFUNC symbols in main
+ * binary actually isn't of the resolver, but of a PLT slot.  We
+ * therefore have to locate the corresponding PLT relocation (which is
+ * of type R_PPC_IRELATIVE) and request that it be traced.  The addend
+ * of that relocation is an address of resolver, and we request
+ * tracing of the xyz.IFUNC symbol there.
  *
  * XXX TODO If we have hardware watch point, we might put a read watch
  * on .plt slot, and discover the offenders this way.  I don't know
@@ -649,6 +652,62 @@ unresolve_plt_slot(struct process *proc, GElf_Addr addr, GElf_Addr value)
 		return -1;
 	}
 	return 0;
+}
+
+enum plt_status
+arch_elf_add_func_entry(struct process *proc, struct ltelf *lte,
+			const GElf_Sym *sym,
+			arch_addr_t addr, const char *name,
+			struct library_symbol **ret)
+{
+	if (lte->ehdr.e_machine != EM_PPC || lte->ehdr.e_type == ET_DYN)
+		return PLT_DEFAULT;
+
+	bool ifunc = false;
+#ifdef STT_GNU_IFUNC
+	ifunc = GELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC;
+#endif
+	if (! ifunc)
+		return PLT_DEFAULT;
+
+	size_t len = vect_size(&lte->plt_relocs);
+	size_t i;
+	for (i = 0; i < len; ++i) {
+		GElf_Rela *rela = VECT_ELEMENT(&lte->plt_relocs, GElf_Rela, i);
+		if (sym->st_value == arch_plt_sym_val(lte, i, rela)) {
+
+			char *tmp_name = linux_append_IFUNC_to_name(name);
+			struct library_symbol *libsym = malloc(sizeof *libsym);
+
+			/* XXX double cast.  */
+			arch_addr_t resolver_addr
+				= (arch_addr_t) (uintptr_t) rela->r_addend;
+
+			if (tmp_name == NULL || libsym == NULL
+			    || 	library_symbol_init(libsym, resolver_addr,
+						    tmp_name, 1,
+						    LS_TOPLT_EXEC) < 0) {
+			fail:
+				free(tmp_name);
+				free(libsym);
+				return PLT_FAIL;
+			}
+
+			if (elf_add_plt_entry(proc, lte, name, rela,
+					      i, ret) < 0) {
+				library_symbol_destroy(libsym);
+				goto fail;
+			}
+
+			libsym->proto = linux_IFUNC_prototype();
+			libsym->next = *ret;
+			*ret = libsym;
+			return PLT_OK;
+		}
+	}
+
+	*ret = NULL;
+	return PLT_OK;
 }
 
 enum plt_status

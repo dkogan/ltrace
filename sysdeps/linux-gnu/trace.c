@@ -1291,8 +1291,8 @@ linux_elf_add_plt_entry_irelative(struct process *proc, struct ltelf *lte,
 	return i < 0 ? PLT_FAIL : PLT_OK;
 }
 
-static struct prototype *
-void_prototype(void)
+struct prototype *
+linux_IFUNC_prototype(void)
 {
 	static struct prototype ret;
 	if (ret.return_info == NULL) {
@@ -1323,6 +1323,18 @@ os_library_symbol_clone(struct library_symbol *retp,
 	return 0;
 }
 
+char *
+linux_append_IFUNC_to_name(const char *name)
+{
+#define S ".IFUNC"
+	char *tmp_name = malloc(strlen(name) + sizeof S);
+	if (tmp_name == NULL)
+		return NULL;
+	sprintf(tmp_name, "%s%s", name, S);
+#undef S
+	return tmp_name;
+}
+
 enum plt_status
 os_elf_add_func_entry(struct process *proc, struct ltelf *lte,
 		      const GElf_Sym *sym,
@@ -1338,8 +1350,7 @@ os_elf_add_func_entry(struct process *proc, struct ltelf *lte,
 #endif
 
 	if (ifunc) {
-#define S ".IFUNC"
-		char *tmp_name = malloc(strlen(name) + sizeof S);
+		char *tmp_name = linux_append_IFUNC_to_name(name);
 		struct library_symbol *tmp = malloc(sizeof *tmp);
 		if (tmp_name == NULL || tmp == NULL) {
 		fail:
@@ -1347,13 +1358,11 @@ os_elf_add_func_entry(struct process *proc, struct ltelf *lte,
 			free(tmp);
 			return PLT_FAIL;
 		}
-		sprintf(tmp_name, "%s%s", name, S);
-#undef S
 
 		if (library_symbol_init(tmp, addr, tmp_name, 1,
 					LS_TOPLT_NONE) < 0)
 			goto fail;
-		tmp->proto = void_prototype();
+		tmp->proto = linux_IFUNC_prototype();
 		tmp->os.is_ifunc = 1;
 
 		*ret = tmp;

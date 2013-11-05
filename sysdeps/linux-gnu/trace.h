@@ -142,4 +142,13 @@ enum plt_status linux_elf_add_plt_entry_irelative(struct process *proc,
  * freeing.  */
 char *linux_elf_find_irelative_name(struct ltelf *lte, GElf_Addr addr);
 
+/* Returns ${NAME}.IFUNC in a newly-malloc'd block, or NULL on
+ * failures.  */
+char *linux_append_IFUNC_to_name(const char *name);
+
+/* Returns a statically allocated prototype that represents the
+ * prototype "void *()".  Never fails.  */
+struct prototype *linux_IFUNC_prototype(void);
+
+
 #endif /* _LTRACE_LINUX_TRACE_H_ */
