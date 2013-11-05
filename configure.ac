@@ -23,7 +23,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.65])
 
-AC_INIT([ltrace],[0.7.90-git],[ltrace-devel@lists.alioth.debian.org],
+AC_INIT([ltrace],[0.7.91],[ltrace-devel@lists.alioth.debian.org],
 	[ltrace],[http://ltrace.alioth.debian.org/])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR(libltrace.c)
