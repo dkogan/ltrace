@@ -139,6 +139,10 @@ struct elf_each_symbol_t {
 int elf_read_relocs(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
 		    struct vect *rela_vec);
 
+/* Read a given DT_ TAG from LTE.  Value is returned in *VALUEP.
+ * Returns 0 on success or a negative value on failure.  */
+int elf_load_dynamic_entry(struct ltelf *lte, int tag, GElf_Addr *valuep);
+
 /* Read, respectively, 1, 2, 4, or 8 bytes from Elf data at given
  * OFFSET, and store it in *RETP.  Returns 0 on success or a negative
  * value if there's not enough data.  */

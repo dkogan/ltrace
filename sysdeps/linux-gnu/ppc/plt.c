@@ -402,38 +402,6 @@ get_glink_vma(struct ltelf *lte, GElf_Addr ppcgot, Elf_Data *plt_data)
 }
 
 static int
-load_dynamic_entry(struct ltelf *lte, int tag, GElf_Addr *valuep)
-{
-	Elf_Scn *scn;
-	GElf_Shdr shdr;
-	if (elf_get_section_type(lte, SHT_DYNAMIC, &scn, &shdr) < 0
-	    || scn == NULL) {
-	fail:
-		fprintf(stderr, "Couldn't get SHT_DYNAMIC: %s\n",
-			elf_errmsg(-1));
-		return -1;
-	}
-
-	Elf_Data *data = elf_loaddata(scn, &shdr);
-	if (data == NULL)
-		goto fail;
-
-	size_t j;
-	for (j = 0; j < shdr.sh_size / shdr.sh_entsize; ++j) {
-		GElf_Dyn dyn;
-		if (gelf_getdyn(data, j, &dyn) == NULL)
-			goto fail;
-
-		if(dyn.d_tag == tag) {
-			*valuep = dyn.d_un.d_ptr;
-			return 0;
-		}
-	}
-
-	return -1;
-}
-
-static int
 nonzero_data(Elf_Data *data)
 {
 	/* We are not supposed to get here if there's no PLT.  */
@@ -488,8 +456,8 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 	Elf_Scn *rela_sec;
 	GElf_Shdr rela_shdr;
 	if ((lte->ehdr.e_machine == EM_PPC64 || lte->arch.secure_plt)
-	    && load_dynamic_entry(lte, DT_RELA, &rela) == 0
-	    && load_dynamic_entry(lte, DT_RELASZ, &relasz) == 0
+	    && elf_load_dynamic_entry(lte, DT_RELA, &rela) == 0
+	    && elf_load_dynamic_entry(lte, DT_RELASZ, &relasz) == 0
 	    && elf_get_section_covering(lte, rela, &rela_sec, &rela_shdr) == 0
 	    && rela_sec != NULL) {
 
@@ -509,7 +477,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 	if (lte->ehdr.e_machine == EM_PPC && lte->arch.secure_plt) {
 		GElf_Addr ppcgot;
-		if (load_dynamic_entry(lte, DT_PPC_GOT, &ppcgot) < 0) {
+		if (elf_load_dynamic_entry(lte, DT_PPC_GOT, &ppcgot) < 0) {
 			fprintf(stderr, "couldn't find DT_PPC_GOT\n");
 			return -1;
 		}
@@ -522,7 +490,8 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 	} else if (lte->ehdr.e_machine == EM_PPC64) {
 		GElf_Addr glink_vma;
-		if (load_dynamic_entry(lte, DT_PPC64_GLINK, &glink_vma) < 0) {
+		if (elf_load_dynamic_entry(lte, DT_PPC64_GLINK,
+					   &glink_vma) < 0) {
 			fprintf(stderr, "couldn't find DT_PPC64_GLINK\n");
 			return -1;
 		}
@@ -532,8 +501,8 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 
 	} else {
 		/* By exhaustion--PPC32 BSS.  */
-		if (load_dynamic_entry(lte, DT_PLTGOT,
-				       &lib->arch.pltgot_addr) < 0) {
+		if (elf_load_dynamic_entry(lte, DT_PLTGOT,
+					   &lib->arch.pltgot_addr) < 0) {
 			fprintf(stderr, "couldn't find DT_PLTGOT\n");
 			return -1;
 		}

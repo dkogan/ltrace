@@ -531,6 +531,38 @@ elf_read_relocs(struct ltelf *lte, Elf_Scn *scn, GElf_Shdr *shdr,
 	return 0;
 }
 
+int
+elf_load_dynamic_entry(struct ltelf *lte, int tag, GElf_Addr *valuep)
+{
+	Elf_Scn *scn;
+	GElf_Shdr shdr;
+	if (elf_get_section_type(lte, SHT_DYNAMIC, &scn, &shdr) < 0
+	    || scn == NULL) {
+	fail:
+		fprintf(stderr, "Couldn't get SHT_DYNAMIC: %s\n",
+			elf_errmsg(-1));
+		return -1;
+	}
+
+	Elf_Data *data = elf_loaddata(scn, &shdr);
+	if (data == NULL)
+		goto fail;
+
+	size_t j;
+	for (j = 0; j < shdr.sh_size / shdr.sh_entsize; ++j) {
+		GElf_Dyn dyn;
+		if (gelf_getdyn(data, j, &dyn) == NULL)
+			goto fail;
+
+		if(dyn.d_tag == tag) {
+			*valuep = dyn.d_un.d_ptr;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 static int
 ltelf_read_elf(struct ltelf *lte, const char *filename)
 {
