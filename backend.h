@@ -319,8 +319,8 @@ enum plt_status {
 	PLT_DEFAULT,
 };
 
-/* The following callback has to be implemented in backend if arch.h
- * defines ARCH_HAVE_ADD_PLT_ENTRY.
+/* The following callback has to be implemented in OS backend if os.h
+ * defines OS_HAVE_ADD_PLT_ENTRY.
  *
  * This is called for every PLT relocation R in ELF file LTE, that
  * ltrace is about to add to a library constructed in process PROC.
@@ -331,11 +331,18 @@ enum plt_status {
  * calling arch_plt_sym_val, and symbol is allocated.  If PLT_OK or
  * PLT_DEFAULT are returned, the chain of symbols passed back in RET
  * is added to library under construction.  */
+enum plt_status os_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
+				     const char *name, GElf_Rela *rela,
+				     size_t i, struct library_symbol **ret);
+
+/* Like os_elf_add_plt_entry, but tied to ARCH_HAVE_ADD_PLT_ENTRY in
+ * arch.h.  The arch callback is called first.  If it returns
+ * PLT_DEFAULT, the os callback is called next.  */
 enum plt_status arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 				       const char *name, GElf_Rela *rela,
 				       size_t i, struct library_symbol **ret);
 
-/* The following callback has to be implemented in backend if arch.h
+/* The following callback has to be implemented in OS backend if os.h
  * defines OS_HAVE_ADD_FUNC_ENTRY.
  *
  * This is called for every symbol in ltrace is about to add to the
@@ -351,6 +358,14 @@ enum plt_status os_elf_add_func_entry(struct process *proc, struct ltelf *lte,
 				      const GElf_Sym *sym,
 				      arch_addr_t addr, const char *name,
 				      struct library_symbol **ret);
+
+/* Like os_elf_add_func_entry, but tied to ARCH_HAVE_ADD_FUNC_ENTRY in
+ * arch.h.  The arch callback is called first.  If it returns
+ * PLT_DEFAULT, the os callback is called next.  */
+enum plt_status arch_elf_add_func_entry(struct process *proc, struct ltelf *lte,
+					const GElf_Sym *sym,
+					arch_addr_t addr, const char *name,
+					struct library_symbol **ret);
 
 /* This callback needs to be implemented if arch.h defines
  * ARCH_HAVE_DYNLINK_DONE.  It is called after the dynamic linker is

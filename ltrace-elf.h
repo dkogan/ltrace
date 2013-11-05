@@ -81,6 +81,22 @@ int ltelf_read_library(struct library *lib, struct process *proc,
  * point address is stored to *ENTRYP.  */
 struct library *ltelf_read_main_binary(struct process *proc, const char *path);
 
+/* This is called for every PLT relocation R in ELF file LTE, that
+ * ltrace is about to add to a library constructed in process PROC.
+ * The corresponding PLT entry is for symbol called NAME, and it's
+ * I-th relocation in the file.  *RET shall be initialized and
+ * symbol(s) corresponding to the given PLT entry will be added to the
+ * front.  Returns 0 for success, or a negative value for failures.
+ *
+ * This calls os_elf_add_plt_entry and arch_elf_add_plt_entry in the
+ * background (see backend.h for documentation).  The arch callback is
+ * called first.  If it returns PLT_DEFAULT, the os callback is called
+ * next.  If that returns PLT_DEFAULT, default_elf_add_plt_entry is
+ * called.  */
+int elf_add_plt_entry(struct process *proc, struct ltelf *lte,
+		      const char *name, GElf_Rela *rela, size_t idx,
+		      struct library_symbol **ret);
+
 /* Create a default PLT entry.  This can be used instead (or in
  * addition to) returning PLT_DEFAULT from arch_elf_add_plt_entry.
  * RET shall be initialized, the created symbol will be added to the

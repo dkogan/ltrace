@@ -36,6 +36,7 @@
 #include <gelf.h>
 #include <inttypes.h>
 #include <search.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,41 +65,15 @@ arch_elf_destroy(struct ltelf *lte)
 }
 #endif
 
-int
-default_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
-			  const char *a_name, GElf_Rela *rela, size_t ndx,
-			  struct library_symbol **ret)
+#ifndef OS_HAVE_ADD_PLT_ENTRY
+enum plt_status
+os_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
+		     const char *a_name, GElf_Rela *rela, size_t ndx,
+		     struct library_symbol **ret)
 {
-	char *name = strdup(a_name);
-	if (name == NULL) {
-	fail_message:
-		fprintf(stderr, "Couldn't create symbol for PLT entry: %s\n",
-			strerror(errno));
-	fail:
-		free(name);
-		return -1;
-	}
-
-	GElf_Addr addr = arch_plt_sym_val(lte, ndx, rela);
-
-	struct library_symbol *libsym = malloc(sizeof(*libsym));
-	if (libsym == NULL)
-		goto fail_message;
-
-	/* XXX The double cast should be removed when
-	 * arch_addr_t becomes integral type.  */
-	arch_addr_t taddr = (arch_addr_t)
-		(uintptr_t)(addr + lte->bias);
-
-	if (library_symbol_init(libsym, taddr, name, 1, LS_TOPLT_EXEC) < 0) {
-		free(libsym);
-		goto fail;
-	}
-
-	libsym->next = *ret;
-	*ret = libsym;
-	return 0;
+	return PLT_DEFAULT;
 }
+#endif
 
 #ifndef ARCH_HAVE_ADD_PLT_ENTRY
 enum plt_status
@@ -123,6 +98,17 @@ os_elf_add_func_entry(struct process *proc, struct ltelf *lte,
 	} else {
 		return PLT_DEFAULT;
 	}
+}
+#endif
+
+#ifndef ARCH_HAVE_ADD_FUNC_ENTRY
+enum plt_status
+arch_elf_add_func_entry(struct process *proc, struct ltelf *lte,
+			const GElf_Sym *sym,
+			arch_addr_t addr, const char *name,
+			struct library_symbol **ret)
+{
+	return PLT_DEFAULT;
 }
 #endif
 
@@ -698,6 +684,67 @@ arch_get_sym_info(struct ltelf *lte, const char *filename,
 }
 #endif
 
+int
+default_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
+			  const char *a_name, GElf_Rela *rela, size_t ndx,
+			  struct library_symbol **ret)
+{
+	char *name = strdup(a_name);
+	if (name == NULL) {
+	fail_message:
+		fprintf(stderr, "Couldn't create symbol for PLT entry: %s\n",
+			strerror(errno));
+	fail:
+		free(name);
+		return -1;
+	}
+
+	GElf_Addr addr = arch_plt_sym_val(lte, ndx, rela);
+
+	struct library_symbol *libsym = malloc(sizeof(*libsym));
+	if (libsym == NULL)
+		goto fail_message;
+
+	/* XXX The double cast should be removed when
+	 * arch_addr_t becomes integral type.  */
+	arch_addr_t taddr = (arch_addr_t)
+		(uintptr_t)(addr + lte->bias);
+
+	if (library_symbol_init(libsym, taddr, name, 1, LS_TOPLT_EXEC) < 0) {
+		free(libsym);
+		goto fail;
+	}
+
+	libsym->next = *ret;
+	*ret = libsym;
+	return 0;
+}
+
+int
+elf_add_plt_entry(struct process *proc, struct ltelf *lte,
+		  const char *name, GElf_Rela *rela, size_t idx,
+		  struct library_symbol **ret)
+{
+	enum plt_status plts
+		= arch_elf_add_plt_entry(proc, lte, name, rela, idx, ret);
+
+	if (plts == PLT_DEFAULT)
+		plts = os_elf_add_plt_entry(proc, lte, name, rela, idx, ret);
+
+	switch (plts) {
+	case PLT_DEFAULT:
+		return default_elf_add_plt_entry(proc, lte, name,
+						 rela, idx, ret);
+	case PLT_FAIL:
+		return -1;
+	case PLT_OK:
+		return 0;
+	}
+
+	assert(! "Invalid return from X_elf_add_plt_entry!");
+	abort();
+}
+
 static void
 mark_chain_latent(struct library_symbol *libsym)
 {
@@ -725,23 +772,13 @@ filter_symbol_chain(struct filter *filter,
 	}
 }
 
-static void
-delete_symbol_chain(struct library_symbol *libsym)
-{
-	while (libsym != NULL) {
-		struct library_symbol *tmp = libsym->next;
-		library_symbol_destroy(libsym);
-		free(libsym);
-		libsym = tmp;
-	}
-}
-
 static int
 populate_plt(struct process *proc, const char *filename,
-	     struct ltelf *lte, struct library *lib,
-	     int latent_plts)
+	     struct ltelf *lte, struct library *lib)
 {
-	size_t count = vect_size(&lte->plt_relocs);
+	const bool latent_plts = options.export_filter != NULL;
+	const size_t count = vect_size(&lte->plt_relocs);
+
 	size_t i;
 	for (i = 0; i < count; ++i) {
 		GElf_Rela *rela = VECT_ELEMENT(&lte->plt_relocs, GElf_Rela, i);
@@ -761,43 +798,41 @@ populate_plt(struct process *proc, const char *filename,
 		}
 
 		char const *name = lte->dynstr + sym.st_name;
-
 		int matched = filter_matches_symbol(options.plt_filter,
 						    name, lib);
 
 		struct library_symbol *libsym = NULL;
-		switch (arch_elf_add_plt_entry(proc, lte, name,
-					       rela, i, &libsym)) {
-		case PLT_FAIL:
+		if (elf_add_plt_entry(proc, lte, name, rela, i, &libsym) < 0)
 			return -1;
 
-		case PLT_DEFAULT:
-			/* Add default entry to the beginning of LIBSYM.  */
-			if (default_elf_add_plt_entry(proc, lte, name,
-						      rela, i, &libsym) < 0)
-				return -1;
-			/* Fall through.  */
-		case PLT_OK:
-			/* If we didn't match the PLT entry up there,
-			 * filter the chain to only include the
-			 * matching symbols (but include all if we are
-			 * adding latent symbols).  This is to allow
-			 * arch_elf_add_plt_entry to override the PLT
-			 * symbol's name.  */
-			if (!matched && !latent_plts)
-				filter_symbol_chain(options.plt_filter,
-						    &libsym, lib);
-			if (libsym != NULL) {
-				/* If we are adding those symbols just
-				 * for tracing exports, mark them all
-				 * latent.  */
-				if (!matched && latent_plts)
-					mark_chain_latent(libsym);
-				library_add_symbol(lib, libsym);
-			}
+		/* If we didn't match the PLT entry, filter the chain
+		 * to only include the matching symbols (but include
+		 * all if we are adding latent symbols) to allow
+		 * backends to override the PLT symbol's name.  */
+
+		if (! matched && ! latent_plts)
+			filter_symbol_chain(options.plt_filter, &libsym, lib);
+
+		if (libsym != NULL) {
+			/* If we are adding those symbols just for
+			 * tracing exports, mark them all latent.  */
+			if (! matched && latent_plts)
+				mark_chain_latent(libsym);
+			library_add_symbol(lib, libsym);
 		}
 	}
 	return 0;
+}
+
+static void
+delete_symbol_chain(struct library_symbol *libsym)
+{
+	while (libsym != NULL) {
+		struct library_symbol *tmp = libsym->next;
+		library_symbol_destroy(libsym);
+		free(libsym);
+		libsym = tmp;
+	}
 }
 
 /* When -x rules result in request to trace several aliases, we only
@@ -934,8 +969,14 @@ populate_this_symtab(struct process *proc, const char *filename,
 		}
 
 		struct library_symbol *libsym = NULL;
-		switch (os_elf_add_func_entry(proc, lte, &sym,
-					      naddr, full_name, &libsym)) {
+		enum plt_status plts
+			= arch_elf_add_func_entry(proc, lte, &sym,
+						  naddr, full_name, &libsym);
+		if (plts == PLT_DEFAULT)
+			plts = os_elf_add_func_entry(proc, lte, &sym,
+						     naddr, full_name, &libsym);
+
+		switch (plts) {
 		case PLT_DEFAULT:;
 			/* Put the default symbol to the chain.  */
 			struct library_symbol *tmp = malloc(sizeof *tmp);
@@ -986,6 +1027,7 @@ populate_this_symtab(struct process *proc, const char *filename,
 				unique->libsym = tmp;
 				unique->addr = tmp->enter_addr;
 				tmp = tmp->next;
+				unique->libsym->next = NULL;
 			} else {
 				if (strlen(tmp->name)
 				    < strlen(unique->libsym->name)) {
@@ -1172,8 +1214,7 @@ read_module(struct library *lib, struct process *proc,
 
 	int plts = filter_matches_library(options.plt_filter, lib);
 	if ((plts || options.export_filter != NULL)
-	    && populate_plt(proc, filename, &lte, lib,
-			    options.export_filter != NULL) < 0)
+	    && populate_plt(proc, filename, &lte, lib) < 0)
 		goto fail;
 
 	int exports = filter_matches_library(options.export_filter, lib);
