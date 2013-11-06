@@ -112,6 +112,7 @@ again:
 	/* The values coming from getenv and getpwuid may not be
 	 * persistent.  */
 	if (home != NULL) {
+		free(g_home_dir);
 		g_home_dir = strdup(home);
 		if (g_home_dir != NULL) {
 			home = g_home_dir;
