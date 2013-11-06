@@ -564,11 +564,11 @@ protolib_cache_maybe_load(struct protolib_cache *cache,
 	    || (*retp == NULL
 		&& load_config(cache, key, 0, retp) < 0))
 	{
-		if (!own_key)
-			free((void *) key);
 		fprintf(stderr,
 			"Error occurred when attempting to load a prototype "
 			"library for %s.\n", key);
+		if (!own_key)
+			free((void *) key);
 		return -1;
 	}
 
