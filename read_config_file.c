@@ -678,6 +678,7 @@ build_printf_pack(struct locus *loc, struct param **packp, size_t param_num)
 	struct expr_node *node = malloc(sizeof(*node));
 	if (node == NULL) {
 		free(*packp);
+		*packp = NULL;
 		return -1;
 	}
 
@@ -1125,12 +1126,19 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 	struct prototype fun;
 	prototype_init(&fun);
 
+	struct param *extra_param = NULL;
 	char *proto_name = NULL;
 	int own;
 	fun.return_info = parse_lens(plib, loc, &str, NULL, 0, &own, NULL);
 	if (fun.return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", loc->line_no);
+
+		if (extra_param != NULL) {
+			param_destroy(extra_param);
+			free(extra_param);
+		}
+
 		prototype_destroy(&fun);
 		free(proto_name);
 		return -1;
@@ -1157,7 +1165,6 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 	str = tmp + 1;
 	debug(3, " name = %s", proto_name);
 
-	struct param *extra_param = NULL;
 	int have_stop = 0;
 
 	while (1) {
@@ -1235,6 +1242,7 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 	if (extra_param != NULL) {
 		prototype_push_param(&fun, extra_param);
 		free(extra_param);
+		extra_param = NULL;
 	}
 
 	if (protolib_add_prototype(plib, proto_name, 1, &fun) < 0) {
