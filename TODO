@@ -1,5 +1,8 @@
 -*-org-*-
 * TODO
+** Keep exit code of traced process
+   See https://bugzilla.redhat.com/show_bug.cgi?id=105371 for details.
+
 ** Automatic prototype discovery:
 *** Use debuginfo if available
     Alternatively, use debuginfo to generate configure file.
