@@ -342,9 +342,8 @@ consider_config_dir(struct protolib_cache *cache,
 		    const char *path, const char *key)
 {
 	size_t len = sizeof ".conf";
-	char slash[2] = {'/'};
 	char *buf = alloca(strlen(path) + 1 + strlen(key) + len);
-	strcpy(stpcpy(stpcpy(stpcpy(buf, path), slash), key), ".conf");
+	sprintf(buf, "%s/%s.conf", path, key);
 
 	return protolib_cache_file(cache, buf, 0);
 }
