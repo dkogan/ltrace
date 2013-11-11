@@ -361,8 +361,11 @@ ltelf_init(struct ltelf *lte, const char *filename)
 {
 	memset(lte, 0, sizeof *lte);
 	lte->fd = open(filename, O_RDONLY);
-	if (lte->fd == -1)
+	if (lte->fd == -1) {
+		fprintf(stderr, "Can't open %s: %s\n", filename,
+			strerror(errno));
 		return 1;
+	}
 
 	elf_version(EV_CURRENT);
 
