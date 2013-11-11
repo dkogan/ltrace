@@ -69,7 +69,6 @@ enum param_status {
  * enumerator.  */
 struct param_enum;
 
-/* int printf(string, pack(format, arg1)); */
 struct param {
 	enum param_flavor flavor;
 	union {

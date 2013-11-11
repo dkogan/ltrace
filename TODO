@@ -129,7 +129,8 @@
 
     This is useful in particular for:
 
-    | ulong mbsrtowcs(+string(array(uint, zero(arg3))), string*, ulong, addr); |
+    | ulong mbsrtowcs(+wstring3_t, string*, ulong, addr); |
+    | ulong wcsrtombs(+string3, wstring_t*, ulong, addr); |
 
     Where we would like to render arg2 on the way in, and arg1 on the
     way out.

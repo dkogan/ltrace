@@ -132,6 +132,8 @@ param_destroy(struct param *param)
 				expr_destroy(&param->u.pack.args[i]);
 			free(param->u.pack.args);
 		}
+		return;
+
 	case PARAM_FLAVOR_STOP:
 		return;
 	}
