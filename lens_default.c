@@ -21,6 +21,8 @@
  * 02110-1301 USA
  */
 
+#define _XOPEN_SOURCE /* For wcwidth from wchar.h.  */
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -28,14 +30,15 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "bits.h"
-#include "proc.h"
-#include "lens_default.h"
-#include "value.h"
 #include "expr.h"
+#include "lens_default.h"
+#include "options.h"
+#include "output.h"
 #include "type.h"
-#include "common.h"
+#include "value.h"
 #include "zero.h"
 
 #define READER(NAME, TYPE)						\
@@ -587,7 +590,11 @@ format_wchar(FILE *stream, struct value *value, struct value_dict *arguments)
 		return print_char(stream, buf[0]);
 
 	buf[c] = 0;
-	return fprintf(stream, "%s", buf) >= 0 ? 1 : -1;
+	if (fprintf(stream, "%s", buf) < 0)
+		return -1;
+
+	c = wcwidth(wc);
+	return c >= 0 ? c : 0;
 }
 
 static int
