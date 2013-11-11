@@ -541,12 +541,12 @@ unshare_type_info(struct locus *loc, struct arg_type_info **infop, int *ownp)
 		return 0;
 
 	struct arg_type_info *ninfo = malloc(sizeof(*ninfo));
-	if (ninfo == NULL) {
+	if (ninfo == NULL || type_clone(ninfo, *infop) < 0) {
 		report_error(loc->filename, loc->line_no,
 			     "malloc: %s", strerror(errno));
+		free(ninfo);
 		return -1;
 	}
-	*ninfo = **infop;
 	*infop = ninfo;
 	*ownp = 1;
 	return 0;
@@ -704,7 +704,7 @@ try_parse_kwd(char **str, const char *kwd)
 	return -1;
 }
 
-/* XXX extra_param and param_num are a kludge to get in
+/* XXX EXTRA_PARAM and PARAM_NUM are a kludge to get in
  * backward-compatible support for "format" parameter type.  The
  * latter is only valid if the former is non-NULL, which is only in
  * top-level context.  */
