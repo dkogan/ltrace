@@ -16,12 +16,16 @@
      libraries in.  On Linux, ltrace looks into XDG_CONFIG_HOME,
      XDG_CONFIG_DIRS, and /usr/share/ltrace as well.
 
+   - wide character strings are supported in prototypes.
+
 ** Architectural support
    - MIPS and MIPSel are now handled by the same backend.
    - ARMv6 and ARMv7 are supported, including full fetch backend.
    - Imagination Technologies Meta is now supported.
-   - On Linux, tracing of IFUNC symbols is supported.  On i386 and
-     x86_64, IRELATIVE PLT slots are traced as well.
+
+   - On Linux, tracing of IFUNC symbols is supported.  On i386,
+     x86_64, ppc32 with secure PLT and ppc64, IRELATIVE PLT slots are
+     traced as well.
 
 ** -w output now shows full library path
     The output format is similar to glibc's backtrace_symbols, e.g.:
