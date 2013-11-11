@@ -116,9 +116,13 @@ ltrace_init(int argc, char **argv)
 	if (command) {
 		/* Check that the binary ABI is supported before
 		 * calling execute_program.  */
-		struct ltelf lte;
-		ltelf_init(&lte, command);
-		ltelf_destroy(&lte);
+		{
+			struct ltelf lte;
+			if (ltelf_init(&lte, command) == 0)
+				ltelf_destroy(&lte);
+			else
+				exit(EXIT_FAILURE);
+		}
 
 		pid_t pid = execute_program(command, argv);
 		struct process *proc = open_program(command, pid);
