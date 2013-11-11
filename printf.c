@@ -22,7 +22,9 @@
  */
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "printf.h"
 #include "type.h"
@@ -39,6 +41,7 @@ struct param_enum {
 	char *format;
 	char const *ptr;
 	char const *end;
+	size_t width;
 };
 
 static struct param_enum *
@@ -47,12 +50,30 @@ param_printf_init(struct value *cb_args, size_t nargs,
 {
 	assert(nargs == 1);
 
-	/* We expect a char array pointer.  */
+	struct process *proc = cb_args[0].inferior;
+	assert(proc != NULL);
+
+	/* We expect a pointer to array.  */
 	if (cb_args->type->type != ARGTYPE_POINTER
-	    || cb_args->type->u.ptr_info.info->type != ARGTYPE_ARRAY
-	    || (cb_args->type->u.ptr_info.info->u.array_info.elt_type->type
-		!= ARGTYPE_CHAR))
+	    || cb_args->type->u.ptr_info.info->type != ARGTYPE_ARRAY)
 		return NULL;
+
+	/* The element type should be either character (for narrow
+	 * strings) or an integral type (for wide strings).  */
+	struct arg_type_info *et
+		= cb_args->type->u.ptr_info.info->u.array_info.elt_type;
+	switch (et->type) {
+	case ARGTYPE_CHAR:
+	case ARGTYPE_SHORT:
+	case ARGTYPE_USHORT:
+	case ARGTYPE_INT:
+	case ARGTYPE_UINT:
+	case ARGTYPE_LONG:
+	case ARGTYPE_ULONG:
+		break;
+	default:
+		return NULL;
+	}
 
 	struct param_enum *self = malloc(sizeof(*self));
 	if (self == NULL) {
@@ -60,10 +81,12 @@ param_printf_init(struct value *cb_args, size_t nargs,
 		free(self);
 		return NULL;
 	}
+	self->width = type_sizeof(proc, et);
+	if (self->width == (size_t) -1)
+		goto fail;
 
 	if (value_init_deref(&self->array, cb_args) < 0)
 		goto fail;
-
 	assert(self->array.type->type == ARGTYPE_ARRAY);
 
 	self->format = (char *)value_get_data(&self->array, arguments);
@@ -189,14 +212,29 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 	size_t len_buf_len = 0;
 	struct lens *lens = NULL;
 
-	for (; self->ptr < self->end; ++self->ptr) {
+	for (; self->ptr < self->end; self->ptr += self->width) {
+		union {
+			uint8_t u8;
+			uint16_t u16;
+			uint32_t u32;
+			uint64_t u64;
+			char buf[0];
+		} u;
+		memcpy(u.buf, self->ptr, self->width);
+		switch (self->width) {
+		case 1: u.u64 = u.u8; break;
+		case 2: u.u64 = u.u16; break;
+		case 4: u.u64 = u.u32; break;
+		}
+		uint64_t c = u.u64;
+
 		if (!self->percent) {
-			if (*self->ptr == '%')
+			if (c == '%')
 				self->percent = 1;
 			continue;
 		}
 
-		switch (*self->ptr) {
+		switch (c) {
 		case '#': case ' ': case '-':
 		case '+': case 'I': case '\'':
 			/* These are only important for formatting,
@@ -214,7 +252,7 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 					= malloc(sizeof(*self->future_length));
 
 			if (self->future_length != NULL) {
-				++self->ptr;
+				self->ptr += self->width;
 				format_type = ARGTYPE_INT;
 				break;
 			}
@@ -227,7 +265,7 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 			 * this to attach the appropriate string
 			 * length expression.  */
 			if (len_buf_len < sizeof(len_buf) - 1)
-				len_buf[len_buf_len++] = *self->ptr;
+				len_buf[len_buf_len++] = c;
 			continue;
 
 		case 'h':
@@ -299,8 +337,7 @@ param_printf_next(struct param_enum *self, struct arg_type_info *infop,
 				lng++;
 		case 's':
 			format_type = ARGTYPE_ARRAY;
-			/* XXX "ls" means wchar_t string.  */
-			elt_type = ARGTYPE_CHAR;
+			elt_type = lng == 0 ? ARGTYPE_CHAR : ARGTYPE_INT;
 			self->percent = 0;
 			lens = &string_lens;
 			break;

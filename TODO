@@ -127,6 +127,13 @@
     | void func(int*, int*, +long*, long*);              |
     | void func(in int*, in int*, out long*, out long*); |
 
+    This is useful in particular for:
+
+    | ulong mbsrtowcs(+string(array(uint, zero(arg3))), string*, ulong, addr); |
+
+    Where we would like to render arg2 on the way in, and arg1 on the
+    way out.
+
     But sometimes we may want to see a different type on the way in and
     on the way out.  E.g. in asprintf, what's interesting on the way in
     is the address, but on the way out we want to see buffer contents.

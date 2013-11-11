@@ -21,10 +21,11 @@
 
 #include "config.h"
 
-#include <limits.h>
 #include <sys/param.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <limits.h>
+#include <locale.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,7 +100,10 @@ normal_exit(void)
 }
 
 void
-ltrace_init(int argc, char **argv) {
+ltrace_init(int argc, char **argv)
+{
+	setlocale(LC_ALL, "");
+
 	struct opt_p_t *opt_p_tmp;
 
 	atexit(normal_exit);

@@ -1,5 +1,5 @@
 .\" -*-nroff-*-
-.\" Copyright (c) 2012 Petr Machata, Red Hat Inc.
+.\" Copyright (c) 2012, 2013 Petr Machata, Red Hat Inc.
 .\" Copyright (c) 1997-2005 Juan Cespedes <cespedes@debian.org>
 .\"
 .\" This program is free software; you can redistribute it and/or
@@ -171,13 +171,16 @@ pointer to 256-bit bit vector.
 .RS
 The first form of the argument is canonical, the latter two are
 syntactic sugar.  In the canonical form, the function argument is
-formatted as string.  The \fITYPE\fR shall be either a \fBchar*\fR, or
-\fBarray(char,\fIEXPR\fB)\fR, or \fBarray(char,\fIEXPR\fB)*\fR.  If an
-array is given, the length will typically be a \fBzero\fR expression
-(but doesn't have to be).  Using argument that is plain array
-(i.e. not a pointer to array) makes sense e.g. in C structs, in cases
-like \fBstruct(string(array(char, \fR6\fB)))\fR, which describes the C
-type \fBstruct {char \fRs\fB[\fR6\fB];}\fR.
+formatted as string.  The \fITYPE\fR can have either of the following
+forms: \fIX\fB*\fR, or \fBarray(\fIX\fB,\fIEXPR\fB)\fR, or
+\fBarray(\fIX\fB,\fIEXPR\fB)*\fR.  \fIX\fR is either \fBchar\fR for
+normal strings, or an integer type for wide-character strings.
+
+If an array is given, the length will typically be a \fBzero\fR
+expression (but doesn't have to be).  Using argument that is plain
+array (i.e. not a pointer to array) makes sense e.g. in C structs, in
+cases like \fBstruct(string(array(char, \fR6\fB)))\fR, which describes
+the C type \fBstruct {char \fRs\fB[\fR6\fB];}\fR.
 
 Because simple C-like strings are pretty common, there are two
 shorthand forms.  The first shorthand form (with brackets) means the
