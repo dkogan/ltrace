@@ -696,7 +696,8 @@ try_parse_kwd(char **str, const char *kwd)
 {
 	size_t len = strlen(kwd);
 	if (strncmp(*str, kwd, len) == 0
-	    && !isalnum(CTYPE_CONV((*str)[len]))) {
+	    && !isalnum(CTYPE_CONV((*str)[len]))
+	    && (*str)[len] != '_') {
 		(*str) += len;
 		return 0;
 	}
