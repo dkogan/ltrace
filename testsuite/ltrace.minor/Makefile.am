@@ -22,7 +22,7 @@ EXTRA_DIST = attach-process.exp count-record.c count-record.exp		\
 	time-record.c time-record-T.exp time-record-tt.exp		\
 	time-record-ttt.exp trace-clone.c trace-clone.exp		\
 	trace-exec.exp trace-fork.c trace-fork.exp			\
-	trace-irelative.exp
+	trace-irelative.exp wchar.exp
 
 CLEANFILES = *.o *.so *.log *.sum *.ltrace setval.tmp attach-process	\
 	count-record demangle print-instruction-pointer time-record-T	\
