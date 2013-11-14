@@ -16,7 +16,17 @@
      libraries in.  On Linux, ltrace looks into XDG_CONFIG_HOME,
      XDG_CONFIG_DIRS, and /usr/share/ltrace as well.
 
-   - wide character strings are supported in prototypes.
+   - Wide character strings are supported in prototypes.  Use "string"
+     lens as usual, but use array of integers as underlying type.
+     libc.so.conf now contains prototypes of wide character functions.
+
+   - Sole void function parameter such as in the following example, is
+     now considered obsolete:
+
+     | int fork(void); |
+
+     This use is still accepted, taken to mean "hide(int)", but
+     produces a warning, and will be removed in future.
 
 ** Architectural support
    - MIPS and MIPSel are now handled by the same backend.
