@@ -32,7 +32,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <stdbool.h>
 
 #include "backend.h"
@@ -41,8 +40,9 @@
 #include "fetch.h"
 #include "library.h"
 #include "proc.h"
-#include "value_dict.h"
 #include "prototype.h"
+#include "summary.h"
+#include "value_dict.h"
 
 static void handle_signal(Event *event);
 static void handle_exit(Event *event);
@@ -419,32 +419,11 @@ handle_signal(Event *event) {
 	continue_after_signal(event->proc->pid, event->e_un.signum);
 }
 
-static void
-handle_exit(Event *event) {
-	debug(DEBUG_FUNCTION, "handle_exit(pid=%d, status=%d)", event->proc->pid, event->e_un.ret_val);
-	if (event->proc->state != STATE_IGNORED) {
-		output_line(event->proc, "+++ exited (status %d) +++",
-				event->e_un.ret_val);
-	}
-	remove_process(event->proc);
-}
-
-static void
-handle_exit_signal(Event *event) {
-	debug(DEBUG_FUNCTION, "handle_exit_signal(pid=%d, signum=%d)", event->proc->pid, event->e_un.signum);
-	if (event->proc->state != STATE_IGNORED) {
-		output_line(event->proc, "+++ killed by %s +++",
-				shortsignal(event->proc, event->e_un.signum));
-	}
-	remove_process(event->proc);
-}
-
-static void
-output_syscall(struct process *proc, const char *name, enum tof tof,
-	       void (*output)(enum tof, struct process *,
-			      struct library_symbol *))
+static int
+init_syscall_symbol(struct library_symbol *libsym, const char *name)
 {
 	static struct library syscall_lib;
+
 	if (syscall_lib.protolib == NULL) {
 		struct protolib *protolib
 			= protolib_cache_load(&g_protocache, "syscalls", 0, 1);
@@ -475,10 +454,91 @@ output_syscall(struct process *proc, const char *name, enum tof tof,
 		syscall_lib.protolib = protolib;
 	}
 
+	if (library_symbol_init(libsym, 0, name, 0, LS_TOPLT_NONE) < 0)
+		return -1;
+
+	libsym->lib = &syscall_lib;
+	return 0;
+}
+
+/* Account the unfinished functions on the call stack.  */
+static void
+account_current_callstack(struct process *proc)
+{
+	if (! options.summary)
+		return;
+
+	struct timedelta spent[proc->callstack_depth];
+
+	size_t i;
+	for (i = 0; i < proc->callstack_depth; ++i) {
+		struct callstack_element *elem = &proc->callstack[i];
+		spent[i] = calc_time_spent(elem->enter_time);
+	}
+
+	for (i = 0; i < proc->callstack_depth; ++i) {
+		struct callstack_element *elem = &proc->callstack[i];
+		struct library_symbol syscall, *libsym = NULL;
+		if (elem->is_syscall) {
+			const char *name = sysname(proc, elem->c_un.syscall);
+			if (init_syscall_symbol(&syscall, name) >= 0)
+				libsym = &syscall;
+
+		} else {
+			libsym = elem->c_un.libfunc;
+		}
+
+		if (libsym != NULL) {
+			summary_account_call(libsym, spent[i]);
+
+			if (elem->is_syscall)
+				library_symbol_destroy(&syscall);
+		}
+	}
+}
+
+static void
+handle_exit(Event *event) {
+	debug(DEBUG_FUNCTION, "handle_exit(pid=%d, status=%d)", event->proc->pid, event->e_un.ret_val);
+	if (event->proc->state != STATE_IGNORED) {
+		output_line(event->proc, "+++ exited (status %d) +++",
+				event->e_un.ret_val);
+	}
+
+	account_current_callstack(event->proc);
+	remove_process(event->proc);
+}
+
+static void
+handle_exit_signal(Event *event) {
+	debug(DEBUG_FUNCTION, "handle_exit_signal(pid=%d, signum=%d)", event->proc->pid, event->e_un.signum);
+	if (event->proc->state != STATE_IGNORED) {
+		output_line(event->proc, "+++ killed by %s +++",
+				shortsignal(event->proc, event->e_un.signum));
+	}
+
+	account_current_callstack(event->proc);
+	remove_process(event->proc);
+}
+
+static void
+output_syscall(struct process *proc, const char *name, enum tof tof,
+	       bool left, struct timedelta *spent)
+{
+	if (left)
+		assert(spent == NULL);
+
 	struct library_symbol syscall;
-	if (library_symbol_init(&syscall, 0, name, 0, LS_TOPLT_NONE) >= 0) {
-		syscall.lib = &syscall_lib;
-		(*output)(tof, proc, &syscall);
+	if (init_syscall_symbol(&syscall, name) >= 0) {
+		if (left) {
+			if (! options.summary)
+				output_left(tof, proc, &syscall);
+		} else if (options.summary) {
+			summary_account_call(&syscall, *spent);
+		} else {
+			output_right(tof, proc, &syscall, spent);
+		}
+
 		library_symbol_destroy(&syscall);
 	}
 }
@@ -486,17 +546,19 @@ output_syscall(struct process *proc, const char *name, enum tof tof,
 static void
 output_syscall_left(struct process *proc, const char *name)
 {
-	output_syscall(proc, name, LT_TOF_SYSCALL, &output_left);
+	output_syscall(proc, name, LT_TOF_SYSCALL, true, NULL);
 }
 
 static void
-output_syscall_right(struct process *proc, const char *name)
+output_syscall_right(struct process *proc, const char *name,
+		     struct timedelta *spent)
 {
-	output_syscall(proc, name, LT_TOF_SYSCALLR, &output_right);
+	output_syscall(proc, name, LT_TOF_SYSCALLR, false, spent);
 }
 
 static void
-handle_syscall(Event *event) {
+handle_syscall(Event *event)
+{
 	debug(DEBUG_FUNCTION, "handle_syscall(pid=%d, sysnum=%d)", event->proc->pid, event->e_un.sysnum);
 	if (event->proc->state != STATE_IGNORED) {
 		callstack_push_syscall(event->proc, event->e_un.sysnum);
@@ -526,6 +588,8 @@ handle_exec(Event *event)
 	}
 	output_line(proc, "--- Called exec() ---");
 
+	account_current_callstack(proc);
+
 	if (process_exec(proc) < 0) {
 		fprintf(stderr,
 			"couldn't reinitialize process %d after exec\n", pid);
@@ -549,74 +613,58 @@ handle_arch_syscall(Event *event) {
 	continue_process(event->proc->pid);
 }
 
-struct timeval current_time_spent;
-
 static void
-calc_time_spent(struct process *proc)
+handle_x_sysret(Event *event, char *(*name_cb)(struct process *, int))
 {
-	struct timeval tv;
-	struct timezone tz;
-	struct timeval diff;
-	struct callstack_element *elem;
+	debug(DEBUG_FUNCTION, "handle_x_sysret(pid=%d, sysnum=%d)",
+	      event->proc->pid, event->e_un.sysnum);
 
-	debug(DEBUG_FUNCTION, "calc_time_spent(pid=%d)", proc->pid);
-	elem = &proc->callstack[proc->callstack_depth - 1];
+	unsigned d = event->proc->callstack_depth;
+	assert(d > 0);
+	struct callstack_element *elem = &event->proc->callstack[d - 1];
+	assert(elem->is_syscall);
 
-	gettimeofday(&tv, &tz);
-
-	diff.tv_sec = tv.tv_sec - elem->time_spent.tv_sec;
-	if (tv.tv_usec >= elem->time_spent.tv_usec) {
-		diff.tv_usec = tv.tv_usec - elem->time_spent.tv_usec;
-	} else {
-		diff.tv_sec--;
-		diff.tv_usec = 1000000 + tv.tv_usec - elem->time_spent.tv_usec;
-	}
-	current_time_spent = diff;
-}
-
-static void
-handle_sysret(Event *event) {
-	debug(DEBUG_FUNCTION, "handle_sysret(pid=%d, sysnum=%d)", event->proc->pid, event->e_un.sysnum);
 	if (event->proc->state != STATE_IGNORED) {
-		if (opt_T || options.summary) {
-			calc_time_spent(event->proc);
-		}
+		struct timedelta spent = calc_time_spent(elem->enter_time);
 		if (options.syscalls)
 			output_syscall_right(event->proc,
-					     sysname(event->proc,
-						     event->e_un.sysnum));
+					     name_cb(event->proc,
+						     event->e_un.sysnum),
+					     &spent);
 
-		assert(event->proc->callstack_depth > 0);
-		unsigned d = event->proc->callstack_depth - 1;
-		assert(event->proc->callstack[d].is_syscall);
 		callstack_pop(event->proc);
 	}
 	continue_after_syscall(event->proc, event->e_un.sysnum, 1);
 }
 
 static void
-handle_arch_sysret(Event *event) {
-	debug(DEBUG_FUNCTION, "handle_arch_sysret(pid=%d, sysnum=%d)", event->proc->pid, event->e_un.sysnum);
-	if (event->proc->state != STATE_IGNORED) {
-		if (opt_T || options.summary) {
-			calc_time_spent(event->proc);
-		}
-		if (options.syscalls)
-			output_syscall_right(event->proc,
-					     arch_sysname(event->proc,
-							  event->e_un.sysnum));
-		callstack_pop(event->proc);
-	}
-	continue_process(event->proc->pid);
+handle_sysret(Event *event)
+{
+	handle_x_sysret(event, &sysname);
+}
+
+static void
+handle_arch_sysret(Event *event)
+{
+	handle_x_sysret(event, &arch_sysname);
 }
 
 static void
 output_right_tos(struct process *proc)
 {
 	size_t d = proc->callstack_depth;
+	assert(d > 0);
 	struct callstack_element *elem = &proc->callstack[d - 1];
-	if (proc->state != STATE_IGNORED)
-		output_right(LT_TOF_FUNCTIONR, proc, elem->c_un.libfunc);
+	assert(! elem->is_syscall);
+
+	if (proc->state != STATE_IGNORED) {
+		struct timedelta spent = calc_time_spent(elem->enter_time);
+		if (options.summary)
+			summary_account_call(elem->c_un.libfunc, spent);
+		else
+			output_right(LT_TOF_FUNCTIONR, proc, elem->c_un.libfunc,
+				     &spent);
+	}
 }
 
 #ifndef ARCH_HAVE_SYMBOL_RET
@@ -645,14 +693,8 @@ handle_breakpoint(Event *event)
 
 	for (i = event->proc->callstack_depth - 1; i >= 0; i--) {
 		if (brk_addr == event->proc->callstack[i].return_addr) {
-			for (j = event->proc->callstack_depth - 1; j > i; j--) {
+			for (j = event->proc->callstack_depth - 1; j > i; j--)
 				callstack_pop(event->proc);
-			}
-			if (event->proc->state != STATE_IGNORED) {
-				if (opt_T || options.summary) {
-					calc_time_spent(event->proc);
-				}
-			}
 
 			struct library_symbol *libsym =
 			    event->proc->callstack[i].c_un.libfunc;
@@ -705,11 +747,14 @@ handle_breakpoint(Event *event)
 	/* breakpoint_on_hit may delete its own breakpoint, so we have
 	 * to look it up again.  */
 	if ((sbp = address2bpstruct(leader, brk_addr)) != NULL) {
+
 		if (event->proc->state != STATE_IGNORED
 		    && sbp->libsym != NULL) {
 			event->proc->stack_pointer = get_stack_pointer(event->proc);
 			callstack_push_symfunc(event->proc, sbp);
-			output_left(LT_TOF_FUNCTION, event->proc, sbp->libsym);
+			if (! options.summary)
+				output_left(LT_TOF_FUNCTION, event->proc,
+					    sbp->libsym);
 		}
 
 		breakpoint_on_continue(sbp, event->proc);
@@ -743,7 +788,7 @@ callstack_push_syscall(struct process *proc, int sysnum)
 	proc->callstack_depth++;
 	if (opt_T || options.summary) {
 		struct timezone tz;
-		gettimeofday(&elem->time_spent, &tz);
+		gettimeofday(&elem->enter_time, &tz);
 	}
 }
 
@@ -781,7 +826,7 @@ callstack_push_symfunc(struct process *proc, struct breakpoint *bp)
 
 	if (opt_T || options.summary) {
 		struct timezone tz;
-		gettimeofday(&elem->time_spent, &tz);
+		gettimeofday(&elem->enter_time, &tz);
 	}
 }
 

@@ -22,11 +22,15 @@
 
 #include "config.h"
 
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+#include <string.h>
 
-#include "common.h"
+#include "summary.h"
+#include "dict.h"
+#include "library.h"
+#include "options.h"
 
 struct entry_st {
 	const char *name;
@@ -39,6 +43,32 @@ struct fill_struct_data {
 	unsigned tot_count;
 	unsigned long tot_usecs;
 };
+
+struct opt_c_struct {
+	int count;
+	struct timeval tv;
+};
+
+static struct dict *dict_opt_c;
+
+struct timedelta
+calc_time_spent(struct timeval start)
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+
+	struct timeval diff;
+	diff.tv_sec = tv.tv_sec - start.tv_sec;
+	if (tv.tv_usec >= start.tv_usec) {
+		diff.tv_usec = tv.tv_usec - start.tv_usec;
+	} else {
+		diff.tv_sec--;
+		diff.tv_usec = 1000000 + tv.tv_usec - start.tv_usec;
+	}
+
+	struct timedelta ret = { diff };
+	return ret;
+}
 
 static enum callback_status
 fill_struct(const char **namep, struct opt_c_struct *st, void *u)
@@ -113,4 +143,59 @@ show_summary(void)
 		cdata.tot_usecs % 1000000, cdata.tot_count);
 
 	vect_destroy(&cdata.entries, NULL, NULL);
+}
+
+static void
+free_stringp_cb(const char **stringp, void *data)
+{
+	free((char *)*stringp);
+}
+
+void
+summary_account_call(struct library_symbol *libsym, struct timedelta spent)
+{
+	assert(options.summary);
+
+	if (dict_opt_c == NULL) {
+		dict_opt_c = malloc(sizeof(*dict_opt_c));
+		if (dict_opt_c == NULL) {
+		oom:
+			fprintf(stderr,
+				"Can't allocate memory for "
+				"keeping track of -c.\n");
+			free(dict_opt_c);
+			options.summary = 0;
+			return;
+		}
+		DICT_INIT(dict_opt_c, char *, struct opt_c_struct,
+			  dict_hash_string, dict_eq_string, NULL);
+	}
+
+	struct opt_c_struct *st = DICT_FIND_REF(dict_opt_c, &libsym->name,
+						struct opt_c_struct);
+	if (st == NULL) {
+		const char *na = strdup(libsym->name);
+		struct opt_c_struct new_st = {.count = 0, .tv = {0, 0}};
+		if (na == NULL
+		    || DICT_INSERT(dict_opt_c, &na, &new_st) < 0) {
+			free((char *) na);
+			DICT_DESTROY(dict_opt_c, const char *,
+				     struct opt_c_struct,
+				     free_stringp_cb, NULL, NULL);
+			goto oom;
+		}
+		st = DICT_FIND_REF(dict_opt_c, &libsym->name,
+				   struct opt_c_struct);
+		assert(st != NULL);
+	}
+
+	if (st->tv.tv_usec + spent.tm.tv_usec > 1000000) {
+		st->tv.tv_usec += spent.tm.tv_usec - 1000000;
+		st->tv.tv_sec++;
+	} else {
+		st->tv.tv_usec += spent.tm.tv_usec;
+	}
+	st->count++;
+	st->tv.tv_sec += spent.tm.tv_sec;
+	return;
 }

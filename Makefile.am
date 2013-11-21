@@ -54,10 +54,10 @@ ltrace_LDADD = \
 
 noinst_HEADERS = bits.h backend.h breakpoint.h common.h debug.h		\
 	defs.h demangle.h dict.h forward.h ltrace-elf.h ltrace.h	\
-	options.h output.h proc.h read_config_file.h library.h		\
-	filter.h glob.h vect.h type.h value.h value_dict.h callback.h	\
-	expr.h fetch.h vect.h param.h printf.h zero.h lens.h		\
-	lens_default.h lens_enum.h memstream.h prototype.h
+	options.h output.h proc.h read_config_file.h summary.h		\
+	library.h filter.h glob.h vect.h type.h value.h value_dict.h	\
+	callback.h expr.h fetch.h vect.h param.h printf.h zero.h	\
+	lens.h lens_default.h lens_enum.h memstream.h prototype.h
 
 dist_man1_MANS = ltrace.1
 dist_man5_MANS = ltrace.conf.5

@@ -54,8 +54,6 @@ extern void handle_event(Event * event);
 
 extern pid_t execute_program(const char * command, char ** argv);
 
-extern void show_summary(void);
-
 struct breakpoint;
 struct library_symbol;
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011, 2012 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011, 2012, 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,8 @@ void output_line(struct process *proc, const char *fmt, ...);
 void output_left(enum tof type, struct process *proc,
 		 struct library_symbol *libsym);
 void output_right(enum tof type, struct process *proc,
-		  struct library_symbol *libsym);
+		  struct library_symbol *libsym,
+		  struct timedelta *spent);
 
 /* This function is for emitting lists of comma-separated strings.
  *

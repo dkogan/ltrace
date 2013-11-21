@@ -66,7 +66,7 @@ struct callstack_element {
 	} c_un;
 	int is_syscall;
 	arch_addr_t return_addr;
-	struct timeval time_spent;
+	struct timeval enter_time;
 	struct fetch_context *fetch_context;
 	struct value_dict *arguments;
 	struct output_state out;

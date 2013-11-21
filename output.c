@@ -44,16 +44,12 @@
 #include "param.h"
 #include "proc.h"
 #include "prototype.h"
+#include "summary.h"
 #include "type.h"
 #include "value.h"
 #include "value_dict.h"
 
-/* TODO FIXME XXX: include in common.h: */
-extern struct timeval current_time_spent;
-
-struct dict *dict_opt_c = NULL;
-
-static struct process *current_proc = 0;
+static struct process *current_proc = NULL;
 static size_t current_depth = 0;
 static int current_column = 0;
 
@@ -498,9 +494,8 @@ void
 output_left(enum tof type, struct process *proc,
 	    struct library_symbol *libsym)
 {
-	if (options.summary) {
-		return;
-	}
+	assert(! options.summary);
+
 	if (current_proc) {
 		fprintf(options.output, " <unfinished ...>\n");
 		current_column = 0;
@@ -572,70 +567,21 @@ output_left(enum tof type, struct process *proc,
 	stel->out.need_delim = need_delim;
 }
 
-static void
-free_stringp_cb(const char **stringp, void *data)
-{
-	free((char *)*stringp);
-}
-
 void
-output_right(enum tof type, struct process *proc, struct library_symbol *libsym)
+output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
+	     struct timedelta *spent)
 {
+	assert(! options.summary);
+
 	struct prototype *func = lookup_symbol_prototype(proc, libsym);
 	if (func == NULL)
 		return;
 
-again:
-	if (options.summary) {
-		if (dict_opt_c == NULL) {
-			dict_opt_c = malloc(sizeof(*dict_opt_c));
-			if (dict_opt_c == NULL) {
-			oom:
-				fprintf(stderr,
-					"Can't allocate memory for "
-					"keeping track of -c.\n");
-				free(dict_opt_c);
-				options.summary = 0;
-				goto again;
-			}
-			DICT_INIT(dict_opt_c, char *, struct opt_c_struct,
-				  dict_hash_string, dict_eq_string, NULL);
-		}
-
-		struct opt_c_struct *st
-			= DICT_FIND_REF(dict_opt_c, &libsym->name,
-					struct opt_c_struct);
-		if (st == NULL) {
-			const char *na = strdup(libsym->name);
-			struct opt_c_struct new_st = {.count = 0, .tv = {0, 0}};
-			if (na == NULL
-			    || DICT_INSERT(dict_opt_c, &na, &new_st) < 0) {
-				free((char *)na);
-				DICT_DESTROY(dict_opt_c, const char *,
-					     struct opt_c_struct,
-					     free_stringp_cb, NULL, NULL);
-				goto oom;
-			}
-			st = DICT_FIND_REF(dict_opt_c, &libsym->name,
-					   struct opt_c_struct);
-			assert(st != NULL);
-		}
-
-		if (st->tv.tv_usec + current_time_spent.tv_usec > 1000000) {
-			st->tv.tv_usec += current_time_spent.tv_usec - 1000000;
-			st->tv.tv_sec++;
-		} else {
-			st->tv.tv_usec += current_time_spent.tv_usec;
-		}
-		st->count++;
-		st->tv.tv_sec += current_time_spent.tv_sec;
-		return;
-	}
-
-	if (current_proc && (current_proc != proc ||
-			    current_depth != proc->callstack_depth)) {
+	if (current_proc != NULL
+		    && (current_proc != proc
+			|| current_depth != proc->callstack_depth)) {
 		fprintf(options.output, " <unfinished ...>\n");
-		current_proc = 0;
+		current_proc = NULL;
 	}
 	if (current_proc != proc) {
 		begin_of_line(proc, type == LT_TOF_FUNCTIONR, 1);
@@ -689,10 +635,12 @@ again:
 		value_destroy(&retval);
 
 	if (opt_T) {
+		assert(spent != NULL);
 		fprintf(options.output, " <%lu.%06d>",
-			(unsigned long)current_time_spent.tv_sec,
-			(int)current_time_spent.tv_usec);
+			(unsigned long) spent->tm.tv_sec,
+			(int) spent->tm.tv_usec);
 	}
+
 	fprintf(options.output, "\n");
 
 #if defined(HAVE_LIBUNWIND)
@@ -746,7 +694,7 @@ again:
 	}
 #endif /* defined(HAVE_LIBUNWIND) */
 
-	current_proc = 0;
+	current_proc = NULL;
 	current_column = 0;
 }
 

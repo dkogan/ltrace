@@ -32,11 +32,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "backend.h"
 #include "common.h"
 #include "proc.h"
-#include "read_config_file.h"
-#include "backend.h"
 #include "prototype.h"
+#include "read_config_file.h"
+#include "summary.h"
 
 char *command = NULL;
 
