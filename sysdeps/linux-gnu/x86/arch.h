@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
+#ifndef LTRACE_X86_ARCH_H
+#define LTRACE_X86_ARCH_H
+
+#include "vect.h"
 
 #define BREAKPOINT_VALUE {0xcc}
 #define BREAKPOINT_LENGTH 1
@@ -30,9 +34,16 @@
 
 #define ARCH_HAVE_ADD_PLT_ENTRY
 
+#define ARCH_HAVE_LTELF_DATA
+struct arch_ltelf_data {
+	struct vect plt_map;
+};
+
 #ifdef __x86_64__
 #define LT_ELFCLASS	ELFCLASS64
 #define LT_ELF_MACHINE	EM_X86_64
 #endif
 #define LT_ELFCLASS2	ELFCLASS32
 #define LT_ELF_MACHINE2	EM_386
+
+#endif /* LTRACE_X86_ARCH_H */
