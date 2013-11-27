@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2001 IBM Poughkeepsie, IBM Corporation
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +26,7 @@
 #define ARCH_HAVE_FETCH_ARG
 #define ARCH_HAVE_SIZEOF
 #define ARCH_HAVE_ALIGNOF
+#define ARCH_HAVE_ADD_PLT_ENTRY
 
 #define LT_ELFCLASS	ELFCLASS32
 #define LT_ELF_MACHINE	EM_S390

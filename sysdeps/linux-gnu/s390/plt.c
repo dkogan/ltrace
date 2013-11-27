@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2013 Petr Machata, Red Hat Inc.
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -19,9 +20,12 @@
  */
 
 #include <gelf.h>
+#include <stdbool.h>
+
 #include "proc.h"
 #include "common.h"
 #include "library.h"
+#include "trace.h"
 
 GElf_Addr
 arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela * rela) {
@@ -32,4 +36,22 @@ void *
 sym2addr(struct process *proc, struct library_symbol *sym)
 {
 	return sym->enter_addr;
+}
+
+enum plt_status
+arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
+		       const char *a_name, GElf_Rela *rela, size_t ndx,
+		       struct library_symbol **ret)
+{
+#ifdef R_390_IRELATIVE
+	bool irelative = GELF_R_TYPE(rela->r_info) == R_390_IRELATIVE;
+#else
+	bool irelative = false;
+#endif
+
+	if (irelative)
+		return linux_elf_add_plt_entry_irelative(proc, lte, rela,
+							 ndx, ret);
+
+	return PLT_DEFAULT;
 }
