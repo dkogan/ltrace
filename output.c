@@ -661,9 +661,11 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 					!= sizeof(arch_addr_t))]);
 		unw_init_remote(&cursor, proc->unwind_as, proc->unwind_priv);
 		while (unwind_depth) {
-			unw_get_reg(&cursor, UNW_REG_IP, (unw_word_t *) &ip);
-			unw_get_proc_name(&cursor, fn_name, sizeof(fn_name),
-					(unw_word_t *) &function_offset);
+
+			if (unw_get_reg(&cursor, UNW_REG_IP, (unw_word_t *) &ip)) {
+				fprintf(options.output, " > stacktrace_error\n");
+				continue;
+			}
 
 			/* We are looking for the library with the base address
 			 * closest to the current ip.  */
@@ -683,8 +685,14 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 				lib = lib->next;
 			}
 
-			fprintf(options.output, " > %s(%s+0x%p) [%p]\n",
+			own_retval = unw_get_proc_name(&cursor, fn_name, sizeof(fn_name),
+						(unw_word_t *) &function_offset);
+			if ((own_retval == 0) || (own_retval == -UNW_ENOMEM))
+				fprintf(options.output, " > %s(%s+%p) [%p]\n",
 					lib_name, fn_name, function_offset, ip);
+			else
+				fprintf(options.output, " > %s(??\?) [%p]\n",
+					lib_name, ip);
 
 			if (unw_step(&cursor) <= 0)
 				break;

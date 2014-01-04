@@ -29,11 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(HAVE_LIBUNWIND)
-#include <libunwind.h>
-#include <libunwind-ptrace.h>
-#endif /* defined(HAVE_LIBUNWIND) */
-
 #include "backend.h"
 #include "breakpoint.h"
 #include "debug.h"

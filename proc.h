@@ -30,6 +30,7 @@
 
 #if defined(HAVE_LIBUNWIND)
 # include <libunwind.h>
+# include <libunwind-ptrace.h>
 #endif /* defined(HAVE_LIBUNWIND) */
 
 #include "ltrace.h"
