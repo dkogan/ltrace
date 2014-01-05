@@ -55,7 +55,7 @@ ltrace \- A library call tracer
 .\" ---------------------------------------------------------------------------
 .\"
 .PP
-.BR ltrace " -c"
+.BR ltrace " \-c"
 .\"
 .\" What events to trace:
 .\"
@@ -108,7 +108,7 @@ Maximum number of array elements to print before suppressing the rest
 with an ellipsis ("...").  This also limits number of recursive
 structure expansions.
 .IP "\-b, \-\-no-signals"
-Disable printing of signals recieved by the traced process.
+Disable printing of signals received by the traced process.
 .IP \-c
 Count time and calls for each library call and report a summary on
 program exit.
@@ -155,7 +155,7 @@ won't be directed elsewhere due to e.g. LD_PRELOAD or simply
 dependency ordering.  If you want to make sure that symbols in given
 library are actually called, use \fB-x @\fIlibrary_pattern\fR instead.
 .IP \-L
-When no -e option is given, don't assume the default action of
+When no \-e option is given, don't assume the default action of
 \fB@MAIN\fR.
 .IP "\-n, \-\-indent \fInr"
 Indent trace output by \fInr\fR spaces for each level of call
@@ -193,7 +193,7 @@ Run command with the userid, groupid and supplementary groups of
 .IR username .
 This option is only useful when running as root and enables the
 correct execution of setuid and/or setgid binaries.
-.IP "\-w, --where \fInr"
+.IP "\-w, \-\-where \fInr"
 Show backtrace of \fInr\fR stack frames for each traced function. This
 option enabled only if libunwind support was enabled at compile time.
 .IP "\-x \fIfilter"
@@ -277,9 +277,9 @@ then looks for a file named SONAME.conf--e.g. protolib for libc.so.6
 would be in a file called libc.so.6.conf.  When such file is found
 (more about where ltrace looks for these files is below), ltrace reads
 all prototypes stored therein.  When a symbol table entry point (such
-as those traced by -x) is hit, the prototype is looked up in a
-prototype library corresponding to the library where the hit occured.
-When a library call (such as those traced by -e and -l) is hit, the
+as those traced by \-x) is hit, the prototype is looked up in a
+prototype library corresponding to the library where the hit occurred.
+When a library call (such as those traced by \-e and \-l) is hit, the
 prototype is looked up in all prototype libraries loaded for given
 process.  That is necessary, because a library call is traced in a PLT
 table of a caller library, but the prototype is described at callee
@@ -305,9 +305,9 @@ $HOME/.ltrace.conf exists it is imported to every loaded prototype
 library.  Similarly for /etc/ltrace.conf.  If both exist, both are
 imported, and $HOME/.ltrace.conf is consulted before /etc/ltrace.conf.
 
-If -F contains any directories, those are searched in precedence to
+If \-F contains any directories, those are searched in precedence to
 the above system directories, in the same order in which they are
-mentioned in -F.  Any files passed in -F are imported similarly to
+mentioned in \-F.  Any files passed in \-F are imported similarly to
 above legacy config files, before them.
 
 See ltrace.conf(5) for details on the syntax of ltrace prototype
