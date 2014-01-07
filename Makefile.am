@@ -40,6 +40,7 @@ libltrace_la_LIBADD = \
 	$(liberty_LIBS) \
 	$(libsupcxx_LIBS) \
 	$(libstdcxx_LIBS) \
+	$(libdw_LIBS) \
 	$(libunwind_LIBS) \
 	sysdeps/libos.la
 

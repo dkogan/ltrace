@@ -128,6 +128,51 @@ dnl Check security_get_boolean_active availability.
 AC_CHECK_HEADERS(selinux/selinux.h)
 AC_CHECK_LIB(selinux, security_get_boolean_active)
 
+dnl Whether (and which) elfutils libdw.so to use for unwinding.
+AC_ARG_WITH(elfutils,
+  AS_HELP_STRING([--with-elfutils], [Use elfutils libdwfl unwinding support]),
+  [case "${withval}" in
+  (yes|no) enable_elfutils=$withval;;
+  (*) enable_elfutils=yes
+    AM_CPPFLAGS="${AM_CPPFLAGS} -I${withval}/include"
+    AM_LDFLAGS="${AM_LDFLAGS} -L${withval}/lib"
+    elfutils_LD_LIBRARY_PATH="${withval}/lib:${withval}/lib/elfutils"
+    ;;
+esac],[enable_elfutils=maybe])
+
+dnl Check whether we have the elfutils libdwfl.h header installed.
+saved_CPPFLAGS="${CPPFLAGS}"
+CPPFLAGS="${CPPFLAGS} ${AM_CPPFLAGS}"
+AC_CHECK_HEADERS([elfutils/libdwfl.h],[have_libdwfl_h=yes])
+CPPFLAGS="${saved_CPPFLAGS}"
+
+dnl And whether libdw.so provides the unwinding functions.
+saved_LDFLAGS="${LDFLAGS}"
+LDFLAGS="${LDFLAGS} ${AM_LDFLAGS}"
+AC_CHECK_LIB([dw], [dwfl_getthread_frames], [have_libdw_dwfl_frames=yes])
+LDFLAGS="${saved_LDFLAGS}"
+
+AC_MSG_CHECKING([whether to use elfutils libdwfl unwinding support])
+case "${enable_elfutils}" in
+(yes|maybe)
+  if test x$have_libdwfl_h = xyes -a x$have_libdw_dwfl_frames = xyes; then
+    enable_elfutils=yes
+  elif test $enable_elfutils = maybe; then
+    enable_elfutils=no
+  else
+    AC_MSG_RESULT([$enable_elfutils])
+    AC_MSG_ERROR([Missing elfutils/libdwfl.h or dwfl_getthread_frames not in libdw.so])
+  fi
+  ;;
+(*) ;;
+esac
+AC_MSG_RESULT([$enable_elfutils])
+
+if test x"$enable_elfutils" = xyes; then
+  libdw_LIBS=-ldw
+  AC_SUBST(libdw_LIBS)
+  AC_DEFINE([HAVE_LIBDW], [1], [we have elfutils libdw])
+fi
 
 # HAVE_LIBUNWIND
 AC_ARG_WITH(libunwind,
@@ -193,6 +238,13 @@ if test x"$enable_libunwind" = xyes; then
   LDFLAGS="${saved_LDFLAGS}"
 fi
 
+if test x"$enable_elfutils" = xyes -a x"$enable_libunwind" = xyes; then
+  AC_MSG_ERROR([Cannot enable both --with-libunwind and --with-elfutils])
+fi
+
+if test x"$enable_elfutils" = xyes -o x"$enable_libunwind" = xyes; then
+  AC_DEFINE([HAVE_UNWINDER], [1], [we have an unwinder available])
+fi
 
 saved_CPPFLAGS="${CPPFLAGS}"
 saved_LDFLAGS="${LDFLAGS}"
@@ -340,6 +392,7 @@ AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_CFLAGS)
 AC_SUBST(AM_LDFLAGS)
 AC_SUBST(libelf_LD_LIBRARY_PATH)
+AC_SUBST(elfutils_LD_LIBRARY_PATH)
 AC_SUBST(libunwind_LD_LIBRARY_PATH)
 
 AC_CONFIG_FILES([

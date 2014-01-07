@@ -742,6 +742,10 @@ proc ld_library_path { args } {
 	if {[string length $libelf_LD_LIBRARY_PATH] > 0} {
 		lappend ALL_LIBRARY_PATHS $libelf_LD_LIBRARY_PATH
 	}
+	global elfutils_LD_LIBRARY_PATH
+	if {[string length $elfutils_LD_LIBRARY_PATH] > 0} {
+		lappend ALL_LIBRARY_PATHS $elfutils_LD_LIBRARY_PATH
+	}
 	global libunwind_LD_LIBRARY_PATH
 	if {[string length $libunwind_LD_LIBRARY_PATH] > 0} {
 		lappend ALL_LIBRARY_PATHS $libunwind_LD_LIBRARY_PATH

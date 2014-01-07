@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include "output.h"
 #include "demangle.h"
@@ -567,6 +568,73 @@ output_left(enum tof type, struct process *proc,
 	stel->out.need_delim = need_delim;
 }
 
+#if defined(HAVE_LIBDW)
+/* Prints information about one frame of a thread.  Called by
+   dwfl_getthread_frames in output_right.  Returns 1 when done (max
+   number of frames reached).  Returns -1 on error.  Returns 0 on
+   success (if there are more frames in the thread, call us again).  */
+static int
+frame_callback (Dwfl_Frame *state, void *arg)
+{
+	Dwarf_Addr pc;
+	bool isactivation;
+
+	int *frames = (int *) arg;
+
+	if (!dwfl_frame_pc(state, &pc, &isactivation))
+		return -1;
+
+	if (!isactivation)
+		pc--;
+
+	Dwfl *dwfl = dwfl_thread_dwfl(dwfl_frame_thread(state));
+	Dwfl_Module *mod = dwfl_addrmodule(dwfl, pc);
+	const char *modname = NULL;
+	const char *symname = NULL;
+	GElf_Off off = 0;
+	if (mod != NULL) {
+		GElf_Sym sym;
+		modname = dwfl_module_info(mod, NULL, NULL, NULL, NULL,
+					   NULL, NULL, NULL);
+		symname = dwfl_module_addrinfo(mod, pc, &off, &sym,
+					       NULL, NULL, NULL);
+	}
+
+	/* This mimics the output produced by libunwind below.  */
+	fprintf(options.output, " > %s(%s+0x%" PRIx64 ") [%" PRIx64 "]\n",
+		modname, symname, off, pc);
+
+	/* See if we can extract the source line too and print it on
+	   the next line if we can find it.  */
+	if (mod != NULL) {
+		Dwfl_Line *l = dwfl_module_getsrc(mod, pc);
+		if (l != NULL) {
+			int line, col;
+			line = col = -1;
+			const char *src = dwfl_lineinfo(l, NULL, &line, &col,
+							NULL, NULL);
+			if (src != NULL) {
+				fprintf(options.output, "\t%s", src);
+				if (line > 0) {
+					fprintf(options.output, ":%d", line);
+					if (col > 0)
+			                        fprintf(options.output,
+							":%d", col);
+				}
+				fprintf(options.output, "\n");
+			}
+
+		}
+	}
+
+	/* Max number of frames to print reached? */
+	if ((*frames)-- == 0)
+		return 1;
+
+	return 0;
+}
+#endif /* defined(HAVE_LIBDW) */
+
 void
 output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 	     struct timedelta *spent)
@@ -706,6 +774,24 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 		fprintf(options.output, "\n");
 	}
 #endif /* defined(HAVE_LIBUNWIND) */
+
+#if defined(HAVE_LIBDW)
+	if (options.bt_depth > 0 && proc->leader->dwfl != NULL) {
+		int frames = options.bt_depth;
+		if (dwfl_getthread_frames(proc->leader->dwfl, proc->pid,
+					  frame_callback, &frames) < 0) {
+			// Only print an error if we couldn't show anything.
+			// Otherwise just show there might be more...
+			if (frames == options.bt_depth)
+				fprintf(stderr,
+					"dwfl_getthread_frames tid %d: %s\n",
+					proc->pid, dwfl_errmsg(-1));
+			else
+				fprintf(options.output, " > [...]\n");
+		}
+		fprintf(options.output, "\n");
+	  }
+#endif /* defined(HAVE_LIBDW) */
 
 	current_proc = NULL;
 	current_column = 0;

@@ -44,9 +44,9 @@ struct options_t {
 	size_t strlen;     /* default maximum # of bytes printed in strings */
 	int follow;     /* trace child processes */
 	int no_signals; /* don't print signals */
-#if defined(HAVE_LIBUNWIND)
+#if defined(HAVE_UNWINDER)
 	int bt_depth;	 /* how may levels of stack frames to show */
-#endif /* defined(HAVE_LIBUNWIND) */
+#endif /* defined(HAVE_UNWINDER) */
 	struct filter *plt_filter;
 	struct filter *static_filter;
 

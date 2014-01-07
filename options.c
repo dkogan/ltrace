@@ -107,9 +107,9 @@ usage(void) {
 		"  -T                  show the time spent inside each call.\n"
 		"  -u USERNAME         run command with the userid, groupid of username.\n"
 		"  -V, --version       output version information and exit.\n"
-#if defined(HAVE_LIBUNWIND)
+#if defined(HAVE_UNWINDER)
 		"  -w, --where=NR      print backtrace showing NR stack frames at most.\n"
-#endif /* defined(HAVE_LIBUNWIND) */
+#endif /* defined(HAVE_UNWINDER) */
 		"  -x FILTER           modify which static functions to trace.\n"
 		"\nReport bugs to ltrace-devel@lists.alioth.debian.org\n",
 		progname);
@@ -517,9 +517,9 @@ process_options(int argc, char **argv)
 	progname = argv[0];
 	options.output = stderr;
 	options.no_signals = 0;
-#if defined(HAVE_LIBUNWIND)
+#if defined(HAVE_UNWINDER)
 	options.bt_depth = -1;
-#endif /* defined(HAVE_LIBUNWIND) */
+#endif /* defined(HAVE_UNWINDER) */
 
 	guess_cols();
 
@@ -543,9 +543,9 @@ process_options(int argc, char **argv)
 			{"output", 1, 0, 'o'},
 			{"version", 0, 0, 'V'},
 			{"no-signals", 0, 0, 'b'},
-# if defined(HAVE_LIBUNWIND)
+# if defined(HAVE_UNWINDER)
 			{"where", 1, 0, 'w'},
-# endif /* defined(HAVE_LIBUNWIND) */
+# endif /* defined(HAVE_UNWINDER) */
 			{0, 0, 0, 0}
 		};
 #endif
@@ -554,7 +554,7 @@ process_options(int argc, char **argv)
 #ifdef USE_DEMANGLE
 			"C"
 #endif
-#if defined(HAVE_LIBUNWIND)
+#if defined(HAVE_UNWINDER)
 			"w:"
 #endif
 			"cfhiLrStTVba:A:D:e:F:l:n:o:p:s:u:x:X:";
@@ -679,11 +679,11 @@ process_options(int argc, char **argv)
 			       "There is NO WARRANTY, to the extent permitted by law.\n");
 			exit(0);
 			break;
-#if defined(HAVE_LIBUNWIND)
+#if defined(HAVE_UNWINDER)
 		case 'w':
 			options.bt_depth = parse_int(optarg, 'w', 1, 0);
 			break;
-#endif /* defined(HAVE_LIBUNWIND) */
+#endif /* defined(HAVE_UNWINDER) */
 
 		case 'x':
 			parse_filter_chain(optarg, &options.static_filter);

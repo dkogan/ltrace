@@ -195,7 +195,8 @@ This option is only useful when running as root and enables the
 correct execution of setuid and/or setgid binaries.
 .IP "\-w, \-\-where \fInr"
 Show backtrace of \fInr\fR stack frames for each traced function. This
-option enabled only if libunwind support was enabled at compile time.
+option enabled only if elfutils or libunwind support was enabled at compile
+time.
 .IP "\-x \fIfilter"
 A qualifying expression which modifies which symbol table entry points
 to trace.  The format of the filter expression is described in the

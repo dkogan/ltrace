@@ -28,6 +28,10 @@
 #include <sys/time.h>
 #include <stdint.h>
 
+#if defined(HAVE_LIBDW)
+# include <elfutils/libdwfl.h>
+#endif
+
 #if defined(HAVE_LIBUNWIND)
 # include <libunwind.h>
 # include <libunwind-ptrace.h>
@@ -113,6 +117,11 @@ struct process {
 	 * nauseam.  */
 	short e_machine;
 	char e_class;
+
+#if defined(HAVE_LIBDW)
+	/* Unwind info for leader, NULL for non-leader procs. */
+	Dwfl *dwfl;
+#endif /* defined(HAVE_LIBDW) */
 
 #if defined(HAVE_LIBUNWIND)
 	/* libunwind address space */
