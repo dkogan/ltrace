@@ -662,9 +662,12 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 		unw_init_remote(&cursor, proc->unwind_as, proc->unwind_priv);
 		while (unwind_depth) {
 
-			if (unw_get_reg(&cursor, UNW_REG_IP, (unw_word_t *) &ip)) {
-				fprintf(options.output, " > stacktrace_error\n");
-				continue;
+			own_retval = unw_get_reg(&cursor, UNW_REG_IP,
+					(unw_word_t *) &ip);
+			if (own_retval) {
+				fprintf(options.output, " > Error: %s\n",
+						unw_strerror(own_retval));
+				goto cont;
 			}
 
 			/* We are looking for the library with the base address
@@ -694,6 +697,7 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 				fprintf(options.output, " > %s(??\?) [%p]\n",
 					lib_name, ip);
 
+		cont:
 			if (unw_step(&cursor) <= 0)
 				break;
 			unwind_depth--;
