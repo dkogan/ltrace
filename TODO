@@ -186,5 +186,10 @@
    GDB supports python pretty printers.  We migh want to hook this in
    and use it to format certain types.
 
+** support new Linux kernel features
+   - PTRACE_SIEZE
+   - /proc/PID/map_files/* (but only root seems to be able to read
+     this as of now)
+
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())

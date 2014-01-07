@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1997,1998,1999,2001,2002,2003,2004,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Paul Gilliam, IBM Corporation
@@ -604,17 +604,17 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 	/* Fetch & enter into dictionary the retval first, so that
 	 * other values can use it in expressions.  */
 	struct value retval;
-	int own_retval = 0;
+	bool own_retval = false;
 	if (context != NULL) {
 		value_init(&retval, proc, NULL, func->return_info, 0);
-		own_retval = 1;
+		own_retval = true;
 		if (fetch_retval(context, type, proc, func->return_info,
 				 &retval) < 0)
 			value_set_type(&retval, NULL, 0);
 		else if (stel->arguments != NULL
-			   && val_dict_push_named(stel->arguments, &retval,
-						  "retval", 0) == 0)
-			own_retval = 0;
+			 && val_dict_push_named(stel->arguments, &retval,
+						"retval", 0) == 0)
+			own_retval = false;
 	}
 
 	if (stel->arguments != NULL)
@@ -662,11 +662,11 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 		unw_init_remote(&cursor, proc->unwind_as, proc->unwind_priv);
 		while (unwind_depth) {
 
-			own_retval = unw_get_reg(&cursor, UNW_REG_IP,
-					(unw_word_t *) &ip);
-			if (own_retval) {
+			int rc = unw_get_reg(&cursor, UNW_REG_IP,
+					     (unw_word_t *) &ip);
+			if (rc < 0) {
 				fprintf(options.output, " > Error: %s\n",
-						unw_strerror(own_retval));
+					unw_strerror(rc));
 				goto cont;
 			}
 
@@ -688,9 +688,10 @@ output_right(enum tof type, struct process *proc, struct library_symbol *libsym,
 				lib = lib->next;
 			}
 
-			own_retval = unw_get_proc_name(&cursor, fn_name, sizeof(fn_name),
-						(unw_word_t *) &function_offset);
-			if ((own_retval == 0) || (own_retval == -UNW_ENOMEM))
+			rc = unw_get_proc_name(&cursor, fn_name,
+					       sizeof(fn_name),
+					       (unw_word_t *) &function_offset);
+			if (rc == 0 || rc == -UNW_ENOMEM)
 				fprintf(options.output, " > %s(%s+%p) [%p]\n",
 					lib_name, fn_name, function_offset, ip);
 			else
