@@ -30,8 +30,9 @@ Ltrace needs this information to display function call arguments.
 
 Each line of a configuration file describes at most a single item.
 Lines composed entirely of white space are ignored, as are lines
-starting with semicolon character (comment lines).  Described items
-can be either function prototypes, or definitions of type aliases.
+starting with semicolon or hash characters (comment lines).  Described
+items can be either function prototypes, or definitions of type
+aliases.
 
 .SH PROTOTYPES
 
@@ -404,7 +405,7 @@ ltrace configuration line.
 .br
 .B struct\fR S1 func_struct\fB(int \fRa\fB, struct \fRS2\fB, double \fRd\fB);
 .RS
-.B struct(float,char,char)\fR func_struct_2\fB(int, struct(string(array(char, \fR6\fB)),float), double);
+.B struct(float,char,char)\fR func_struct\fB(int, struct(string(array(char, \fR6\fB)),float), double);
 .RE
 
 .SH AUTHOR
