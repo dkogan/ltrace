@@ -1390,6 +1390,7 @@ ifunc_ret_hit(struct breakpoint *bp, struct process *proc)
 
 	struct breakpoint *nbp = NULL;
 	int own_libsym = 0;
+	struct library_symbol *libsym = NULL;
 
 	struct value value;
 	value_init(&value, proc, NULL, type_get_voidptr(), 0);
@@ -1430,8 +1431,7 @@ ifunc_ret_hit(struct breakpoint *bp, struct process *proc)
 
 	/* Look if we already have a symbol with this address.
 	 * Otherwise create a new one.  */
-	struct library_symbol *libsym
-		= library_each_symbol(lib, NULL, libsym_at_address, &u.a);
+	libsym = library_each_symbol(lib, NULL, libsym_at_address, &u.a);
 	if (libsym == NULL) {
 		libsym = malloc(sizeof *libsym);
 		char *name = strdup(bp->os.ret_libsym->name);
