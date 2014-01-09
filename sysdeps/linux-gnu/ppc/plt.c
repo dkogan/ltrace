@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Paul Gilliam
  *
@@ -1157,6 +1157,18 @@ int
 arch_process_clone(struct process *retp, struct process *proc)
 {
 	retp->arch = proc->arch;
+
+	if (retp->arch.dl_plt_update_bp != NULL) {
+		/* Point it to the corresponding breakpoint in RETP.
+		 * It must be there, this part of PROC has already
+		 * been cloned to RETP.  */
+		retp->arch.dl_plt_update_bp
+			= address2bpstruct(retp,
+					   retp->arch.dl_plt_update_bp->addr);
+
+		assert(retp->arch.dl_plt_update_bp != NULL);
+	}
+
 	return 0;
 }
 
