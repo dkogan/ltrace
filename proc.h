@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2010,2011,2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2010,2011,2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1998,2001,2008,2009 Juan Cespedes
  *
@@ -226,11 +226,12 @@ void proc_remove_breakpoint(struct process *proc, struct breakpoint *bp);
 
 /* Iterate through the breakpoints of PROC.  See callback.h for notes
  * on iteration interfaces.  */
-void *proc_each_breakpoint(struct process *proc, void *start,
-			   enum callback_status (*cb)(struct process *proc,
-						      struct breakpoint *bp,
-						      void *data),
-			   void *data);
+arch_addr_t *proc_each_breakpoint(struct process *proc, arch_addr_t *start,
+				  enum callback_status (*cb)
+					(struct process *proc,
+					 struct breakpoint *bp,
+					 void *data),
+				  void *data);
 
 /* Iterate through the dynamic section at src_addr looking for D_TAG.
  * If tag is found, fill it's value in RET and return 0.

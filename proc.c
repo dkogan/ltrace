@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1998,2009 Juan Cespedes
  *
@@ -1000,8 +1000,8 @@ each_breakpoint_cb(arch_addr_t *key, struct breakpoint **bpp, void *d)
 	return data->cb(data->proc, *bpp, data->cb_data);
 }
 
-void *
-proc_each_breakpoint(struct process *proc, void *start,
+arch_addr_t *
+proc_each_breakpoint(struct process *proc, arch_addr_t *start,
 		     enum callback_status (*cb)(struct process *proc,
 						struct breakpoint *bp,
 						void *data), void *data)
