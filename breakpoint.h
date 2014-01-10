@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -46,6 +46,7 @@
 struct bp_callbacks {
 	void (*on_hit)(struct breakpoint *bp, struct process *proc);
 	void (*on_continue)(struct breakpoint *bp, struct process *proc);
+	void (*on_install)(struct breakpoint *bp, struct process *proc);
 	void (*on_retract)(struct breakpoint *bp, struct process *proc);
 
 	/* Create a new breakpoint that should handle return from the
@@ -83,6 +84,12 @@ void breakpoint_on_continue(struct breakpoint *bp, struct process *proc);
  * (a breakpoint has to be disabled every time that we need to execute
  * the instruction underneath it).  */
 void breakpoint_on_retract(struct breakpoint *bp, struct process *proc);
+
+/* Call ON_INSTALL handler of BP, if any is set.  This should be
+ * called after the breakpoint is enabled for the first time, not
+ * every time it's enabled (such as after stepping over a site of a
+ * temporarily disabled breakpoint).  */
+void breakpoint_on_install(struct breakpoint *bp, struct process *proc);
 
 /* Call GET_RETURN_BP handler of BP, if any is set.  If none is set,
  * call CREATE_DEFAULT_RETURN_BP to obtain one.  */

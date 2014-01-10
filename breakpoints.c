@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2006,2007,2011,2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2006,2007,2011,2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009 Juan Cespedes
  * Copyright (C) 1998,2001,2002,2003,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -83,6 +83,14 @@ breakpoint_on_retract(struct breakpoint *bp, struct process *proc)
 	assert(bp != NULL);
 	if (bp->cbs != NULL && bp->cbs->on_retract != NULL)
 		(bp->cbs->on_retract)(bp, proc);
+}
+
+void
+breakpoint_on_install(struct breakpoint *bp, struct process *proc)
+{
+	assert(bp != NULL);
+	if (bp->cbs != NULL && bp->cbs->on_install != NULL)
+		(bp->cbs->on_install)(bp, proc);
 }
 
 int
@@ -229,6 +237,7 @@ breakpoint_turn_on(struct breakpoint *bp, struct process *proc)
 	if (bp->enabled == 1) {
 		assert(proc->pid != 0);
 		enable_breakpoint(proc, bp);
+		breakpoint_on_install(bp, proc);
 	}
 	return 0;
 }
