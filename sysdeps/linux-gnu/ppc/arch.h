@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012,2013 Petr Machata
+ * Copyright (C) 2012,2013,2014 Petr Machata
  * Copyright (C) 2006 Paul Gilliam
  * Copyright (C) 2002,2004 Juan Cespedes
  *
@@ -87,12 +87,29 @@ enum ppc64_plt_type {
 	/* Very similar to PPC_PLT_UNRESOLVED, but for JMP_IREL
 	 * slots.  */
 	PPC_PLT_IRELATIVE,
+
+	/* Transitional state before the breakpoint is enabled.  */
+	PPC_PLT_NEED_UNRESOLVE,
 };
 
 #define ARCH_HAVE_LIBRARY_SYMBOL_DATA
+struct ppc_unresolve_data;
 struct arch_library_symbol_data {
 	enum ppc64_plt_type type;
-	GElf_Addr resolved_value;
+
+	/* State		Contents
+	 *
+	 * PPC_DEFAULT		N/A
+	 * PPC64_PLT_STUB	N/A
+	 * PPC_PLT_UNRESOLVED	PLT entry address.
+	 * PPC_PLT_IRELATIVE	Likewise.
+	 * PPC_PLT_RESOLVED	The original value the slot was resolved to.
+	 * PPC_PLT_NEED_UNRESOLVE	DATA.
+	 */
+	union {
+		GElf_Addr resolved_value;
+		struct ppc_unresolve_data *data;
+	};
 
 	/* Address of corresponding slot in .plt.  */
 	GElf_Addr plt_slot_addr;

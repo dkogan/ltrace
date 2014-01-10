@@ -679,6 +679,14 @@ arch_elf_add_func_entry(struct process *proc, struct ltelf *lte,
 	return PLT_OK;
 }
 
+struct ppc_unresolve_data {
+	struct ppc_unresolve_data *self; /* A canary.  */
+	GElf_Addr plt_entry_addr;
+	GElf_Addr plt_slot_addr;
+	GElf_Addr plt_slot_value;
+	bool is_irelative;
+};
+
 enum plt_status
 arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		       const char *a_name, GElf_Rela *rela, size_t ndx,
@@ -778,28 +786,23 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	    && (plt_slot_value == plt_entry_addr || plt_slot_value == 0)) {
 		libsym->arch.type = PPC_PLT_UNRESOLVED;
 		libsym->arch.resolved_value = plt_entry_addr;
-
 	} else {
-		/* Unresolve the .plt slot.  If the binary was
-		 * prelinked, this makes the code invalid, because in
-		 * case of prelinked binary, the dynamic linker
-		 * doesn't update .plt[0] and .plt[1] with addresses
-		 * of the resover.  But we don't care, we will never
-		 * need to enter the resolver.  That just means that
-		 * we have to un-un-resolve this back before we
-		 * detach.  */
+		/* Mark the symbol for later unresolving.  We may not
+		 * do this right away, as this is called by ltrace
+		 * core for all symbols, and only later filtered.  We
+		 * only unresolve the symbol before the breakpoint is
+		 * enabled.  */
 
-		if (unresolve_plt_slot(proc, plt_slot_addr, plt_entry_addr) < 0) {
-			library_symbol_destroy(libsym);
+		libsym->arch.type = PPC_PLT_NEED_UNRESOLVE;
+		libsym->arch.data = malloc(sizeof *libsym->arch.data);
+		if (libsym->arch.data == NULL)
 			goto fail2;
-		}
 
-		if (! is_irelative) {
-			mark_as_resolved(libsym, plt_slot_value);
-		} else {
-			libsym->arch.type = PPC_PLT_IRELATIVE;
-			libsym->arch.resolved_value = plt_entry_addr;
-		}
+		libsym->arch.data->self = libsym->arch.data;
+		libsym->arch.data->plt_entry_addr = plt_entry_addr;
+		libsym->arch.data->plt_slot_addr = plt_slot_addr;
+		libsym->arch.data->plt_slot_value = plt_slot_value;
+		libsym->arch.data->is_irelative = is_irelative;
 	}
 
 	*ret = libsym;
@@ -999,6 +1002,7 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct process *proc)
 		return;
 
 	case PPC64_PLT_STUB:
+	case PPC_PLT_NEED_UNRESOLVE:
 		/* These should never hit here.  */
 		break;
 	}
@@ -1050,6 +1054,52 @@ ppc_plt_bp_retract(struct breakpoint *bp, struct process *proc)
 	}
 }
 
+static void
+ppc_plt_bp_install(struct breakpoint *bp, struct process *proc)
+{
+	/* This should not be an artificial breakpoint.  */
+	struct library_symbol *libsym = bp->libsym;
+	if (libsym == NULL)
+		libsym = bp->arch.irel_libsym;
+	assert(libsym != NULL);
+
+	if (libsym->arch.type == PPC_PLT_NEED_UNRESOLVE) {
+		/* Unresolve the .plt slot.  If the binary was
+		 * prelinked, this makes the code invalid, because in
+		 * case of prelinked binary, the dynamic linker
+		 * doesn't update .plt[0] and .plt[1] with addresses
+		 * of the resover.  But we don't care, we will never
+		 * need to enter the resolver.  That just means that
+		 * we have to un-un-resolve this back before we
+		 * detach.  */
+
+		struct ppc_unresolve_data *data = libsym->arch.data;
+		libsym->arch.data = NULL;
+		assert(data->self == data);
+
+		GElf_Addr plt_slot_addr = data->plt_slot_addr;
+		GElf_Addr plt_slot_value = data->plt_slot_value;
+		GElf_Addr plt_entry_addr = data->plt_entry_addr;
+
+		if (unresolve_plt_slot(proc, plt_slot_addr,
+				       plt_entry_addr) == 0) {
+			if (! data->is_irelative) {
+				mark_as_resolved(libsym, plt_slot_value);
+			} else {
+				libsym->arch.type = PPC_PLT_IRELATIVE;
+				libsym->arch.resolved_value = plt_entry_addr;
+			}
+		} else {
+			fprintf(stderr, "Couldn't unresolve %s@%p.  Not tracing"
+				" this symbol.\n",
+				breakpoint_name(bp), bp->addr);
+			proc_remove_breakpoint(proc, bp);
+		}
+
+		free(data);
+	}
+}
+
 int
 arch_library_init(struct library *lib)
 {
@@ -1080,6 +1130,11 @@ arch_library_symbol_init(struct library_symbol *libsym)
 void
 arch_library_symbol_destroy(struct library_symbol *libsym)
 {
+	if (libsym->arch.type == PPC_PLT_NEED_UNRESOLVE) {
+		assert(libsym->arch.data->self == libsym->arch.data);
+		free(libsym->arch.data);
+		libsym->arch.data = NULL;
+	}
 }
 
 int
@@ -1115,6 +1170,7 @@ arch_breakpoint_init(struct process *proc, struct breakpoint *bp)
 	static struct bp_callbacks cbs = {
 		.on_continue = ppc_plt_bp_continue,
 		.on_retract = ppc_plt_bp_retract,
+		.on_install = ppc_plt_bp_install,
 	};
 	breakpoint_set_callbacks(bp, &cbs);
 
