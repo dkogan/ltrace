@@ -150,7 +150,6 @@ int delete_breakpoint(struct process *proc, struct breakpoint *bp);
 
 /* XXX some of the following belongs to proc.h/proc.c.  */
 struct breakpoint *address2bpstruct(struct process *proc, void *addr);
-void enable_all_breakpoints(struct process *proc);
 void disable_all_breakpoints(struct process *proc);
 int breakpoints_init(struct process *proc);
 

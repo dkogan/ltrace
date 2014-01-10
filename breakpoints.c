@@ -372,27 +372,6 @@ breakpoint_library(const struct breakpoint *bp)
 }
 
 static enum callback_status
-enable_bp_cb(arch_addr_t *addr, struct breakpoint **bpp, void *data)
-{
-	struct process *proc = data;
-	debug(DEBUG_FUNCTION, "enable_bp_cb(pid=%d)", proc->pid);
-	if ((*bpp)->enabled)
-		enable_breakpoint(proc, *bpp);
-	return CBS_CONT;
-}
-
-void
-enable_all_breakpoints(struct process *proc)
-{
-	debug(DEBUG_FUNCTION, "enable_all_breakpoints(pid=%d)", proc->pid);
-
-	debug(1, "Enabling breakpoints for pid %u...", proc->pid);
-	if (proc->breakpoints != NULL)
-		DICT_EACH(proc->breakpoints, arch_addr_t, struct breakpoint *,
-			  NULL, enable_bp_cb, proc);
-}
-
-static enum callback_status
 disable_bp_cb(arch_addr_t *addr, struct breakpoint **bpp, void *data)
 {
 	struct process *proc = data;
