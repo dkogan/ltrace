@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2007,2011,2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2007,2011,2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Joe Damato
  * Copyright (C) 1998,2002,2003,2004,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -1194,7 +1194,7 @@ os_ltrace_exiting_sighandler(void)
 }
 
 size_t
-umovebytes(struct process *proc, void *addr, void *laddr, size_t len)
+umovebytes(struct process *proc, arch_addr_t addr, void *buf, size_t len)
 {
 
 	union {
@@ -1215,11 +1215,11 @@ umovebytes(struct process *proc, void *addr, void *laddr, size_t len)
 		started = 1;
 
 		if (len - offset >= sizeof(long)) {
-			memcpy(laddr + offset, &a.c[0], sizeof(long));
+			memcpy(buf + offset, &a.c[0], sizeof(long));
 			bytes_read += sizeof(long);
 		}
 		else {
-			memcpy(laddr + offset, &a.c[0], len - offset);
+			memcpy(buf + offset, &a.c[0], len - offset);
 			bytes_read += (len - offset);
 		}
 		offset += sizeof(long);

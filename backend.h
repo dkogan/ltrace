@@ -171,7 +171,8 @@ void os_ltrace_exiting(void);
 
 /* Should copy COUNT bytes from address ADDR of process PROC to local
  * buffer BUF.  */
-size_t umovebytes(struct process *proc, void *addr, void *buf, size_t count);
+size_t umovebytes(struct process *proc, arch_addr_t addr,
+		  void *buf, size_t count);
 
 /* Find out an address of symbol SYM in process PROC, and return.
  * Returning NULL delays breakpoint insertion and enables heaps of
