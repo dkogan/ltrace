@@ -1,5 +1,5 @@
 .\" -*-nroff-*-
-.\" Copyright (c) 2012, 2013 Petr Machata, Red Hat Inc.
+.\" Copyright (c) 2012, 2013, 2014 Petr Machata, Red Hat Inc.
 .\" Copyright (c) 1997-2005 Juan Cespedes <cespedes@debian.org>
 .\"
 .\" This program is free software; you can redistribute it and/or
@@ -118,9 +118,9 @@ Besides removing any initial underscore prefix used by the system,
 this makes C++ function names readable.
 .IP "\-D, \-\-debug \fRmask\fI"
 Show debugging output of \fBltrace\fR itself.  \fImask\fR is a number
-with internal meaning that's not really well defined at all.
-\fImask\fR of 77 shows all debug messages, which is what you usually
-need.
+describing which debug messages should be displayed.  Use the option
+\-Dh to see what can be used, but note that currently the only
+reliable debugmask is 77, which shows all debug messages.
 .IP "\-e \fIfilter"
 A qualifying expression which modifies which library calls to trace.
 The format of the filter expression is described in the section
@@ -156,7 +156,8 @@ dependency ordering.  If you want to make sure that symbols in given
 library are actually called, use \fB-x @\fIlibrary_pattern\fR instead.
 .IP \-L
 When no \-e option is given, don't assume the default action of
-\fB@MAIN\fR.
+\fB@MAIN\fR.  In practice this means that library calls will not be
+traced.
 .IP "\-n, \-\-indent \fInr"
 Indent trace output by \fInr\fR spaces for each level of call
 nesting. Using this option makes the program flow visualization easy

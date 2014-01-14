@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013, 2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009,2010 Joe Damato
  * Copyright (C) 1998,1999,2002,2003,2004,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -128,6 +128,8 @@ usage_debug(void) {
 			"\n"
 			"Debugging options are mixed using bitwise-or.\n"
 			"Note that the meanings and values are subject to change.\n"
+			"Also note that these values are used inconsistently in ltrace, and the\n"
+			"only debuglevel that you can rely on is -D77 that will show everything.\n"
 		   );
 }
 
