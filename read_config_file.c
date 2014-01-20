@@ -21,10 +21,7 @@
  * 02110-1301 USA
  */
 
-/* getline is POSIX.1-2008.  It was originally a GNU extension, and
- * chances are uClibc still needs _GNU_SOURCE, but for now try it this
- * way.  */
-#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 
 #include "config.h"
 
