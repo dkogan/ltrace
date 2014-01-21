@@ -1,5 +1,6 @@
 /*
  * This file is part of ltrace.
+ * Copyright (C) 2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2010 Arnaud Patard, Mandriva SA
  * Copyright (C) 2006 Eric Vaitl, Cisco Systems, Inc.
  *
@@ -26,6 +27,7 @@
 #define off_pc 64
 #define off_a0 4
 #define off_a3 7
+#define off_t9 25
 #define off_lr 31
 #define off_fpr0 32
 #define off_sp 29

@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2013 Petr Machata
+ * Copyright (C) 2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2006 Eric Vaitl
  *
  * This program is free software; you can redistribute it and/or
@@ -49,7 +49,6 @@ struct arch_ltelf_data {
 };
 
 #define ARCH_HAVE_FIND_DL_DEBUG
-#define ARCH_HAVE_GET_SYMINFO
 #define ARCH_HAVE_DYNLINK_DONE
 #define ARCH_HAVE_ADD_PLT_ENTRY
 #define ARCH_HAVE_SW_SINGLESTEP
@@ -58,19 +57,44 @@ struct arch_ltelf_data {
 #define ARCH_HAVE_LIBRARY_SYMBOL_DATA
 enum mips_plt_type
 {
+	/* A symbol has associated PLT entry.  */
+	MIPS_PLT_DEFAULT,
+
+	/* The GOT entry contains unresolved value.  RESOLVED_ADDR
+	 * then contains stub address.  */
 	MIPS_PLT_UNRESOLVED,
+
+	/* The GOT entry contained resolved value, and was unresolved.
+	 * The original value was saved to RESOLVED_ADDR.  */
 	MIPS_PLT_RESOLVED,
+
+	/* Symbol needs to be unresolved after it's enabled.
+	 * RESOLVED_ADDR is undefined, instead DATA is carried.  */
+	MIPS_PLT_NEED_UNRESOLVE,
 };
 
+struct mips_unresolve_data;
 struct arch_library_symbol_data {
 	enum mips_plt_type type;
-	GElf_Addr resolved_addr;
-	GElf_Addr stub_addr;
+	union {
+		GElf_Addr resolved_value;
+		struct mips_unresolve_data *data;
+	};
+	GElf_Addr got_entry_addr;
+};
 
-	/* Set for FUNCs that have GOT entries but not PLT entries.  */
-	int gotonly : 1;
-	/* Set for FUNCs that have PLT entries that are always used.  */
-	int pltalways : 1;
+#define ARCH_HAVE_BREAKPOINT_DATA
+struct arch_breakpoint_data {
+};
+
+#define ARCH_HAVE_PROCESS_DATA
+struct arch_process_data {
+	/* Breakpoint that hits when the dynamic linker is about to
+	 * update a GOT entry.  NULL before that address is known.  */
+	struct breakpoint *dl_got_update_bp;
+
+	/* PLT update breakpoint looks here for the handler.  */
+	struct process_stopping_handler *handler;
 };
 
 #endif /* LTRACE_MIPS_ARCH_H */
