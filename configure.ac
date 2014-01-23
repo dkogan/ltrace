@@ -1,6 +1,6 @@
 # -*- Autoconf -*-
 # This file is part of ltrace.
-# Copyright (C) 2010,2012,2013 Petr Machata, Red Hat Inc.
+# Copyright (C) 2010,2012,2013,2014 Petr Machata, Red Hat Inc.
 # Copyright (C) 2010,2011 Joe Damato
 # Copyright (C) 2010 Marc Kleine-Budde
 # Copyright (C) 2010 Zachary T Welch
@@ -399,6 +399,7 @@ AC_CONFIG_FILES([
 	Makefile
 	sysdeps/Makefile
 	sysdeps/linux-gnu/Makefile
+	sysdeps/linux-gnu/aarch64/Makefile
 	sysdeps/linux-gnu/alpha/Makefile
 	sysdeps/linux-gnu/arm/Makefile
 	sysdeps/linux-gnu/cris/Makefile

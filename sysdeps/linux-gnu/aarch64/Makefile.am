@@ -1,6 +1,5 @@
 # This file is part of ltrace.
 # Copyright (C) 2014 Petr Machata, Red Hat, Inc.
-# Copyright (C) 2010,2012 Marc Kleine-Budde, Pengutronix
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -17,28 +16,10 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-DIST_SUBDIRS = aarch64 alpha arm cris ia64 m68k metag mips ppc s390	\
-	       sparc x86
+noinst_LTLIBRARIES = ../libcpu.la
 
-SUBDIRS = \
-	$(HOST_CPU)
+___libcpu_la_SOURCES = fetch.c plt.c regs.c trace.c
 
-noinst_LTLIBRARIES = \
-	../libos.la
+noinst_HEADERS = arch.h ptrace.h signalent.h syscallent.h
 
-___libos_la_SOURCES = events.c trace.c proc.c breakpoint.c hooks.c
-
-___libos_la_LIBADD = \
-	libcpu.la
-
-noinst_HEADERS = arch_syscallent.h signalent1.h syscallent1.h trace.h	\
-	trace-defs.h events.h os.h
-
-EXTRA_DIST = \
-	arch_mksyscallent \
-	mksignalent \
-	mksyscallent \
-	mksyscallent_s390
-
-MAINTAINERCLEANFILES = \
-	Makefile.in
+MAINTAINERCLEANFILES = Makefile.in
