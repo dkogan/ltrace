@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2013 Petr Machata, Red Hat Inc.
+# Copyright (C) 2013, 2014 Petr Machata, Red Hat Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -17,11 +17,25 @@
 # 02110-1301 USA
 
 set bin [ltraceCompile {} [ltraceSource c {
+    #define _GNU_SOURCE
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>
+    #include <unistd.h>
+    #include <sys/syscall.h>   /* For SYS_xxx definitions */
+
+    #ifndef SYS_open
+    # if defined(__aarch64__)
+    #  /* Linux doesn't actually implement SYS_open on AArch64, but for merely
+    #   * recording the syscall, it's fine.  */
+    #  define SYS_open 1024
+    # else
+    #  error SYS_open not available.
+    # endif
+    #endif
+
     int main(void) {
-	open("/some/path", O_RDONLY);
+	syscall(SYS_open, "/some/path", O_RDONLY);
 	write(1, "something", 10);
 	mount("source", "target", "filesystemtype", 0, 0);
     }
