@@ -30,7 +30,10 @@
 
 ** Architectural support
    - MIPS and MIPSel are now handled by the same backend.
-   - ARMv6 and ARMv7 are supported, including full fetch backend.
+   - ARMv6, ARMv7 and ARMv8 (AArch64) are supported, including full
+     fetch backend.  ARMv8 backend doesn't support tracing of 32-bit
+     binaries, as currently there's no 32-bit userspace available for
+     ARM64 processors.
    - Imagination Technologies Meta is now supported.
 
    - On Linux, tracing of IFUNC symbols is supported.  On i386,
@@ -342,7 +345,7 @@
 
 * License
 -------------------------------------------------------------------------------
-Copyright (C) 2012,2013 Petr Machata <pmachata@redhat.com>
+Copyright (C) 2012-2014 Petr Machata <pmachata@redhat.com>
 This file is part of ltrace.
 
 ltrace is free software; you can redistribute it and/or modify it
