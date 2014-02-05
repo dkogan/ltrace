@@ -139,12 +139,6 @@ ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 set pattern "func_charp_string(\\\"null-terminated string\\\")"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
-set pattern "func_dbl_eqv({ 2.500* }, { { 1.50* } }, { { { 0.50* } } }, { { { { -0.50* } } } }).*= { 4.00* }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_flt_eqv({ 2.500* }, { { 1.50* } }, { { { 0.50* } } }, { { { { -0.50* } } } }).*= { 4.00* }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
 set pattern "func_struct_empty({ *}).*= { *}"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
@@ -158,70 +152,4 @@ set pattern "func_struct_size4({ 5 }).*= { 5 }"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 
 set pattern "func_struct_size8({ 5, 6 }).*= { 5, 6 }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f2({ 1.000*, { 2.000* } }).*= { 1.000*, { 2.000* } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f3({ 3.000*, { 1.000*, { 2.000* } } }).*= { 3.000*, { 1.000*, { 2.000* } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f4({ 4.000*, { 3.000*, { 1.000*, { 2.000* } } } }).*= { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f5({ 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } }).*= { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f6({ 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } }).*= { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f7({ 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } }).*= { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f8({ 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } }).*= { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f9({ 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } }).*= { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f10({ 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } }).*= { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f11({ 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } }).*= { 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_f12({ 12.000*, { 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } } }).*= { 12.000*, { 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d2({ 1.000*, { 2.000* } }).*= { 1.000*, { 2.000* } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d3({ 3.000*, { 1.000*, { 2.000* } } }).*= { 3.000*, { 1.000*, { 2.000* } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d4({ 4.000*, { 3.000*, { 1.000*, { 2.000* } } } }).*= { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d5({ 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } }).*= { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d6({ 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } }).*= { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d7({ 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } }).*= { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d8({ 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } }).*= { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d9({ 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } }).*= { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d10({ 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } }).*= { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d11({ 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } }).*= { 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } }"
-ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-
-set pattern "func_hfa_d12({ 12.000*, { 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } } }).*= { 12.000*, { 11.000*, { 10.000*, { 9.000*, { 8.000*, { 7.000*, { 6.000*, { 5.000*, { 4.000*, { 3.000*, { 1.000*, { 2.000* } } } } } } } } } } } }"
 ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1

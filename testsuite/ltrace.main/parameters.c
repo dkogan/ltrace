@@ -232,30 +232,6 @@ main ()
   void func_charp_string(char *p);
   func_charp_string("null-terminated string");
 
-  struct dbl_eqv1 { double d; };
-  struct dbl_eqv2 { struct dbl_eqv1 d; };
-  struct dbl_eqv3 { struct dbl_eqv2 d; };
-  struct dbl_eqv4 { struct dbl_eqv3 d; };
-
-  struct flt_eqv1 { float d; };
-  struct flt_eqv2 { struct flt_eqv1 d; };
-  struct flt_eqv3 { struct flt_eqv2 d; };
-  struct flt_eqv4 { struct flt_eqv3 d; };
-
-  struct dbl_eqv1 func_dbl_eqv(struct dbl_eqv1 a, struct dbl_eqv2 b,
-			       struct dbl_eqv3 c, struct dbl_eqv4 d);
-  func_dbl_eqv((struct dbl_eqv1){ 2.5 },
-	       (struct dbl_eqv2){ { 1.5 } },
-	       (struct dbl_eqv3){ { { 0.5 } } },
-	       (struct dbl_eqv4){ { { { -0.5 } } } });
-
-  struct flt_eqv1 func_flt_eqv(struct flt_eqv1 a, struct flt_eqv2 b,
-			       struct flt_eqv3 c, struct flt_eqv4 d);
-  func_flt_eqv((struct flt_eqv1){ 2.5 },
-	       (struct flt_eqv2){ { 1.5 } },
-	       (struct flt_eqv3){ { { 0.5 } } },
-	       (struct flt_eqv4){ { { { -0.5 } } } });
-
   struct struct_empty {};
   struct struct_empty func_struct_empty(struct struct_empty e);
   func_struct_empty((struct struct_empty) {});
@@ -275,97 +251,6 @@ main ()
   struct struct_size8 { int a; int b; };
   struct struct_size8 func_struct_size8(struct struct_size8 e);
   func_struct_size8((struct struct_size8){ 5, 6 });
-
-  /* Test Itanium Homogeneous Floating-point Aggregates.   */
-
-  struct struct_hfa_f2 { float a; struct flt_eqv1 b; };
-  struct struct_hfa_f2 func_hfa_f2(struct struct_hfa_f2 e);
-  func_hfa_f2((struct struct_hfa_f2){ 1, { 2 } });
-
-  struct struct_hfa_f3 { float a; struct struct_hfa_f2 b; };
-  struct struct_hfa_f3 func_hfa_f3(struct struct_hfa_f3 e);
-  func_hfa_f3((struct struct_hfa_f3){ 3, { 1, { 2 } } });
-
-  struct struct_hfa_f4 { float a; struct struct_hfa_f3 b; };
-  struct struct_hfa_f4 func_hfa_f4(struct struct_hfa_f4 e);
-  func_hfa_f4((struct struct_hfa_f4){ 4, { 3, { 1, { 2 } } } });
-
-  struct struct_hfa_f5 { float a; struct struct_hfa_f4 b; };
-  struct struct_hfa_f5 func_hfa_f5(struct struct_hfa_f5 e);
-  func_hfa_f5((struct struct_hfa_f5){ 5, { 4, { 3, { 1, { 2 } } } } });
-
-  struct struct_hfa_f6 { float a; struct struct_hfa_f5 b; };
-  struct struct_hfa_f6 func_hfa_f6(struct struct_hfa_f6 e);
-  func_hfa_f6((struct struct_hfa_f6){ 6, { 5, { 4, { 3, { 1, { 2 } } } } } });
-
-  struct struct_hfa_f7 { float a; struct struct_hfa_f6 b; };
-  struct struct_hfa_f7 func_hfa_f7(struct struct_hfa_f7 e);
-  func_hfa_f7((struct struct_hfa_f7){ 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } });
-
-  struct struct_hfa_f8 { float a; struct struct_hfa_f7 b; };
-  struct struct_hfa_f8 func_hfa_f8(struct struct_hfa_f8 e);
-  func_hfa_f8((struct struct_hfa_f8){ 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } });
-
-  struct struct_hfa_f9 { float a; struct struct_hfa_f8 b; };
-  struct struct_hfa_f9 func_hfa_f9(struct struct_hfa_f9 e);
-  func_hfa_f9((struct struct_hfa_f9){ 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } });
-
-  struct struct_hfa_f10 { float a; struct struct_hfa_f9 b; };
-  struct struct_hfa_f10 func_hfa_f10(struct struct_hfa_f10 e);
-  func_hfa_f10((struct struct_hfa_f10){ 10, { 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } } });
-
-  struct struct_hfa_f11 { float a; struct struct_hfa_f10 b; };
-  struct struct_hfa_f11 func_hfa_f11(struct struct_hfa_f11 e);
-  func_hfa_f11((struct struct_hfa_f11){ 11, { 10, { 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } } } });
-
-  struct struct_hfa_f12 { float a; struct struct_hfa_f11 b; };
-  struct struct_hfa_f12 func_hfa_f12(struct struct_hfa_f12 e);
-  func_hfa_f12((struct struct_hfa_f12){ 12, { 11, { 10, { 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } } } } });
-
-
-  struct struct_hfa_d2 { double a; struct dbl_eqv1 b; };
-  struct struct_hfa_d2 func_hfa_d2(struct struct_hfa_d2 e);
-  func_hfa_d2((struct struct_hfa_d2){ 1, { 2 } });
-
-  struct struct_hfa_d3 { double a; struct struct_hfa_d2 b; };
-  struct struct_hfa_d3 func_hfa_d3(struct struct_hfa_d3 e);
-  func_hfa_d3((struct struct_hfa_d3){ 3, { 1, { 2 } } });
-
-  struct struct_hfa_d4 { double a; struct struct_hfa_d3 b; };
-  struct struct_hfa_d4 func_hfa_d4(struct struct_hfa_d4 e);
-  func_hfa_d4((struct struct_hfa_d4){ 4, { 3, { 1, { 2 } } } });
-
-  struct struct_hfa_d5 { double a; struct struct_hfa_d4 b; };
-  struct struct_hfa_d5 func_hfa_d5(struct struct_hfa_d5 e);
-  func_hfa_d5((struct struct_hfa_d5){ 5, { 4, { 3, { 1, { 2 } } } } });
-
-  struct struct_hfa_d6 { double a; struct struct_hfa_d5 b; };
-  struct struct_hfa_d6 func_hfa_d6(struct struct_hfa_d6 e);
-  func_hfa_d6((struct struct_hfa_d6){ 6, { 5, { 4, { 3, { 1, { 2 } } } } } });
-
-  struct struct_hfa_d7 { double a; struct struct_hfa_d6 b; };
-  struct struct_hfa_d7 func_hfa_d7(struct struct_hfa_d7 e);
-  func_hfa_d7((struct struct_hfa_d7){ 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } });
-
-  struct struct_hfa_d8 { double a; struct struct_hfa_d7 b; };
-  struct struct_hfa_d8 func_hfa_d8(struct struct_hfa_d8 e);
-  func_hfa_d8((struct struct_hfa_d8){ 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } });
-
-  struct struct_hfa_d9 { double a; struct struct_hfa_d8 b; };
-  struct struct_hfa_d9 func_hfa_d9(struct struct_hfa_d9 e);
-  func_hfa_d9((struct struct_hfa_d9){ 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } });
-
-  struct struct_hfa_d10 { double a; struct struct_hfa_d9 b; };
-  struct struct_hfa_d10 func_hfa_d10(struct struct_hfa_d10 e);
-  func_hfa_d10((struct struct_hfa_d10){ 10, { 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } } });
-
-  struct struct_hfa_d11 { double a; struct struct_hfa_d10 b; };
-  struct struct_hfa_d11 func_hfa_d11(struct struct_hfa_d11 e);
-  func_hfa_d11((struct struct_hfa_d11){ 11, { 10, { 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } } } });
-
-  struct struct_hfa_d12 { double a; struct struct_hfa_d11 b; };
-  struct struct_hfa_d12 func_hfa_d12(struct struct_hfa_d12 e);
-  func_hfa_d12((struct struct_hfa_d12){ 12, { 11, { 10, { 9, { 8, { 7, { 6, { 5, { 4, { 3, { 1, { 2 } } } } } } } } } } } });
 
   return 0;
 }
