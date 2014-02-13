@@ -224,9 +224,11 @@ process_init(struct process *proc, const char *filename, pid_t pid)
 		goto fail;
 	}
 
-	if (proc->leader != proc)
-		return 0;
-	if (process_init_main(proc) < 0) {
+	if (proc->leader != proc) {
+		proc->e_machine = proc->leader->e_machine;
+		proc->e_class = proc->leader->e_class;
+		get_arch_dep(proc);
+	} else if (process_init_main(proc) < 0) {
 		process_bare_destroy(proc, 0);
 		goto fail;
 	}
