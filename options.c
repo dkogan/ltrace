@@ -559,7 +559,7 @@ process_options(int argc, char **argv)
 #if defined(HAVE_UNWINDER)
 			"w:"
 #endif
-			"cfhiLrStTVba:A:D:e:F:l:n:o:p:s:u:x:X:";
+			"cfhiLrStTVba:A:D:e:F:l:n:o:p:s:u:x:";
 
 #ifdef HAVE_GETOPT_LONG
 		c = getopt_long(argc, argv, opts, long_options, &option_index);

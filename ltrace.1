@@ -39,7 +39,7 @@ ltrace \- A library call tracer
 .\"
 .\" Output formatting:
 .\"
-[\-F \fIpathlist\fR]
+[[\-F|\-\-config] \fIpathlist\fR]
 [\-A \fImaxelts\fR] [\-s \fIstrsize\fR] [\-C|\-\-demangle]
 [\-a|\-\-align \fIcolumn\fR] [\-n|\-\-indent \fInr\fR]
 [\-o|\-\-output \fIfilename\fR]
@@ -132,7 +132,7 @@ Trace child processes as they are created by
 currently traced processes as a result of the fork(2)
 or clone(2) system calls.
 The new process is attached immediately.
-.IP "\-F \fIpathlist"
+.IP "\-F, \-\-config \fIpathlist"
 Contains a colon-separated list of paths.  If a path refers to a
 directory, that directory is considered when prototype libraries are
 searched (see the section \fBPROTOTYPE LIBRARY DISCOVERY\fR).  If it refers to
