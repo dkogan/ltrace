@@ -22,6 +22,7 @@
 #include <asm/ptrace.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "fetch.h"
 #include "proc.h"
