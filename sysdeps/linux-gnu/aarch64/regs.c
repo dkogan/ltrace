@@ -23,6 +23,7 @@
 #include <linux/uio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "backend.h"
 #include "proc.h"

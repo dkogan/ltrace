@@ -23,6 +23,7 @@
 #include <sys/wait.h>
 #include <asm/ptrace.h>
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
 
 #include "backend.h"
