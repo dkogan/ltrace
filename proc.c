@@ -36,6 +36,8 @@
 #include "options.h"
 #include "proc.h"
 #include "value_dict.h"
+#include "dwarf_prototypes.h"
+#include "filter.h"
 
 #ifndef OS_HAVE_PROCESS_DATA
 int
@@ -892,39 +894,41 @@ proc_add_library(struct process *proc, struct library *lib)
 	      lib->soname, lib->base, lib->pathname, proc->pid);
 
 #if defined(HAVE_LIBDW)
-	if (options.bt_depth > 0) {
-		/* Setup module tracking for libdwfl unwinding.  */
-		struct process *leader = proc->leader;
-		Dwfl *dwfl = leader->dwfl;
-		if (dwfl == NULL) {
-			static const Dwfl_Callbacks proc_callbacks = {
-				.find_elf = dwfl_linux_proc_find_elf,
-				.find_debuginfo = dwfl_standard_find_debuginfo
-			};
-			dwfl = dwfl_begin(&proc_callbacks);
-			if (dwfl == NULL)
-				fprintf(stderr,
+	Dwfl *dwfl = NULL;
+
+	/* Setup module tracking for libdwfl unwinding.  */
+	struct process *leader = proc->leader;
+	dwfl = leader->dwfl;
+	if (dwfl == NULL) {
+		static const Dwfl_Callbacks proc_callbacks = {
+			.find_elf = dwfl_linux_proc_find_elf,
+			.find_debuginfo = dwfl_standard_find_debuginfo
+		};
+		dwfl = dwfl_begin(&proc_callbacks);
+		if (dwfl == NULL)
+			fprintf(stderr,
 					"Couldn't initialize libdwfl unwinding "
 					"for process %d: %s\n", leader->pid,
 					dwfl_errmsg (-1));
-		}
+	}
 
-		if (dwfl != NULL) {
-			dwfl_report_begin_add(dwfl);
-			if (dwfl_report_elf(dwfl, lib->soname,
-					    lib->pathname, -1,
-					    (GElf_Addr) lib->base,
-					    false) == NULL)
-				fprintf(stderr,
+	if (dwfl != NULL) {
+		dwfl_report_begin_add(dwfl);
+		if (dwfl_report_elf(dwfl, lib->soname,
+							lib->pathname, -1,
+							(GElf_Addr) lib->base,
+							false) == NULL)
+			fprintf(stderr,
 					"dwfl_report_elf %s@%p (%s) %d: %s\n",
 					lib->soname, lib->base, lib->pathname,
 					proc->pid, dwfl_errmsg (-1));
-			dwfl_report_end(dwfl, NULL, NULL);
+		dwfl_report_end(dwfl, NULL, NULL);
 
+		if (options.bt_depth > 0) {
 			if (leader->dwfl == NULL) {
 				int r = dwfl_linux_proc_attach(dwfl,
-							       leader->pid,
-							       true);
+											   leader->pid,
+											   true);
 				if (r == 0)
 					leader->dwfl = dwfl;
 				else {
@@ -942,6 +946,15 @@ proc_add_library(struct process *proc, struct library *lib)
 			}
 		}
 	}
+
+	if( dwfl != NULL &&
+		( filter_matches_library(options.plt_filter,	lib ) ||
+		  filter_matches_library(options.static_filter,	lib ) ||
+		  filter_matches_library(options.export_filter,	lib ) ) )
+	{
+		import_DWARF_prototypes( lib->protolib, lib, dwfl );
+	}
+
 #endif /* defined(HAVE_LIBDW) */
 
 	/* Insert breakpoints for all active (non-latent) symbols.  */
