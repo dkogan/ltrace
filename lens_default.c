@@ -429,7 +429,7 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
 	case ARGTYPE_POINTER:
 		if (value_is_zero(value, arguments))
 			return fprintf(stream, null_message);
-		if (value->type->u.array_info.elt_type->type != ARGTYPE_VOID)
+		if (value->type->u.ptr_info.info->type != ARGTYPE_VOID)
 			return format_pointer(stream, value, arguments);
 		return format_integer(stream, value, INT_FMT_x, arguments);
 
