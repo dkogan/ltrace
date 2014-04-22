@@ -202,8 +202,9 @@ static enum arg_type getBaseType( Dwarf_Die* die )
 	if( encoding == DW_ATE_signed_char || encoding == DW_ATE_unsigned_char )
 		return ARGTYPE_CHAR;
 
-	if( encoding == DW_ATE_signed ||
-		encoding == DW_ATE_unsigned )
+	if( encoding == DW_ATE_signed   ||
+		encoding == DW_ATE_unsigned ||
+		encoding == DW_ATE_boolean )
 	{
 		bool is_signed = (encoding == DW_ATE_signed);
 		switch( attr_numeric(die, DW_AT_byte_size) )
@@ -237,13 +238,12 @@ static enum arg_type getBaseType( Dwarf_Die* die )
 			return ARGTYPE_DOUBLE;
 
 		default:
-			complain(die, "");
-			exit(1);
+			// things like long doubles. ltrace has no support yet, so I just say "void"
+			return ARGTYPE_VOID;
 		}
 	}
 
-	complain(die, "");
-	exit(1);
+	// Unknown encoding. I just say void
 	return ARGTYPE_VOID;
 }
 
@@ -367,12 +367,6 @@ static bool getArray(struct arg_type_info* array_info, Dwarf_Die* parent)
 		return false;
 	}
 
-	if( !dwarf_hasattr(&subrange, DW_AT_upper_bound) )
-	{
-		complain( parent, "Array subrange must have a DW_AT_upper_bound");
-		return false;
-	}
-
 	if( dwarf_hasattr(&subrange, DW_AT_lower_bound) )
 	{
 		if( attr_numeric(&subrange, DW_AT_lower_bound) != 0 )
@@ -381,6 +375,16 @@ static bool getArray(struct arg_type_info* array_info, Dwarf_Die* parent)
 			return false;
 		}
 	}
+
+	int N;
+	if( !dwarf_hasattr(&subrange, DW_AT_upper_bound) )
+	{
+		// no upper bound is defined. This is probably a variable-width array,
+		// and I don't know how long it is. Let's say 0 to be safe
+		N = 0;
+	}
+	else
+		N = attr_numeric(&subrange, DW_AT_upper_bound)+1;
 
 	// I'm not checking the subrange type. It should be some sort of integer,
 	// and I don't know what it would mean for it to be something else
@@ -392,7 +396,7 @@ static bool getArray(struct arg_type_info* array_info, Dwarf_Die* parent)
 		return false;
 	}
 	value_init_detached(value, NULL, type_get_simple( ARGTYPE_INT ), 0);
-	value_set_word(value, attr_numeric(&subrange, DW_AT_upper_bound)+1 );
+	value_set_word(value, N );
 
 	struct expr_node* length = calloc( 1, sizeof(struct expr_node) );
 	if( length == NULL )
@@ -566,6 +570,11 @@ static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
 		dict_insert( &type_hash, &die_offset, info );
 		return getArray( *info, type_die );
 
+	case DW_TAG_union_type:
+		*info = type_get_simple( ARGTYPE_VOID );
+		complain(type_die, "Storing union-as-void type: %p", *info);
+		return true;
+
 	default:
 		complain(type_die, "Unknown type tag 0x%x", dwarf_tag(type_die));
 		break;
@@ -657,7 +666,10 @@ static bool process_die_compileunit(struct protolib* plib, struct library* lib, 
 {
 	Dwarf_Die die;
 	if( dwarf_child(parent, &die) != 0 )
-		return false;
+	{
+		// no child nodes, so nothing to do
+		return true;
+	}
 
 	while(1)
 	{
