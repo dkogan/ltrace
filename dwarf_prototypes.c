@@ -237,6 +237,7 @@ static enum arg_type get_base_type(Dwarf_Die* die)
 	}
 
 	// Unknown encoding. I just say void
+	complain(die, "Unknown base type. Returning 'void'");
 	return ARGTYPE_VOID;
 }
 
