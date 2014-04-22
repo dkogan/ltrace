@@ -51,7 +51,7 @@ static bool _dump_dwarf_tree(Dwarf_Die* die, int indent)
 {
     while(1)
     {
-        printf("%*sprocessing unit: 0x%02x/'%s'\n", indent*4, "",
+        fprintf(stderr, "%*sprocessing unit: 0x%02x/'%s'\n", indent*4, "",
                dwarf_tag(die), dwarf_diename(die) );
 
         Dwarf_Die child;
@@ -79,20 +79,20 @@ static bool _dump_ltrace_tree( const struct arg_type_info* info, int indent )
 {
 	if( indent > 7 )
 	{
-		printf("%*s%p ...\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p ...\n", indent*4, "", (void*)info);
 		return true;
 	}
 
 	if( info == NULL )
 	{
-		printf("%*s%p NULL\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p NULL\n", indent*4, "", (void*)info);
 		return true;
 	}
 
 	switch(info->type)
 	{
 	case ARGTYPE_VOID:
-		printf("%*s%p void\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p void\n", indent*4, "", (void*)info);
 		break;
 
 	case ARGTYPE_INT:
@@ -104,20 +104,20 @@ static bool _dump_ltrace_tree( const struct arg_type_info* info, int indent )
 	case ARGTYPE_USHORT:
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
-		printf("%*s%p base\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p base\n", indent*4, "", (void*)info);
 		break;
 
 	case ARGTYPE_ARRAY:
-		printf("%*s%p array. elements not printed\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p array. elements not printed\n", indent*4, "", (void*)info);
 		break;
 
 	case ARGTYPE_POINTER:
-		printf("%*s%p pointer to...\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p pointer to...\n", indent*4, "", (void*)info);
 		_dump_ltrace_tree( info->u.ptr_info.info, indent+1 );
 		break;
 
 	case ARGTYPE_STRUCT:
-		printf("%*s%p struct...\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p struct...\n", indent*4, "", (void*)info);
 		struct struct_field
 		{
 			struct arg_type_info *info;
@@ -129,7 +129,7 @@ static bool _dump_ltrace_tree( const struct arg_type_info* info, int indent )
 		break;
 
 	default:
-		printf("%*s%p unknown type\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p unknown type\n", indent*4, "", (void*)info);
 		return false;;
 	}
 
