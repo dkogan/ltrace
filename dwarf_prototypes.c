@@ -28,7 +28,10 @@
 #include "options.h"
 #include "filter.h"
 
-#if 0
+
+//#define DUMP_PROTOTYPES
+
+#if 1
 #define complain( die, format, ... )							\
 	fprintf(stderr, "%s() die '%s' @ 0x%lx: " format "\n",		\
 			__func__, dwarf_diename(die), dwarf_dieoffset(die),	\
@@ -74,7 +77,9 @@ static bool dump_dwarf_tree(Dwarf_Die* die)
 {
     return _dump_dwarf_tree( die, 0 );
 }
+#endif
 
+#ifdef DUMP_PROTOTYPES
 static bool _dump_ltrace_tree( const struct arg_type_info* info, int indent )
 {
 	if( indent > 7 )
@@ -632,6 +637,11 @@ static bool getPrototype(struct prototype* proto, Dwarf_Die* subroutine)
 			complain(&arg_die, "couldn't add argument to the prototype");
 			return false;
 		}
+
+#ifdef DUMP_PROTOTYPES
+		fprintf(stderr, "Adding argument:\n");
+		dump_ltrace_tree(arg_type_info);
+#endif
 
 	next_prototype_argument: ;
 		int res = dwarf_siblingof(&arg_die, &arg_die);
