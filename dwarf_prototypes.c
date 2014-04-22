@@ -236,6 +236,23 @@ static enum arg_type get_base_type(Dwarf_Die* die)
 		}
 	}
 
+#if 0
+	if (encoding == DW_ATE_complex_float) {
+		switch (attr_numeric(die, DW_AT_byte_size)) {
+		case 2*sizeof(float):
+			return ARGTYPE_FLOAT;
+
+		case 2*sizeof(double):
+			return ARGTYPE_DOUBLE;
+
+		default:
+			// things like long doubles. ltrace has no support yet, so I just
+			// say "void"
+			return ARGTYPE_VOID;
+		}
+	}
+#endif
+
 	// Unknown encoding. I just say void
 	complain(die, "Unknown base type. Returning 'void'");
 	return ARGTYPE_VOID;
