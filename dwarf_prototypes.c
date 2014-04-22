@@ -1,7 +1,4 @@
-/* Most of this is Copyright Dima Kogan <dima@secretsauce.net>
- *
- * Pieces of this were taken from dwarf_prototypes.c in the dwarves project.
- * Those are Copyright (C) 2008 Arnaldo Carvalho de Melo <acme@redhat.com>.
+/* Copyright Dima Kogan <dima@secretsauce.net>
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of version 2 of the GNU General Public License as published by the
@@ -144,53 +141,62 @@ static bool dump_ltrace_tree(const struct arg_type_info* info)
 #endif
 
 
-
-static uint64_t attr_numeric(Dwarf_Die *die, uint32_t name)
+// pulls a numerical value out of a particular attribute in a die. Returns true
+// if successful. The result is returned in *result. Note that this is cast to
+// (uint64_t), regardless of the actual type of the input
+static bool get_die_numeric(uint64_t* result,
+							Dwarf_Die *die, unsigned int attr_name)
 {
-	Dwarf_Attribute attr;
-	uint32_t form;
+	Dwarf_Attribute attr ;
 
-	if (dwarf_attr(die, name, &attr) == NULL)
-		return 0;
+	union {
+		Dwarf_Word		udata;
+		Dwarf_Sword     sdata;
+		Dwarf_Addr		addr;
+		bool			flag;
+	} u;
 
-	form = dwarf_whatform(&attr);
+	if (dwarf_attr(die, attr_name, &attr) == NULL)
+		return false;
+
+	unsigned int form = dwarf_whatform(&attr);
+
+#define PROCESS_NUMERIC(type)						\
+	if (dwarf_form ## type(&attr, &u.type) != 0)	\
+		return false;								\
+	*result = (uint64_t)u.type;						\
+	return true
+
 
 	switch (form) {
-	case DW_FORM_addr: {
-		Dwarf_Addr addr;
-		if (dwarf_formaddr(&attr, &addr) == 0)
-			return addr;
-	}
-		break;
+	case DW_FORM_addr:
+		PROCESS_NUMERIC(addr);
+
 	case DW_FORM_data1:
 	case DW_FORM_data2:
 	case DW_FORM_data4:
 	case DW_FORM_data8:
-	case DW_FORM_sdata:
-	case DW_FORM_udata: {
-		Dwarf_Word value;
-		if (dwarf_formudata(&attr, &value) == 0)
-			return value;
-	}
-		break;
-	case DW_FORM_flag:
-	case DW_FORM_flag_present: {
-		bool value;
-		if (dwarf_formflag(&attr, &value) == 0)
-			return value;
-	}
-		break;
-	default:
-		complain(die, "DW_AT_<0x%x>=0x%x", name, form);
-		break;
-	}
+	case DW_FORM_udata:
+		PROCESS_NUMERIC(udata);
 
-	return 0;
+	case DW_FORM_sdata:
+		PROCESS_NUMERIC(sdata);
+
+	case DW_FORM_flag:
+		PROCESS_NUMERIC(flag);
+
+	default:
+		complain(die, "Unknown numeric form %d for attr_name: %d", form, attr_name);
+		return false;
+	}
+#undef PROCESS_NUMERIC
 }
 
 static enum arg_type get_base_type(Dwarf_Die* die)
 {
-	int encoding = attr_numeric(die, DW_AT_encoding);
+	int64_t encoding;
+	if( !get_die_numeric((uint64_t*)&encoding, die, DW_AT_encoding) )
+		return ARGTYPE_VOID;
 
 	if (encoding == DW_ATE_void )
 		return ARGTYPE_VOID;
@@ -198,11 +204,17 @@ static enum arg_type get_base_type(Dwarf_Die* die)
 	if (encoding == DW_ATE_signed_char || encoding == DW_ATE_unsigned_char )
 		return ARGTYPE_CHAR;
 
+		uint64_t byte_size;
+		if (!get_die_numeric(&byte_size, die, DW_AT_byte_size))
+			return ARGTYPE_VOID;
+
 	if (encoding == DW_ATE_signed   ||
 		encoding == DW_ATE_unsigned ||
 		encoding == DW_ATE_boolean) {
+
 		bool is_signed = (encoding == DW_ATE_signed);
-		switch (attr_numeric(die, DW_AT_byte_size)) {
+
+		switch (byte_size) {
 		case sizeof(char):
 			return ARGTYPE_CHAR;
 
@@ -222,7 +234,7 @@ static enum arg_type get_base_type(Dwarf_Die* die)
 	}
 
 	if (encoding == DW_ATE_float) {
-		switch (attr_numeric(die, DW_AT_byte_size)) {
+		switch (byte_size) {
 		case sizeof(float):
 			return ARGTYPE_FLOAT;
 
@@ -238,7 +250,7 @@ static enum arg_type get_base_type(Dwarf_Die* die)
 
 #if 0
 	if (encoding == DW_ATE_complex_float) {
-		switch (attr_numeric(die, DW_AT_byte_size)) {
+		switch (byte_size) {
 		case 2*sizeof(float):
 			return ARGTYPE_FLOAT;
 
@@ -325,7 +337,13 @@ static bool get_enum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 		}
 
 		value_init_detached(value, NULL, type_get_simple( ARGTYPE_INT ), 0);
-		value_set_word(value, attr_numeric(&die, DW_AT_const_value));
+		uint64_t enum_value;
+		if (!get_die_numeric(&enum_value, &die, DW_AT_const_value)) {
+			complain(&die, "Couldn't get enum value");
+			return false;
+		}
+
+		value_set_word(value, (long)enum_value);
 
 		if (lens_enum_add( lens, dupkey, 0, value, 0 )) {
 			complain(&die, "Couldn't add enum element");
@@ -370,21 +388,33 @@ static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent)
 	}
 
 	if (dwarf_hasattr(&subrange, DW_AT_lower_bound)) {
-		if (attr_numeric(&subrange, DW_AT_lower_bound) != 0) {
+		uint64_t lower_bound;
+		if (!get_die_numeric(&lower_bound, &subrange, DW_AT_lower_bound)) {
+			complain( parent, "Couldn't read lower bound");
+			return false;
+		}
+
+		if (lower_bound != 0) {
 			complain( parent,
 					  "Array subrange has a nonzero lower bound. Don't know what to do");
 			return false;
 		}
 	}
 
-	int N;
+	uint64_t N;
 	if (!dwarf_hasattr(&subrange, DW_AT_upper_bound)) {
 		// no upper bound is defined. This is probably a variable-width array,
 		// and I don't know how long it is. Let's say 0 to be safe
 		N = 0;
 	}
 	else
-		N = attr_numeric(&subrange, DW_AT_upper_bound)+1;
+	{
+		if (!get_die_numeric(&N, &subrange, DW_AT_upper_bound)) {
+			complain( parent, "Couldn't read upper bound");
+			return false;
+		}
+		N++;
+	}
 
 	// I'm not checking the subrange type. It should be some sort of integer,
 	// and I don't know what it would mean for it to be something else
