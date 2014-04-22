@@ -423,7 +423,7 @@ static bool getStructure(struct arg_type_info* struct_info, Dwarf_Die* parent)
 	}
 
 	while(1) {
-		fprintf(stderr, "member: 0x%02x/'%s'\n", dwarf_tag(&die), dwarf_diename(&die) );
+		complain(&die, "member: 0x%02x", dwarf_tag(&die) );
 
 		if( dwarf_tag(&die) != DW_TAG_member )
 		{
