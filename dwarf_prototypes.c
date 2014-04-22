@@ -46,27 +46,25 @@
 static struct dict type_hash;
 
 
-static bool getType( struct arg_type_info** info, Dwarf_Die* type_die);
+static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die);
 
 
 #if 0
 static bool _dump_dwarf_tree(Dwarf_Die* die, int indent)
 {
-    while(1)
-    {
+    while (1) {
         fprintf(stderr, "%*sprocessing unit: 0x%02x/'%s'\n", indent*4, "",
-               dwarf_tag(die), dwarf_diename(die) );
+               dwarf_tag(die), dwarf_diename(die));
 
         Dwarf_Die child;
-        if (dwarf_child(die, &child) == 0)
-        {
-			if( !_dump_dwarf_tree(&child, indent+1) )
+        if (dwarf_child(die, &child) == 0) {
+			if (!_dump_dwarf_tree(&child, indent+1))
 				return false;
         }
 
         int res = dwarf_siblingof(die, die);
-        if( res == 0 ) continue;     // sibling exists
-        if( res < 0 )  return false; // error
+        if (res == 0 ) continue;     // sibling exists
+        if (res < 0 )  return false; // error
         break;                       // no sibling exists
     }
 
@@ -80,22 +78,19 @@ static bool dump_dwarf_tree(Dwarf_Die* die)
 #endif
 
 #ifdef DUMP_PROTOTYPES
-static bool _dump_ltrace_tree( const struct arg_type_info* info, int indent )
+static bool _dump_ltrace_tree(const struct arg_type_info* info, int indent)
 {
-	if( indent > 7 )
-	{
+	if (indent > 7) {
 		fprintf(stderr, "%*s%p ...\n", indent*4, "", (void*)info);
 		return true;
 	}
 
-	if( info == NULL )
-	{
+	if (info == NULL) {
 		fprintf(stderr, "%*s%p NULL\n", indent*4, "", (void*)info);
 		return true;
 	}
 
-	switch(info->type)
-	{
+	switch (info->type) {
 	case ARGTYPE_VOID:
 		fprintf(stderr, "%*s%p void\n", indent*4, "", (void*)info);
 		break;
@@ -113,7 +108,8 @@ static bool _dump_ltrace_tree( const struct arg_type_info* info, int indent )
 		break;
 
 	case ARGTYPE_ARRAY:
-		fprintf(stderr, "%*s%p array. elements not printed\n", indent*4, "", (void*)info);
+		fprintf(stderr, "%*s%p array. elements not printed\n", indent*4, "",
+				(void*)info);
 		break;
 
 	case ARGTYPE_POINTER:
@@ -141,7 +137,7 @@ static bool _dump_ltrace_tree( const struct arg_type_info* info, int indent )
 	return true;
 }
 
-static bool dump_ltrace_tree( const struct arg_type_info* info )
+static bool dump_ltrace_tree(const struct arg_type_info* info)
 {
 	return _dump_ltrace_tree( info, 0 );
 }
@@ -192,23 +188,21 @@ static uint64_t attr_numeric(Dwarf_Die *die, uint32_t name)
 	return 0;
 }
 
-static enum arg_type getBaseType( Dwarf_Die* die )
+static enum arg_type get_base_type(Dwarf_Die* die)
 {
 	int encoding = attr_numeric(die, DW_AT_encoding);
 
-	if( encoding == DW_ATE_void )
+	if (encoding == DW_ATE_void )
 		return ARGTYPE_VOID;
 
-	if( encoding == DW_ATE_signed_char || encoding == DW_ATE_unsigned_char )
+	if (encoding == DW_ATE_signed_char || encoding == DW_ATE_unsigned_char )
 		return ARGTYPE_CHAR;
 
-	if( encoding == DW_ATE_signed   ||
+	if (encoding == DW_ATE_signed   ||
 		encoding == DW_ATE_unsigned ||
-		encoding == DW_ATE_boolean )
-	{
+		encoding == DW_ATE_boolean) {
 		bool is_signed = (encoding == DW_ATE_signed);
-		switch( attr_numeric(die, DW_AT_byte_size) )
-		{
+		switch (attr_numeric(die, DW_AT_byte_size)) {
 		case sizeof(char):
 			return ARGTYPE_CHAR;
 
@@ -227,10 +221,8 @@ static enum arg_type getBaseType( Dwarf_Die* die )
 		}
 	}
 
-	if( encoding == DW_ATE_float )
-	{
-		switch( attr_numeric(die, DW_AT_byte_size) )
-		{
+	if (encoding == DW_ATE_float) {
+		switch (attr_numeric(die, DW_AT_byte_size)) {
 		case sizeof(float):
 			return ARGTYPE_FLOAT;
 
@@ -238,7 +230,8 @@ static enum arg_type getBaseType( Dwarf_Die* die )
 			return ARGTYPE_DOUBLE;
 
 		default:
-			// things like long doubles. ltrace has no support yet, so I just say "void"
+			// things like long doubles. ltrace has no support yet, so I just
+			// say "void"
 			return ARGTYPE_VOID;
 		}
 	}
@@ -247,7 +240,7 @@ static enum arg_type getBaseType( Dwarf_Die* die )
 	return ARGTYPE_VOID;
 }
 
-static bool getTypeDie( Dwarf_Die* type_die, Dwarf_Die* die )
+static bool get_type_die(Dwarf_Die* type_die, Dwarf_Die* die)
 {
 	Dwarf_Attribute attr;
 	return
@@ -264,13 +257,12 @@ static int dwarf_die_eq(const void* a, const void* b)
 	return *(const Dwarf_Off*)a == *(const Dwarf_Off*)b;
 }
 
-static bool getEnum(struct arg_type_info* enum_info, Dwarf_Die* parent)
+static bool get_enum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 {
 	enum_info->type = ARGTYPE_INT;
 
 	struct enum_lens *lens = calloc(1, sizeof(struct enum_lens));
-	if (lens == NULL)
-	{
+	if (lens == NULL) {
 		complain(parent, "alloc error");
 		return false;
 	}
@@ -278,107 +270,97 @@ static bool getEnum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 	enum_info->lens = &lens->super;
 
 	Dwarf_Die die;
-	if( dwarf_child(parent, &die) != 0 )
-	{
+	if (dwarf_child(parent, &die) != 0) {
 		// empty enum. we're done
 		return true;
 	}
 
 	while(1) {
-		complain(&die, "enum element: 0x%02x/'%s'", dwarf_tag(&die), dwarf_diename(&die) );
+		complain(&die, "enum element: 0x%02x/'%s'", dwarf_tag(&die),
+				 dwarf_diename(&die));
 
-		if( dwarf_tag(&die) != DW_TAG_enumerator )
-		{
+		if (dwarf_tag(&die) != DW_TAG_enumerator) {
 			complain(&die, "Enums can have ONLY DW_TAG_enumerator elements");
 			return false;
 		}
 
-		if( !dwarf_hasattr(&die, DW_AT_const_value) )
-		{
+		if (!dwarf_hasattr(&die, DW_AT_const_value)) {
 			complain(&die, "Enums MUST have DW_AT_const_value values");
 			return false;
 		}
 
 		const char* key = dwarf_diename(&die);
-		if( key == NULL )
-		{
+		if (key == NULL) {
 			complain(&die, "Enums must have a DW_AT_name key");
 			return false;
 		}
 		const char* dupkey = strdup(key);
-		if( dupkey == NULL )
-		{
+		if (dupkey == NULL) {
 			complain(&die, "Couldn't duplicate enum key");
 			return false;
 		}
 
-		struct value* value = calloc( 1, sizeof(struct value) );
-		if( value == NULL )
-		{
+		struct value* value = calloc( 1, sizeof(struct value));
+		if (value == NULL) {
 			complain(&die, "Couldn't alloc enum value");
 			return false;
 		}
 
 		value_init_detached(value, NULL, type_get_simple( ARGTYPE_INT ), 0);
-		value_set_word(value, attr_numeric(&die, DW_AT_const_value) );
+		value_set_word(value, attr_numeric(&die, DW_AT_const_value));
 
-		if( lens_enum_add( lens, dupkey, 0, value, 0 ) )
-		{
+		if (lens_enum_add( lens, dupkey, 0, value, 0 )) {
 			complain(&die, "Couldn't add enum element");
 			return false;
 		}
 
 		int res = dwarf_siblingof(&die, &die);
-		if( res == 0 ) continue;     /* sibling exists    */
-		if( res < 0 )  return false; /* error             */
-		break;                       /* no sibling exists */
+		if (res == 0) continue;     /* sibling exists    */
+		if (res < 0)  return false; /* error             */
+		break;                      /* no sibling exists */
 	}
 
 	return true;
 }
 
-static bool getArray(struct arg_type_info* array_info, Dwarf_Die* parent)
+static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent)
 {
 	Dwarf_Die type_die;
-	if( !getTypeDie( &type_die, parent ) )
-	{
+	if (!get_type_die( &type_die, parent )) {
 		complain( parent, "Array has unknown type" );
 		return false;
 	}
 
 	struct arg_type_info* info;
-	if( !getType( &info, &type_die ) )
-	{
+	if (!get_type( &info, &type_die )) {
 		complain( parent, "Couldn't figure out array's type" );
 		return false;
 	}
 
 	Dwarf_Die subrange;
-	if( dwarf_child(parent, &subrange) != 0 )
-	{
-		complain( parent, "Array must have a DW_TAG_subrange_type child, but has none" );
+	if (dwarf_child(parent, &subrange) != 0) {
+		complain(parent,
+				 "Array must have a DW_TAG_subrange_type child, but has none");
 		return false;
 	}
 
 	Dwarf_Die next_subrange;
-	if( dwarf_siblingof(&subrange, &next_subrange) <= 0 )
-	{
-		complain( parent, "Array must have exactly one DW_TAG_subrange_type child" );
+	if (dwarf_siblingof(&subrange, &next_subrange) <= 0) {
+		complain(parent,
+				 "Array must have exactly one DW_TAG_subrange_type child");
 		return false;
 	}
 
-	if( dwarf_hasattr(&subrange, DW_AT_lower_bound) )
-	{
-		if( attr_numeric(&subrange, DW_AT_lower_bound) != 0 )
-		{
-			complain( parent, "Array subrange has a nonzero lower bound. Don't know what to do");
+	if (dwarf_hasattr(&subrange, DW_AT_lower_bound)) {
+		if (attr_numeric(&subrange, DW_AT_lower_bound) != 0) {
+			complain( parent,
+					  "Array subrange has a nonzero lower bound. Don't know what to do");
 			return false;
 		}
 	}
 
 	int N;
-	if( !dwarf_hasattr(&subrange, DW_AT_upper_bound) )
-	{
+	if (!dwarf_hasattr(&subrange, DW_AT_upper_bound)) {
 		// no upper bound is defined. This is probably a variable-width array,
 		// and I don't know how long it is. Let's say 0 to be safe
 		N = 0;
@@ -389,18 +371,16 @@ static bool getArray(struct arg_type_info* array_info, Dwarf_Die* parent)
 	// I'm not checking the subrange type. It should be some sort of integer,
 	// and I don't know what it would mean for it to be something else
 
-	struct value* value = calloc( 1, sizeof(struct value) );
-	if( value == NULL )
-	{
+	struct value* value = calloc( 1, sizeof(struct value));
+	if (value == NULL) {
 		complain(&subrange, "Couldn't alloc length value");
 		return false;
 	}
 	value_init_detached(value, NULL, type_get_simple( ARGTYPE_INT ), 0);
 	value_set_word(value, N );
 
-	struct expr_node* length = calloc( 1, sizeof(struct expr_node) );
-	if( length == NULL )
-	{
+	struct expr_node* length = calloc( 1, sizeof(struct expr_node));
+	if (length == NULL) {
 		complain(&subrange, "Couldn't alloc length expr");
 		return false;
 	}
@@ -411,45 +391,41 @@ static bool getArray(struct arg_type_info* array_info, Dwarf_Die* parent)
 	return true;
 }
 
-static bool getStructure(struct arg_type_info* struct_info, Dwarf_Die* parent)
+static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent)
 {
 	type_init_struct(struct_info);
 
 	Dwarf_Die die;
-	if( dwarf_child(parent, &die) != 0 )
-	{
+	if (dwarf_child(parent, &die) != 0) {
 		// no elements; we're done
 		return true;
 	}
 
 	while(1) {
-		complain(&die, "member: 0x%02x", dwarf_tag(&die) );
+		complain(&die, "member: 0x%02x", dwarf_tag(&die));
 
-		if( dwarf_tag(&die) != DW_TAG_member )
-		{
+		if (dwarf_tag(&die) != DW_TAG_member) {
 			complain(&die, "Structure can have ONLY DW_TAG_member");
 			return false;
 		}
 
 		Dwarf_Die type_die;
-		if( !getTypeDie( &type_die, &die ) )
-		{
+		if (!get_type_die( &type_die, &die )) {
 			complain( &die, "Couldn't get type of element");
 			return false;
 		}
 
 		struct arg_type_info* member_info = NULL;
-		if( !getType( &member_info, &type_die ) )
-		{
+		if (!get_type( &member_info, &type_die )) {
 			complain(&die, "Couldn't parse type from DWARF data");
 			return false;
 		}
 		type_struct_add( struct_info, member_info, 0 );
 
 		int res = dwarf_siblingof(&die, &die);
-		if( res == 0 ) continue;     /* sibling exists    */
-		if( res < 0 )  return false; /* error             */
-		break;                       /* no sibling exists */
+		if (res == 0) continue;     /* sibling exists    */
+		if (res < 0)  return false; /* error             */
+		break;                      /* no sibling exists */
 	}
 
 	return true;
@@ -457,12 +433,11 @@ static bool getStructure(struct arg_type_info* struct_info, Dwarf_Die* parent)
 
 // Reads the type in the die into the given structure
 // Returns true on sucess
-static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
+static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 {
 	Dwarf_Off die_offset = dwarf_dieoffset(type_die);
 	struct arg_type_info** found_type = dict_find(&type_hash, &die_offset );
-	if(found_type != NULL)
-	{
+	if (found_type != NULL) {
 		*info = *found_type;
 		complain(type_die, "Read pre-computed type: %p", *info);
 		return true;
@@ -470,10 +445,9 @@ static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
 
 	Dwarf_Die next_die;
 
-	switch( dwarf_tag(type_die) )
-	{
+	switch (dwarf_tag(type_die)) {
 	case DW_TAG_base_type:
-		*info = type_get_simple( getBaseType( type_die ) );
+		*info = type_get_simple( get_base_type( type_die ));
 		complain(type_die, "Storing base type: %p", *info);
 		dict_insert( &type_hash, &die_offset, info );
 		return true;
@@ -489,8 +463,7 @@ static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
 
 	case DW_TAG_pointer_type:
 
-		if( !getTypeDie(&next_die, type_die ) )
-		{
+		if (!get_type_die(&next_die, type_die )) {
 			// the pointed-to type isn't defined, so I report a void*
 			*info = type_get_simple( ARGTYPE_VOID );
 			complain(type_die, "Storing void-pointer type: %p", *info);
@@ -498,9 +471,8 @@ static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
 			return true;
 		}
 
-		*info = calloc( 1, sizeof(struct arg_type_info) );
-		if( *info == NULL )
-		{
+		*info = calloc( 1, sizeof(struct arg_type_info));
+		if (*info == NULL) {
 			complain(type_die, "alloc error");
 			return false;
 		}
@@ -508,19 +480,18 @@ static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
 
 		complain(type_die, "Storing pointer type: %p", *info);
 		dict_insert( &type_hash, &die_offset, info );
-		return getType( &(*info)->u.ptr_info.info, &next_die );
+		return get_type( &(*info)->u.ptr_info.info, &next_die );
 
 	case DW_TAG_structure_type:
-		*info = calloc( 1, sizeof(struct arg_type_info) );
-		if( *info == NULL )
-		{
+		*info = calloc( 1, sizeof(struct arg_type_info));
+		if (*info == NULL) {
 			complain(type_die, "alloc error");
 			return false;
 		}
 
 		complain(type_die, "Storing struct type: %p", *info);
 		dict_insert( &type_hash, &die_offset, info );
-		return getStructure( *info, type_die );
+		return get_structure( *info, type_die );
 
 
 	case DW_TAG_typedef: ;
@@ -528,47 +499,42 @@ static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
 	case DW_TAG_volatile_type: ;
 		// Various tags are simply pass-through, so I just keep going
 		bool res = true;
-		if( getTypeDie(&next_die, type_die ) )
-		{
+		if (get_type_die(&next_die, type_die )) {
 			complain(type_die, "Storing const/typedef type: %p", *info);
-			res = getType( info, &next_die );
-		}
-		else
-		{
+			res = get_type( info, &next_die );
+		} else {
 			// no type. Use 'void'. Normally I'd think this is bogus, but stdio
 			// typedefs something to void
 			*info = type_get_simple( ARGTYPE_VOID );
 			complain(type_die, "Storing void type: %p", *info);
 		}
-		if( res )
+		if (res )
 			dict_insert( &type_hash, &die_offset, info );
 		return res;
 
 	case DW_TAG_enumeration_type:
 		// We have an enumeration. This has type "int", but has a particular
 		// lens to handle the enum
-		*info = calloc( 1, sizeof(struct arg_type_info) );
-		if( *info == NULL )
-		{
+		*info = calloc( 1, sizeof(struct arg_type_info));
+		if (*info == NULL) {
 			complain(type_die, "alloc error");
 			return false;
 		}
 
 		complain(type_die, "Storing enum int: %p", *info);
 		dict_insert( &type_hash, &die_offset, info );
-		return getEnum( *info, type_die );
+		return get_enum( *info, type_die );
 
 	case DW_TAG_array_type:
-		*info = calloc( 1, sizeof(struct arg_type_info) );
-		if( *info == NULL )
-		{
+		*info = calloc( 1, sizeof(struct arg_type_info));
+		if (*info == NULL) {
 			complain(type_die, "alloc error");
 			return false;
 		}
 
 		complain(type_die, "Storing array: %p", *info);
 		dict_insert( &type_hash, &die_offset, info );
-		return getArray( *info, type_die );
+		return get_array( *info, type_die );
 
 	case DW_TAG_union_type:
 		*info = type_get_simple( ARGTYPE_VOID );
@@ -583,28 +549,23 @@ static bool getType( struct arg_type_info** info, Dwarf_Die* type_die)
 	return false;
 }
 
-static bool getPrototype(struct prototype* proto, Dwarf_Die* subroutine)
+static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine)
 {
 	// First, look at the return type. This is stored in a DW_AT_type tag in the
 	// subroutine DIE. If there is no such tag, this function returns void
 	Dwarf_Die return_type_die;
-	if( !getTypeDie(&return_type_die, subroutine ) )
-	{
+	if (!get_type_die(&return_type_die, subroutine )) {
 		proto->return_info = type_get_simple( ARGTYPE_VOID );
 		proto->own_return_info = 0;
-	}
-	else
-	{
-		proto->return_info = calloc( 1, sizeof( struct arg_type_info ) );
-		if( proto->return_info == NULL )
-		{
+	} else {
+		proto->return_info = calloc( 1, sizeof( struct arg_type_info ));
+		if (proto->return_info == NULL) {
 			complain(subroutine, "Couldn't alloc return type");
 			return false;
 		}
 		proto->own_return_info = 0;
 
-		if( !getType( &proto->return_info, &return_type_die ) )
-		{
+		if (!get_type( &proto->return_info, &return_type_die )) {
 			complain(subroutine, "Couldn't get return type");
 			return false;
 		}
@@ -613,36 +574,32 @@ static bool getPrototype(struct prototype* proto, Dwarf_Die* subroutine)
 
 	// Now look at the arguments
 	Dwarf_Die arg_die;
-	if( dwarf_child(subroutine, &arg_die) != 0 )
-	{
+	if (dwarf_child(subroutine, &arg_die) != 0) {
 		// no args. We're done
 		return true;
 	}
 
 	while(1) {
-		if( dwarf_tag(&arg_die) != DW_TAG_formal_parameter )
+		if (dwarf_tag(&arg_die) != DW_TAG_formal_parameter )
 			goto next_prototype_argument;
 
 		complain(&arg_die, "arg: 0x%02x", dwarf_tag(&arg_die));
 
 		Dwarf_Die type_die;
-		if( !getTypeDie(&type_die, &arg_die ) )
-		{
+		if (!get_type_die(&type_die, &arg_die )) {
 			complain(&arg_die, "Couldn't get the argument type die");
 			return false;
 		}
 
 		struct arg_type_info* arg_type_info = NULL;
-		if( !getType( &arg_type_info, &type_die ) )
-		{
+		if (!get_type( &arg_type_info, &type_die )) {
 			complain(&arg_die, "Couldn't parse arg type from DWARF data");
 			return false;
 		}
 
 		struct param param;
 		param_init_type(&param, arg_type_info, 0);
-		if( prototype_push_param(proto, &param) <0 )
-		{
+		if (prototype_push_param(proto, &param) <0) {
 			complain(&arg_die, "couldn't add argument to the prototype");
 			return false;
 		}
@@ -654,58 +611,53 @@ static bool getPrototype(struct prototype* proto, Dwarf_Die* subroutine)
 
 	next_prototype_argument: ;
 		int res = dwarf_siblingof(&arg_die, &arg_die);
-		if( res == 0 ) continue;     /* sibling exists    */
-		if( res < 0 )  return false; /* error             */
-		break;                       /* no sibling exists */
+		if (res == 0) continue;     /* sibling exists    */
+		if (res < 0)  return false; /* error             */
+		break;                      /* no sibling exists */
 	}
 
 	return true;
 }
 
-static bool process_die_compileunit(struct protolib* plib, struct library* lib, Dwarf_Die* parent)
+static bool process_die_compileunit(struct protolib* plib, struct library* lib,
+									Dwarf_Die* parent)
 {
 	Dwarf_Die die;
-	if( dwarf_child(parent, &die) != 0 )
-	{
+	if (dwarf_child(parent, &die) != 0) {
 		// no child nodes, so nothing to do
 		return true;
 	}
 
-	while(1)
-	{
-		if( dwarf_tag(&die) == DW_TAG_subprogram )
-		{
+	while (1) {
+		if (dwarf_tag(&die) == DW_TAG_subprogram) {
 			const char* function_name = dwarf_diename(&die);
 
-			complain(&die, "subroutine_type: 0x%02x; function '%s'", dwarf_tag(&die), function_name);
+			complain(&die, "subroutine_type: 0x%02x; function '%s'",
+					 dwarf_tag(&die), function_name);
 
 			struct prototype* proto =
 				protolib_lookup_prototype(plib, function_name, true );
 
-			if( proto != NULL )
-			{
+			if (proto != NULL) {
 				complain(&die, "Prototype already exists. Skipping");
 				goto next_prototype;
 			}
 
-			if( !filter_matches_symbol(options.plt_filter,    function_name, lib) &&
+			if (!filter_matches_symbol(options.plt_filter,    function_name, lib) &&
 				!filter_matches_symbol(options.static_filter, function_name, lib) &&
-				!filter_matches_symbol(options.export_filter, function_name, lib) )
-			{
+				!filter_matches_symbol(options.export_filter, function_name, lib)) {
 				complain(&die, "Prototype not requested by any filter");
 				goto next_prototype;
 			}
 
 			proto = malloc(sizeof(struct prototype));
-			if( proto == NULL )
-			{
+			if (proto == NULL) {
 				complain(&die, "couldn't alloc prototype");
 				return false;
 			}
 			prototype_init( proto );
 
-			if( !getPrototype(proto, &die ) )
-			{
+			if (!get_prototype(proto, &die )) {
 				complain(&die, "couldn't get prototype");
 				return false;
 			}
@@ -715,34 +667,29 @@ static bool process_die_compileunit(struct protolib* plib, struct library* lib, 
 
 		next_prototype:;
 		int res = dwarf_siblingof(&die, &die);
-		if( res == 0 ) continue;     /* sibling exists    */
-		if( res < 0 )  return false; /* error             */
-		break;                       /* no sibling exists */
+		if (res == 0) continue;     /* sibling exists    */
+		if (res < 0)  return false; /* error             */
+		break;                      /* no sibling exists */
 	}
 
 	return true;
 }
 
-static bool import( struct protolib* plib, struct library* lib, Dwfl* dwfl )
+static bool import(struct protolib* plib, struct library* lib, Dwfl* dwfl)
 {
 	dict_init(&type_hash, sizeof(Dwarf_Off), sizeof(struct arg_type_info*),
 			  dwarf_die_hash, dwarf_die_eq, NULL );
 
 	Dwarf_Addr bias;
     Dwarf_Die* die = NULL;
-    while( (die = dwfl_nextcu(dwfl, die, &bias)) != NULL )
-    {
-        if( dwarf_tag(die) == DW_TAG_compile_unit )
-        {
-            if( !process_die_compileunit(plib, lib, die) )
-            {
+    while ((die = dwfl_nextcu(dwfl, die, &bias)) != NULL) {
+        if (dwarf_tag(die) == DW_TAG_compile_unit) {
+            if (!process_die_compileunit(plib, lib, die)) {
                 complain(die, "Error reading compile unit");
 				exit(1);
 				return false;
             }
-        }
-        else
-        {
+        } else {
             complain(die, "DW_TAG_compile_unit expected");
 			exit(1);
             return false;
@@ -753,14 +700,12 @@ static bool import( struct protolib* plib, struct library* lib, Dwfl* dwfl )
 	return true;
 }
 
-bool import_DWARF_prototypes( struct protolib* plib, struct library* lib,
-							  Dwfl *dwfl )
+bool import_DWARF_prototypes(struct protolib* plib, struct library* lib,
+							 Dwfl *dwfl)
 {
-	if( plib == NULL )
-	{
+	if (plib == NULL) {
 		plib = protolib_cache_default(&g_protocache, lib->soname, 0);
-		if (plib == NULL)
-		{
+		if (plib == NULL) {
 			fprintf(stderr, "Error loading protolib %s: %s.\n",
 					lib->soname, strerror(errno));
 		}
