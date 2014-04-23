@@ -192,6 +192,30 @@ static bool get_die_numeric(uint64_t* result,
 #undef PROCESS_NUMERIC
 }
 
+static bool get_integer_base_type( enum arg_type* type, int byte_size, bool is_signed )
+{
+	switch (byte_size) {
+	case sizeof(char):
+		*type = ARGTYPE_CHAR;
+		return true;
+
+	case sizeof(short):
+		*type = is_signed ? ARGTYPE_SHORT : ARGTYPE_USHORT;
+		return true;
+
+	case sizeof(int):
+		*type = is_signed ? ARGTYPE_INT : ARGTYPE_UINT;
+		return true;
+
+	case sizeof(long):
+		*type = is_signed ? ARGTYPE_LONG : ARGTYPE_ULONG;
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 static enum arg_type get_base_type(Dwarf_Die* die)
 {
 	int64_t encoding;
@@ -214,23 +238,12 @@ static enum arg_type get_base_type(Dwarf_Die* die)
 
 		bool is_signed = (encoding == DW_ATE_signed);
 
-		switch (byte_size) {
-		case sizeof(char):
-			return ARGTYPE_CHAR;
-
-		case sizeof(short):
-			return is_signed ? ARGTYPE_SHORT : ARGTYPE_USHORT;
-
-		case sizeof(int):
-			return is_signed ? ARGTYPE_INT : ARGTYPE_UINT;
-
-		case sizeof(long):
-			return is_signed ? ARGTYPE_LONG : ARGTYPE_ULONG;
-
-		default:
-			complain(die, "");
-			exit(1);
+		enum arg_type type;
+		if(!get_integer_base_type(&type, (int)byte_size, is_signed)) {
+			complain(die, "Unknown integer base type. Using 'void'");
+			return ARGTYPE_VOID;
 		}
+		return type;
 	}
 
 	if (encoding == DW_ATE_float) {
@@ -289,7 +302,16 @@ static int dwarf_die_eq(const void* a, const void* b)
 
 static bool get_enum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 {
-	enum_info->type = ARGTYPE_INT;
+	uint64_t byte_size;
+	if (!get_die_numeric(&byte_size, parent, DW_AT_byte_size)) {
+		// No byte size given, assume 'int'
+		enum_info->type = ARGTYPE_INT;
+	} else {
+		if(!get_integer_base_type(&enum_info->type, (int)byte_size, true)) {
+			complain(parent, "Unknown integer base type. Using 'int'");
+			enum_info->type = ARGTYPE_INT;
+		}
+	}
 
 	struct enum_lens *lens = calloc(1, sizeof(struct enum_lens));
 	if (lens == NULL) {
@@ -336,7 +358,7 @@ static bool get_enum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 			return false;
 		}
 
-		value_init_detached(value, NULL, type_get_simple( ARGTYPE_INT ), 0);
+		value_init_detached(value, NULL, type_get_simple( enum_info->type ), 0);
 		uint64_t enum_value;
 		if (!get_die_numeric(&enum_value, &die, DW_AT_const_value)) {
 			complain(&die, "Couldn't get enum value");
