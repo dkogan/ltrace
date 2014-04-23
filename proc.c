@@ -939,7 +939,7 @@ proc_add_library(struct process *proc, struct library *lib)
 					else
 						msg = strerror(r);
 					fprintf(stderr, "Couldn't initialize "
-						"libdwfl unwinding for "
+						"libdwfl (for unwinding, prototype import) for "
 						"process %d: %s\n",
 						leader->pid, msg);
 				}
