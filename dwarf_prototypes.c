@@ -37,6 +37,12 @@
 #define complain( die, format, ... )
 #endif
 
+#define NEXT_SIBLING(die)								\
+	int res = dwarf_siblingof(die, die);				\
+	if (res == 0) continue;     /* sibling exists    */	\
+	if (res < 0)  return false; /* error             */	\
+	break                       /* no sibling exists */
+
 // A map from DIE addresses (Dwarf_Off) to type structures (struct
 // arg_type_info*). This is created and filled in at the start of each import,
 // and deleted when the import is complete
@@ -59,10 +65,7 @@ static bool _dump_dwarf_tree(Dwarf_Die* die, int indent)
 				return false;
         }
 
-        int res = dwarf_siblingof(die, die);
-        if (res == 0 ) continue;     // sibling exists
-        if (res < 0 )  return false; // error
-        break;                       // no sibling exists
+        SIBLING(die);
     }
 
     return true;
@@ -192,7 +195,7 @@ static bool get_die_numeric(uint64_t* result,
 #undef PROCESS_NUMERIC
 }
 
-static bool get_integer_base_type( enum arg_type* type, int byte_size, bool is_signed )
+static bool get_integer_base_type(enum arg_type* type, int byte_size, bool is_signed)
 {
 	switch (byte_size) {
 	case sizeof(char):
@@ -219,13 +222,13 @@ static bool get_integer_base_type( enum arg_type* type, int byte_size, bool is_s
 static enum arg_type get_base_type(Dwarf_Die* die)
 {
 	int64_t encoding;
-	if( !get_die_numeric((uint64_t*)&encoding, die, DW_AT_encoding) )
+	if( !get_die_numeric((uint64_t*)&encoding, die, DW_AT_encoding))
 		return ARGTYPE_VOID;
 
-	if (encoding == DW_ATE_void )
+	if (encoding == DW_ATE_void)
 		return ARGTYPE_VOID;
 
-	if (encoding == DW_ATE_signed_char || encoding == DW_ATE_unsigned_char )
+	if (encoding == DW_ATE_signed_char || encoding == DW_ATE_unsigned_char)
 		return ARGTYPE_CHAR;
 
 		uint64_t byte_size;
@@ -372,10 +375,7 @@ static bool get_enum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 			return false;
 		}
 
-		int res = dwarf_siblingof(&die, &die);
-		if (res == 0) continue;     /* sibling exists    */
-		if (res < 0)  return false; /* error             */
-		break;                      /* no sibling exists */
+		NEXT_SIBLING(&die);
 	}
 
 	return true;
@@ -492,10 +492,7 @@ static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent)
 		}
 		type_struct_add( struct_info, member_info, 0 );
 
-		int res = dwarf_siblingof(&die, &die);
-		if (res == 0) continue;     /* sibling exists    */
-		if (res < 0)  return false; /* error             */
-		break;                      /* no sibling exists */
+		NEXT_SIBLING(&die);
 	}
 
 	return true;
@@ -564,9 +561,9 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 		return get_structure( *info, type_die );
 
 
-	case DW_TAG_typedef: ;
-	case DW_TAG_const_type: ;
-	case DW_TAG_volatile_type: ;
+	case DW_TAG_typedef:
+	case DW_TAG_const_type:
+	case DW_TAG_volatile_type: {
 		// Various tags are simply pass-through, so I just keep going
 		bool res = true;
 		if (get_type_die(&next_die, type_die )) {
@@ -578,9 +575,10 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 			*info = type_get_simple( ARGTYPE_VOID );
 			complain(type_die, "Storing void type: %p", *info);
 		}
-		if (res )
+		if (res)
 			dict_insert( &type_hash, &die_offset, info );
 		return res;
+	}
 
 	case DW_TAG_enumeration_type:
 		// We have an enumeration. This has type "int", but has a particular
@@ -650,42 +648,89 @@ static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine)
 	}
 
 	while(1) {
-		if (dwarf_tag(&arg_die) != DW_TAG_formal_parameter )
-			goto next_prototype_argument;
+		if (dwarf_tag(&arg_die) == DW_TAG_formal_parameter) {
 
-		complain(&arg_die, "arg: 0x%02x", dwarf_tag(&arg_die));
+			complain(&arg_die, "arg: 0x%02x", dwarf_tag(&arg_die));
 
-		Dwarf_Die type_die;
-		if (!get_type_die(&type_die, &arg_die )) {
-			complain(&arg_die, "Couldn't get the argument type die");
-			return false;
-		}
+			Dwarf_Die type_die;
+			if (!get_type_die(&type_die, &arg_die )) {
+				complain(&arg_die, "Couldn't get the argument type die");
+				return false;
+			}
 
-		struct arg_type_info* arg_type_info = NULL;
-		if (!get_type( &arg_type_info, &type_die )) {
-			complain(&arg_die, "Couldn't parse arg type from DWARF data");
-			return false;
-		}
+			struct arg_type_info* arg_type_info = NULL;
+			if (!get_type( &arg_type_info, &type_die )) {
+				complain(&arg_die, "Couldn't parse arg type from DWARF data");
+				return false;
+			}
 
-		struct param param;
-		param_init_type(&param, arg_type_info, 0);
-		if (prototype_push_param(proto, &param) <0) {
-			complain(&arg_die, "couldn't add argument to the prototype");
-			return false;
-		}
+			struct param param;
+			param_init_type(&param, arg_type_info, 0);
+			if (prototype_push_param(proto, &param) <0) {
+				complain(&arg_die, "couldn't add argument to the prototype");
+				return false;
+			}
 
 #ifdef DUMP_PROTOTYPES
-		fprintf(stderr, "Adding argument:\n");
-		dump_ltrace_tree(arg_type_info);
+			fprintf(stderr, "Adding argument:\n");
+			dump_ltrace_tree(arg_type_info);
 #endif
+		}
 
-	next_prototype_argument: ;
-		int res = dwarf_siblingof(&arg_die, &arg_die);
-		if (res == 0) continue;     /* sibling exists    */
-		if (res < 0)  return false; /* error             */
-		break;                      /* no sibling exists */
+		NEXT_SIBLING(&arg_die);
 	}
 
+	return true;
+}
+
+static bool import_subprogram(struct protolib* plib, struct library* lib,
+							  Dwarf_Die* die)
+{
+	// I use the linkage function name if there is one, otherwise the
+	// plain name
+	const char* function_name = NULL;
+	Dwarf_Attribute attr;
+	if (dwarf_attr(die, DW_AT_linkage_name, &attr) != NULL)
+		function_name = dwarf_formstring(&attr);
+	if (function_name == NULL)
+		function_name = dwarf_diename(die);
+	if (function_name == NULL) {
+		complain(die, "Function has no name. Not importing" );
+		return true;
+	}
+
+
+	complain(die, "subroutine_type: 0x%02x; function '%s'",
+			 dwarf_tag(die), function_name);
+
+	struct prototype* proto =
+		protolib_lookup_prototype(plib, function_name, false );
+
+	if (proto != NULL) {
+		complain(die, "Prototype already exists. Skipping");
+		return true;
+	}
+
+	if (!filter_matches_symbol(options.plt_filter,    function_name, lib) &&
+		!filter_matches_symbol(options.static_filter, function_name, lib) &&
+		!filter_matches_symbol(options.export_filter, function_name, lib)) {
+		complain(die, "Prototype not requested by any filter");
+		return true;
+	}
+
+	proto = malloc(sizeof(struct prototype));
+	if (proto == NULL) {
+		complain(die, "couldn't alloc prototype");
+		return false;
+	}
+	prototype_init( proto );
+
+	if (!get_prototype(proto, die )) {
+		complain(die, "couldn't get prototype");
+		return false;
+	}
+
+	protolib_add_prototype(plib, function_name, 0, proto);
 	return true;
 }
 
@@ -699,60 +744,11 @@ static bool process_die_compileunit(struct protolib* plib, struct library* lib,
 	}
 
 	while (1) {
-		if (dwarf_tag(&die) == DW_TAG_subprogram) {
-
-			// I use the linkage function name if there is one, otherwise the
-			// plain name
-			const char* function_name = NULL;
-			Dwarf_Attribute attr;
-			if (dwarf_attr(&die, DW_AT_linkage_name, &attr) != NULL)
-				function_name = dwarf_formstring(&attr);
-			if (function_name == NULL)
-				function_name = dwarf_diename(&die);
-			if (function_name == NULL) {
-				complain(&die, "Function has no name. Not importing" );
-				goto next_prototype;
-			}
-
-
-			complain(&die, "subroutine_type: 0x%02x; function '%s'",
-					 dwarf_tag(&die), function_name);
-
-			struct prototype* proto =
-				protolib_lookup_prototype(plib, function_name, true );
-
-			if (proto != NULL) {
-				complain(&die, "Prototype already exists. Skipping");
-				goto next_prototype;
-			}
-
-			if (!filter_matches_symbol(options.plt_filter,    function_name, lib) &&
-				!filter_matches_symbol(options.static_filter, function_name, lib) &&
-				!filter_matches_symbol(options.export_filter, function_name, lib)) {
-				complain(&die, "Prototype not requested by any filter");
-				goto next_prototype;
-			}
-
-			proto = malloc(sizeof(struct prototype));
-			if (proto == NULL) {
-				complain(&die, "couldn't alloc prototype");
+		if (dwarf_tag(&die) == DW_TAG_subprogram)
+			if(!import_subprogram(plib, lib, &die))
 				return false;
-			}
-			prototype_init( proto );
 
-			if (!get_prototype(proto, &die )) {
-				complain(&die, "couldn't get prototype");
-				return false;
-			}
-
-			protolib_add_prototype(plib, function_name, 0, proto);
-		}
-
-		next_prototype:;
-		int res = dwarf_siblingof(&die, &die);
-		if (res == 0) continue;     /* sibling exists    */
-		if (res < 0)  return false; /* error             */
-		break;                      /* no sibling exists */
+		NEXT_SIBLING(&die);
 	}
 
 	return true;
@@ -808,6 +804,5 @@ bool import_DWARF_prototypes(struct protolib* plib, struct library* lib,
 
 - all my *allocs leak
 
-- protolib_lookup_prototype should look for imports?
 
 */
