@@ -217,7 +217,7 @@ library_get_prototype(struct library *lib, const char *name)
 			(filter_matches_library(options.plt_filter,    lib ) ||
 			 filter_matches_library(options.static_filter, lib ) ||
 			 filter_matches_library(options.export_filter, lib )))
-			import_DWARF_prototypes(lib->protolib, lib, lib->dwfl);
+			import_DWARF_prototypes(lib);
 #endif
 
 		if (lib->protolib == NULL)
