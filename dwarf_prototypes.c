@@ -714,6 +714,12 @@ static bool import_subprogram(struct protolib* plib, struct library* lib,
 		return true;
 	}
 
+	if (!filter_matches_symbol(options.plt_filter,    function_name, lib) &&
+		!filter_matches_symbol(options.static_filter, function_name, lib) &&
+		!filter_matches_symbol(options.export_filter, function_name, lib)) {
+		complain(die, "Prototype not requested by any filter");
+		return true;
+	}
 
 	complain(die, "subroutine_type: 0x%02x; function '%s'",
 			 dwarf_tag(die), function_name);
@@ -723,13 +729,6 @@ static bool import_subprogram(struct protolib* plib, struct library* lib,
 
 	if (proto != NULL) {
 		complain(die, "Prototype already exists. Skipping");
-		return true;
-	}
-
-	if (!filter_matches_symbol(options.plt_filter,    function_name, lib) &&
-		!filter_matches_symbol(options.static_filter, function_name, lib) &&
-		!filter_matches_symbol(options.export_filter, function_name, lib)) {
-		complain(die, "Prototype not requested by any filter");
 		return true;
 	}
 
