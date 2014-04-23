@@ -779,9 +779,11 @@ static bool import(struct protolib* plib, struct library* lib, Dwfl* dwfl)
 	return true;
 }
 
-bool import_DWARF_prototypes(struct protolib* plib, struct library* lib,
-							 Dwfl *dwfl)
+bool import_DWARF_prototypes(struct library* lib)
 {
+	struct protolib*	plib = lib->protolib;
+	Dwfl*				dwfl = lib->dwfl;
+
 	if (plib == NULL) {
 		plib = protolib_cache_default(&g_protocache, lib->soname, 0);
 		if (plib == NULL) {
@@ -790,7 +792,11 @@ bool import_DWARF_prototypes(struct protolib* plib, struct library* lib,
 		}
 	}
 
-	return import(plib, lib, dwfl);
+	if (import(plib, lib, dwfl)) {
+		lib->protolib = plib;
+		return true;
+	}
+	return false;
 }
 
 /*
