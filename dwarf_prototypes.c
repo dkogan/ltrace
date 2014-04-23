@@ -49,7 +49,7 @@
 static struct dict type_hash;
 
 
-static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die);
+static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct protolib* plib);
 
 
 #if 0
@@ -381,7 +381,7 @@ static bool get_enum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 	return true;
 }
 
-static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent)
+static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent, struct protolib* plib)
 {
 	Dwarf_Die type_die;
 	if (!get_type_die(&type_die, parent)) {
@@ -390,7 +390,7 @@ static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent)
 	}
 
 	struct arg_type_info* info;
-	if (!get_type(&info, &type_die)) {
+	if (!get_type(&info, &type_die, plib)) {
 		complain(parent, "Couldn't figure out array's type");
 		return false;
 	}
@@ -461,7 +461,7 @@ static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent)
 	return true;
 }
 
-static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent)
+static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent, struct protolib* plib)
 {
 	type_init_struct(struct_info);
 
@@ -486,7 +486,7 @@ static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent)
 		}
 
 		struct arg_type_info* member_info = NULL;
-		if (!get_type(&member_info, &type_die)) {
+		if (!get_type(&member_info, &type_die, plib)) {
 			complain(&die, "Couldn't parse type from DWARF data");
 			return false;
 		}
@@ -500,7 +500,7 @@ static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent)
 
 // Reads the type in the die into the given structure
 // Returns true on sucess
-static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
+static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct protolib* plib)
 {
 	Dwarf_Off die_offset = dwarf_dieoffset(type_die);
 	struct arg_type_info** found_type = dict_find(&type_hash, &die_offset);
@@ -508,6 +508,21 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 		*info = *found_type;
 		complain(type_die, "Read pre-computed type: %p", *info);
 		return true;
+	}
+
+	const char* type_name = dwarf_diename(type_die);
+	if (type_name != NULL) {
+
+		struct named_type* already_defined_type =
+			protolib_lookup_type(plib, type_name, false);
+
+		if (already_defined_type != NULL) {
+			complain(type_die,
+					 "Type '%s' defined in a .conf file. Using that instead of DWARF",
+					 type_name);
+			*info = already_defined_type->info;
+			return true;
+		}
 	}
 
 	Dwarf_Die next_die;
@@ -547,7 +562,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 
 		complain(type_die, "Storing pointer type: %p", *info);
 		dict_insert(&type_hash, &die_offset, info);
-		return get_type(&(*info)->u.ptr_info.info, &next_die);
+		return get_type(&(*info)->u.ptr_info.info, &next_die, plib);
 
 	case DW_TAG_structure_type:
 		*info = calloc(1, sizeof(struct arg_type_info));
@@ -558,7 +573,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 
 		complain(type_die, "Storing struct type: %p", *info);
 		dict_insert(&type_hash, &die_offset, info);
-		return get_structure(*info, type_die);
+		return get_structure(*info, type_die, plib);
 
 
 	case DW_TAG_typedef:
@@ -568,7 +583,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 		bool res = true;
 		if (get_type_die(&next_die, type_die)) {
 			complain(type_die, "Storing const/typedef type: %p", *info);
-			res = get_type(info, &next_die);
+			res = get_type(info, &next_die, plib);
 		} else {
 			// no type. Use 'void'. Normally I'd think this is bogus, but stdio
 			// typedefs something to void
@@ -602,7 +617,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 
 		complain(type_die, "Storing array: %p", *info);
 		dict_insert(&type_hash, &die_offset, info);
-		return get_array(*info, type_die);
+		return get_array(*info, type_die, plib);
 
 	case DW_TAG_union_type:
 		*info = type_get_simple(ARGTYPE_VOID);
@@ -617,7 +632,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die)
 	return false;
 }
 
-static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine)
+static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine, struct protolib* plib)
 {
 	// First, look at the return type. This is stored in a DW_AT_type tag in the
 	// subroutine DIE. If there is no such tag, this function returns void
@@ -633,7 +648,7 @@ static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine)
 		}
 		proto->own_return_info = 0;
 
-		if (!get_type(&proto->return_info, &return_type_die)) {
+		if (!get_type(&proto->return_info, &return_type_die, plib)) {
 			complain(subroutine, "Couldn't get return type");
 			return false;
 		}
@@ -659,7 +674,7 @@ static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine)
 			}
 
 			struct arg_type_info* arg_type_info = NULL;
-			if (!get_type(&arg_type_info, &type_die)) {
+			if (!get_type(&arg_type_info, &type_die, plib)) {
 				complain(&arg_die, "Couldn't parse arg type from DWARF data");
 				return false;
 			}
@@ -725,7 +740,7 @@ static bool import_subprogram(struct protolib* plib, struct library* lib,
 	}
 	prototype_init(proto);
 
-	if (!get_prototype(proto, die)) {
+	if (!get_prototype(proto, die, plib)) {
 		complain(die, "couldn't get prototype");
 		return false;
 	}
