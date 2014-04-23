@@ -24,6 +24,10 @@
 
 #include <stdint.h>
 
+#if defined(HAVE_LIBDW)
+# include <elfutils/libdwfl.h>
+#endif
+
 #include "callback.h"
 #include "forward.h"
 #include "sysdep.h"
@@ -170,6 +174,10 @@ struct library {
 
 	struct arch_library_data arch;
 	struct os_library_data os;
+
+#if defined(HAVE_LIBDW)
+	Dwfl *dwfl;
+#endif
 };
 
 /* Init LIB.  */

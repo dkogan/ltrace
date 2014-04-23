@@ -37,7 +37,6 @@
 #include "proc.h"
 #include "value_dict.h"
 #include "dwarf_prototypes.h"
-#include "filter.h"
 
 #ifndef OS_HAVE_PROCESS_DATA
 int
@@ -947,13 +946,7 @@ proc_add_library(struct process *proc, struct library *lib)
 		}
 	}
 
-	if( dwfl != NULL &&
-		( filter_matches_library(options.plt_filter,	lib ) ||
-		  filter_matches_library(options.static_filter,	lib ) ||
-		  filter_matches_library(options.export_filter,	lib ) ) )
-	{
-		import_DWARF_prototypes( lib->protolib, lib, dwfl );
-	}
+	lib->dwfl = dwfl;
 
 #endif /* defined(HAVE_LIBDW) */
 

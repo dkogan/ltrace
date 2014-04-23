@@ -49,6 +49,11 @@
 #include "type.h"
 #include "value.h"
 #include "value_dict.h"
+#include "filter.h"
+
+#if defined(HAVE_LIBDW)
+#include "dwarf_prototypes.h"
+#endif
 
 static struct process *current_proc = NULL;
 static size_t current_depth = 0;
@@ -206,6 +211,14 @@ library_get_prototype(struct library *lib, const char *name)
 		} while (lib->protolib == NULL
 			 && lib->type == LT_LIBTYPE_DSO
 			 && snip_period(buf));
+
+#if defined(HAVE_LIBDW)
+		if (lib->protolib == NULL && lib->dwfl != NULL &&
+			(filter_matches_library(options.plt_filter,    lib ) ||
+			 filter_matches_library(options.static_filter, lib ) ||
+			 filter_matches_library(options.export_filter, lib )))
+			import_DWARF_prototypes(lib->protolib, lib, lib->dwfl);
+#endif
 
 		if (lib->protolib == NULL)
 			lib->protolib = protolib_cache_default(&g_protocache,
