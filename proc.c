@@ -927,8 +927,8 @@ proc_add_library(struct process *proc, struct library *lib)
 		if (options.bt_depth > 0) {
 			if (leader->dwfl == NULL) {
 				int r = dwfl_linux_proc_attach(dwfl,
-											   leader->pid,
-											   true);
+							       leader->pid,
+							       true);
 				if (r == 0)
 					leader->dwfl = dwfl;
 				else {
