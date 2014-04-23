@@ -294,6 +294,10 @@ private_library_init(struct library *lib, enum library_type type)
 	lib->symbols = NULL;
 	lib->exported_names = NULL;
 	lib->type = type;
+
+#if defined(HAVE_LIBDW)
+	lib->dwfl = NULL;
+#endif
 }
 
 int
