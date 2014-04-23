@@ -700,7 +700,20 @@ static bool process_die_compileunit(struct protolib* plib, struct library* lib,
 
 	while (1) {
 		if (dwarf_tag(&die) == DW_TAG_subprogram) {
-			const char* function_name = dwarf_diename(&die);
+
+			// I use the linkage function name if there is one, otherwise the
+			// plain name
+			const char* function_name = NULL;
+			Dwarf_Attribute attr;
+			if (dwarf_attr(&die, DW_AT_linkage_name, &attr) != NULL)
+				function_name = dwarf_formstring(&attr);
+			if (function_name == NULL)
+				function_name = dwarf_diename(&die);
+			if (function_name == NULL) {
+				complain(&die, "Function has no name. Not importing" );
+				goto next_prototype;
+			}
+
 
 			complain(&die, "subroutine_type: 0x%02x; function '%s'",
 					 dwarf_tag(&die), function_name);
