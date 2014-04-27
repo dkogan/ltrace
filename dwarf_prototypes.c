@@ -43,13 +43,8 @@
 	if (res < 0)  return false; /* error             */	\
 	break                       /* no sibling exists */
 
-// A map from DIE addresses (Dwarf_Off) to type structures (struct
-// arg_type_info*). This is created and filled in at the start of each import,
-// and deleted when the import is complete
-static struct dict type_hash;
-
-
-static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct protolib* plib);
+static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct protolib* plib,
+					 struct dict* type_hash);
 
 
 #if 0
@@ -381,7 +376,8 @@ static bool get_enum(struct arg_type_info* enum_info, Dwarf_Die* parent)
 	return true;
 }
 
-static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent, struct protolib* plib)
+static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent, struct protolib* plib,
+					  struct dict* type_hash)
 {
 	Dwarf_Die type_die;
 	if (!get_type_die(&type_die, parent)) {
@@ -390,7 +386,7 @@ static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent, struc
 	}
 
 	struct arg_type_info* info;
-	if (!get_type(&info, &type_die, plib)) {
+	if (!get_type(&info, &type_die, plib, type_hash)) {
 		complain(parent, "Couldn't figure out array's type");
 		return false;
 	}
@@ -461,7 +457,8 @@ static bool get_array(struct arg_type_info* array_info, Dwarf_Die* parent, struc
 	return true;
 }
 
-static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent, struct protolib* plib)
+static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent, struct protolib* plib,
+						  struct dict* type_hash)
 {
 	type_init_struct(struct_info);
 
@@ -486,7 +483,7 @@ static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent, 
 		}
 
 		struct arg_type_info* member_info = NULL;
-		if (!get_type(&member_info, &type_die, plib)) {
+		if (!get_type(&member_info, &type_die, plib, type_hash)) {
 			complain(&die, "Couldn't parse type from DWARF data");
 			return false;
 		}
@@ -500,10 +497,11 @@ static bool get_structure(struct arg_type_info* struct_info, Dwarf_Die* parent, 
 
 // Reads the type in the die into the given structure
 // Returns true on sucess
-static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct protolib* plib)
+static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct protolib* plib,
+					 struct dict* type_hash)
 {
 	Dwarf_Off die_offset = dwarf_dieoffset(type_die);
-	struct arg_type_info** found_type = dict_find(&type_hash, &die_offset);
+	struct arg_type_info** found_type = dict_find(type_hash, &die_offset);
 	if (found_type != NULL) {
 		*info = *found_type;
 		complain(type_die, "Read pre-computed type: %p", *info);
@@ -531,7 +529,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 	case DW_TAG_base_type:
 		*info = type_get_simple(get_base_type(type_die));
 		complain(type_die, "Storing base type: %p", *info);
-		dict_insert(&type_hash, &die_offset, info);
+		dict_insert(type_hash, &die_offset, info);
 		return true;
 
 	case DW_TAG_subroutine_type:
@@ -540,7 +538,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 		// these, it'll get a segfault
 		*info = type_get_simple(ARGTYPE_VOID);
 		complain(type_die, "Storing subroutine type: %p", *info);
-		dict_insert(&type_hash, &die_offset, info);
+		dict_insert(type_hash, &die_offset, info);
 		return true;
 
 	case DW_TAG_pointer_type:
@@ -549,7 +547,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 			// the pointed-to type isn't defined, so I report a void*
 			*info = type_get_simple(ARGTYPE_VOID);
 			complain(type_die, "Storing void-pointer type: %p", *info);
-			dict_insert(&type_hash, &die_offset, info);
+			dict_insert(type_hash, &die_offset, info);
 			return true;
 		}
 
@@ -561,8 +559,8 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 		type_init_pointer(*info, NULL, 0);
 
 		complain(type_die, "Storing pointer type: %p", *info);
-		dict_insert(&type_hash, &die_offset, info);
-		return get_type(&(*info)->u.ptr_info.info, &next_die, plib);
+		dict_insert(type_hash, &die_offset, info);
+		return get_type(&(*info)->u.ptr_info.info, &next_die, plib, type_hash);
 
 	case DW_TAG_structure_type:
 		*info = calloc(1, sizeof(struct arg_type_info));
@@ -572,8 +570,8 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 		}
 
 		complain(type_die, "Storing struct type: %p", *info);
-		dict_insert(&type_hash, &die_offset, info);
-		return get_structure(*info, type_die, plib);
+		dict_insert(type_hash, &die_offset, info);
+		return get_structure(*info, type_die, plib, type_hash);
 
 
 	case DW_TAG_typedef:
@@ -583,7 +581,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 		bool res = true;
 		if (get_type_die(&next_die, type_die)) {
 			complain(type_die, "Storing const/typedef type: %p", *info);
-			res = get_type(info, &next_die, plib);
+			res = get_type(info, &next_die, plib, type_hash);
 		} else {
 			// no type. Use 'void'. Normally I'd think this is bogus, but stdio
 			// typedefs something to void
@@ -591,7 +589,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 			complain(type_die, "Storing void type: %p", *info);
 		}
 		if (res)
-			dict_insert(&type_hash, &die_offset, info);
+			dict_insert(type_hash, &die_offset, info);
 		return res;
 	}
 
@@ -605,7 +603,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 		}
 
 		complain(type_die, "Storing enum int: %p", *info);
-		dict_insert(&type_hash, &die_offset, info);
+		dict_insert(type_hash, &die_offset, info);
 		return get_enum(*info, type_die);
 
 	case DW_TAG_array_type:
@@ -616,8 +614,8 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 		}
 
 		complain(type_die, "Storing array: %p", *info);
-		dict_insert(&type_hash, &die_offset, info);
-		return get_array(*info, type_die, plib);
+		dict_insert(type_hash, &die_offset, info);
+		return get_array(*info, type_die, plib, type_hash);
 
 	case DW_TAG_union_type:
 		*info = type_get_simple(ARGTYPE_VOID);
@@ -632,7 +630,8 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 	return false;
 }
 
-static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine, struct protolib* plib)
+static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine, struct protolib* plib,
+						  struct dict* type_hash)
 {
 	// First, look at the return type. This is stored in a DW_AT_type tag in the
 	// subroutine DIE. If there is no such tag, this function returns void
@@ -648,7 +647,7 @@ static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine, struct
 		}
 		proto->own_return_info = 0;
 
-		if (!get_type(&proto->return_info, &return_type_die, plib)) {
+		if (!get_type(&proto->return_info, &return_type_die, plib, type_hash)) {
 			complain(subroutine, "Couldn't get return type");
 			return false;
 		}
@@ -674,7 +673,7 @@ static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine, struct
 			}
 
 			struct arg_type_info* arg_type_info = NULL;
-			if (!get_type(&arg_type_info, &type_die, plib)) {
+			if (!get_type(&arg_type_info, &type_die, plib, type_hash)) {
 				complain(&arg_die, "Couldn't parse arg type from DWARF data");
 				return false;
 			}
@@ -699,6 +698,7 @@ static bool get_prototype(struct prototype* proto, Dwarf_Die* subroutine, struct
 }
 
 static bool import_subprogram(struct protolib* plib, struct library* lib,
+							  struct dict* type_hash,
 							  Dwarf_Die* die)
 {
 	// I use the linkage function name if there is one, otherwise the
@@ -739,7 +739,7 @@ static bool import_subprogram(struct protolib* plib, struct library* lib,
 	}
 	prototype_init(proto);
 
-	if (!get_prototype(proto, die, plib)) {
+	if (!get_prototype(proto, die, plib, type_hash)) {
 		complain(die, "couldn't get prototype");
 		return false;
 	}
@@ -749,6 +749,7 @@ static bool import_subprogram(struct protolib* plib, struct library* lib,
 }
 
 static bool process_die_compileunit(struct protolib* plib, struct library* lib,
+									struct dict* type_hash,
 									Dwarf_Die* parent)
 {
 	Dwarf_Die die;
@@ -759,7 +760,7 @@ static bool process_die_compileunit(struct protolib* plib, struct library* lib,
 
 	while (1) {
 		if (dwarf_tag(&die) == DW_TAG_subprogram)
-			if(!import_subprogram(plib, lib, &die))
+			if(!import_subprogram(plib, lib, type_hash, &die))
 				return false;
 
 		NEXT_SIBLING(&die);
@@ -770,27 +771,38 @@ static bool process_die_compileunit(struct protolib* plib, struct library* lib,
 
 static bool import(struct protolib* plib, struct library* lib, Dwfl* dwfl)
 {
+	// A map from DIE addresses (Dwarf_Off) to type structures (struct
+	// arg_type_info*). This is created and filled in at the start of each
+	// import, and deleted when the import is complete
+	struct dict type_hash;
+
 	dict_init(&type_hash, sizeof(Dwarf_Off), sizeof(struct arg_type_info*),
 			  dwarf_die_hash, dwarf_die_eq, NULL);
+
+	bool result = true;
 
 	Dwarf_Addr bias;
     Dwarf_Die* die = NULL;
     while ((die = dwfl_nextcu(dwfl, die, &bias)) != NULL) {
         if (dwarf_tag(die) == DW_TAG_compile_unit) {
-            if (!process_die_compileunit(plib, lib, die)) {
+            if (!process_die_compileunit(plib, lib, &type_hash, die)) {
                 complain(die, "Error reading compile unit");
 				exit(1);
-				return false;
+
+				result = false;
+				break;
             }
         } else {
             complain(die, "DW_TAG_compile_unit expected");
 			exit(1);
-            return false;
+
+			result = false;
+			break;
         }
     }
 
 	dict_destroy(&type_hash, NULL, NULL, NULL);
-	return true;
+	return result;
 }
 
 bool import_DWARF_prototypes(struct library* lib)
