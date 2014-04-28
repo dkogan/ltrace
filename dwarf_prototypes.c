@@ -512,7 +512,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 	if (type_name != NULL) {
 
 		struct named_type* already_defined_type =
-			protolib_lookup_type(plib, type_name, false);
+			protolib_lookup_type(plib, type_name, true);
 
 		if (already_defined_type != NULL) {
 			complain(type_die,
