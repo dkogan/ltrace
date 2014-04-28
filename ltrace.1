@@ -122,11 +122,13 @@ describing which debug messages should be displayed.  Use the option
 \-Dh to see what can be used, but note that currently the only
 reliable debugmask is 77, which shows all debug messages.
 .IP "\-e \fIfilter"
-A qualifying expression which modifies which library calls to trace.
-The format of the filter expression is described in the section
-\fBFILTER EXPRESSIONS\fR.  If more than one \-e option appears on the
-command line, the library calls that match any of them are traced.  If
-no \-e is given, \fB@MAIN\fR is assumed as a default.
+A qualifying expression which modifies which library calls (i.e. calls
+done through PLT slots, which are typically calls from the main binary
+to a library, or inter-library calls) to trace.  The format of the
+filter expression is described in the section \fBFILTER
+EXPRESSIONS\fR.  If more than one \-e option appears on the command
+line, the library calls that match any of them are traced.  If no \-e
+is given, \fB@MAIN\fR is assumed as a default.
 .IP \-f
 Trace child processes as they are created by
 currently traced processes as a result of the fork(2)
@@ -144,6 +146,9 @@ Show a summary of the options to ltrace and exit.
 Print the instruction pointer at the time of the library call.
 .IP "\-l, \-\-library \fIlibrary_pattern"
 Display only calls to functions implemented by libraries that match
+.I library_pattern.
+This is as if you specified one \-e for every symbol implemented in a
+library specified by
 .I library_pattern.
 Multiple library patters can be specified with several instances of
 this option.  Syntax of library_pattern is described in section
@@ -200,10 +205,12 @@ option enabled only if elfutils or libunwind support was enabled at compile
 time.
 .IP "\-x \fIfilter"
 A qualifying expression which modifies which symbol table entry points
-to trace.  The format of the filter expression is described in the
-section \fBFILTER EXPRESSIONS\fR.  If more than one \-x option appears
-on the command line, the symbols that match any of them are traced.
-No entry points are traced if no \-x is given.
+to trace (those are typically calls inside a library or main binary,
+though PLT calls, traced by \-e, land on entry points as well).  The
+format of the filter expression is described in the section \fBFILTER
+EXPRESSIONS\fR.  If more than one \-x option appears on the command
+line, the symbols that match any of them are traced.  No entry points
+are traced if no \-x is given.
 .IP "\-V, \-\-version"
 Show the version number of ltrace and exit.
 
