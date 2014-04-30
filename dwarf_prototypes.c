@@ -985,16 +985,3 @@ bool import_DWARF_prototypes(struct library* lib)
 
 	return true;
 }
-
-/*
-- I handle static functions now. Should I? Those do not have DW_AT_external==1
-
-- should process existing prototypes to make sure they match
-
-- what do function pointers look like? I'm doing void*
-
-- unions
-
-- all my *allocs leak
-
-*/
