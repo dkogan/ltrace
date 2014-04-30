@@ -26,8 +26,6 @@
 #include "filter.h"
 #include "debug.h"
 
-//#define DUMP_PROTOTYPES
-
 #define complain(die, format, ...)								\
 	debug(DEBUG_FUNCTION, "%s() die '%s' @ 0x%lx: " format,		\
 		  __func__, dwarf_diename(die), dwarf_dieoffset(die),	\
@@ -44,31 +42,9 @@ static struct arg_type_info* get_type(int* newly_allocated_info,
 									  struct dict* type_dieoffset_hash);
 
 
-#if 0
-static bool _dump_dwarf_tree(Dwarf_Die* die, int indent)
-{
-    while (1) {
-        fprintf(stderr, "%*sprocessing unit: 0x%02x/'%s'\n", indent*4, "",
-               dwarf_tag(die), dwarf_diename(die));
 
-        Dwarf_Die child;
-        if (dwarf_child(die, &child) == 0) {
-			if (!_dump_dwarf_tree(&child, indent+1))
-				return false;
-        }
 
-        SIBLING(die);
-    }
-
-    return true;
-}
-
-static bool dump_dwarf_tree(Dwarf_Die* die)
-{
-    return _dump_dwarf_tree(die, 0);
-}
-#endif
-
+// debugging functions to dump types that I already parsed
 #ifdef DUMP_PROTOTYPES
 static bool _dump_ltrace_tree(const struct arg_type_info* info, int indent)
 {
