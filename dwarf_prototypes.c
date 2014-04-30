@@ -24,18 +24,14 @@
 #include "library.h"
 #include "options.h"
 #include "filter.h"
-
+#include "debug.h"
 
 //#define DUMP_PROTOTYPES
 
-#if 1
 #define complain(die, format, ...)								\
-	fprintf(stderr, "%s() die '%s' @ 0x%lx: " format "\n",		\
-			__func__, dwarf_diename(die), dwarf_dieoffset(die),	\
-			##__VA_ARGS__)
-#else
-#define complain(die, format, ...)
-#endif
+	debug(DEBUG_FUNCTION, "%s() die '%s' @ 0x%lx: " format,		\
+		  __func__, dwarf_diename(die), dwarf_dieoffset(die),	\
+		  ##__VA_ARGS__)
 
 #define NEXT_SIBLING(die)								\
 	int res = dwarf_siblingof(die, die);				\
