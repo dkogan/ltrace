@@ -545,7 +545,7 @@ static bool get_type(struct arg_type_info** info, Dwarf_Die* type_die, struct pr
 
 		if (!get_type_die(&next_die, type_die)) {
 			// the pointed-to type isn't defined, so I report a void*
-			*info = type_get_simple(ARGTYPE_VOID);
+			*info = type_get_voidptr();
 			complain(type_die, "Storing void-pointer type: %p", *info);
 			dict_insert(type_dieoffset_hash, &die_offset, info);
 			return true;
