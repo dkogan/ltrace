@@ -339,7 +339,7 @@ static struct arg_type_info* get_enum(Dwarf_Die* parent, struct dict* type_dieof
 
 	result = calloc(1, sizeof(struct arg_type_info));
 	if (result == NULL) {
-		complain(type_die, "alloc error");
+		complain(parent, "alloc error");
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
 
@@ -467,7 +467,7 @@ static struct arg_type_info* get_array( Dwarf_Die* parent, struct protolib* plib
 
 	result = calloc(1, sizeof(struct arg_type_info));
 	if (result == NULL) {
-		complain(type_die, "alloc error");
+		complain(parent, "alloc error");
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
 
@@ -582,7 +582,7 @@ static struct arg_type_info* get_structure(Dwarf_Die* parent, struct protolib* p
 
 	result = calloc(1, sizeof(struct arg_type_info));
 	if (result == NULL) {
-		complain(type_die, "alloc error");
+		complain(parent, "alloc error");
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
 	type_init_struct(result);
@@ -717,7 +717,7 @@ static struct arg_type_info* get_type(int* newly_allocated_result,
 		}
 		dict_insert(type_dieoffset_hash, &die_offset, &result);
 		pointee = get_type(&newly_allocated_pointee,
-						 &next_die, plib, type_dieoffset_hash);
+						   &next_die, plib, type_dieoffset_hash);
 		if(pointee == NULL)
 			CLEANUP_AND_RETURN_ERROR(NULL);
 
@@ -814,7 +814,7 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 
 	result = calloc(1, sizeof(struct prototype));
 	if (result == NULL) {
-		complain(die, "couldn't alloc prototype");
+		complain(subroutine, "couldn't alloc prototype");
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
 	prototype_init(result);
