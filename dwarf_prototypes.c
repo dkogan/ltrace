@@ -762,9 +762,10 @@ static struct arg_type_info* get_type(int* newly_allocated_result,
 #undef CLEANUP_AND_RETURN_ERROR
 }
 
-// returns a newly-allocated prototype*, or NULL on error
-static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* plib,
-										struct dict* type_dieoffset_hash)
+// fills in *proto with a prototype. Returns true on success
+static bool get_prototype( struct prototype* result,
+						   Dwarf_Die* subroutine, struct protolib* plib,
+						   struct dict* type_dieoffset_hash)
 {
 
 #define CLEANUP_AND_RETURN_ERROR(ret) do {		\
@@ -772,23 +773,14 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 			type_destroy(argument_type);		\
 			free(argument_type);				\
 		}										\
-		if(result != NULL) {					\
-			prototype_destroy(result);			\
-			free(result);						\
-		}										\
+		prototype_destroy(result);				\
 		return ret;								\
 	} while(0)
 
 
-	struct prototype*			result						  = NULL;
 	struct arg_type_info*		argument_type				  = NULL;
 	int							newly_allocated_argument_type = 0;
 
-	result = calloc(1, sizeof(struct prototype));
-	if (result == NULL) {
-		complain(subroutine, "couldn't alloc prototype");
-		CLEANUP_AND_RETURN_ERROR(NULL);
-	}
 	prototype_init(result);
 
 	// First, look at the return type. This is stored in a DW_AT_type tag in the
@@ -801,7 +793,7 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 		result->return_info = calloc(1, sizeof(struct arg_type_info));
 		if (result->return_info == NULL) {
 			complain(subroutine, "Couldn't alloc return type");
-			CLEANUP_AND_RETURN_ERROR(NULL);
+			CLEANUP_AND_RETURN_ERROR(false);
 		}
 		result->own_return_info = 1;
 
@@ -810,7 +802,7 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 									   &return_type_die, plib, type_dieoffset_hash);
 		if(result->return_info == NULL) {
 			complain(subroutine, "Couldn't get return type");
-			CLEANUP_AND_RETURN_ERROR(NULL);
+			CLEANUP_AND_RETURN_ERROR(false);
 		}
 		result->own_return_info = newly_allocated_return_type;
 	}
@@ -820,7 +812,7 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 	Dwarf_Die arg_die;
 	if (dwarf_child(subroutine, &arg_die) != 0) {
 		// no args. We're done
-		return result;
+		return true;
 	}
 
 	while(1) {
@@ -834,7 +826,7 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 			Dwarf_Die type_die;
 			if (!get_type_die(&type_die, &arg_die)) {
 				complain(&arg_die, "Couldn't get the argument type die");
-				CLEANUP_AND_RETURN_ERROR(NULL);
+				CLEANUP_AND_RETURN_ERROR(false);
 			}
 
 
@@ -842,14 +834,14 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 									 &type_die, plib, type_dieoffset_hash);
 			if(argument_type==NULL) {
 				complain(&arg_die, "Couldn't parse arg type from DWARF data");
-				CLEANUP_AND_RETURN_ERROR(NULL);
+				CLEANUP_AND_RETURN_ERROR(false);
 			}
 
 			struct param param;
 			param_init_type(&param, argument_type, newly_allocated_argument_type);
 			if (prototype_push_param(result, &param) <0) {
 				complain(&arg_die, "couldn't add argument to the prototype");
-				CLEANUP_AND_RETURN_ERROR(NULL);
+				CLEANUP_AND_RETURN_ERROR(false);
 			}
 
 #ifdef DUMP_PROTOTYPES
@@ -861,7 +853,7 @@ static struct prototype* get_prototype( Dwarf_Die* subroutine, struct protolib* 
 		NEXT_SIBLING(&arg_die);
 	}
 
-	return result;
+	return true;
 #undef CLEANUP_AND_RETURN_ERROR
 }
 
@@ -892,16 +884,16 @@ static bool import_subprogram(struct protolib* plib, struct library* lib,
 	complain(die, "subroutine_type: 0x%02x; function '%s'",
 			 dwarf_tag(die), function_name);
 
-	struct prototype* proto =
+	struct prototype* proto_already_there =
 		protolib_lookup_prototype(plib, function_name, false);
 
-	if (proto != NULL) {
+	if (proto_already_there != NULL) {
 		complain(die, "Prototype already exists. Skipping");
 		return true;
 	}
 
-	proto = get_prototype(die, plib, type_dieoffset_hash);
-	if(proto == NULL) {
+	struct prototype proto;
+	if(!get_prototype(&proto, die, plib, type_dieoffset_hash)) {
 		complain(die, "couldn't get prototype");
 		return false;
 	}
@@ -909,11 +901,10 @@ static bool import_subprogram(struct protolib* plib, struct library* lib,
 	const char* function_name_dup = strdup(function_name);
 	if( function_name_dup == NULL ) {
 		complain(die, "couldn't strdup");
-		prototype_destroy(proto);
-		free(proto);
+		prototype_destroy(&proto);
 		return false;
 	}
-	protolib_add_prototype(plib, function_name_dup, 1, proto);
+	protolib_add_prototype(plib, function_name_dup, 1, &proto);
 	return true;
 }
 
