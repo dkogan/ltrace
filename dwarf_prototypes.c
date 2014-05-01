@@ -406,10 +406,6 @@ static struct arg_type_info* get_array( Dwarf_Die* parent, struct protolib* plib
 {
 
 #define CLEANUP_AND_RETURN_ERROR(ret) do {								\
-		if(value != NULL) {												\
-			value_destroy(value);										\
-			free(value);												\
-		}																\
 		if(length != NULL) {											\
 			expr_destroy(length);										\
 			free(length);												\
@@ -430,7 +426,6 @@ static struct arg_type_info* get_array( Dwarf_Die* parent, struct protolib* plib
 
 
 	struct arg_type_info*		result					   = NULL;
-	struct value*				value					   = NULL;
 	struct expr_node*			length					   = NULL;
 	struct arg_type_info*		array_type				   = NULL;
 	int							newly_allocated_array_type = 0;
@@ -502,21 +497,12 @@ static struct arg_type_info* get_array( Dwarf_Die* parent, struct protolib* plib
 
 	// I'm not checking the subrange type. It should be some sort of integer,
 	// and I don't know what it would mean for it to be something else
-
-	value = calloc(1, sizeof(struct value));
-	if (value == NULL) {
-		complain(&subrange, "Couldn't alloc length value");
-		CLEANUP_AND_RETURN_ERROR(NULL);
-	}
-	value_init_detached(value, NULL, type_get_simple(ARGTYPE_INT), 0);
-	value_set_word(value, N);
-
 	length = calloc(1, sizeof(struct expr_node));
 	if (length == NULL) {
 		complain(&subrange, "Couldn't alloc length expr");
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
-	expr_init_const(length, value);
+	expr_init_const_word(length, N, type_get_simple(ARGTYPE_INT), 0);
 
 	type_init_array(result, array_type, newly_allocated_array_type,
 					length, 1);
@@ -790,13 +776,6 @@ static bool get_prototype( struct prototype* result,
 		result->return_info = type_get_simple(ARGTYPE_VOID);
 		result->own_return_info = 0;
 	} else {
-		result->return_info = calloc(1, sizeof(struct arg_type_info));
-		if (result->return_info == NULL) {
-			complain(subroutine, "Couldn't alloc return type");
-			CLEANUP_AND_RETURN_ERROR(false);
-		}
-		result->own_return_info = 1;
-
 		int newly_allocated_return_type;
 		result->return_info = get_type(&newly_allocated_return_type,
 									   &return_type_die, plib, type_dieoffset_hash);
