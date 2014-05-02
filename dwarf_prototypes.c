@@ -935,6 +935,7 @@ bool import_DWARF_prototypes(struct library* lib)
 	struct protolib*	plib = lib->protolib;
 	Dwfl*				dwfl = lib->dwfl;
 
+	debug(DEBUG_FUNCTION, "Importing DWARF prototypes from '%s'", lib->soname);
 	if (plib == NULL) {
 
 		const char* soname_dup = strdup(lib->soname);

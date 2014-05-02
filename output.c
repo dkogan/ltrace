@@ -50,6 +50,7 @@
 #include "value.h"
 #include "value_dict.h"
 #include "filter.h"
+#include "debug.h"
 
 #if defined(HAVE_LIBDW)
 #include "dwarf_prototypes.h"
@@ -220,6 +221,9 @@ library_get_prototype(struct library *lib, const char *name)
 			 filter_matches_library(options.static_filter, lib ) ||
 			 filter_matches_library(options.export_filter, lib )))
 			import_DWARF_prototypes(lib);
+		else
+			debug(DEBUG_FUNCTION, "Filter didn't match prototype '%s' in lib '%s'. Not importing",
+				  name, lib->soname);
 #endif
 
 		if (lib->protolib == NULL)
