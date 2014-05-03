@@ -906,21 +906,21 @@ proc_add_library(struct process *proc, struct library *lib)
 		dwfl = dwfl_begin(&proc_callbacks);
 		if (dwfl == NULL)
 			fprintf(stderr,
-					"Couldn't initialize libdwfl unwinding "
-					"for process %d: %s\n", leader->pid,
-					dwfl_errmsg (-1));
+				"Couldn't initialize libdwfl unwinding "
+				"for process %d: %s\n", leader->pid,
+				dwfl_errmsg (-1));
 	}
 
 	if (dwfl != NULL) {
 		dwfl_report_begin_add(dwfl);
 		if (dwfl_report_elf(dwfl, lib->soname,
-							lib->pathname, -1,
-							(GElf_Addr) lib->base,
-							false) == NULL)
+				    lib->pathname, -1,
+				    (GElf_Addr) lib->base,
+				    false) == NULL)
 			fprintf(stderr,
-					"dwfl_report_elf %s@%p (%s) %d: %s\n",
-					lib->soname, lib->base, lib->pathname,
-					proc->pid, dwfl_errmsg (-1));
+				"dwfl_report_elf %s@%p (%s) %d: %s\n",
+				lib->soname, lib->base, lib->pathname,
+				proc->pid, dwfl_errmsg (-1));
 		dwfl_report_end(dwfl, NULL, NULL);
 
 		if (options.bt_depth > 0) {
@@ -938,8 +938,8 @@ proc_add_library(struct process *proc, struct library *lib)
 					else
 						msg = strerror(r);
 					fprintf(stderr, "Couldn't initialize "
-						"libdwfl (for unwinding, prototype import) for "
-						"process %d: %s\n",
+						"libdwfl (unwinding, prototype "
+						"import) for process %d: %s\n",
 						leader->pid, msg);
 				}
 			}
