@@ -6,4 +6,4 @@
 #include "prototype.h"
 #include "library.h"
 
-bool import_DWARF_prototypes(struct library* lib);
+bool import_DWARF_prototypes(struct library *lib);
