@@ -891,6 +891,7 @@ static bool process_die_compileunit(struct protolib* plib, struct library* lib,
 									struct dict* type_dieoffset_hash,
 									Dwarf_Die* parent)
 {
+	complain(parent, "Processing compile unit");
 	Dwarf_Die die;
 	if (dwarf_child(parent, &die) != 0) {
 		// no child nodes, so nothing to do
