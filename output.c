@@ -198,7 +198,7 @@ snip_period(char *buf)
 }
 
 static struct prototype *
-library_get_prototype(struct library *lib, const char *name)
+library_get_prototype(struct library *lib, const struct library_symbol *libsym)
 {
 	if (lib->protolib == NULL) {
 		size_t sz = strlen(lib->soname);
@@ -225,7 +225,7 @@ library_get_prototype(struct library *lib, const char *name)
 			debug(DEBUG_FUNCTION,
 			      "Filter didn't match prototype '%s' in lib '%s'. "
 			      "Not importing",
-			      name, lib->soname);
+			      libsym->name, lib->soname);
 #endif
 
 		if (lib->protolib == NULL)
@@ -235,12 +235,12 @@ library_get_prototype(struct library *lib, const char *name)
 	if (lib->protolib == NULL)
 		return NULL;
 
-	return protolib_lookup_prototype(lib->protolib, name,
+	return protolib_lookup_prototype(lib->protolib, libsym->name,
 					 lib->type != LT_LIBTYPE_SYSCALL);
 }
 
 struct find_proto_data {
-	const char *name;
+	const struct library_symbol *libsym;
 	struct prototype *ret;
 };
 
@@ -248,7 +248,7 @@ static enum callback_status
 find_proto_cb(struct process *proc, struct library *lib, void *d)
 {
 	struct find_proto_data *data = d;
-	data->ret = library_get_prototype(lib, data->name);
+	data->ret = library_get_prototype(lib, data->libsym);
 	return CBS_STOP_IF(data->ret != NULL);
 }
 
@@ -260,8 +260,8 @@ lookup_symbol_prototype(struct process *proc, struct library_symbol *libsym)
 
 	struct library *lib = libsym->lib;
 	if (lib != NULL) {
-		struct find_proto_data data = { libsym->name };
-		data.ret = library_get_prototype(lib, libsym->name);
+		struct find_proto_data data = { libsym };
+		data.ret = library_get_prototype(lib, libsym);
 		if (data.ret == NULL
 		    && libsym->plt_type == LS_TOPLT_EXEC)
 			proc_each_library(proc, NULL, find_proto_cb, &data);
