@@ -197,6 +197,28 @@ snip_period(char *buf)
 	}
 }
 
+struct library_get_prototype_cb_cookie_t {
+	const struct library *lib;
+	struct prototype *proto;
+};
+static enum callback_status
+library_get_prototype_cb(const void *data, void *cookie)
+{
+	struct library_get_prototype_cb_cookie_t *context =
+		(struct library_get_prototype_cb_cookie_t *)cookie;
+	const struct library *lib = context->lib;
+
+	struct prototype *proto =
+		protolib_lookup_prototype(lib->protolib,
+					  *(const char* const *)data,
+					  lib->type != LT_LIBTYPE_SYSCALL);
+	if (proto != NULL) {
+		context->proto = proto;
+		return CBS_STOP;
+	}
+	return CBS_CONT;
+}
+
 static struct prototype *
 library_get_prototype(struct library *lib, const struct library_symbol *libsym)
 {
@@ -235,8 +257,19 @@ library_get_prototype(struct library *lib, const struct library_symbol *libsym)
 	if (lib->protolib == NULL)
 		return NULL;
 
-	return protolib_lookup_prototype(lib->protolib, libsym->name,
-					 lib->type != LT_LIBTYPE_SYSCALL);
+	// I look through the symbol name and the alias names, and take the
+	// first match
+	struct prototype *proto =
+		protolib_lookup_prototype(lib->protolib, libsym->name,
+					  lib->type != LT_LIBTYPE_SYSCALL);
+	if (proto != NULL)
+		return proto;
+
+	struct library_get_prototype_cb_cookie_t cookie = {.lib = lib,
+							   .proto = NULL};
+	vect_each_cst(&libsym->name_aliases, NULL,
+		      library_get_prototype_cb, &cookie);
+	return cookie.proto;
 }
 
 struct find_proto_data {
