@@ -535,3 +535,31 @@ library_with_key_cb(struct process *proc, struct library *lib, void *keyp)
 {
 	return lib->key == *(arch_addr_t *)keyp ? CBS_STOP : CBS_CONT;
 }
+
+static enum callback_status
+library_dump_cb(const void *data, void *cookie)
+{
+	fprintf(stderr, "%s,", *(const char**)data);
+	return CBS_CONT;
+}
+
+void
+library_dump_symbols(const struct library *lib)
+{
+	if (lib == NULL)
+		return;
+
+	fprintf(stderr, "symbol dump start for soname '%s' ===\n", lib->soname);
+
+	struct library_symbol *symbol = lib->symbols;
+	while (symbol != NULL) {
+		fprintf(stderr, "    %s (", symbol->name);
+		vect_each_cst(&symbol->name_aliases, NULL,
+			      library_dump_cb, NULL);
+		fprintf(stderr, ")\n");
+
+		symbol = symbol->next;
+	}
+
+	fprintf(stderr, "symbol dump end =========\n");
+}
