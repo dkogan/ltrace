@@ -230,6 +230,9 @@ int protolib_cache_protolib(struct protolib_cache *cache,
 			    const char *filename, int own_filename,
 			    struct protolib *plib);
 
+/* Debugging function to dump all known prototypes to stderr */
+void protolib_dump_prototypes(const struct protolib *plib);
+
 /* Single global prototype cache.
  *
  * XXX Eventually each ABI should have its own cache.  The idea is

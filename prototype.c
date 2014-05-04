@@ -195,6 +195,19 @@ is_or_imports(struct protolib **plibp, void *data)
 		return CBS_CONT;
 }
 
+static
+enum callback_status dump_prototypes_cb(void *key, void *value, void *data)
+{
+	fprintf(stderr, "    Have prototype '%s'\n", *(char**)key);
+	return CBS_CONT;
+}
+void protolib_dump_prototypes(const struct protolib *plib)
+{
+	fprintf(stderr, "protolib dump start =========\n");
+	dict_each(&plib->prototypes, NULL, dump_prototypes_cb, NULL);
+	fprintf(stderr, "protolib dump end =========\n");
+}
+
 int
 protolib_add_import(struct protolib *plib, struct protolib *import)
 {
