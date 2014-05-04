@@ -253,4 +253,8 @@ int arch_translate_address(struct ltelf *lte,
 int arch_translate_address_dyn(struct process *proc,
 			       arch_addr_t addr, arch_addr_t *ret);
 
+/* Debugging function to dump all known library symbols (and their aliases) to
+ * stderr */
+void library_dump_symbols(const struct library *lib);
+
 #endif /* _LIBRARY_H_ */
