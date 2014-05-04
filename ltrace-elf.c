@@ -876,7 +876,11 @@ delete_symbol_chain(struct library_symbol *libsym)
  * __cfree, __free, __libc_free, cfree and free all defined on the
  * same address.  So instead we keep this unique symbol struct for
  * each address, and replace name in libsym with a shorter variant if
- * we find it.  */
+ * we find it. We retain all the duplicate names in the name_aliases
+ * list. This is needed to make sure the DWARF prototype-parser can
+ * match up the symbols. For instance DWARF has an entry for
+ * __nanosleep and __GI___nanosleep. So keeping only the nanosleep
+ * symbol does not work there */
 struct unique_symbol {
 	arch_addr_t addr;
 	struct library_symbol *libsym;
@@ -1048,28 +1052,26 @@ populate_this_symtab(struct process *proc, const char *filename,
 
 		struct library_symbol *tmp;
 		for (tmp = libsym; tmp != NULL; ) {
-			/* Look whether we already have a symbol for
-			 * this address.  If not, add this one.  If
-			 * yes, look if we should pick the new symbol
-			 * name.  */
-
+			/* Look whether we already have a symbol for this
+			 * address. If so, add it to the alias list */
 			struct unique_symbol key = { tmp->enter_addr, NULL };
 			struct unique_symbol *unique
 				= lsearch(&key, symbols, &num_symbols,
 					  sizeof *symbols, &unique_symbol_cmp);
 
 			if (unique->libsym == NULL) {
+				// This is a newly-found symbol
 				unique->libsym = tmp;
 				unique->addr = tmp->enter_addr;
 				tmp = tmp->next;
 				unique->libsym->next = NULL;
 			} else {
-				if (strlen(tmp->name)
-				    < strlen(unique->libsym->name)) {
-					library_symbol_set_name
-						(unique->libsym, tmp->name, 1);
-					tmp->name = NULL;
-				}
+				// This symbol address already exists. I
+				// remember the shortest name, and keep the rest
+				// in the name_aliases list
+				library_symbol_add_name_alias(unique->libsym,
+							      tmp->name);
+				tmp->name = NULL;
 				struct library_symbol *next = tmp->next;
 				library_symbol_destroy(tmp);
 				free(tmp);

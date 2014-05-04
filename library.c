@@ -160,12 +160,19 @@ private_library_symbol_init(struct library_symbol *libsym,
 	libsym->delayed = delayed;
 	libsym->enter_addr = (void *)(uintptr_t)addr;
 	libsym->proto = NULL;
+
+	vect_init(&libsym->name_aliases, sizeof(const char*));
 }
 
+static void free_string_cb(void* data, void* cookie)
+{
+	free(*(char**)data);
+}
 static void
 private_library_symbol_destroy(struct library_symbol *libsym)
 {
 	library_symbol_set_name(libsym, NULL, 0);
+	vect_destroy(&libsym->name_aliases, free_string_cb, NULL);
 }
 
 int
@@ -253,6 +260,29 @@ library_symbol_set_name(struct library_symbol *libsym,
 		free((char *)libsym->name);
 	libsym->name = name;
 	libsym->own_name = own_name;
+}
+
+void library_symbol_add_name_alias(struct library_symbol *libsym,
+				   const char *name)
+{
+	// we store the new name on the alias list. If the new name is shortest,
+	// I store the original canonical name in the alias list instead, making
+	// the new name canonical
+	if (strlen(name) < strlen(libsym->name)) {
+		// new name is shorter
+		if (!libsym->own_name) {
+			const char *orig_name_copy = strdup(libsym->name);
+			if (orig_name_copy == NULL)
+				return;
+			libsym->name = orig_name_copy;
+			libsym->own_name = 1;
+		}
+		const char* tmp = libsym->name;
+		libsym->name = name;
+		name = tmp;
+	}
+
+	vect_pushback(&libsym->name_aliases, &name);
 }
 
 enum callback_status

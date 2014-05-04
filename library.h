@@ -51,9 +51,14 @@ struct library_exported_name {
 struct library_symbol {
 	struct library_symbol *next;
 	struct library *lib;
-	const char *name;
 	arch_addr_t enter_addr;
 	enum toplt plt_type;
+
+	const char *name;
+
+	// an address can have multiple symbols. All the duplicates are stored
+	// here
+	struct vect name_aliases;
 
 	/* If this is non-NULL, this prototype is used instead of
 	 * looking up one in LIB->protolib.  */
@@ -105,6 +110,13 @@ int library_symbol_cmp(struct library_symbol *a, struct library_symbol *b);
  * that is owned.  */
 void library_symbol_set_name(struct library_symbol *libsym,
 			     const char *name, int own_name);
+
+/* Adds an alias name for library symbol. The new name is owned by the libsym.
+ * If the new alias is shorter than the canonical name, we replace the canonical
+ * name with the new one, and add the old canonical name to the alias list*/
+void library_symbol_add_name_alias(struct library_symbol *libsym,
+				   const char *name);
+
 
 /* A function that can be used as library_each_symbol callback.  Looks
  * for a symbol SYM for which library_symbol_cmp(SYM, STANDARD)

@@ -882,14 +882,8 @@ static bool import_subprogram(struct protolib *plib, struct library *lib,
 			      struct dict *type_dieoffset_hash,
 			      Dwarf_Die *die)
 {
-	// I use the linkage function name if there is one, otherwise the
-	// plain name
 	const char *function_name = NULL;
-	Dwarf_Attribute attr;
-	if (dwarf_attr(die, DW_AT_linkage_name, &attr) != NULL)
-		function_name = dwarf_formstring(&attr);
-	if (function_name == NULL)
-		function_name = dwarf_diename(die);
+	function_name = dwarf_diename(die);
 	if (function_name == NULL) {
 		complain(die, "Function has no name. Not importing");
 		return true;
