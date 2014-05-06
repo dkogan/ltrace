@@ -531,7 +531,7 @@ output_left(enum tof type, struct process *proc,
 
 	account_output(&current_column, fprintf(options.output, "("));
 
-	struct prototype *func = lookup_symbol_prototype(proc, libsym);
+	struct prototype *func = lookup_symbol_prototype(proc->leader, libsym);
 	if (func == NULL) {
 	fail:
 		account_output(&current_column, fprintf(options.output, "???"));

@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2012 Petr Machata, Red Hat Inc.
+# Copyright (C) 2012, 2014 Petr Machata, Red Hat Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -36,5 +36,38 @@ set bin [ltraceCompile {} $liba [ltraceSource c {
 
 ltraceMatch1 [ltraceRun -F $dir -L -x fun -- $bin] {fun@liba.so\(\)} == 1
 ltraceMatch1 [ltraceRun -F $dir -e fun -- $bin] {fun\(\)} == 1
+
+# This tests lookup of prototypes from non-leader threads.
+
+set bin [ltraceCompile {} $liba -lpthread [ltraceSource c {
+    #include <pthread.h>
+    #include <assert.h>
+
+    void fun();
+
+    void *
+    start(void *arg)
+    {
+	fun();
+	return NULL;
+    }
+
+    int
+    main(int argc, char *argv[])
+    {
+	pthread_t thr;
+	int rc = pthread_create(&thr, NULL, &start, NULL);
+	assert(rc == 0);
+
+	void *retval;
+	rc = pthread_join(thr, &retval);
+	assert(rc == 0);
+
+	return 0;
+    }
+}]]
+
+ltraceMatch1 [ltraceRun -F $dir -f -L -x fun -- $bin] {fun@liba.so\(\)} == 1
+ltraceMatch1 [ltraceRun -F $dir -f -e fun -- $bin] {fun\(\)} == 1
 
 ltraceDone
