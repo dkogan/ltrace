@@ -193,3 +193,33 @@
 
 * BUGS
 ** After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
+** leak in regex matching
+   >> I looked into this. Ltrace is definitely leaking it. The regex is
+   >> released when filter_destroy() calls filter_rule_destroy(), but those
+   >> are not called by anything.
+   >
+   >Ah, there we go.  I just saw that we call regfree, but didn't check
+   >whether we actually call those.  Will you roll this into your change
+   >set, or should I look into it?
+
+   I'd rather you looked at it, if you don't mind.
+
+** unconditional follow of pthread_create
+
+   Basically we'd like to follow pthread_create always, and fork only if -f
+   is given.  ltrace now follows nothing, unless -f is given, and then it
+   follows everything.  (Really it follows everything alway and detaches
+   from newly-created children unless -f is given.)
+
+   The thing is, in Linux, we can choose to follow only {v,}forks by
+   setting PTRACE_O_TRACE{V,}FORK.  We can also choose to follow all clones
+   by setting PTRACE_O_TRACECLONE, but that captures pthread_create as well
+   as fork (as all these are built on top of the underlying clone system
+   call), as well as direct clone calls.
+
+   So what would make sense would be to tweak the current logic to only
+   detach if what happened was an actual fork, which we can tell from the
+   parameters of the system call.  That might provide a more useful user
+   experience.  Tracing only a single thread is problematic anyway, because
+   _all_ the threads will hit the breakpoints that ltrace sets anyway, so
+   pre-emptively tracing all threads is what you generally need.
