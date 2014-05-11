@@ -201,7 +201,7 @@ static bool get_integer_base_type(enum arg_type *type, int byte_size,
 static enum arg_type get_base_type(Dwarf_Die *die)
 {
 	uint64_t encoding;
-	if (!get_die_numeric((uint64_t*)&encoding, die, DW_AT_encoding))
+	if (!get_die_numeric(&encoding, die, DW_AT_encoding))
 		return ARGTYPE_VOID;
 
 	if (encoding == DW_ATE_void)
