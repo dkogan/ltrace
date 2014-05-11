@@ -171,26 +171,29 @@ static bool get_die_numeric(uint64_t *result,
 static bool get_integer_base_type(enum arg_type *type, int byte_size,
 				  bool is_signed)
 {
-	switch (byte_size) {
-	case sizeof(char):
+	// not using a switch() here because sizeof(int) == sizeof(long) on some
+	// architectures, and removing that case for those arches is a pain
+	if (byte_size == sizeof(char)) {
 		*type = ARGTYPE_CHAR;
 		return true;
+	}
 
-	case sizeof(short):
+	if (byte_size == sizeof(short)) {
 		*type = is_signed ? ARGTYPE_SHORT : ARGTYPE_USHORT;
 		return true;
+	}
 
-	case sizeof(int):
+	if (byte_size == sizeof(int)) {
 		*type = is_signed ? ARGTYPE_INT : ARGTYPE_UINT;
 		return true;
+	}
 
-	case sizeof(long):
+	if (byte_size == sizeof(long)) {
 		*type = is_signed ? ARGTYPE_LONG : ARGTYPE_ULONG;
 		return true;
-
-	default:
-		return false;
 	}
+
+	return false;
 }
 
 // returns an ltrace ARGTYPE_XXX base type from the given die. If we dont
