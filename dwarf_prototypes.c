@@ -328,7 +328,10 @@ static struct arg_type_info *get_enum(Dwarf_Die *parent,
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
 
-	dict_insert(type_dieoffset_hash, &die_offset, &result);
+	if (dict_insert(type_dieoffset_hash, &die_offset, &result) != 0) {
+		complain(parent, "Couldn't insert into cache dict");
+		CLEANUP_AND_RETURN_ERROR(NULL);
+	}
 
 	uint64_t byte_size;
 	if (!get_die_numeric(&byte_size, parent, DW_AT_byte_size)) {
@@ -465,7 +468,10 @@ static struct arg_type_info *get_array(Dwarf_Die *parent,
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
 
-	dict_insert(type_dieoffset_hash, &die_offset, &result);
+	if (dict_insert(type_dieoffset_hash, &die_offset, &result) != 0) {
+		complain(parent, "Couldn't insert into cache dict");
+		CLEANUP_AND_RETURN_ERROR(NULL);
+	}
 	array_type = get_type(&newly_allocated_array_type,
 			      &type_die, plib, type_dieoffset_hash);
 	if (array_type == NULL) {
@@ -574,7 +580,10 @@ static struct arg_type_info *get_structure(Dwarf_Die *parent,
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
 	type_init_struct(result);
-	dict_insert(type_dieoffset_hash, &die_offset, &result);
+	if (dict_insert(type_dieoffset_hash, &die_offset, &result) != 0) {
+		complain(parent, "Couldn't insert into cache dict");
+		CLEANUP_AND_RETURN_ERROR(NULL);
+	}
 
 	Dwarf_Die die;
 	if (dwarf_child(parent, &die) != 0) {
@@ -605,8 +614,11 @@ static struct arg_type_info *get_structure(Dwarf_Die *parent,
 			complain(&die, "Couldn't parse type from DWARF data");
 			CLEANUP_AND_RETURN_ERROR(NULL);
 		}
-		type_struct_add(result, member_type,
-				newly_allocated_member_type);
+		if (type_struct_add(result, member_type,
+				    newly_allocated_member_type) != 0) {
+			complain(&die, "Couldn't add type to struct");
+			CLEANUP_AND_RETURN_ERROR(NULL);
+		}
 
 		NEXT_SIBLING(&die);
 	}
@@ -640,6 +652,16 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 				    type_get_simple(ARGTYPE_VOID)});	\
 		return ret;						\
 	} while (0)
+
+#define DICT_INSERT_AND_CHECK(type_dieoffset_hash, die_offset, result)	\
+	do {								\
+		if (dict_insert(type_dieoffset_hash,			\
+				die_offset, result) != 0) {		\
+			complain(type_die,				\
+				 "Couldn't insert into cache dict");	\
+			CLEANUP_AND_RETURN_ERROR(NULL);			\
+		}							\
+	} while(0)
 
 	struct arg_type_info *result = NULL;
 	struct arg_type_info *pointee = NULL;
@@ -680,7 +702,7 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 	case DW_TAG_base_type:
 		complain(type_die, "Storing base type");
 		result = type_get_simple(get_base_type(type_die));
-		dict_insert(type_dieoffset_hash, &die_offset, &result);
+		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 		return result;
 
 	case DW_TAG_subroutine_type:
@@ -689,7 +711,7 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 		// dereference these, it'll get a segfault
 		complain(type_die, "Storing subroutine type");
 		result = type_get_simple(ARGTYPE_VOID);
-		dict_insert(type_dieoffset_hash, &die_offset, &result);
+		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 		return result;
 
 	case DW_TAG_pointer_type:
@@ -698,7 +720,7 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 			// void*
 			complain(type_die, "Storing void-pointer type");
 			result = type_get_voidptr();
-			dict_insert(type_dieoffset_hash, &die_offset, &result);
+			DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 			return result;
 		}
 
@@ -710,7 +732,7 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 			complain(type_die, "alloc error");
 			CLEANUP_AND_RETURN_ERROR(NULL);
 		}
-		dict_insert(type_dieoffset_hash, &die_offset, &result);
+		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 		pointee = get_type(&newly_allocated_pointee,
 				   &next_die, plib, type_dieoffset_hash);
 		if (pointee == NULL)
@@ -746,7 +768,7 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 			result = type_get_simple(ARGTYPE_VOID);
 			complain(type_die, "Storing void type");
 		}
-		dict_insert(type_dieoffset_hash, &die_offset, &result);
+		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 		return result;
 
 	case DW_TAG_enumeration_type:
@@ -772,17 +794,18 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 	case DW_TAG_union_type:
 		result = type_get_simple(ARGTYPE_VOID);
 		complain(type_die, "Storing union-as-void type");
-		dict_insert(type_dieoffset_hash, &die_offset, &result);
+		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 		return result;
 
 	default:
 		complain(type_die, "Unknown type tag 0x%x. Returning void",
 			 dwarf_tag(type_die));
 		result = type_get_simple(ARGTYPE_VOID);
-		dict_insert(type_dieoffset_hash, &die_offset, &result);
+		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 		return result;
 	}
 
+#undef DICT_INSERT_AND_CHECK
 #undef CLEANUP_AND_RETURN_ERROR
 }
 
