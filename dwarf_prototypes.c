@@ -94,7 +94,7 @@ static bool _dump_ltrace_tree(const struct arg_type_info *info, int indent)
 		{
 			struct arg_type_info *info;
 			int own_info;
-		}* elements = (struct struct_field*)info->u.entries.data;
+		} *elements = (struct struct_field*)info->u.entries.data;
 		unsigned int i;
 		for(i=0; i<info->u.entries.size; i++)
 			_dump_ltrace_tree(elements[i].info, indent+1);
@@ -296,7 +296,7 @@ static struct arg_type_info *get_enum(Dwarf_Die *parent,
 			value_destroy(value);				\
 			free(value);					\
 		}							\
-		if (lens != NULL ) {					\
+		if (lens != NULL) {					\
 			lens_destroy(&lens->super);			\
 			free(lens);					\
 		}							\
@@ -312,10 +312,10 @@ static struct arg_type_info *get_enum(Dwarf_Die *parent,
 		return ret;						\
 	} while (0)
 
-	struct arg_type_info* result = NULL;
-	struct enum_lens* lens = NULL;
-	const char* dupkey = NULL;
-	struct value* value = NULL;
+	struct arg_type_info *result = NULL;
+	struct enum_lens *lens = NULL;
+	const char *dupkey = NULL;
+	struct value *value = NULL;
 
 	Dwarf_Off die_offset = dwarf_dieoffset(parent);
 
@@ -416,9 +416,9 @@ static struct arg_type_info *get_enum(Dwarf_Die *parent,
 }
 
 // returns a newly-allocated art_type_info*, or NULL on error
-static struct arg_type_info *get_array( Dwarf_Die *parent,
-					struct protolib *plib,
-					struct dict *type_dieoffset_hash)
+static struct arg_type_info *get_array(Dwarf_Die *parent,
+				       struct protolib *plib,
+				       struct dict *type_dieoffset_hash)
 {
 
 #define CLEANUP_AND_RETURN_ERROR(ret) do {				\
@@ -443,9 +443,9 @@ static struct arg_type_info *get_array( Dwarf_Die *parent,
 	} while (0)
 
 
-	struct arg_type_info* result = NULL;
-	struct expr_node* length = NULL;
-	struct arg_type_info* array_type = NULL;
+	struct arg_type_info *result = NULL;
+	struct expr_node *length = NULL;
+	struct arg_type_info *array_type = NULL;
 	int newly_allocated_array_type = 0;
 
 	Dwarf_Off die_offset = dwarf_dieoffset(parent);
@@ -465,7 +465,7 @@ static struct arg_type_info *get_array( Dwarf_Die *parent,
 	dict_insert(type_dieoffset_hash, &die_offset, &result);
 	array_type = get_type(&newly_allocated_array_type,
 			      &type_die, plib, type_dieoffset_hash);
-	if ( array_type == NULL ) {
+	if (array_type == NULL) {
 		complain(parent, "Couldn't figure out array's type");
 		CLEANUP_AND_RETURN_ERROR(NULL);
 	}
@@ -559,8 +559,8 @@ static struct arg_type_info *get_structure(Dwarf_Die *parent,
 	} while (0)
 
 
-	struct arg_type_info* result = NULL;
-	struct arg_type_info* member_type = NULL;
+	struct arg_type_info *result = NULL;
+	struct arg_type_info *member_type = NULL;
 	int newly_allocated_member_type = 0;
 
 	Dwarf_Off die_offset = dwarf_dieoffset(parent);
@@ -638,8 +638,8 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 		return ret;						\
 	} while (0)
 
-	struct arg_type_info* result = NULL;
-	struct arg_type_info* pointee = NULL;
+	struct arg_type_info *result = NULL;
+	struct arg_type_info *pointee = NULL;
 	int newly_allocated_pointee = 0;
 
 	Dwarf_Off die_offset = dwarf_dieoffset(type_die);
@@ -784,9 +784,9 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 }
 
 // fills in *proto with a prototype. Returns true on success
-static bool get_prototype( struct prototype *result,
-			   Dwarf_Die *subroutine, struct protolib *plib,
-			   struct dict *type_dieoffset_hash)
+static bool get_prototype(struct prototype *result,
+			  Dwarf_Die *subroutine, struct protolib *plib,
+			  struct dict *type_dieoffset_hash)
 {
 
 #define CLEANUP_AND_RETURN_ERROR(ret) do {				\
@@ -799,7 +799,7 @@ static bool get_prototype( struct prototype *result,
 	} while (0)
 
 
-	struct arg_type_info* argument_type = NULL;
+	struct arg_type_info *argument_type = NULL;
 	int newly_allocated_argument_type = 0;
 
 	prototype_init(result);
@@ -920,7 +920,7 @@ static bool import_subprogram(struct protolib *plib, struct library *lib,
 	}
 
 	const char *function_name_dup = strdup(function_name);
-	if ( function_name_dup == NULL ) {
+	if (function_name_dup == NULL) {
 		complain(die, "couldn't strdup");
 		prototype_destroy(&proto);
 		return false;
@@ -980,15 +980,15 @@ static void import(struct protolib *plib, struct library *lib, Dwfl *dwfl)
 
 bool import_DWARF_prototypes(struct library *lib)
 {
-	struct protolib* plib = lib->protolib;
-	Dwfl* dwfl = lib->dwfl;
+	struct protolib *plib = lib->protolib;
+	Dwfl *dwfl = lib->dwfl;
 
 	debug(DEBUG_FUNCTION, "Importing DWARF prototypes from '%s'",
 	      lib->soname);
 	if (plib == NULL) {
 
 		const char *soname_dup = strdup(lib->soname);
-		if ( soname_dup == NULL ) {
+		if (soname_dup == NULL) {
 			fprintf(stderr, "couldn't strdup");
 			return false;
 		}
