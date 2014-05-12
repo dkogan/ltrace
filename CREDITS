@@ -81,6 +81,10 @@ D: x86-64 fixes
 D: libelf support
 D: Fixes
 
+N: Dima Kogan
+E: dima@secretsauce.net
+D: Reading prototypes from DWARF information
+
 N: Michal Ludvig
 E: mludvig@suse.cz
 D: x86-64 fixes
