@@ -36,7 +36,6 @@
 #include "options.h"
 #include "proc.h"
 #include "value_dict.h"
-#include "dwarf_prototypes.h"
 
 #ifndef OS_HAVE_PROCESS_DATA
 int
