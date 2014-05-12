@@ -33,7 +33,10 @@ libltrace_la_SOURCES = bits.c breakpoints.c debug.c demangle.c dict.c	\
 	options.c output.c proc.c read_config_file.c summary.c		\
 	library.c filter.c glob.c type.c value.c value_dict.c expr.c	\
 	fetch.c vect.c param.c printf.c zero.c lens.c lens_default.c	\
-	lens_enum.c memstream.c prototype.c dwarf_prototypes.c
+	lens_enum.c memstream.c prototype.c
+if HAVE_LIBDW
+libltrace_la_SOURCES += dwarf_prototypes.c
+endif
 
 libltrace_la_LIBADD = \
 	$(libelf_LIBS) \
@@ -58,8 +61,10 @@ noinst_HEADERS = bits.h backend.h breakpoint.h common.h debug.h		\
 	options.h output.h proc.h read_config_file.h summary.h		\
 	library.h filter.h glob.h vect.h type.h value.h value_dict.h	\
 	callback.h expr.h fetch.h vect.h param.h printf.h zero.h	\
-	lens.h lens_default.h lens_enum.h memstream.h prototype.h	\
-	dwarf_prototypes.h
+	lens.h lens_default.h lens_enum.h memstream.h prototype.h
+if HAVE_LIBDW
+noinst_HEADERS += dwarf_prototypes.h
+endif
 
 dist_man1_MANS = ltrace.1
 dist_man5_MANS = ltrace.conf.5
