@@ -28,6 +28,9 @@
      This use is still accepted, taken to mean "hide(int)", but
      produces a warning, and will be removed in future.
 
+   - Prototypes are now read from DWARF debug info, if available. This
+     complements the data available in config files
+
 ** Architectural support
    - MIPS and MIPSel are now handled by the same backend.
    - ARMv6, ARMv7 and ARMv8 (AArch64) are supported, including full
