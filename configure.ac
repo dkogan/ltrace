@@ -387,6 +387,7 @@ if test x$use_valgrind = xyes; then
     fi
 fi
 AM_CONDITIONAL(USE_VALGRIND, test "$use_valgrind" = yes)
+AM_CONDITIONAL(HAVE_LIBDW, test x"$enable_elfutils" = xyes)
 
 AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_CFLAGS)
