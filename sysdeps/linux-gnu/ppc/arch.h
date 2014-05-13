@@ -23,8 +23,8 @@
 #define LTRACE_PPC_ARCH_H
 
 #include <gelf.h>
+#include <stdbool.h>
 
-#define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
 #define BREAKPOINT_LENGTH 4
 #define DECR_PC_AFTER_BREAK 0
 
@@ -34,8 +34,33 @@
 #ifdef __powerpc64__ // Says 'ltrace' is 64 bits, says nothing about target.
 #define LT_ELFCLASS2	ELFCLASS64
 #define LT_ELF_MACHINE2	EM_PPC64
-#define ARCH_SUPPORTS_OPD
-#endif
+
+# ifdef __LITTLE_ENDIAN__
+# define BREAKPOINT_VALUE { 0x08, 0x00, 0xe0, 0x7f }
+# define ARCH_ENDIAN_LITTLE
+# else
+# define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
+# define ARCH_SUPPORTS_OPD
+# define ARCH_ENDIAN_BIG
+# endif
+
+# if _CALL_ELF != 2
+# define ARCH_SUPPORTS_OPD
+# define STACK_FRAME_OVERHEAD 112
+#  ifndef EF_PPC64_ABI
+#  define EF_PPC64_ABI 3
+#  endif
+# else /* _CALL_ELF == 2 ABIv2 */
+# define STACK_FRAME_OVERHEAD 32
+# endif /* CALL_ELF */
+
+#else
+#define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
+#define ARCH_ENDIAN_BIG
+# ifndef EF_PPC64_ABI
+# define EF_PPC64_ABI 3
+# endif
+#endif 	/* __powerpc64__ */
 
 #define ARCH_HAVE_SW_SINGLESTEP
 #define ARCH_HAVE_ADD_PLT_ENTRY
@@ -43,7 +68,6 @@
 #define ARCH_HAVE_TRANSLATE_ADDRESS
 #define ARCH_HAVE_DYNLINK_DONE
 #define ARCH_HAVE_FETCH_ARG
-#define ARCH_ENDIAN_BIG
 #define ARCH_HAVE_SIZEOF
 #define ARCH_HAVE_ALIGNOF
 
@@ -56,7 +80,8 @@ struct arch_ltelf_data {
 	Elf_Data *opd_data;
 	GElf_Addr opd_base;
 	GElf_Xword opd_size;
-	int secure_plt;
+	bool secure_plt : 1;
+	bool elfv2_abi  : 1;
 
 	Elf_Data *reladyn;
 	size_t reladyn_count;

@@ -136,7 +136,11 @@
  */
 
 #define PPC_PLT_STUB_SIZE 16
-#define PPC64_PLT_STUB_SIZE 8 //xxx
+#if _CALL_ELF != 2
+#define PPC64_PLT_STUB_SIZE 8
+#else
+#define PPC64_PLT_STUB_SIZE 4
+#endif
 
 static inline int
 host_powerpc64()
@@ -186,8 +190,13 @@ ppc32_delayed_symbol(struct library_symbol *libsym)
 	if ((insn1 & BRANCH_MASK) == B_INSN
 	    || ((insn2 & BRANCH_MASK) == B_INSN
 		/* XXX double cast  */
+#ifdef __LITTLE_ENDIAN__
+		&& (ppc_branch_dest(libsym->enter_addr + 4, insn1)
+		    == (arch_addr_t) (long) libsym->lib->arch.pltgot_addr)))
+#else
 		&& (ppc_branch_dest(libsym->enter_addr + 4, insn2)
 		    == (arch_addr_t) (long) libsym->lib->arch.pltgot_addr)))
+#endif
 	{
 		mark_as_resolved(libsym, libsym->arch.resolved_value);
 	}
@@ -206,7 +215,7 @@ arch_dynlink_done(struct process *proc)
 				"couldn't read PLT value for %s(%p): %s\n",
 				libsym->name, libsym->enter_addr,
 				strerror(errno));
-			return;
+				return;
 		}
 
 		if (proc->e_machine == EM_PPC)
@@ -227,8 +236,14 @@ reloc_is_irelative(int machine, GElf_Rela *rela)
 {
 	bool irelative = false;
 	if (machine == EM_PPC64) {
-#ifdef R_PPC64_JMP_IREL
+#ifdef __LITTLE_ENDIAN__
+# ifdef R_PPC64_IRELATIVE
+		irelative = GELF_R_TYPE(rela->r_info) == R_PPC64_IRELATIVE;
+# endif
+#else
+# ifdef R_PPC64_JMP_IREL
 		irelative = GELF_R_TYPE(rela->r_info) == R_PPC64_JMP_IREL;
+# endif
 #endif
 	} else {
 		assert(machine == EM_PPC);
@@ -285,6 +300,7 @@ arch_translate_address_dyn(struct process *proc,
 			   arch_addr_t addr, arch_addr_t *ret)
 {
 	if (proc->e_machine == EM_PPC64) {
+#if _CALL_ELF != 2
 		uint64_t value;
 		if (proc_read_64(proc, addr, &value) < 0) {
 			fprintf(stderr,
@@ -296,6 +312,7 @@ arch_translate_address_dyn(struct process *proc,
 		 * arch_addr_t becomes integral type.  */
 		*ret = (arch_addr_t)(uintptr_t)value;
 		return 0;
+#endif
 	}
 
 	*ret = addr;
@@ -306,7 +323,8 @@ int
 arch_translate_address(struct ltelf *lte,
 		       arch_addr_t addr, arch_addr_t *ret)
 {
-	if (lte->ehdr.e_machine == EM_PPC64) {
+	if (lte->ehdr.e_machine == EM_PPC64
+	    && !lte->arch.elfv2_abi) {
 		/* XXX The double cast should be removed when
 		 * arch_addr_t becomes integral type.  */
 		GElf_Xword offset
@@ -430,7 +448,16 @@ reloc_copy_if_irelative(GElf_Rela *rela, void *data)
 int
 arch_elf_init(struct ltelf *lte, struct library *lib)
 {
+
+	/* Check for ABIv2 in ELF header processor specific flag.  */
+#ifndef EF_PPC64_ABI
+	assert (! (lte->ehdr.e_flags & 3 ) == 2)
+#else
+	lte->arch.elfv2_abi=((lte->ehdr.e_flags & EF_PPC64_ABI) == 2) ;
+#endif
+
 	if (lte->ehdr.e_machine == EM_PPC64
+	    && !lte->arch.elfv2_abi
 	    && load_opd_data(lte, lib) < 0)
 		return -1;
 
@@ -599,7 +626,7 @@ read_plt_slot_value(struct process *proc, GElf_Addr addr, GElf_Addr *valp)
 	uint64_t l;
 	/* XXX double cast.  */
 	if (proc_read_64(proc, (arch_addr_t)(uintptr_t)addr, &l) < 0) {
-		fprintf(stderr, "ptrace .plt slot value @%#" PRIx64": %s\n",
+		debug(DEBUG_EVENT, "ptrace .plt slot value @%#" PRIx64": %s",
 			addr, strerror(errno));
 		return -1;
 	}
@@ -616,7 +643,7 @@ unresolve_plt_slot(struct process *proc, GElf_Addr addr, GElf_Addr value)
 	 * pointers intact.  Hence the only adjustment that we need to
 	 * do is to IP.  */
 	if (ptrace(PTRACE_POKETEXT, proc->pid, addr, value) < 0) {
-		fprintf(stderr, "failed to unresolve .plt slot: %s\n",
+		debug(DEBUG_EVENT, "failed to unresolve .plt slot: %s",
 			strerror(errno));
 		return -1;
 	}
@@ -629,8 +656,47 @@ arch_elf_add_func_entry(struct process *proc, struct ltelf *lte,
 			arch_addr_t addr, const char *name,
 			struct library_symbol **ret)
 {
-	if (lte->ehdr.e_machine != EM_PPC || lte->ehdr.e_type == ET_DYN)
+#ifndef PPC64_LOCAL_ENTRY_OFFSET
+	assert(! lte->arch.elfv2_abi);
+#else
+	/* With ABIv2 st_other field contains an offset.  */
+	 if (lte->arch.elfv2_abi)
+		addr += PPC64_LOCAL_ENTRY_OFFSET(sym->st_other);
+#endif
+
+	int st_info = GELF_ST_TYPE(sym->st_info);
+
+	if ((lte->ehdr.e_machine != EM_PPC && sym->st_other == 0)
+	    || lte->ehdr.e_type == ET_DYN
+	    || (st_info == STT_FUNC && ! sym->st_other))
 		return PLT_DEFAULT;
+
+	if (st_info == STT_FUNC) {
+		/* Put the default symbol to the chain.
+		 * The addr has already been updated with
+		 * symbol offset  */
+		char *full_name = strdup(name);
+		if (full_name == NULL) {
+			fprintf(stderr, "couldn't copy name of %s: %s\n",
+			name, strerror(errno));
+			free(full_name);
+			return PLT_FAIL;
+		}
+		struct library_symbol *libsym = malloc(sizeof *libsym);
+		if (libsym == NULL
+		    || library_symbol_init(libsym, addr, full_name, 1,
+					   LS_TOPLT_NONE) < 0) {
+			free(libsym);
+			delete_symbol_chain(libsym);
+			libsym = NULL;
+			fprintf(stderr, "Couldn't add symbol %s"
+				"for tracing.\n", name);
+		}
+		full_name = NULL;
+		libsym->next = *ret;
+		*ret = libsym;
+		return PLT_OK;
+	}
 
 	bool ifunc = false;
 #ifdef STT_GNU_IFUNC
@@ -761,9 +827,15 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	assert(plt_slot_addr >= lte->plt_addr
 	       || plt_slot_addr < lte->plt_addr + lte->plt_size);
 
+	/* Should avoid to do read if dynamic linker hasn't run yet
+	 * or allow -1 a valid return code.  */
 	GElf_Addr plt_slot_value;
-	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0)
-		goto fail;
+	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0) {
+		if (!lte->arch.elfv2_abi)
+			goto fail;
+		else
+			return PPC_PLT_UNRESOLVED;
+	}
 
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
 	if (libsym == NULL) {
@@ -997,8 +1069,12 @@ ppc_plt_bp_continue(struct breakpoint *bp, struct process *proc)
 			return;
 		}
 
+#if _CALL_ELF == 2
+		continue_after_breakpoint(proc, bp);
+#else
 		jump_to_entry_point(proc, bp);
 		continue_process(proc->pid);
+#endif
 		return;
 
 	case PPC64_PLT_STUB:
@@ -1123,7 +1199,11 @@ arch_library_symbol_init(struct library_symbol *libsym)
 	/* We set type explicitly in the code above, where we have the
 	 * necessary context.  This is for calls from ltrace-elf.c and
 	 * such.  */
+#if _CALL_ELF == 2
+	libsym->arch.type = PPC_PLT_UNRESOLVED;
+#else
 	libsym->arch.type = PPC_DEFAULT;
+#endif
 	return 0;
 }
 

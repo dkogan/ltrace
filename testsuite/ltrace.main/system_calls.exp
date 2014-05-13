@@ -133,7 +133,7 @@ Match [Diff [Calls [ltraceRun -L -S -- $bin]] \
     { {^write$} == 1 }
     { {^unlink(at)?$} >= 2 }
     { {^open(at)?$} == 1 }
-    { {^(new|f)?stat(64)?$} == 1 }
+    { {^(new|f)?stat(64)?$} >= 1 }
     { {^close$} == 1 }
     { {^getcwd$} == 1 }
     { {^chdir$} == 1 }

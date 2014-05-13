@@ -30,9 +30,11 @@
 #include "ptrace.h"
 #include "proc.h"
 #include "value.h"
+#include "ltrace-elf.h"
 
 static int allocate_gpr(struct fetch_context *ctx, struct process *proc,
-			struct arg_type_info *info, struct value *valuep);
+			struct arg_type_info *info, struct value *valuep,
+			size_t off, bool is_hfa_type);
 
 /* Floating point registers have the same width on 32-bit as well as
  * 64-bit PPC, but <ucontext.h> presents a different API depending on
@@ -62,7 +64,10 @@ struct fetch_context {
 		gregs64_t r64;
 	} regs;
 	struct fpregs_t fpregs;
-
+	int vgreg;
+	int struct_size;
+	int struct_hfa_size;
+	int struct_hfa_count;
 };
 
 static int
@@ -74,7 +79,8 @@ fetch_context_init(struct process *proc, struct fetch_context *context)
 	if (proc->e_machine == EM_PPC)
 		context->stack_pointer = proc->stack_pointer + 8;
 	else
-		context->stack_pointer = proc->stack_pointer + 112;
+		context->stack_pointer = proc->stack_pointer
+			+ STACK_FRAME_OVERHEAD;
 
 	/* When ltrace is 64-bit, we might use PTRACE_GETREGS to
 	 * obtain 64-bit as well as 32-bit registers.  But if we do it
@@ -118,6 +124,11 @@ arch_fetch_arg_init(enum tof type, struct process *proc,
 		return NULL;
 	}
 
+	context->vgreg = context->greg;
+	context->struct_size = 0;
+	context->struct_hfa_size = 0;
+	context->struct_hfa_count = 0;
+
 	/* Aggregates or unions of any length, and character strings
 	 * of length longer than 8 bytes, will be returned in a
 	 * storage buffer allocated by the caller. The caller will
@@ -125,8 +136,20 @@ arch_fetch_arg_init(enum tof type, struct process *proc,
 	 * in r3, causing the first explicit argument to be passed in
 	 * r4.  */
 	context->ret_struct = ret_info->type == ARGTYPE_STRUCT;
-	if (context->ret_struct)
+	if (context->ret_struct) {
+#if _CALL_ELF == 2
+		/* if R3 points to stack, parameters will be in R4.  */
+		uint64_t pstack_end = ptrace(PTRACE_PEEKTEXT, proc->pid,
+					proc->stack_pointer, 0);
+		if (((arch_addr_t)context->regs.r64[3] > proc->stack_pointer)
+		    && (context->regs.r64[3] < pstack_end)) {
+			context->greg++;
+			context->stack_pointer += 8;
+		}
+#else
 		context->greg++;
+#endif
+	}
 
 	return context;
 }
@@ -144,7 +167,8 @@ arch_fetch_arg_clone(struct process *proc,
 
 static int
 allocate_stack_slot(struct fetch_context *ctx, struct process *proc,
-		    struct arg_type_info *info, struct value *valuep)
+		    struct arg_type_info *info, struct value *valuep,
+		    bool is_hfa_type)
 {
 	size_t sz = type_sizeof(proc, info);
 	if (sz == (size_t)-1)
@@ -154,7 +178,14 @@ allocate_stack_slot(struct fetch_context *ctx, struct process *proc,
 	size_t off = 0;
 	if (proc->e_machine == EM_PPC && a < 4)
 		a = 4;
+#if _CALL_ELF == 2
+	else if (proc->e_machine == EM_PPC64 && sz == 4 && is_hfa_type)
+		a = 4;
+	else
+		a = 8;
+#else
 	else if (proc->e_machine == EM_PPC64 && a < 8)
+#endif
 		a = 8;
 
 	/* XXX Remove the two double casts when arch_addr_t
@@ -164,7 +195,7 @@ allocate_stack_slot(struct fetch_context *ctx, struct process *proc,
 
 	if (valuep != NULL)
 		value_in_inferior(valuep, ctx->stack_pointer + off);
-	ctx->stack_pointer += sz;
+	ctx->stack_pointer += a;
 
 	return 0;
 }
@@ -216,19 +247,34 @@ align_small_int(unsigned char *buf, size_t w, size_t sz)
 
 static int
 allocate_gpr(struct fetch_context *ctx, struct process *proc,
-	     struct arg_type_info *info, struct value *valuep)
+	     struct arg_type_info *info, struct value *valuep,
+	     size_t off, bool is_hfa_type)
 {
 	if (ctx->greg > 10)
-		return allocate_stack_slot(ctx, proc, info, valuep);
+		return allocate_stack_slot(ctx, proc, info, valuep, is_hfa_type);
 
-	int reg_num = ctx->greg++;
-	if (valuep == NULL)
-		return 0;
+	int reg_num = ctx->greg;
 
 	size_t sz = type_sizeof(proc, info);
 	if (sz == (size_t)-1)
 		return -1;
 	assert(sz == 1 || sz == 2 || sz == 4 || sz == 8);
+#if _CALL_ELF == 2
+	/* Consume the stack slot corresponding to this arg.  */
+	if ((sz + off) >= 8)
+		ctx->greg++;
+
+	if (is_hfa_type)
+		ctx->stack_pointer += sz;
+	else
+		ctx->stack_pointer += 8;
+#else
+	ctx->greg++;
+#endif
+
+	if (valuep == NULL)
+		return 0;
+
 	if (value_reserve(valuep, sz) == NULL)
 		return -1;
 
@@ -240,13 +286,14 @@ allocate_gpr(struct fetch_context *ctx, struct process *proc,
 	u.i64 = read_gpr(ctx, proc, reg_num);
 	if (proc->e_machine == EM_PPC)
 		align_small_int(u.buf, 8, sz);
-	memcpy(value_get_raw_data(valuep), u.buf, sz);
+	memcpy(value_get_raw_data(valuep), u.buf + off, sz);
 	return 0;
 }
 
 static int
 allocate_float(struct fetch_context *ctx, struct process *proc,
-	       struct arg_type_info *info, struct value *valuep)
+	       struct arg_type_info *info, struct value *valuep,
+	       size_t off, bool is_hfa_type)
 {
 	int pool = proc->e_machine == EM_PPC64 ? 13 : 8;
 	if (ctx->freg <= pool) {
@@ -257,8 +304,12 @@ allocate_float(struct fetch_context *ctx, struct process *proc,
 		} u = { .d = ctx->fpregs.fpregs[ctx->freg] };
 
 		ctx->freg++;
+
+		if (!is_hfa_type)
+			ctx->vgreg++;
+
 		if (proc->e_machine == EM_PPC64)
-			allocate_gpr(ctx, proc, info, NULL);
+			allocate_gpr(ctx, proc, info, NULL, off, is_hfa_type);
 
 		size_t sz = sizeof(double);
 		if (info->type == ARGTYPE_FLOAT) {
@@ -272,8 +323,128 @@ allocate_float(struct fetch_context *ctx, struct process *proc,
 		memcpy(value_get_raw_data(valuep), u.buf, sz);
 		return 0;
 	}
-	return allocate_stack_slot(ctx, proc, info, valuep);
+	return allocate_stack_slot(ctx, proc, info, valuep, is_hfa_type);
 }
+
+#if _CALL_ELF == 2
+static int
+allocate_hfa(struct fetch_context *ctx, struct process *proc,
+	     struct arg_type_info *info, struct value *valuep,
+	     enum arg_type hfa_type, size_t hfa_count)
+{
+	size_t sz = type_sizeof(proc, info);
+	if (sz == (size_t)-1)
+		return -1;
+
+	ctx->struct_hfa_size += sz;
+
+	/* There are two changes regarding structure return types:
+	 * * heterogeneous float/vector structs are returned
+	 *   in (multiple) FP/vector registers,
+	 *   instead of via implicit reference.
+	 * * small structs (up to 16 bytes) are return
+	 *   in one or two GPRs, instead of via implicit reference.
+	 *
+	 * Other structures (larger than 16 bytes, not heterogeneous)
+	 * are still returned via implicit reference (i.e. a pointer
+	 * to memory where to return the struct being passed in r3).
+	 * Of course, whether or not an implicit reference pointer
+	 * is present will shift the remaining arguments,
+	 * so you need to get this right for ELFv2 in order
+	 * to get the arguments correct.
+	 * If an actual parameter is known to correspond to an HFA
+	 * formal parameter, each element is passed in the next
+	 * available floating-point argument register starting at fp1
+	 * until the fp13. The remaining elements of the aggregate are
+	 * passed on the stack.  */
+	size_t slot_off = 0;
+
+	unsigned char *buf = value_reserve(valuep, sz);
+	if (buf == NULL)
+		return -1;
+
+	struct arg_type_info *hfa_info = type_get_simple(hfa_type);
+	size_t hfa_sz = type_sizeof(proc, hfa_info);
+
+	if (hfa_count > 8)
+		ctx->struct_hfa_count += hfa_count;
+
+	while (hfa_count > 0 && ctx->freg <= 13) {
+		int rc;
+		struct value tmp;
+
+		value_init(&tmp, proc, NULL, hfa_info, 0);
+
+		/* Hetereogeneous struct - get value on GPR or stack.  */
+		if (((hfa_type == ARGTYPE_FLOAT
+		    || hfa_type == ARGTYPE_DOUBLE)
+		      && hfa_count <= 8))
+			rc = allocate_float(ctx, proc, hfa_info, &tmp,
+						slot_off, true);
+		else
+			rc = allocate_gpr(ctx, proc, hfa_info, &tmp,
+						slot_off, true);
+
+		memcpy(buf, value_get_data(&tmp, NULL), hfa_sz);
+
+		slot_off += hfa_sz;
+		buf += hfa_sz;
+		hfa_count--;
+		if (slot_off == 8) {
+			slot_off = 0;
+			ctx->vgreg++;
+		}
+
+		value_destroy(&tmp);
+		if (rc < 0)
+			return -1;
+	}
+	if (hfa_count == 0)
+		return 0;
+
+	/* if no remaining FP, GPR corresponding to slot is used
+	* Mostly it is in part of r10.  */
+	if (ctx->struct_hfa_size <= 64 && ctx->vgreg == 10) {
+		while (ctx->vgreg <= 10) {
+			struct value tmp;
+			value_init(&tmp, proc, NULL, hfa_info, 0);
+			union {
+				uint64_t i64;
+				unsigned char buf[0];
+			} u;
+
+			u.i64 = read_gpr(ctx, proc, ctx->vgreg);
+
+			memcpy(buf, u.buf + slot_off, hfa_sz);
+			slot_off += hfa_sz;
+			buf += hfa_sz;
+			hfa_count--;
+			ctx->stack_pointer += hfa_sz;
+			if (slot_off >= 8 ) {
+				slot_off = 0;
+				ctx->vgreg++;
+			}
+			value_destroy(&tmp);
+		}
+	}
+
+	if (hfa_count == 0)
+		return 0;
+
+	/* Remaining values are on stack */
+	while (hfa_count) {
+		struct value tmp;
+		value_init(&tmp, proc, NULL, hfa_info, 0);
+
+		value_in_inferior(&tmp, ctx->stack_pointer);
+		memcpy(buf, value_get_data(&tmp, NULL), hfa_sz);
+		ctx->stack_pointer += hfa_sz;
+		buf += hfa_sz;
+		hfa_count--;
+	}
+	return 0;
+}
+#endif
 
 static int
 allocate_argument(struct fetch_context *ctx, struct process *proc,
@@ -287,13 +458,25 @@ allocate_argument(struct fetch_context *ctx, struct process *proc,
 
 	case ARGTYPE_FLOAT:
 	case ARGTYPE_DOUBLE:
-		return allocate_float(ctx, proc, info, valuep);
+		return allocate_float(ctx, proc, info, valuep,
+					8 - type_sizeof(proc,info), false);
 
 	case ARGTYPE_STRUCT:
 		if (proc->e_machine == EM_PPC) {
 			if (value_pass_by_reference(valuep) < 0)
 				return -1;
 		} else {
+#if _CALL_ELF == 2
+			struct arg_type_info *hfa_info;
+			size_t hfa_size;
+			hfa_info = type_get_hfa_type(info, &hfa_size);
+			if (hfa_info != NULL ) {
+				size_t sz = type_sizeof(proc, info);
+				ctx->struct_size += sz;
+				return allocate_hfa(ctx, proc, info, valuep,
+						hfa_info->type, hfa_size);
+			}
+#endif
 			/* PPC64: Fixed size aggregates and unions passed by
 			 * value are mapped to as many doublewords of the
 			 * parameter save area as the value uses in memory.
@@ -326,6 +509,10 @@ allocate_argument(struct fetch_context *ctx, struct process *proc,
 	size_t sz = type_sizeof(proc, valuep->type);
 	if (sz == (size_t)-1)
 		return -1;
+
+	if (ctx->ret_struct)
+		ctx->struct_size += sz;
+
 	size_t slots = (sz + width - 1) / width;  /* Round up.  */
 	unsigned char *buf = value_reserve(valuep, slots * width);
 	if (buf == NULL)
@@ -346,9 +533,11 @@ allocate_argument(struct fetch_context *ctx, struct process *proc,
 		struct arg_type_info *fp_info
 			= type_get_fp_equivalent(valuep->type);
 		if (fp_info != NULL)
-			rc = allocate_float(ctx, proc, fp_info, &val);
+			rc = allocate_float(ctx, proc, fp_info, &val,
+					8-type_sizeof(proc,info), false);
 		else
-			rc = allocate_gpr(ctx, proc, long_info, &val);
+			rc = allocate_gpr(ctx, proc, long_info, &val,
+					0, false);
 
 		if (rc >= 0) {
 			memcpy(ptr, value_get_data(&val, NULL), width);
@@ -363,6 +552,7 @@ allocate_argument(struct fetch_context *ctx, struct process *proc,
 			return rc;
 	}
 
+#ifndef __LITTLE_ENDIAN__
 	/* Small values need post-processing.  */
 	if (sz < width) {
 		switch (info->type) {
@@ -394,6 +584,7 @@ allocate_argument(struct fetch_context *ctx, struct process *proc,
 			break;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -411,7 +602,22 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 		  struct process *proc, struct arg_type_info *info,
 		  struct value *valuep)
 {
+	if (fetch_context_init(proc, ctx) < 0)
+		return -1;
+
+#if _CALL_ELF == 2
+	void *ptr = (void *)(ctx->regs.r64[1]+32);
+	uint64_t val = ptrace(PTRACE_PEEKTEXT, proc->pid, ptr, 0);
+
+	if (ctx->ret_struct
+	   && ((ctx->struct_size > 64
+	      || ctx->struct_hfa_count > 8
+	      || (ctx->struct_hfa_size == 0 && ctx->struct_size > 56)
+	      || (ctx->regs.r64[3] == ctx->regs.r64[1]+32)
+	      || (ctx->regs.r64[3] == val )))) {
+#else
 	if (ctx->ret_struct) {
+#endif
 		assert(info->type == ARGTYPE_STRUCT);
 
 		uint64_t addr = read_gpr(ctx, proc, 3);
@@ -424,8 +630,6 @@ arch_fetch_retval(struct fetch_context *ctx, enum tof type,
 		return 0;
 	}
 
-	if (fetch_context_init(proc, ctx) < 0)
-		return -1;
 	return allocate_argument(ctx, proc, info, valuep);
 }
 

@@ -65,9 +65,15 @@ syscall_p(struct process *proc, int status, int *sysnum)
 	if (WIFSTOPPED(status)
 	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
 		long pc = (long)get_instruction_pointer(proc);
+#ifndef __LITTLE_ENDIAN__
 		int insn =
 		    (int)ptrace(PTRACE_PEEKTEXT, proc->pid, pc - sizeof(long),
 				0);
+#else
+		int insn =
+		    (int)ptrace(PTRACE_PEEKTEXT, proc->pid, pc - sizeof(int),
+				0);
+#endif
 
 		if (insn == SYSCALL_INSN) {
 			*sysnum =
@@ -127,7 +133,11 @@ arch_sw_singlestep(struct process *proc, struct breakpoint *sbp,
 			return SWS_FAIL;
 		uint32_t insn;
 #ifdef __powerpc64__
+# ifdef __LITTLE_ENDIAN__
+		insn = (uint32_t) l ;
+# else
 		insn = l >> 32;
+# endif
 #else
 		insn = l;
 #endif

@@ -166,6 +166,7 @@ int elf_read_next_uleb128(Elf_Data *data, GElf_Xword *offset, uint64_t *retp);
 /* Return whether there's AMOUNT more bytes after OFFSET in DATA.  */
 int elf_can_read_next(Elf_Data *data, GElf_Xword offset, GElf_Xword amount);
 
+void delete_symbol_chain(struct library_symbol *);
 #if __WORDSIZE == 32
 #define PRI_ELF_ADDR		PRIx32
 #define GELF_ADDR_CAST(x)	(void *)(uint32_t)(x)

@@ -859,7 +859,7 @@ populate_plt(struct process *proc, const char *filename,
 	return 0;
 }
 
-static void
+void
 delete_symbol_chain(struct library_symbol *libsym)
 {
 	while (libsym != NULL) {
