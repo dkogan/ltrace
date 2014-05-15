@@ -53,6 +53,10 @@ N: Morten Eriksen
 E: mortene@sim.no
 D: Fixes
 
+N: Thierry Fauck
+E: thierry@linux.vnet.ibm.com
+D: ppc64el port
+
 N: Timothy Fesig
 E: slate@us.ibm.com
 D: s390 port
