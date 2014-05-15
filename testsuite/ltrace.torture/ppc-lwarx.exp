@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2012 Petr Machata, Red Hat Inc.
+# Copyright (C) 2012, 2014 Petr Machata, Red Hat Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -46,10 +46,10 @@ if { [istarget powerpc*-*] } then {
 	    return
     }
 
-    set pattern "atomic_add(.*, 5,.*)"
+    set pattern "atomic_add(.*, 5\\b.*"
     ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-    set pattern "atomic_add(.*, 10,.*)"
+    set pattern "atomic_add(.*, 10\\b.*"
     ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
-    set pattern "atomic_add(.*, 15,.*)"
+    set pattern "atomic_add(.*, 15\\b.*"
     ltrace_verify_output ${objdir}/${subdir}/${testfile}.ltrace $pattern 1
 }
