@@ -987,6 +987,10 @@ static void import(struct protolib *plib, struct library *lib, Dwfl *dwfl)
 	Dwarf_Addr bias;
 	Dwarf_Die *die = NULL;
 	while ((die = dwfl_nextcu(dwfl, die, &bias)) != NULL) {
+
+		fprintf(stderr, "Looking at cu %s at %x\n",
+			dwarf_diename(die), dwarf_dieoffset(die));
+
 		if (dwarf_tag(die) == DW_TAG_compile_unit)
 			process_die_compileunit(plib, lib,
 						&type_dieoffset_hash, die);

@@ -925,6 +925,7 @@ proc_add_library(struct process *proc, struct library *lib)
 
 		if (options.bt_depth > 0) {
 			if (leader->dwfl == NULL) {
+				fprintf(stderr, "attaching because of -w\n");
 				int r = dwfl_linux_proc_attach(dwfl,
 							       leader->pid,
 							       true);
@@ -946,6 +947,7 @@ proc_add_library(struct process *proc, struct library *lib)
 		}
 	}
 
+	leader->dwfl = dwfl;
 	lib->dwfl = dwfl;
 
 #endif /* defined(HAVE_LIBDW) */
