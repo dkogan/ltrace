@@ -296,7 +296,7 @@ private_library_init(struct library *lib, enum library_type type)
 	lib->type = type;
 
 #if defined(HAVE_LIBDW)
-	lib->dwfl = NULL;
+	lib->dwfl_module = NULL;
 #endif
 }
 

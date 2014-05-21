@@ -176,7 +176,7 @@ struct library {
 	struct os_library_data os;
 
 #if defined(HAVE_LIBDW)
-	Dwfl *dwfl;
+	Dwfl_Module *dwfl_module;
 #endif
 };
 

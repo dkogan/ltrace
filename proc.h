@@ -121,6 +121,12 @@ struct process {
 #if defined(HAVE_LIBDW)
 	/* Unwind info for leader, NULL for non-leader procs. */
 	Dwfl *dwfl;
+
+	/* Whether we still need to attach the DWARF library to this process. We
+	 * try only once, and never again, regardless of whether we succeeded or
+	 * not. 0 = shouldn't attach */
+	int should_attach_dwfl;
+
 #endif /* defined(HAVE_LIBDW) */
 
 #if defined(HAVE_LIBUNWIND)

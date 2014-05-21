@@ -216,7 +216,7 @@ library_get_prototype(struct library *lib, const char *name)
 #if defined(HAVE_LIBDW)
 		// DWARF data fills in the gaps in the .conf files, so I don't
 		// check for lib->protolib==NULL here
-		if (lib->dwfl != NULL &&
+		if (lib->dwfl_module != NULL &&
 		    (filter_matches_library(options.plt_filter,    lib ) ||
 		     filter_matches_library(options.static_filter, lib ) ||
 		     filter_matches_library(options.export_filter, lib )))

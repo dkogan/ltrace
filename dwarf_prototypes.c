@@ -979,7 +979,8 @@ static bool process_die_compileunit(struct protolib *plib, struct library *lib,
 	return true;
 }
 
-static void import(struct protolib *plib, struct library *lib, Dwfl *dwfl)
+static void import(struct protolib *plib, struct library *lib,
+		   Dwfl_Module *dwfl_module)
 {
 	// A map from DIE addresses (Dwarf_Off) to type structures (struct
 	// arg_type_info*). This is created and filled in at the start of each
@@ -992,7 +993,7 @@ static void import(struct protolib *plib, struct library *lib, Dwfl *dwfl)
 
 	Dwarf_Addr bias;
 	Dwarf_Die *die = NULL;
-	while ((die = dwfl_nextcu(dwfl, die, &bias)) != NULL) {
+	while ((die = dwfl_module_nextcu(dwfl_module, die, &bias)) != NULL) {
 		if (dwarf_tag(die) == DW_TAG_compile_unit)
 			process_die_compileunit(plib, lib,
 						&type_dieoffset_hash, die);
@@ -1007,7 +1008,6 @@ static void import(struct protolib *plib, struct library *lib, Dwfl *dwfl)
 bool import_DWARF_prototypes(struct library *lib)
 {
 	struct protolib *plib = lib->protolib;
-	Dwfl *dwfl = lib->dwfl;
 
 	debug(DEBUG_FUNCTION, "Importing DWARF prototypes from '%s'",
 	      lib->soname);
@@ -1026,7 +1026,7 @@ bool import_DWARF_prototypes(struct library *lib)
 		}
 	}
 
-	import(plib, lib, dwfl);
+	import(plib, lib, lib->dwfl_module);
 	lib->protolib = plib;
 
 	return true;

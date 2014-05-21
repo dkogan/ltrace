@@ -175,6 +175,7 @@ process_bare_init(struct process *proc, const char *filename,
 
 #if defined(HAVE_LIBDW)
 	proc->dwfl = NULL; /* Initialize for leader only on first library.  */
+	proc->should_attach_dwfl = 1; /* should try to attach the DWFL data */
 #endif /* defined(HAVE_LIBDW) */
 
 	return 0;
@@ -894,6 +895,7 @@ proc_add_library(struct process *proc, struct library *lib)
 
 #if defined(HAVE_LIBDW)
 	Dwfl *dwfl = NULL;
+	Dwfl_Module *dwfl_module = NULL;
 
 	/* Setup module tracking for libdwfl unwinding.  */
 	struct process *leader = proc->leader;
@@ -913,24 +915,26 @@ proc_add_library(struct process *proc, struct library *lib)
 
 	if (dwfl != NULL) {
 		dwfl_report_begin_add(dwfl);
-		if (dwfl_report_elf(dwfl, lib->soname,
-				    lib->pathname, -1,
-				    (GElf_Addr) lib->base,
-				    false) == NULL)
+		dwfl_module =
+			dwfl_report_elf(dwfl, lib->soname,
+					lib->pathname, -1,
+					(GElf_Addr) lib->base,
+					false);
+		if (dwfl_module == NULL)
 			fprintf(stderr,
 				"dwfl_report_elf %s@%p (%s) %d: %s\n",
 				lib->soname, lib->base, lib->pathname,
 				proc->pid, dwfl_errmsg (-1));
+
 		dwfl_report_end(dwfl, NULL, NULL);
 
 		if (options.bt_depth > 0) {
-			if (leader->dwfl == NULL) {
+			if (proc->should_attach_dwfl) {
 				int r = dwfl_linux_proc_attach(dwfl,
 							       leader->pid,
 							       true);
-				if (r == 0)
-					leader->dwfl = dwfl;
-				else {
+				proc->should_attach_dwfl = 0;
+				if (r != 0) {
 					const char *msg;
 					dwfl_end(dwfl);
 					if (r < 0)
@@ -946,7 +950,8 @@ proc_add_library(struct process *proc, struct library *lib)
 		}
 	}
 
-	lib->dwfl = dwfl;
+	lib->dwfl_module = dwfl_module;
+	leader->dwfl = dwfl;
 
 #endif /* defined(HAVE_LIBDW) */
 
