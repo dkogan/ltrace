@@ -867,21 +867,47 @@ proc_activate_delayed_symbol(struct process *proc,
 	return breakpoint_for_symbol(libsym, proc);
 }
 
+
+struct activate_latent_in_context
+{
+	struct process *proc;
+	struct library *lib;
+};
+static enum callback_status
+activate_latent_in_cb(const char *name, void *data)
+{
+	const struct activate_latent_in_context *ctx =
+		(const struct activate_latent_in_context*)data;
+
+	struct process *proc = ctx->proc;
+	struct library *lib  = ctx->lib;
+
+	struct library_symbol *libsym = NULL;
+	while ((libsym = library_each_symbol(lib, libsym,
+					     library_symbol_named_cb,
+					     (void *)name))
+	       != NULL)
+		if (libsym->latent
+		    && proc_activate_latent_symbol(proc, libsym) < 0)
+			return CBS_FAIL;
+
+	return CBS_CONT;
+}
+
 static enum callback_status
 activate_latent_in(struct process *proc, struct library *lib, void *data)
 {
-	struct library_exported_name *exported;
-	for (exported = data; exported != NULL; exported = exported->next) {
-		struct library_symbol *libsym = NULL;
-		while ((libsym = library_each_symbol(lib, libsym,
-						     library_symbol_named_cb,
-						     (void *)exported->name))
-		       != NULL)
-			if (libsym->latent
-			    && proc_activate_latent_symbol(proc, libsym) < 0)
-				return CBS_FAIL;
-	}
-	return CBS_CONT;
+	struct library_exported_names *exported_names =
+		(struct library_exported_names*)data;
+
+	struct activate_latent_in_context context = {.proc = proc,
+						     .lib = lib};
+	if (library_exported_names_each(exported_names,
+					activate_latent_in_cb,
+					&context))
+		return CBS_CONT;
+	else
+		return CBS_FAIL;
 }
 
 void
@@ -969,7 +995,7 @@ proc_add_library(struct process *proc, struct library *lib)
 	 * library itself).  */
 	struct library *lib2 = NULL;
 	while ((lib2 = proc_each_library(proc, lib2, activate_latent_in,
-					 lib->exported_names)) != NULL)
+					 &lib->exported_names)) != NULL)
 		fprintf(stderr,
 			"Couldn't activate latent symbols for %s in %d: %s.\n",
 			lib2->soname, proc->pid, strerror(errno));

@@ -29,7 +29,11 @@
 #include "callback.h"
 #include "debug.h"
 #include "dict.h"
+#include "vect.h"
 #include "backend.h" // for arch_library_symbol_init, arch_library_init
+
+static void
+library_exported_names_init(struct library_exported_names *names);
 
 #ifndef OS_HAVE_LIBRARY_DATA
 int
@@ -292,7 +296,7 @@ private_library_init(struct library *lib, enum library_type type)
 	lib->own_pathname = 0;
 
 	lib->symbols = NULL;
-	lib->exported_names = NULL;
+	library_exported_names_init(&lib->exported_names);
 	lib->type = type;
 
 #if defined(HAVE_LIBDW)
@@ -316,17 +320,212 @@ library_init(struct library *lib, enum library_type type)
 	return 0;
 }
 
-static int
-library_exported_name_clone(struct library_exported_name *retp,
-			    struct library_exported_name *exnm)
+
+
+
+
+static void _dtor_string(const char **tgt, void *data)
 {
-	char *name = exnm->own_name ? strdup(exnm->name) : (char *)exnm->name;
-	if (name == NULL)
+	free((char*)*tgt);
+}
+static int _clone_vect(struct vect **to, const struct vect **from, void *data)
+{
+	*to = malloc(sizeof(struct vect));
+	if(*to == NULL)
 		return -1;
-	retp->name = name;
-	retp->own_name = exnm->own_name;
+
+	return
+		VECT_CLONE(*to, *from, const char*,
+			   dict_clone_string,
+			   _dtor_string,
+			   NULL);
+}
+static void _dtor_vect(const struct vect **tgt, void *data)
+{
+	VECT_DESTROY(*tgt, const char*, _dtor_string, NULL);
+	free(*tgt);
+}
+
+static void
+library_exported_names_init(struct library_exported_names *names)
+{
+	DICT_INIT(&names->names,
+		  const char*, uint64_t,
+		  dict_hash_string, dict_eq_string, NULL);
+	DICT_INIT(&names->addrs,
+		  uint64_t, struct vect*,
+		  dict_hash_uint64, dict_eq_uint64, NULL);
+}
+
+static void
+library_exported_names_destroy(struct library_exported_names *names)
+{
+	DICT_DESTROY(&names->names,
+		     const char*, uint64_t,
+		     _dtor_string, NULL, NULL);
+	DICT_DESTROY(&names->addrs,
+		     uint64_t, struct vect*,
+		     NULL, _dtor_vect, NULL);
+}
+
+static int
+library_exported_names_clone(struct library_exported_names *retp,
+			     const struct library_exported_names *names)
+{
+	return
+		DICT_CLONE(&retp->names, &names->names,
+			   const char*, uint64_t,
+			   dict_clone_string, _dtor_string,
+			   NULL, NULL,
+			   NULL) ||
+		DICT_CLONE(&retp->addrs, &names->addrs,
+			   uint64_t, struct vect*,
+			   NULL, NULL,
+			   _clone_vect, _dtor_vect,
+			   NULL);
+}
+
+int library_exported_names_push(struct library_exported_names *names,
+				uint64_t addr, const char *name,
+				int own_name )
+{
+	// first, take ownership of the name, if it's not yet ours
+	if(!own_name)
+		name = strdup(name);
+	if(name == NULL)
+		return -1;
+
+	// push to the name->addr map
+	int result = DICT_INSERT(&names->names, &name, &addr);
+	if(result == 1) {
+		// This symbol is already present in the table. This library has
+		// multiple copies of this symbol (probably corresponding to
+		// different symbol versions). I should handle this gracefully
+		// at some point, but for now I simply ignore later instances of
+		// any particular symbol
+		free(name);
+		return 0;
+	}
+
+	if(result != 0)
+		return result;
+
+	// push to the addr->names map
+	// I get the alias vector. If it doesn't yet exist, I make it
+	struct vect *aliases;
+	struct vect **paliases = DICT_FIND_REF(&names->addrs,
+					       &addr, struct vect*);
+
+	if (paliases == NULL) {
+		aliases = malloc(sizeof(struct vect));
+		if(aliases == NULL)
+			return -1;
+		VECT_INIT(aliases, const char*);
+		result = DICT_INSERT(&names->addrs, &addr, &aliases);
+		if(result != 0)
+			return result;
+	}
+	else
+		aliases = *paliases;
+
+	const char *namedup = strdup(name);
+	if(namedup == NULL)
+		return -1;
+
+	result = vect_pushback(aliases, &namedup);
+	if(result != 0)
+		return result;
+
 	return 0;
 }
+
+struct library_exported_names_each_context
+{
+	enum callback_status (*inner_cb)(const char *, void *);
+	void *data;
+	bool failure : 1;
+};
+static enum callback_status
+library_exported_names_each_cb(const char **key, uint64_t *value, void *data)
+{
+	struct library_exported_names_each_context *context =
+		(struct library_exported_names_each_context*)data;
+	enum callback_status status = context->inner_cb(*key, context->data);
+	if(status == CBS_FAIL)
+		context->failure = true;
+	return status;
+}
+bool library_exported_names_each(const struct library_exported_names *names,
+				 enum callback_status (*cb)(const char *,
+							    void *),
+				 void *data)
+{
+	struct library_exported_names_each_context context =
+		{.inner_cb = cb,
+		 .data = data,
+		 .failure = false};
+	DICT_EACH(&names->names,
+		  const char*, uint64_t,
+		  NULL, library_exported_names_each_cb, &context);
+	return !context.failure;
+}
+
+struct library_exported_names_each_alias_context
+{
+	enum callback_status (*inner_cb)(const char *, void *);
+	const char *origname;
+	void *data;
+	bool failure : 1;
+};
+static enum callback_status
+library_exported_names_each_alias_cb(const char **name, void *data)
+{
+	struct library_exported_names_each_alias_context *context =
+		(struct library_exported_names_each_alias_context*)data;
+
+	// I do not report the original name we were asked about. Otherwise, any
+	// time the caller asks for aliases of symbol "sym", I'll always report
+	// "sym" along with any actual aliases
+	if(strcmp(*name, context->origname) == 0)
+		return CBS_CONT;
+
+	enum callback_status status = context->inner_cb(*name, context->data);
+	if(status == CBS_FAIL)
+		context->failure = true;
+	return status;
+}
+
+bool library_exported_names_each_alias(
+	const struct library_exported_names *names,
+	const char *aliasname,
+	enum callback_status (*cb)(const char *,
+				   void *),
+	void *data)
+{
+	// I have a symbol name. I look up its address, then get the list of
+	// aliased names
+	uint64_t *addr = DICT_FIND_REF(&names->names,
+				       &aliasname, uint64_t);
+	if(addr == NULL)
+		return false;
+
+	// OK. I have an address. Get the list of symbols at this address
+	struct vect **aliases = DICT_FIND_REF(&names->addrs,
+					     addr, struct vect*);
+	if(aliases == NULL)
+		return false;
+
+	struct library_exported_names_each_alias_context context =
+		{.inner_cb = cb,
+		 .origname = aliasname,
+		 .data = data,
+		 .failure = false};
+	VECT_EACH(*aliases, const char*, NULL,
+		  library_exported_names_each_alias_cb, &context);
+}
+
+
+
 
 int
 library_clone(struct library *retp, struct library *lib)
@@ -372,20 +571,9 @@ library_clone(struct library *retp, struct library *lib)
 	}
 
 	/* Clone exported names.  */
-	{
-		struct library_exported_name *it;
-		struct library_exported_name **nnamep = &retp->exported_names;
-		for (it = lib->exported_names; it != NULL; it = it->next) {
-			*nnamep = malloc(sizeof(**nnamep));
-			if (*nnamep == NULL
-			    || library_exported_name_clone(*nnamep, it) < 0) {
-				free(*nnamep);
-				goto fail;
-			}
-			nnamep = &(*nnamep)->next;
-		}
-		*nnamep = NULL;
-	}
+	if (library_exported_names_clone(&retp->exported_names,
+					 &lib->exported_names) != 0)
+		goto fail;
 
 	if (os_library_clone(retp, lib) < 0)
 		goto fail;
@@ -419,14 +607,7 @@ library_destroy(struct library *lib)
 	}
 
 	/* Release exported names.  */
-	struct library_exported_name *it;
-	for (it = lib->exported_names; it != NULL; ) {
-		struct library_exported_name *next = it->next;
-		if (it->own_name)
-			free((char *)it->name);
-		free(it);
-		it = next;
-	}
+	library_exported_names_destroy(&lib->exported_names);
 }
 
 void

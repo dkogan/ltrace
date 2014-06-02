@@ -901,13 +901,8 @@ static int
 populate_this_symtab(struct process *proc, const char *filename,
 		     struct ltelf *lte, struct library *lib,
 		     Elf_Data *symtab, const char *strtab, size_t count,
-		     struct library_exported_name **names)
+		     struct library_exported_names *names)
 {
-	/* If a valid NAMES is passed, we pass in *NAMES a list of
-	 * symbol names that this library exports.  */
-	if (names != NULL)
-		*names = NULL;
-
 	/* Using sorted array would be arguably better, but this
 	 * should be well enough for the number of symbols that we
 	 * typically deal with.  */
@@ -957,20 +952,14 @@ populate_this_symtab(struct process *proc, const char *filename,
 
 		/* If we are interested in exports, store this name.  */
 		if (names != NULL) {
-			struct library_exported_name *export
-				= malloc(sizeof *export);
 			char *name_copy = strdup(name);
-
-			if (name_copy == NULL || export == NULL) {
-				free(name_copy);
-				free(export);
+			if (name_copy == NULL ||
+			    library_exported_names_push(names,
+							sym.st_value,
+							name_copy, 1) != 0)
+			{
 				fprintf(stderr, "Couldn't store symbol %s.  "
 					"Tracing may be incomplete.\n", name);
-			} else {
-				export->name = name_copy;
-				export->own_name = 1;
-				export->next = *names;
-				*names = export;
 			}
 		}
 
@@ -1115,7 +1104,7 @@ populate_symtab(struct process *proc, const char *filename,
 
 	/* Check whether we want to trace symbols implemented by this
 	 * library (-l).  */
-	struct library_exported_name **names = NULL;
+	struct library_exported_names *names = NULL;
 	if (exports) {
 		debug(DEBUG_FUNCTION, "-l matches %s", lib->soname);
 		names = &lib->exported_names;

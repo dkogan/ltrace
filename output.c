@@ -197,6 +197,28 @@ snip_period(char *buf)
 	}
 }
 
+struct lookup_prototype_alias_context
+{
+	struct library *lib;
+	struct prototype *result; // output
+};
+static enum callback_status
+lookup_prototype_alias_cb(const char *name, void *data)
+{
+	struct lookup_prototype_alias_context *context =
+		(struct lookup_prototype_alias_context*)data;
+
+	struct library *lib = context->lib;
+
+	context->result =
+		protolib_lookup_prototype(lib->protolib, name,
+					  lib->type != LT_LIBTYPE_SYSCALL);
+	if (context->result != NULL)
+		return CBS_STOP;
+
+	return CBS_CONT;
+}
+
 static struct prototype *
 library_get_prototype(struct library *lib, const char *name)
 {
@@ -235,8 +257,21 @@ library_get_prototype(struct library *lib, const char *name)
 	if (lib->protolib == NULL)
 		return NULL;
 
-	return protolib_lookup_prototype(lib->protolib, name,
-					 lib->type != LT_LIBTYPE_SYSCALL);
+	struct prototype *result =
+		protolib_lookup_prototype(lib->protolib, name,
+					  lib->type != LT_LIBTYPE_SYSCALL);
+	if (result != NULL)
+		return result;
+
+	// prototype not found. Is it aliased?
+	struct lookup_prototype_alias_context context = {.lib = lib,
+							 .result = NULL};
+	library_exported_names_each_alias(&lib->exported_names, name,
+					  lookup_prototype_alias_cb,
+					  &context);
+
+	// if found, the prototype is stored here, otherwise it's NULL
+	return context.result;
 }
 
 struct find_proto_data {

@@ -23,11 +23,13 @@
 #define _LIBRARY_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #if defined(HAVE_LIBDW)
 # include <elfutils/libdwfl.h>
 #endif
 
+#include "dict.h"
 #include "callback.h"
 #include "forward.h"
 #include "sysdep.h"
@@ -41,11 +43,21 @@ enum toplt {
 size_t arch_addr_hash(const arch_addr_t *addr);
 int arch_addr_eq(const arch_addr_t *addr1, const arch_addr_t *addr2);
 
-/* For handling -l.  */
-struct library_exported_name {
-	struct library_exported_name *next;
-	const char *name;
-	int own_name : 1;
+
+/* For handling -l and for handling library export aliases (different symbol
+ * name, same address)
+ *
+ * This structure needs to
+ * - store (addr, name) tuples
+ * - be searchable by addr (when populating)
+ * - be searchable by name (when looking for aliases)
+ * - be enumeratable (by activate_latent_in())
+ */
+struct library_exported_names {
+	// I store the data in several structures to facilitate different types
+	// of access
+	struct dict names; // maps a name to an address
+	struct dict addrs; // maps an address to a vect of names
 };
 
 struct library_symbol {
@@ -158,8 +170,10 @@ struct library {
 	/* List of names that this library implements, and that match
 	 * -l filter.  Each time a new library is mapped, its list of
 	 * exports is examined, and corresponding PLT slots are
-	 * enabled.  */
-	struct library_exported_name *exported_names;
+	 * enabled. This data structure also keeps track of export
+	 * addresses to find symbols with different names, but same
+	 * addresses */
+	struct library_exported_names exported_names;
 
 	/* Prototype library associated with this library.  */
 	struct protolib *protolib;
@@ -240,5 +254,35 @@ int arch_translate_address(struct ltelf *lte,
  * used at the point that we don't have ELF available anymore.  */
 int arch_translate_address_dyn(struct process *proc,
 			       arch_addr_t addr, arch_addr_t *ret);
+
+
+/* Pushes a name/address tuple to the list of a library's exports. Returns 0 on
+ * success
+ */
+int library_exported_names_push(struct library_exported_names *names,
+				uint64_t addr, const char *name,
+				int own_name );
+
+/* Iterates through the a library's export list. The callback is called for
+ * every symbol a library exports. Symbol aliases do not apply here. If multiple
+ * symbols are defined at the same address, each is reported here. Returns true
+ * on success. If the callback fails at any point, this returns false
+ */
+bool library_exported_names_each(const struct library_exported_names *names,
+				 enum callback_status (*cb)(const char *,
+							    void *),
+				 void *data);
+
+/* Iterates through the a library's export list, reporting each symbol that is
+ * an alias of the given 'aliasname' symbol. This 'aliasname' symbol itself is
+ * NOT reported, so if this symbol is unique, the callback is not called at all.
+ * Returns true on success
+ */
+bool library_exported_names_each_alias(
+	const struct library_exported_names *names,
+	const char *aliasname,
+	enum callback_status (*cb)(const char *,
+				   void *),
+	void *data);
 
 #endif /* _LIBRARY_H_ */
