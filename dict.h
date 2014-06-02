@@ -22,6 +22,7 @@
 #define _DICT_H_
 
 #include <stddef.h>
+#include <stdint.h>
 #include <assert.h>
 #include "vect.h"
 
@@ -230,6 +231,12 @@ size_t dict_hash_int(const int *key);
 
 /* An equality predicate callback for integers.  */
 int dict_eq_int(const int *key1, const int *key2);
+
+/* A callback for hashing uint64_t.  */
+size_t dict_hash_uint64(const uint64_t *key);
+
+/* An equality predicate callback for uint64_t.  */
+int dict_eq_uint64(const uint64_t *key1, const uint64_t *key2);
 
 /* A callback for hashing NULL-terminated strings.  */
 size_t dict_hash_string(const char **key);

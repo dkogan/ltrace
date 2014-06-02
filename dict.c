@@ -474,6 +474,22 @@ dict_eq_int(const int *key1, const int *key2)
 }
 
 size_t
+dict_hash_uint64(const uint64_t *key)
+{
+	// I use the same hash function as for 32-bit signed integers. This
+	// probably will not have great performance for values that don't fit
+	// into a 32-bit signed int, but this will do for now
+	int key32 = (int)(*key);
+	return dict_hash_int(&key32);
+}
+
+int
+dict_eq_uint64(const uint64_t *key1, const uint64_t *key2)
+{
+	return *key1 == *key2;
+}
+
+size_t
 dict_hash_string(const char **key)
 {
 	size_t h = 5381;
