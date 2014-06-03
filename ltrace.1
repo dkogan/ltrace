@@ -122,13 +122,13 @@ describing which debug messages should be displayed.  Use the option
 \-Dh to see what can be used, but note that currently the only
 reliable debugmask is 77, which shows all debug messages.
 .IP "\-e \fIfilter"
-A qualifying expression which modifies which library calls (i.e. calls
-done through PLT slots, which are typically calls from the main binary
-to a library, or inter-library calls) to trace.  The format of the
-filter expression is described in the section \fBFILTER
-EXPRESSIONS\fR.  If more than one \-e option appears on the command
-line, the library calls that match any of them are traced.  If no \-e
-is given, \fB@MAIN\fR is assumed as a default.
+A qualifying expression which modifies which library calls (i.e. calls done
+through PLT slots, which are typically calls from the main binary to a library,
+or inter-library calls) to trace. Usage examples and the syntax description
+appear below in sections \fBFILTER SPECIFICATIONS\fR and \fBFILTER
+EXPRESSIONS\fR. If more than one \-e option appears on the command line, the
+library calls that match any of them are traced. If no \-e is given, \fB@MAIN\fR
+is assumed as a default.
 .IP \-f
 Trace child processes as they are created by
 currently traced processes as a result of the fork(2)
@@ -150,9 +150,9 @@ Display only calls to functions implemented by libraries that match
 This is as if you specified one \-e for every symbol implemented in a
 library specified by
 .I library_pattern.
-Multiple library patters can be specified with several instances of
-this option.  Syntax of library_pattern is described in section
-\fBFILTER EXPRESSIONS\fR.
+Multiple library patters can be specified with several instances of this option.
+Usage examples and the syntax description of library_pattern appear below in
+sections \fBFILTER SPECIFICATIONS\fR and \fBFILTER EXPRESSIONS\fR.
 
 Note that while this option selects calls that might be directed to
 the selected libraries, there's no actual guarantee that the call
@@ -204,16 +204,120 @@ Show backtrace of \fInr\fR stack frames for each traced function. This
 option enabled only if elfutils or libunwind support was enabled at compile
 time.
 .IP "\-x \fIfilter"
-A qualifying expression which modifies which symbol table entry points
-to trace (those are typically calls inside a library or main binary,
-though PLT calls, traced by \-e, land on entry points as well).  The
-format of the filter expression is described in the section \fBFILTER
-EXPRESSIONS\fR.  If more than one \-x option appears on the command
-line, the symbols that match any of them are traced.  No entry points
-are traced if no \-x is given.
+A qualifying expression which modifies which symbol table entry points to trace
+(those are typically calls inside a library or main binary, though PLT calls,
+traced by \-e, land on entry points as well). Usage examples and the syntax
+description appear below in sections \fBFILTER SPECIFICATIONS\fR and \fBFILTER
+EXPRESSIONS\fR. If more than one \-x option appears on the command line, the
+symbols that match any of them are traced. No entry points are traced if no \-x
+is given.
 .IP "\-V, \-\-version"
 Show the version number of ltrace and exit.
 
+.SH FILTER SPECIFICATIONS
+
+Filters are specified with the \-l, \-e and \-x options. In short they mean:
+.IP "\fI\-x\fR is \'show me what calls these symbols (including local calls)\'"
+.IP "\fI\-e\fR is \'show me what calls these symbols (inter-library calls only)\'"
+.IP "\fI\-l\fR is \'show me what calls into this library\'"
+.PP
+..
+.de Vb \" Begin verbatim text
+.ft CW
+.nf
+.ne \\$1
+..
+.de Ve \" End verbatim text
+.ft R
+.fi
+..
+Suppose I have a library defined with this header \fBtstlib.h\fR:
+.PP
+.Vb 6
+\& #pragma once
+\& void func_f_lib(void);
+\& void func_g_lib(void);
+.Ve
+.PP
+and this implementation \fBtstlib.c\fR:
+.PP
+.Vb 6
+\& #include "tstlib.h"
+\& void func_f_lib(void)
+\& {
+\&     func_g_lib();
+\& }
+\& void func_g_lib(void)
+\& {
+\& }
+.Ve
+.PP
+Suppose I have an executable that uses this library defined like this \fBtst.c\fR:
+.PP
+.Vb 6
+\& #include "tstlib.h"
+\& void func_f_main(void)
+\& {
+\& }
+\& void main(void)
+\& {
+\&     func_f_main();
+\&     func_f_lib();
+\& }
+.Ve
+.PP
+If linking without \fB-Bsymbolic\fR, the internal \fBfunc_g_lib()\fR call uses
+the PLT like external calls, and thus ltrace says:
+.PP
+.Vb 6
+\& \fB$ ltrace -x 'func*' -L ./tst\fR
+\& func_f_main()                             = <void>
+\& func_f_lib@tstlib.so( <unfinished ...>
+\& func_g_lib@tstlib.so()                    = <void>
+\& <... func_f_lib resumed> )                = <void>
+\& +++ exited (status 163) +++
+.Ve
+
+.Vb 6
+\& \fB$ ltrace -e 'func*' ./tst\fR
+\& tst->func_f_lib( <unfinished ...>
+\& tstlib.so->func_g_lib()                   = <void>
+\& <... func_f_lib resumed> )                = <void>
+\& +++ exited (status 163) +++
+.Ve
+
+.Vb 6
+\& \fB$ ltrace -l tstlib.so ./tst\fR
+\& tst->func_f_lib( <unfinished ...>
+\& tstlib.so->func_g_lib()                   = <void>
+\& <... func_f_lib resumed> )                = <void>
+\& +++ exited (status 163) +++
+.Ve
+.PP
+By contrast, if linking with \fB-Bsymbolic\fR, then the internal
+\fBfunc_g_lib()\fR call bypasses the PLT, and ltrace says:
+.PP
+.Vb 6
+\& \fB$ ltrace -x 'func*' -L ./tst\fR
+\& func_f_main() = <void>
+\& func_f_lib@tstlib.so( <unfinished ...>
+\& func_g_lib@tstlib.so()                    = <void>
+\& <... func_f_lib resumed> )                = <void>
+\& +++ exited (status 163) +++
+.Ve
+
+.Vb 6
+\& \fB$ ltrace -e 'func*' ./tst\fR
+\& tst->func_f_lib()                         = <void>
+\& +++ exited (status 163) +++
+.Ve
+
+.Vb 6
+\& \fB$ ltrace -l tstlib.so ./tst\fR
+\& tst->func_f_lib()                         = <void>
+\& +++ exited (status 163) +++
+.Ve
+.PP
 .SH FILTER EXPRESSIONS
 
 Filter expression is a chain of glob- or regexp-based rules that are
