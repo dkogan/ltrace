@@ -904,18 +904,10 @@ static bool get_prototype(struct prototype *result,
 #undef CLEANUP_AND_RETURN_ERROR
 }
 
-static bool import_subprogram(struct protolib *plib, struct library *lib,
-			      struct dict *type_dieoffset_hash,
-			      Dwarf_Die *die)
+static bool import_subprogram_name(struct protolib *plib, struct library *lib,
+				   struct dict *type_dieoffset_hash,
+				   Dwarf_Die *die, const char* function_name)
 {
-	// I use the linkage function name if there is one, otherwise the
-	// plain name
-	const char *function_name = dwarf_diename(die);
-	if (function_name == NULL) {
-		complain(die, "Function has no name. Not importing");
-		return true;
-	}
-
 	if (!filter_matches_symbol(options.plt_filter,    function_name, lib) &&
 	    !filter_matches_symbol(options.static_filter, function_name, lib) &&
 	    !filter_matches_symbol(options.export_filter, function_name, lib)) {
@@ -950,6 +942,36 @@ static bool import_subprogram(struct protolib *plib, struct library *lib,
 	return true;
 }
 
+static bool import_subprogram_die(struct protolib *plib, struct library *lib,
+				  struct dict *type_dieoffset_hash,
+				  Dwarf_Die *die)
+{
+	// If there is a linkage name, I use it (this is required for C++ code,
+	// in particular).
+	//
+	// I use the plain name regardless, since sometimes the exported symbol
+	// corresponds to the plain name, NOT the linkage name. For instance I
+	// see this on my Debian/sid amd64 box. In its libc, the linkage name of
+	// __nanosleep is __GI___nanosleep, but the export is __nanosleep
+	const char *function_name;
+	Dwarf_Attribute attr;
+
+	if (dwarf_attr(die, DW_AT_linkage_name, &attr) != NULL &&
+	    (function_name = dwarf_formstring(&attr)) != NULL &&
+	    !import_subprogram_name(plib, lib, type_dieoffset_hash, die,
+				    function_name)) {
+		return false;
+	}
+
+	if ((function_name = dwarf_diename(die)) != NULL &&
+	    !import_subprogram_name(plib, lib, type_dieoffset_hash, die,
+				    function_name)) {
+		return false;
+	}
+
+	return true;
+}
+
 static bool process_die_compileunit(struct protolib *plib, struct library *lib,
 				    struct dict *type_dieoffset_hash,
 				    Dwarf_Die *parent)
@@ -963,8 +985,8 @@ static bool process_die_compileunit(struct protolib *plib, struct library *lib,
 
 	while (1) {
 		if (dwarf_tag(&die) == DW_TAG_subprogram)
-			if (!import_subprogram(plib, lib, type_dieoffset_hash,
-					       &die))
+			if (!import_subprogram_die(plib, lib, type_dieoffset_hash,
+						   &die))
 				complain(&die, "Error importing subprogram. "
 					 "Skipping");
 
