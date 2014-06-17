@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012, 2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013, 2014 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -476,11 +476,9 @@ dict_eq_int(const int *key1, const int *key2)
 size_t
 dict_hash_uint64(const uint64_t *key)
 {
-	// I use the same hash function as for 32-bit signed integers. This
-	// probably will not have great performance for values that don't fit
-	// into a 32-bit signed int, but this will do for now
-	int key32 = (int)(*key);
-	return dict_hash_int(&key32);
+	int const a = (int) *key;
+	int const b = (int) (*key >> 32);
+	return dict_hash_int (&a) ^ dict_hash_int (&b);
 }
 
 int
