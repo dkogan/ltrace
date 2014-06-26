@@ -331,7 +331,7 @@ static void dtor_string(const char **tgt, void *data)
 static int clone_vect(struct vect **to, const struct vect **from, void *data)
 {
 	*to = malloc(sizeof(struct vect));
-	if(*to == NULL)
+	if (*to == NULL)
 		return -1;
 
 	return
@@ -390,14 +390,14 @@ int library_exported_names_push(struct library_exported_names *names,
 				int own_name )
 {
 	// first, take ownership of the name, if it's not yet ours
-	if(!own_name)
+	if (!own_name)
 		name = strdup(name);
-	if(name == NULL)
+	if (name == NULL)
 		return -1;
 
 	// push to the name->addr map
 	int result = DICT_INSERT(&names->names, &name, &addr);
-	if(result == 1) {
+	if (result == 1) {
 		// This symbol is already present in the table. This library has
 		// multiple copies of this symbol (probably corresponding to
 		// different symbol versions). I should handle this gracefully
@@ -407,7 +407,7 @@ int library_exported_names_push(struct library_exported_names *names,
 		return 0;
 	}
 
-	if(result != 0)
+	if (result != 0)
 		return result;
 
 	// push to the addr->names map
@@ -418,22 +418,22 @@ int library_exported_names_push(struct library_exported_names *names,
 
 	if (paliases == NULL) {
 		aliases = malloc(sizeof(struct vect));
-		if(aliases == NULL)
+		if (aliases == NULL)
 			return -1;
 		VECT_INIT(aliases, const char*);
 		result = DICT_INSERT(&names->addrs, &addr, &aliases);
-		if(result != 0)
+		if (result != 0)
 			return result;
 	}
 	else
 		aliases = *paliases;
 
 	const char *namedup = strdup(name);
-	if(namedup == NULL)
+	if (namedup == NULL)
 		return -1;
 
 	result = vect_pushback(aliases, &namedup);
-	if(result != 0)
+	if (result != 0)
 		return result;
 
 	return 0;
@@ -451,7 +451,7 @@ library_exported_names_each_cb(const char **key, uint64_t *value, void *data)
 	struct library_exported_names_each_context *context =
 		(struct library_exported_names_each_context*)data;
 	enum callback_status status = context->inner_cb(*key, context->data);
-	if(status == CBS_FAIL)
+	if (status == CBS_FAIL)
 		context->failure = true;
 	return status;
 }
@@ -486,11 +486,11 @@ library_exported_names_each_alias_cb(const char **name, void *data)
 	// I do not report the original name we were asked about. Otherwise, any
 	// time the caller asks for aliases of symbol "sym", I'll always report
 	// "sym" along with any actual aliases
-	if(strcmp(*name, context->origname) == 0)
+	if (strcmp(*name, context->origname) == 0)
 		return CBS_CONT;
 
 	enum callback_status status = context->inner_cb(*name, context->data);
-	if(status == CBS_FAIL)
+	if (status == CBS_FAIL)
 		context->failure = true;
 	return status;
 }
@@ -506,13 +506,13 @@ bool library_exported_names_each_alias(
 	// aliased names
 	uint64_t *addr = DICT_FIND_REF(&names->names,
 				       &aliasname, uint64_t);
-	if(addr == NULL)
+	if (addr == NULL)
 		return false;
 
 	// OK. I have an address. Get the list of symbols at this address
 	struct vect **aliases = DICT_FIND_REF(&names->addrs,
 					     addr, struct vect*);
-	if(aliases == NULL)
+	if (aliases == NULL)
 		return false;
 
 	struct library_exported_names_each_alias_context context =
