@@ -372,17 +372,16 @@ static int
 library_exported_names_clone(struct library_exported_names *retp,
 			     const struct library_exported_names *names)
 {
-	return
-		DICT_CLONE(&retp->names, &names->names,
+	return (DICT_CLONE(&retp->names, &names->names,
 			   const char*, uint64_t,
 			   dict_clone_string, dtor_string,
 			   NULL, NULL,
-			   NULL) ||
+			   NULL) < 0  ||
 		DICT_CLONE(&retp->addrs, &names->addrs,
 			   uint64_t, struct vect*,
 			   NULL, NULL,
 			   clone_vect, dtor_vect,
-			   NULL);
+			   NULL) < 0) ? -1 : 0;
 }
 
 int library_exported_names_push(struct library_exported_names *names,
@@ -397,7 +396,7 @@ int library_exported_names_push(struct library_exported_names *names,
 
 	// push to the name->addr map
 	int result = DICT_INSERT(&names->names, &name, &addr);
-	if (result == 1) {
+	if (result > 0) {
 		// This symbol is already present in the table. This library has
 		// multiple copies of this symbol (probably corresponding to
 		// different symbol versions). I should handle this gracefully
@@ -422,7 +421,8 @@ int library_exported_names_push(struct library_exported_names *names,
 			return -1;
 		VECT_INIT(aliases, const char*);
 		result = DICT_INSERT(&names->addrs, &addr, &aliases);
-		if (result != 0)
+		assert(result <= 0);
+		if (result < 0)
 			return result;
 	}
 	else
