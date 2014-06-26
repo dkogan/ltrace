@@ -433,8 +433,10 @@ int library_exported_names_push(struct library_exported_names *names,
 		return -1;
 
 	result = vect_pushback(aliases, &namedup);
-	if (result != 0)
+	if (result != 0) {
+		free(namedup);
 		return result;
+	}
 
 	return 0;
 }
@@ -522,6 +524,7 @@ bool library_exported_names_each_alias(
 		 .failure = false};
 	VECT_EACH(*aliases, const char*, NULL,
 		  library_exported_names_each_alias_cb, &context);
+	return true;
 }
 
 
