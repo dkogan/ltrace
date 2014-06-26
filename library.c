@@ -324,11 +324,11 @@ library_init(struct library *lib, enum library_type type)
 
 
 
-static void _dtor_string(const char **tgt, void *data)
+static void dtor_string(const char **tgt, void *data)
 {
 	free((char*)*tgt);
 }
-static int _clone_vect(struct vect **to, const struct vect **from, void *data)
+static int clone_vect(struct vect **to, const struct vect **from, void *data)
 {
 	*to = malloc(sizeof(struct vect));
 	if(*to == NULL)
@@ -337,12 +337,12 @@ static int _clone_vect(struct vect **to, const struct vect **from, void *data)
 	return
 		VECT_CLONE(*to, *from, const char*,
 			   dict_clone_string,
-			   _dtor_string,
+			   dtor_string,
 			   NULL);
 }
-static void _dtor_vect(const struct vect **tgt, void *data)
+static void dtor_vect(const struct vect **tgt, void *data)
 {
-	VECT_DESTROY(*tgt, const char*, _dtor_string, NULL);
+	VECT_DESTROY(*tgt, const char*, dtor_string, NULL);
 	free(*tgt);
 }
 
@@ -362,10 +362,10 @@ library_exported_names_destroy(struct library_exported_names *names)
 {
 	DICT_DESTROY(&names->names,
 		     const char*, uint64_t,
-		     _dtor_string, NULL, NULL);
+		     dtor_string, NULL, NULL);
 	DICT_DESTROY(&names->addrs,
 		     uint64_t, struct vect*,
-		     NULL, _dtor_vect, NULL);
+		     NULL, dtor_vect, NULL);
 }
 
 static int
@@ -375,13 +375,13 @@ library_exported_names_clone(struct library_exported_names *retp,
 	return
 		DICT_CLONE(&retp->names, &names->names,
 			   const char*, uint64_t,
-			   dict_clone_string, _dtor_string,
+			   dict_clone_string, dtor_string,
 			   NULL, NULL,
 			   NULL) ||
 		DICT_CLONE(&retp->addrs, &names->addrs,
 			   uint64_t, struct vect*,
 			   NULL, NULL,
-			   _clone_vect, _dtor_vect,
+			   clone_vect, dtor_vect,
 			   NULL);
 }
 
