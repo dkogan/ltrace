@@ -265,22 +265,42 @@ int library_exported_names_push(struct library_exported_names *names,
 
 /* Iterates through the a library's export list. The callback is called for
  * every symbol a library exports. Symbol aliases do not apply here. If multiple
- * symbols are defined at the same address, each is reported here. Returns true
- * on success. If the callback fails at any point, this returns false
+ * symbols are defined at the same address, each is reported here.
+ *
+ * If we want to iterate through the whole list, set name_start_after=NULL. If
+ * we want to start iterating immediately past a particular symbol name, pass a
+ * pointer to this symbol name in name_start_after. This must be a pointer in
+ * the internal dict, preferably returned by an earlier call to this function
+ *
+ * If the callback fails at any point, a pointer to the failing key is returned.
+ * On success, returns NULL. The returned pointer can be passed back to this
+ * function in name_start_after to resume skipping this element
  */
-bool library_exported_names_each(const struct library_exported_names *names,
-				 enum callback_status (*cb)(const char *,
-							    void *),
-				 void *data);
+const char** library_exported_names_each(
+	const struct library_exported_names *names,
+	const char **name_start_after,
+	enum callback_status (*cb)(const char *,
+				   void *),
+	void *data);
 
 /* Iterates through the a library's export list, reporting each symbol that is
  * an alias of the given 'aliasname' symbol. This 'aliasname' symbol itself is
  * NOT reported, so if this symbol is unique, the callback is not called at all.
- * Returns true on success
+ *
+ * If we want to iterate through the whole alias list, set
+ * name_start_after=NULL. If we want to start iterating immediately past a
+ * particular symbol name, pass a pointer to this symbol name in
+ * name_start_after. This must be a pointer in the internal dict, preferably
+ * returned by an earlier call to this function
+ *
+ * If the callback fails at any point, a pointer to the failing key is returned.
+ * On success, returns NULL. The returned pointer can be passed back to this
+ * function in name_start_after to resume skipping this element
  */
-bool library_exported_names_each_alias(
+const char** library_exported_names_each_alias(
 	const struct library_exported_names *names,
 	const char *aliasname,
+	const char **name_start_after,
 	enum callback_status (*cb)(const char *,
 				   void *),
 	void *data);

@@ -267,7 +267,7 @@ library_get_prototype(struct library *lib, const char *name)
 	struct lookup_prototype_alias_context context = {.lib = lib,
 							 .result = NULL};
 	library_exported_names_each_alias(&lib->exported_names, name,
-					  lookup_prototype_alias_cb,
+					  NULL, lookup_prototype_alias_cb,
 					  &context);
 
 	// if found, the prototype is stored here, otherwise it's NULL

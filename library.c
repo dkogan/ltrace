@@ -445,31 +445,28 @@ struct library_exported_names_each_context
 {
 	enum callback_status (*inner_cb)(const char *, void *);
 	void *data;
-	bool failure : 1;
 };
 static enum callback_status
 library_exported_names_each_cb(const char **key, uint64_t *value, void *data)
 {
 	struct library_exported_names_each_context *context =
 		(struct library_exported_names_each_context*)data;
-	enum callback_status status = context->inner_cb(*key, context->data);
-	if (status == CBS_FAIL)
-		context->failure = true;
-	return status;
+	return context->inner_cb(*key, context->data);
 }
-bool library_exported_names_each(const struct library_exported_names *names,
-				 enum callback_status (*cb)(const char *,
-							    void *),
-				 void *data)
+const char** library_exported_names_each(
+	const struct library_exported_names *names,
+	const char **name_start_after,
+	enum callback_status (*cb)(const char *,
+				   void *),
+	void *data)
 {
 	struct library_exported_names_each_context context =
 		{.inner_cb = cb,
-		 .data = data,
-		 .failure = false};
-	DICT_EACH(&names->names,
-		  const char*, uint64_t,
-		  NULL, library_exported_names_each_cb, &context);
-	return !context.failure;
+		 .data = data};
+	return DICT_EACH(&names->names,
+			 const char*, uint64_t,
+			 name_start_after, library_exported_names_each_cb,
+			 &context);
 }
 
 struct library_exported_names_each_alias_context
@@ -477,7 +474,6 @@ struct library_exported_names_each_alias_context
 	enum callback_status (*inner_cb)(const char *, void *);
 	const char *origname;
 	void *data;
-	bool failure : 1;
 };
 static enum callback_status
 library_exported_names_each_alias_cb(const char **name, void *data)
@@ -491,15 +487,13 @@ library_exported_names_each_alias_cb(const char **name, void *data)
 	if (strcmp(*name, context->origname) == 0)
 		return CBS_CONT;
 
-	enum callback_status status = context->inner_cb(*name, context->data);
-	if (status == CBS_FAIL)
-		context->failure = true;
-	return status;
+	return context->inner_cb(*name, context->data);
 }
 
-bool library_exported_names_each_alias(
+const char** library_exported_names_each_alias(
 	const struct library_exported_names *names,
 	const char *aliasname,
+	const char **name_start_after,
 	enum callback_status (*cb)(const char *,
 				   void *),
 	void *data)
@@ -509,22 +503,19 @@ bool library_exported_names_each_alias(
 	uint64_t *addr = DICT_FIND_REF(&names->names,
 				       &aliasname, uint64_t);
 	if (addr == NULL)
-		return false;
+		return NULL;
 
 	// OK. I have an address. Get the list of symbols at this address
 	struct vect **aliases = DICT_FIND_REF(&names->addrs,
-					     addr, struct vect*);
-	if (aliases == NULL)
-		return false;
+					      addr, struct vect*);
+	assert(aliases != NULL);
 
 	struct library_exported_names_each_alias_context context =
 		{.inner_cb = cb,
 		 .origname = aliasname,
-		 .data = data,
-		 .failure = false};
-	VECT_EACH(*aliases, const char*, NULL,
-		  library_exported_names_each_alias_cb, &context);
-	return true;
+		 .data = data};
+	return VECT_EACH(*aliases, const char*, name_start_after,
+			 library_exported_names_each_alias_cb, &context);
 }
 
 

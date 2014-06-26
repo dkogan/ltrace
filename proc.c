@@ -903,8 +903,9 @@ activate_latent_in(struct process *proc, struct library *lib, void *data)
 	struct activate_latent_in_context context = {.proc = proc,
 						     .lib = lib};
 	if (library_exported_names_each(exported_names,
+					NULL,
 					activate_latent_in_cb,
-					&context))
+					&context) == NULL)
 		return CBS_CONT;
 	else
 		return CBS_FAIL;
