@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "backend.h"
 #include "breakpoint.h"
@@ -37,6 +38,7 @@
 #include "proc.h"
 #include "value_dict.h"
 #include "dwarf_prototypes.h"
+#include "bench.h"
 
 #ifndef OS_HAVE_PROCESS_DATA
 int
@@ -888,7 +890,7 @@ activate_latent_in_cb(struct library_symbol *libsym, void *data)
 }
 
 static enum callback_status
-activate_latent_in(struct process *proc, struct library *lib, void *data)
+_activate_latent_in(struct process *proc, struct library *lib, void *data)
 {
 	struct library_symbol *libsym = NULL;
 
@@ -905,6 +907,17 @@ activate_latent_in(struct process *proc, struct library *lib, void *data)
 		return CBS_FAIL;
 
 	return CBS_CONT;
+}
+
+static enum callback_status
+activate_latent_in(struct process *proc, struct library *lib, void *data)
+{
+#if 1
+	fprintf(stderr, "library: %s ", lib->soname);
+	return BENCH(_activate_latent_in, proc,lib,data);
+#else
+	return _activate_latent_in(proc,lib,data);
+#endif
 }
 
 void
