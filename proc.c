@@ -871,25 +871,18 @@ proc_activate_delayed_symbol(struct process *proc,
 struct activate_latent_in_context
 {
 	struct process *proc;
-	struct library *lib;
+	struct library_exported_names *exported_names;
 };
 static enum callback_status
-activate_latent_in_cb(const char *name, void *data)
+activate_latent_in_cb(struct library_symbol *libsym, void *data)
 {
-	const struct activate_latent_in_context *ctx =
-		(const struct activate_latent_in_context*)data;
+	struct activate_latent_in_context *ctx =
+		(struct activate_latent_in_context*)data;
 
-	struct process *proc = ctx->proc;
-	struct library *lib  = ctx->lib;
-
-	struct library_symbol *libsym = NULL;
-	while ((libsym = library_each_symbol(lib, libsym,
-					     library_symbol_named_cb,
-					     (void *)name))
-	       != NULL)
-		if (libsym->latent
-		    && proc_activate_latent_symbol(proc, libsym) < 0)
-			return CBS_FAIL;
+	if (libsym->latent &&
+	    library_exported_names_contains(ctx->exported_names,
+					    libsym->name) != 0)
+		proc_activate_latent_symbol(ctx->proc, libsym);
 
 	return CBS_CONT;
 }
@@ -897,18 +890,21 @@ activate_latent_in_cb(const char *name, void *data)
 static enum callback_status
 activate_latent_in(struct process *proc, struct library *lib, void *data)
 {
+	struct library_symbol *libsym = NULL;
+
 	struct library_exported_names *exported_names =
 		(struct library_exported_names*)data;
 
-	struct activate_latent_in_context context = {.proc = proc,
-						     .lib = lib};
-	if (library_exported_names_each(exported_names,
-					NULL,
-					activate_latent_in_cb,
-					&context) == NULL)
-		return CBS_CONT;
-	else
+	struct activate_latent_in_context ctx =
+		{.proc = proc,
+		 .exported_names = exported_names};
+
+	if (library_each_symbol(lib, libsym,
+				activate_latent_in_cb,
+				&ctx) != NULL)
 		return CBS_FAIL;
+
+	return CBS_CONT;
 }
 
 void

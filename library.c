@@ -441,34 +441,6 @@ int library_exported_names_push(struct library_exported_names *names,
 	return 0;
 }
 
-struct library_exported_names_each_context
-{
-	enum callback_status (*inner_cb)(const char *, void *);
-	void *data;
-};
-static enum callback_status
-library_exported_names_each_cb(const char **key, uint64_t *value, void *data)
-{
-	struct library_exported_names_each_context *context =
-		(struct library_exported_names_each_context*)data;
-	return context->inner_cb(*key, context->data);
-}
-const char** library_exported_names_each(
-	const struct library_exported_names *names,
-	const char **name_start_after,
-	enum callback_status (*cb)(const char *,
-				   void *),
-	void *data)
-{
-	struct library_exported_names_each_context context =
-		{.inner_cb = cb,
-		 .data = data};
-	return DICT_EACH(&names->names,
-			 const char*, uint64_t,
-			 name_start_after, library_exported_names_each_cb,
-			 &context);
-}
-
 struct library_exported_names_each_alias_context
 {
 	enum callback_status (*inner_cb)(const char *, void *);
@@ -517,6 +489,15 @@ const char** library_exported_names_each_alias(
 	return VECT_EACH(*aliases, const char*, name_start_after,
 			 library_exported_names_each_alias_cb, &context);
 }
+
+int library_exported_names_contains(const struct library_exported_names* names,
+				    const char* queryname)
+{
+	uint64_t *addr = DICT_FIND_REF(&names->names,
+				       &queryname, uint64_t);
+	return (addr == NULL) ? 0 : 1;
+}
+
 
 
 
