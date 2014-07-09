@@ -23,7 +23,6 @@
 #define _LIBRARY_H_
 
 #include <stdint.h>
-#include <stdbool.h>
 
 #if defined(HAVE_LIBDW)
 # include <elfutils/libdwfl.h>
