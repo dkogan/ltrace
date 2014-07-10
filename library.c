@@ -340,7 +340,7 @@ static int clone_vect(struct vect **to, const struct vect **from, void *data)
 			   dtor_string,
 			   NULL);
 }
-static void dtor_vect(const struct vect **tgt, void *data)
+static void dtor_vect(struct vect **tgt, void *data)
 {
 	VECT_DESTROY(*tgt, const char*, dtor_string, NULL);
 	free(*tgt);
@@ -385,7 +385,7 @@ library_exported_names_clone(struct library_exported_names *retp,
 }
 
 int library_exported_names_push(struct library_exported_names *names,
-				uint64_t addr, const char *name,
+				uint64_t addr, char *name,
 				int own_name )
 {
 	// first, take ownership of the name, if it's not yet ours
@@ -428,7 +428,7 @@ int library_exported_names_push(struct library_exported_names *names,
 	else
 		aliases = *paliases;
 
-	const char *namedup = strdup(name);
+	char *namedup = strdup(name);
 	if (namedup == NULL)
 		return -1;
 
@@ -463,7 +463,7 @@ library_exported_names_each_alias_cb(const char **name, void *data)
 }
 
 const char** library_exported_names_each_alias(
-	const struct library_exported_names *names,
+	struct library_exported_names *names,
 	const char *aliasname,
 	const char **name_start_after,
 	enum callback_status (*cb)(const char *,
@@ -490,7 +490,7 @@ const char** library_exported_names_each_alias(
 			 library_exported_names_each_alias_cb, &context);
 }
 
-int library_exported_names_contains(const struct library_exported_names* names,
+int library_exported_names_contains(struct library_exported_names* names,
 				    const char* queryname)
 {
 	uint64_t *addr = DICT_FIND_REF(&names->names,

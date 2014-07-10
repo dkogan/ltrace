@@ -259,7 +259,7 @@ int arch_translate_address_dyn(struct process *proc,
  * success
  */
 int library_exported_names_push(struct library_exported_names *names,
-				uint64_t addr, const char *name,
+				uint64_t addr, char *name,
 				int own_name );
 
 /* Iterates through the a library's export list, reporting each symbol that is
@@ -277,7 +277,7 @@ int library_exported_names_push(struct library_exported_names *names,
  * function in name_start_after to resume skipping this element
  */
 const char** library_exported_names_each_alias(
-	const struct library_exported_names *names,
+	struct library_exported_names *names,
 	const char *aliasname,
 	const char **name_start_after,
 	enum callback_status (*cb)(const char *,
@@ -286,7 +286,7 @@ const char** library_exported_names_each_alias(
 
 /* Returns 0 if the exported names list does not contain a given name, or 1 if
  * it does */
-int library_exported_names_contains(const struct library_exported_names* names,
+int library_exported_names_contains(struct library_exported_names* names,
 				    const char* queryname);
 
 #endif /* _LIBRARY_H_ */
