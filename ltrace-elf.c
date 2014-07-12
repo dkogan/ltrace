@@ -901,7 +901,8 @@ static int
 populate_this_symtab(struct process *proc, const char *filename,
 		     struct ltelf *lte, struct library *lib,
 		     Elf_Data *symtab, const char *strtab, size_t count,
-		     struct library_exported_names *names)
+		     struct library_exported_names *names,
+		     bool only_exported_names)
 {
 	/* Using sorted array would be arguably better, but this
 	 * should be well enough for the number of symbols that we
@@ -962,6 +963,11 @@ populate_this_symtab(struct process *proc, const char *filename,
 					"Tracing may be incomplete.\n", name);
 			}
 		}
+
+		/* If we're only dealing with the exported names list, there's
+		 * nothing left to do with this symbol */
+		if (only_exported_names)
+			continue;
 
 		/* If the symbol is not matched, skip it.  We already
 		 * stored it to export list above.  */
@@ -1067,6 +1073,12 @@ populate_this_symtab(struct process *proc, const char *filename,
 		}
 	}
 
+	/* If we're only dealing with the exported names list, there's nothing
+	 * left to do */
+	if (only_exported_names)
+		return 0;
+
+
 	/* Now we do the union of this set of unique symbols with
 	 * what's already in the library.  */
 	for (i = 0; i < num_symbols; ++i) {
@@ -1099,20 +1111,20 @@ populate_symtab(struct process *proc, const char *filename,
 	if (symtabs && lte->symtab != NULL && lte->strtab != NULL
 	    && (status = populate_this_symtab(proc, filename, lte, lib,
 					      lte->symtab, lte->strtab,
-					      lte->symtab_count, NULL)) < 0)
+					      lte->symtab_count, NULL,
+					      false)) < 0)
 		return status;
 
 	/* Check whether we want to trace symbols implemented by this
 	 * library (-l).  */
-	struct library_exported_names *names = NULL;
-	if (exports) {
-		debug(DEBUG_FUNCTION, "-l matches %s", lib->soname);
-		names = &lib->exported_names;
-	}
+	struct library_exported_names *names = &lib->exported_names;
+	lib->should_activate_latent = exports != 0;
 
+	bool only_exported_names = symtabs == 0 && exports == 0;
 	return populate_this_symtab(proc, filename, lte, lib,
 				    lte->dynsym, lte->dynstr,
-				    lte->dynsym_count, names);
+				    lte->dynsym_count, names,
+				    only_exported_names);
 }
 
 static int
@@ -1225,16 +1237,15 @@ read_module(struct library *lib, struct process *proc,
 	 * arch_addr_t becomes integral type.  */
 	lib->dyn_addr = (arch_addr_t)(uintptr_t)lte.dyn_addr;
 
-	/* There are two reasons that we need to inspect symbol tables
-	 * or populate PLT entries.  Either the user requested
-	 * corresponding tracing features (respectively -x and -e), or
-	 * they requested tracing exported symbols (-l).
+	/* There are several reasons that we need to inspect symbol tables or
+	 * populate PLT entries. The user may have requested corresponding
+	 * tracing features (respectively -x and -e), or they requested tracing
+	 * exported symbols (-l). We also do this to resolve symbol aliases
 	 *
-	 * In the latter case we need to keep even those PLT slots
-	 * that are not requested by -e (but we keep them latent).  We
-	 * also need to inspect .dynsym to find what exports this
-	 * library provide, to turn on existing latent PLT
-	 * entries.  */
+	 * In the case of -l, we need to keep even those PLT slots that are not
+	 * requested by -e (but we keep them latent). We also need to inspect
+	 * .dynsym to find what exports this library provide, to turn on
+	 * existing latent PLT entries. */
 
 	int plts = filter_matches_library(options.plt_filter, lib);
 	if ((plts || options.export_filter != NULL)
@@ -1243,9 +1254,8 @@ read_module(struct library *lib, struct process *proc,
 
 	int exports = filter_matches_library(options.export_filter, lib);
 	int symtabs = filter_matches_library(options.static_filter, lib);
-	if ((symtabs || exports)
-	    && populate_symtab(proc, filename, &lte, lib,
-			       symtabs, exports) < 0)
+	if (populate_symtab(proc, filename, &lte, lib,
+			    symtabs, exports) < 0)
 		goto fail;
 
 	arch_elf_destroy(&lte);

@@ -23,6 +23,7 @@
 #define _LIBRARY_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #if defined(HAVE_LIBDW)
 # include <elfutils/libdwfl.h>
@@ -184,6 +185,7 @@ struct library {
 
 	char own_soname : 1;
 	char own_pathname : 1;
+	bool should_activate_latent : 1;
 
 	struct arch_library_data arch;
 	struct os_library_data os;

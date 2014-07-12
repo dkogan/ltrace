@@ -297,6 +297,7 @@ private_library_init(struct library *lib, enum library_type type)
 
 	lib->symbols = NULL;
 	library_exported_names_init(&lib->exported_names);
+	lib->should_activate_latent = false;
 	lib->type = type;
 
 #if defined(HAVE_LIBDW)
