@@ -32,7 +32,7 @@ if { [ltrace_compile $srcdir/$subdir/$srcfile $objdir/$subdir/$binfile executabl
 # set options for ltrace.
 ltrace_options "-x" "func1" "-x" "func2" "-x" "func3"
 
-# Run PUT for ltarce.
+# Run PUT for ltrace.
 set exec_output [ltrace_runtest $objdir/$subdir $objdir/$subdir/$binfile]
 
 # Check the output of this program.

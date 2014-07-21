@@ -21,7 +21,7 @@ if { [ltrace_compile_shlib $libsrc $lib_sl debug ] != ""
 # set options for ltrace.
 ltrace_options "-l" "lib$testfile.so" "-f"
 
-# Run PUT for ltarce.
+# Run PUT for ltrace.
 set exec_output [ltrace_runtest $objdir/$subdir $objdir/$subdir/$binfile]
 
 # Check the output of this program.
