@@ -525,6 +525,7 @@ library_clone(struct library *retp, struct library *lib)
 	library_set_pathname(retp, pathname, lib->own_pathname);
 
 	retp->key = lib->key;
+	retp->should_activate_latent = lib->should_activate_latent;
 
 	/* Clone symbols.  */
 	{
