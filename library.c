@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2001,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  *
@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
+
+#include "config.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -558,6 +560,12 @@ library_clone(struct library *retp, struct library *lib)
 		os_library_destroy(retp);
 		goto fail;
 	}
+
+#if defined(HAVE_LIBDW)
+	/* Wipe DWFL_MODULE, leave it to proc_add_library to
+	 * initialize.  */
+	lib->dwfl_module = NULL;
+#endif
 
 	return 0;
 }
