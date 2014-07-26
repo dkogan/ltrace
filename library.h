@@ -288,7 +288,7 @@ const char** library_exported_names_each_alias(
 
 /* Returns 0 if the exported names list does not contain a given name, or 1 if
  * it does */
-int library_exported_names_contains(struct library_exported_names* names,
-				    const char* queryname);
+int library_exported_names_contains(struct library_exported_names *names,
+				    const char *queryname);
 
 #endif /* LIBRARY_H */

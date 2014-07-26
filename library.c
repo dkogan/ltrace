@@ -493,8 +493,8 @@ const char** library_exported_names_each_alias(
 			 library_exported_names_each_alias_cb, &context);
 }
 
-int library_exported_names_contains(struct library_exported_names* names,
-				    const char* queryname)
+int library_exported_names_contains(struct library_exported_names *names,
+				    const char *queryname)
 {
 	uint64_t *addr = DICT_FIND_REF(&names->names,
 				       &queryname, uint64_t);
