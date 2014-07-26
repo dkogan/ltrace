@@ -905,13 +905,42 @@ static bool get_prototype(struct prototype *result,
 #undef CLEANUP_AND_RETURN_ERROR
 }
 
+
+static enum callback_status
+any_filter_matches_function_cb(const char *name, void *data)
+{
+	struct library *lib = (struct library*)data;
+
+	return CBS_STOP_IF(
+		filter_matches_symbol(options.plt_filter,    name, lib) ||
+		filter_matches_symbol(options.static_filter, name, lib) ||
+		filter_matches_symbol(options.export_filter, name, lib));
+}
+static bool any_filter_matches_function(const char *function_name,
+					struct library *lib,
+					Dwarf_Die *die)
+{
+	// I give up if this function is not wanted AND if none of its aliased
+	// names are wanted
+	if (any_filter_matches_function_cb(function_name, lib) == CBS_STOP)
+		return true;
+
+	// prototype not found. Is it aliased?
+	if (library_exported_names_each_alias(&lib->exported_names,
+					      function_name, NULL,
+					      any_filter_matches_function_cb,
+					      lib) != NULL)
+		return true;
+
+	complain(die, "Prototype not requested by any filter");
+	return false;
+
+}
 static bool import_subprogram_name(struct protolib *plib, struct library *lib,
 				   struct dict *type_dieoffset_hash,
-				   Dwarf_Die *die, const char* function_name)
+				   Dwarf_Die *die, const char *function_name)
 {
-	if (!filter_matches_symbol(options.plt_filter,    function_name, lib) &&
-	    !filter_matches_symbol(options.static_filter, function_name, lib) &&
-	    !filter_matches_symbol(options.export_filter, function_name, lib)) {
+	if (!any_filter_matches_function( function_name, lib, die)) {
 		complain(die, "Prototype not requested by any filter");
 		return true;
 	}
