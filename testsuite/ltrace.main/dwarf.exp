@@ -135,5 +135,20 @@ nanosleep@libc.so.6({ 0, 44 }, nil) * = 0
 run_dwarf_test $ref_output_e $ltrace_opts_e
 
 
+# Make sure the DWARF filtering and the alias finding work well together
+set ltrace_opts_e {"-L" "-x" "ftell@libc.so*"}
+set ref_output_e [subst -nocommands -novariables {
+ftell@libc.so.6(0x[0-9a-z]*)  * = -1
+} ]
+run_dwarf_test $ref_output_e $ltrace_opts_e
+
+set ltrace_opts_e {"-L" "-x" "*ftell@libc.so*"}
+set ref_output_e [subst -nocommands -novariables {
+ftell@libc.so.6(0x[0-9a-z]*)  * = -1
+} ]
+run_dwarf_test $ref_output_e $ltrace_opts_e
+
+
+
 # why does ftell(...) show a hex argument? Means we know what ftell is, but not what FILE is
 
