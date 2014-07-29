@@ -57,6 +57,7 @@
 #else
 #define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
 #define ARCH_ENDIAN_BIG
+# define STACK_FRAME_OVERHEAD 112
 # ifndef EF_PPC64_ABI
 # define EF_PPC64_ABI 3
 # endif
