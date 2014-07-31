@@ -18,6 +18,9 @@
  * 02110-1301 USA
  */
 
+#ifndef MEMSTREAM_H
+#define MEMSTREAM_H
+
 #include <stdio.h>
 
 /* Portability wrapper for platforms that don't have
@@ -33,3 +36,5 @@ struct memstream
 int memstream_init(struct memstream *memstream);
 int memstream_close(struct memstream *memstream);
 void memstream_destroy(struct memstream *memstream);
+
+#endif /* MEMSTREAM_H */

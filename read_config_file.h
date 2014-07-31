@@ -18,11 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
-#ifndef _READ_CONFIG_FILE_H_
-#define _READ_CONFIG_FILE_H_
+#ifndef READ_CONFIG_FILE_H
+#define READ_CONFIG_FILE_H
 
 #include "forward.h"
 
 int read_config_file(FILE *stream, const char *name, struct protolib *plib);
 
-#endif /* _READ_CONFIG_FILE_H_ */
+#endif /* READ_CONFIG_FILE_H */

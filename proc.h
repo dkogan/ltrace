@@ -20,8 +20,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _PROC_H_
-#define _PROC_H_
+#ifndef PROC_H
+#define PROC_H
 
 #include "config.h"
 
@@ -277,4 +277,4 @@ int proc_read_16(struct process *proc, arch_addr_t addr, uint16_t *lp);
 int proc_read_32(struct process *proc, arch_addr_t addr, uint32_t *lp);
 int proc_read_64(struct process *proc, arch_addr_t addr, uint64_t *lp);
 
-#endif /* _PROC_H_ */
+#endif /* PROC_H */

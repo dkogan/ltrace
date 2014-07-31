@@ -21,8 +21,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
-#ifndef _OPTIONS_H_
-#define _OPTIONS_H_
+
+#ifndef OPTIONS_H
+#define OPTIONS_H
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -105,4 +106,4 @@ extern struct vect opt_F;
 
 extern char **process_options(int argc, char **argv);
 
-#endif /* _OPTIONS_H_ */
+#endif /* OPTIONS_H */

@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _GLOB_H_
-#define _GLOB_H_
+#ifndef GLOB_H
+#define GLOB_H
 
 #include <sys/types.h>
 #include <regex.h>
@@ -29,4 +29,4 @@
  * supported by globcomp.  */
 int globcomp(regex_t *preg, const char *glob, int cflags);
 
-#endif /* _GLOB_H_ */
+#endif /* GLOB_H */

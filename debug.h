@@ -19,8 +19,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _DEBUG_H
-#define _DEBUG_H
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #include "backend.h"
 #include "forward.h"
@@ -42,4 +42,4 @@ int xinfdump(struct process *proc, arch_addr_t addr, size_t length);
 
 #define debug(level, expr...) debug_(level, __FILE__, __LINE__, expr)
 
-#endif
+#endif /* DEBUG_H */

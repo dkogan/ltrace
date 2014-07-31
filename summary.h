@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _SUMMARY_H_
-#define _SUMMARY_H_
+#ifndef SUMMARY_H
+#define SUMMARY_H
 
 #include "forward.h"
 
@@ -32,4 +32,4 @@ void summary_account_call(struct library_symbol *libsym,
 			  struct timedelta spent);
 void show_summary(void);
 
-#endif /* _SUMMARY_H_ */
+#endif /* SUMMARY_H */

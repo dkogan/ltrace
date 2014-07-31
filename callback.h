@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _CALLBACK_H_
-#define _CALLBACK_H_
+#ifndef CALLBACK_H
+#define CALLBACK_H
 
 /* Notes on the iteration interface used across ltrace.  Typically the
  * iteration function looks something like this:
@@ -65,4 +65,4 @@ enum callback_status {
 #define CBS_STOP_IF(X) ((X) ? CBS_STOP : CBS_CONT)
 #define CBS_CONT_IF(X) ((X) ? CBS_CONT : CBS_STOP)
 
-#endif /* _CALLBACK_H_ */
+#endif /* CALLBACK_H */

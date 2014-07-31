@@ -17,8 +17,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
-#ifndef _TRACE_DEFS_H_
-#define _TRACE_DEFS_H_
+#ifndef TRACE_DEFS_H
+#define TRACE_DEFS_H
 #include <sys/ptrace.h>
 
 /* If the system headers did not provide the constants, hard-code the
@@ -89,4 +89,4 @@
 # define PTRACE_EVENT_EXIT       6
 #endif
 
-#endif /* _TRACE_DEFS_H_ */
+#endif /* TRACE_DEFS_H */

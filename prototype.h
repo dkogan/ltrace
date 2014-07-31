@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _PROTOTYPE_H_
-#define _PROTOTYPE_H_
+#ifndef PROTOTYPE_H
+#define PROTOTYPE_H
 
 #include <stdbool.h>
 
@@ -240,4 +240,4 @@ extern struct protolib_cache g_protocache;
 
 void init_global_config(void);
 
-#endif /* _PROTOTYPE_H_ */
+#endif /* PROTOTYPE_H */

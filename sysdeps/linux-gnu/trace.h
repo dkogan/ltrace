@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _LTRACE_LINUX_TRACE_H_
-#define _LTRACE_LINUX_TRACE_H_
+#ifndef LTRACE_LINUX_TRACE_H
+#define LTRACE_LINUX_TRACE_H
 
 #include "proc.h"
 
@@ -151,4 +151,4 @@ char *linux_append_IFUNC_to_name(const char *name);
 struct prototype *linux_IFUNC_prototype(void);
 
 
-#endif /* _LTRACE_LINUX_TRACE_H_ */
+#endif /* LTRACE_LINUX_TRACE_H */

@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _DICT_H_
-#define _DICT_H_
+#ifndef DICT_H
+#define DICT_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -250,4 +250,4 @@ void dict_dtor_string(const char **key, void *data);
 /* A cloner that calls 'strdup' on keys in a table.  */
 int dict_clone_string(const char **tgt, const char **src, void *data);
 
-#endif /* _DICT_H_ */
+#endif /* DICT_H */

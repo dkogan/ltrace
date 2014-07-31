@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _LTRACE_H_
-#define _LTRACE_H_
+#ifndef LTRACE_H
+#define LTRACE_H
 
 typedef enum Event_type Event_type;
 enum Event_type {
@@ -61,4 +61,4 @@ extern void ltrace_init(int argc, char **argv);
 extern void ltrace_add_callback(callback_func f, Event_type type);
 extern void ltrace_main(void);
 
-#endif /* _LTRACE_H_ */
+#endif /* LTRACE_H */

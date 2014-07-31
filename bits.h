@@ -18,12 +18,12 @@
  * 02110-1301 USA
  */
 
-#ifndef _BITS_H_
-#define _BITS_H_
+#ifndef BITS_H
+#define BITS_H
 
 #include <stdint.h>
 
 /* Count bits in U that are 1.  */
 unsigned bitcount(uint64_t u);
 
-#endif /* _BITS_H_ */
+#endif /* BITS_H */

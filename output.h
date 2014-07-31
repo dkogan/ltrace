@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
-#ifndef _OUTPUT_H_
-#define _OUTPUT_H_
+
+#ifndef OUTPUT_H
+#define OUTPUT_H
 
 #include "fetch.h"
 #include "forward.h"
@@ -56,4 +57,4 @@ void report_error(char const *file, unsigned line_no, const char *fmt, ...);
 void report_warning(char const *file, unsigned line_no, const char *fmt, ...);
 void report_global_error(const char *fmt, ...);
 
-#endif /* _OUTPUT_H_ */
+#endif /* OUTPUT_H */

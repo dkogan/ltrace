@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#ifndef ARGS_H
-#define ARGS_H
+#ifndef VALUE_DICT_H
+#define VALUE_DICT_H
 
 #include "forward.h"
 #include "vect.h"
@@ -64,4 +64,4 @@ struct value *val_dict_get_name(struct value_dict *dict, const char *name);
  * itself (the pointer) is not freed.  */
 void val_dict_destroy(struct value_dict *dict);
 
-#endif /* ARGS_H */
+#endif /* VALUE_DICT_H */

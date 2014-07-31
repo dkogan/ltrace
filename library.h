@@ -19,8 +19,8 @@
  * 02110-1301 USA
  */
 
-#ifndef _LIBRARY_H_
-#define _LIBRARY_H_
+#ifndef LIBRARY_H
+#define LIBRARY_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -291,4 +291,4 @@ const char** library_exported_names_each_alias(
 int library_exported_names_contains(struct library_exported_names* names,
 				    const char* queryname);
 
-#endif /* _LIBRARY_H_ */
+#endif /* LIBRARY_H */
