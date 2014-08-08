@@ -65,6 +65,12 @@
 # endif
 #endif 	/* __powerpc64__ */
 
+#ifdef _CALL_ELF
+enum { ppc64_call_elf_abi = _CALL_ELF };
+#else
+enum { ppc64_call_elf_abi = 0 };
+#endif
+
 #define ARCH_HAVE_SW_SINGLESTEP
 #define ARCH_HAVE_ADD_PLT_ENTRY
 #define ARCH_HAVE_ADD_FUNC_ENTRY

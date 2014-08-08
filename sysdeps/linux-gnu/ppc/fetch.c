@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ucontext.h>
+#include <stdio.h>
 
 #include "backend.h"
 #include "fetch.h"
@@ -154,26 +155,27 @@ arch_fetch_arg_init(enum tof type, struct process *proc,
 
 	context->ret_struct = false;
 
-#if _CALL_ELF == 2
-	/* With ELFv2 ABI, aggregates that consist (recursively) only
-	 * of members of the same floating-point or vector type, are
-	 * passed in a series of floating-point resp. vector
-	 * registers.  Additionally, when returning any aggregate of
-	 * up to 16 bytes, general-purpose registers are used.  */
-	if (ret_info->type == ARGTYPE_STRUCT
-	    && ! is_eligible_hfa(ret_info, NULL, NULL)
-	    && type_sizeof(proc, ret_info) > 16) {
+	if (ppc64_call_elf_abi == 2) {
+		/* With ELFv2 ABI, aggregates that consist
+		 * (recursively) only of members of the same
+		 * floating-point or vector type, are passed in a
+		 * series of floating-point resp. vector registers.
+		 * Additionally, when returning any aggregate of up to
+		 * 16 bytes, general-purpose registers are used.  */
 
+		if (ret_info->type == ARGTYPE_STRUCT
+		    && ! is_eligible_hfa(ret_info, NULL, NULL)
+		    && type_sizeof(proc, ret_info) > 16) {
+
+			context->ret_struct = true;
+			context->greg++;
+			context->stack_pointer += 8;
+		}
+
+	} else if (ret_info->type == ARGTYPE_STRUCT) {
 		context->ret_struct = true;
 		context->greg++;
-		context->stack_pointer += 8;
 	}
-#else
-	if (ret_info->type == ARGTYPE_STRUCT) {
-		context->ret_struct = true;
-		context->greg++;
-	}
-#endif
 
 	return context;
 }
@@ -200,17 +202,16 @@ allocate_stack_slot(struct fetch_context *ctx, struct process *proc,
 
 	size_t a = type_alignof(proc, info);
 	size_t off = 0;
-	if (proc->e_machine == EM_PPC && a < 4)
+	if (proc->e_machine == EM_PPC && a < 4) {
 		a = 4;
-#if _CALL_ELF == 2
-	else if (proc->e_machine == EM_PPC64 && sz == 4 && is_hfa_type)
-		a = 4;
-	else
+	} else if (ppc64_call_elf_abi == 2) {
+		if (proc->e_machine == EM_PPC64 && sz == 4 && is_hfa_type) {
+			a = 4;
+		} else
+			a = 8;
+	} else if (proc->e_machine == EM_PPC64 && a < 8) {
 		a = 8;
-#else
-	else if (proc->e_machine == EM_PPC64 && a < 8)
-#endif
-		a = 8;
+	}
 
 	/* XXX Remove the two double casts when arch_addr_t
 	 * becomes integral type.  */
@@ -283,18 +284,19 @@ allocate_gpr(struct fetch_context *ctx, struct process *proc,
 	if (sz == (size_t)-1)
 		return -1;
 	assert(sz == 1 || sz == 2 || sz == 4 || sz == 8);
-#if _CALL_ELF == 2
-	/* Consume the stack slot corresponding to this arg.  */
-	if ((sz + off) >= 8)
-		ctx->greg++;
 
-	if (is_hfa_type)
-		ctx->stack_pointer += sz;
-	else
-		ctx->stack_pointer += 8;
-#else
-	ctx->greg++;
-#endif
+	if (ppc64_call_elf_abi == 2) {
+		/* Consume the stack slot corresponding to this arg.  */
+		if ((sz + off) >= 8)
+			ctx->greg++;
+
+		if (is_hfa_type)
+			ctx->stack_pointer += sz;
+		else
+			ctx->stack_pointer += 8;
+	} else {
+		ctx->greg++;
+	}
 
 	if (valuep == NULL)
 		return 0;
@@ -350,7 +352,6 @@ allocate_float(struct fetch_context *ctx, struct process *proc,
 	return allocate_stack_slot(ctx, proc, info, valuep, is_hfa_type);
 }
 
-#if _CALL_ELF == 2
 static int
 allocate_hfa(struct fetch_context *ctx, struct process *proc,
 	     struct arg_type_info *info, struct value *valuep,
@@ -452,7 +453,6 @@ allocate_hfa(struct fetch_context *ctx, struct process *proc,
 	}
 	return 0;
 }
-#endif
 
 static int
 allocate_argument(struct fetch_context *ctx, struct process *proc,
@@ -473,15 +473,14 @@ allocate_argument(struct fetch_context *ctx, struct process *proc,
 		if (proc->e_machine == EM_PPC) {
 			if (value_pass_by_reference(valuep) < 0)
 				return -1;
-		} else {
-#if _CALL_ELF == 2
+		} else if (ppc64_call_elf_abi == 2) {
 			struct arg_type_info *hfa_info;
 			size_t hfa_count;
 			if (is_eligible_hfa(info, &hfa_info, &hfa_count)) {
 				return allocate_hfa(ctx, proc, info, valuep,
 						hfa_info->type, hfa_count);
 			}
-#endif
+		} else {
 			/* PPC64: Fixed size aggregates and unions passed by
 			 * value are mapped to as many doublewords of the
 			 * parameter save area as the value uses in memory.
