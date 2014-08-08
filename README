@@ -34,6 +34,7 @@ to test each release comprehensively on each target.
 	mips-*-linux-gnu
 	powerpc-*-linux-gnu
 	powerpc64-*-linux-gnu
+	powerpc64le-*-linux-gnu
 	s390-*-linux-gnu
 	s390x-*-linux-gnu
 	x86_64-*-linux-gnu

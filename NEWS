@@ -38,6 +38,8 @@
      binaries, as currently there's no 32-bit userspace available for
      ARM64 processors.
    - Imagination Technologies Meta is now supported.
+   - PowerPC64 ELFv2 little-endian ABI is now supported including full
+     fetch backend.
 
    - On Linux, tracing of IFUNC symbols is supported.  On i386,
      x86_64, ppc32 with secure PLT and ppc64, IRELATIVE PLT slots are
