@@ -32,34 +32,36 @@
 #define LT_ELF_MACHINE	EM_PPC
 
 #ifdef __powerpc64__ // Says 'ltrace' is 64 bits, says nothing about target.
-#define LT_ELFCLASS2	ELFCLASS64
-#define LT_ELF_MACHINE2	EM_PPC64
+# define LT_ELFCLASS2	ELFCLASS64
+# define LT_ELF_MACHINE2	EM_PPC64
 
 # ifdef __LITTLE_ENDIAN__
-# define BREAKPOINT_VALUE { 0x08, 0x00, 0xe0, 0x7f }
-# define ARCH_ENDIAN_LITTLE
+#  define BREAKPOINT_VALUE { 0x08, 0x00, 0xe0, 0x7f }
+#  define ARCH_ENDIAN_LITTLE
 # else
-# define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
-# define ARCH_SUPPORTS_OPD
-# define ARCH_ENDIAN_BIG
+#  define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
+#  define ARCH_SUPPORTS_OPD
+#  define ARCH_ENDIAN_BIG
 # endif
 
-# if _CALL_ELF != 2
-# define ARCH_SUPPORTS_OPD
-# define STACK_FRAME_OVERHEAD 112
+# if !defined(_CALL_ELF) || _CALL_ELF < 2
+#  define ARCH_SUPPORTS_OPD
+#  define STACK_FRAME_OVERHEAD 112
 #  ifndef EF_PPC64_ABI
-#  define EF_PPC64_ABI 3
+#   define EF_PPC64_ABI 3
 #  endif
-# else /* _CALL_ELF == 2 ABIv2 */
-# define STACK_FRAME_OVERHEAD 32
+# elif _CALL_ELF == 2  /* ELFv2 ABI */
+#  define STACK_FRAME_OVERHEAD 32
+# else
+#  error Unsupported PowerPC64 ABI.
 # endif /* CALL_ELF */
 
 #else
-#define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
-#define ARCH_ENDIAN_BIG
+# define BREAKPOINT_VALUE { 0x7f, 0xe0, 0x00, 0x08 }
+# define ARCH_ENDIAN_BIG
 # define STACK_FRAME_OVERHEAD 112
 # ifndef EF_PPC64_ABI
-# define EF_PPC64_ABI 3
+#  define EF_PPC64_ABI 3
 # endif
 #endif 	/* __powerpc64__ */
 
