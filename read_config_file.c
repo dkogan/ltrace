@@ -1140,7 +1140,7 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 					report_error(loc->filename,
 						     loc->line_no,
 						     "%s", strerror(errno));
-					return -1;
+					goto err;
 				}
 				have_stop = 1;
 			}
