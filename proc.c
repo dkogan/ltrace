@@ -36,7 +36,10 @@
 #include "options.h"
 #include "proc.h"
 #include "value_dict.h"
-#include "dwarf_prototypes.h"
+
+#if defined(HAVE_LIBDW)
+# include "dwarf_prototypes.h"
+#endif /* defined(HAVE_LIBDW) */
 
 #ifndef OS_HAVE_PROCESS_DATA
 int
