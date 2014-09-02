@@ -13,7 +13,7 @@ if [get_compiler_info $binfile "c++"] {
 }
 
 verbose "compiling source file now....."
-if { [ltrace_compile_shlib $libsrc $lib_sl [list debug c++]] != ""
+if { [ltrace_compile_shlib $libsrc $lib_sl debug] != ""
   || [ltrace_compile $srcdir/$subdir/$srcfile $objdir/$subdir/$binfile executable [list debug shlib=$lib_sl c++] ] != ""} {
   send_user "Testcase compile failed, so all tests in this file will automatically fail.\n"
 }
