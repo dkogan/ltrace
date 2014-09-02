@@ -944,7 +944,8 @@ proc_add_library(struct process *proc, struct library *lib)
 		dwfl_module =
 			dwfl_report_elf(dwfl, lib->soname,
 					lib->pathname, -1,
-					(GElf_Addr) lib->base,
+					/* XXX double cast */
+					(GElf_Addr) (uintptr_t) lib->base,
 					false);
 		if (dwfl_module == NULL)
 			fprintf(stderr,

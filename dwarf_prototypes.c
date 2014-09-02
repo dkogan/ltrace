@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <elfutils/libdwfl.h>
 #include <dwarf.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -27,7 +28,7 @@
 #include "debug.h"
 
 #define complain(die, format, ...)					\
-	debug(DEBUG_FUNCTION, "%s() die '%s' @ 0x%lx: " format,		\
+	debug(DEBUG_FUNCTION, "%s() die '%s' @ 0x%" PRIx64 ": " format, \
 	      __func__, dwarf_diename(die), dwarf_dieoffset(die),	\
 	      ##__VA_ARGS__)
 
