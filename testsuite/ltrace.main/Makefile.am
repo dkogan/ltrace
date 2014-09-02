@@ -20,9 +20,12 @@ EXTRA_DIST = branch_func.c branch_func.exp filters.exp hello-vfork.c	\
 	main-threaded.c main-threaded.exp main-vfork.c main-vfork.exp	\
 	parameters.c parameters.conf parameters.exp parameters-lib.c	\
 	parameters2.exp parameters3.exp signals.c signals.exp		\
-	system_calls.c system_calls.exp system_call_params.exp
+	system_calls.c system_calls.exp system_call_params.exp		\
+	dwarf.conf dwarf.exp dwarf.c dwarflib.c dwarflib.h		\
+	dwarflib_cxx.cc11 dwarflib_cxx.hh
+
 
 CLEANFILES = *.o *.so *.log *.sum *.ltrace setval.tmp \
-	main main-internal parameters signals system_calls
+	main main-internal parameters signals system_calls dwarf
 
 MAINTAINERCLEANFILES = Makefile.in
