@@ -100,6 +100,20 @@ proc ltrace_compile {source dest type options} {
 	set options $new_options
     }
 
+    # .c11 is C-11
+    # .cc and .cpp is C++
+    # .cc11 is C++-11
+    if {[string match "*.c11"  $source]} {
+	lappend options "additional_flags=-x c -std=gnu11"
+    }
+    if {[string match "*.cc"  $source] ||
+	[string match "*.cpp" $source]} {
+	lappend options c++
+    }
+    if {[string match "*.cc11"  $source]} {
+	lappend options c++ "additional_flags=-x c++ -std=gnu++11"
+    }
+
     # dump some information for debug purpose.
     verbose "options are $options"
     verbose "source is $source $dest $type $options"
