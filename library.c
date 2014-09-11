@@ -671,31 +671,3 @@ library_with_key_cb(struct process *proc, struct library *lib, void *keyp)
 {
 	return lib->key == *(arch_addr_t *)keyp ? CBS_STOP : CBS_CONT;
 }
-
-static enum callback_status
-library_dump_aliases_cb(const char **name, void *data)
-{
-	(void)data;
-	fprintf(stderr, "%s ", *name);
-	return CBS_CONT;
-}
-
-static enum callback_status
-library_dump_cb(uint64_t *addr, struct vect **aliases, void *data)
-{
-	(void)data;
-	VECT_EACH_CST(*aliases, const char*, NULL,
-		      library_dump_aliases_cb, NULL);
-	fprintf(stderr, "\n");
-	return CBS_CONT;
-}
-
-void
-library_dump_symbols(const struct library *lib)
-{
-	fprintf(stderr, "symbol dump start for soname '%s' ===\n", lib->soname);
-
-	DICT_EACH(&lib->exported_names.addrs, uint64_t, struct vect*, NULL,
-		  library_dump_cb, NULL);
-	fprintf(stderr, "symbol dump end =========\n");
-}

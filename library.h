@@ -291,9 +291,4 @@ const char** library_exported_names_each_alias(
 int library_exported_names_contains(struct library_exported_names *names,
 				    const char *queryname);
 
-/* Debugging function to dump all known library symbols (and their aliases) to
- * stderr */
-void library_dump_symbols(const struct library *lib);
-
-
 #endif /* LIBRARY_H */
