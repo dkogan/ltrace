@@ -77,6 +77,18 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 {
 	VECT_INIT(&lte->arch.plt_map, unsigned int);
 
+	if (vect_reserve(&lte->arch.plt_map, vect_size(&lte->plt_relocs)) < 0) {
+	fail:
+		arch_elf_destroy(lte);
+		return -1;
+	}
+
+	{
+		unsigned int i, sz = vect_size(&lte->plt_relocs);
+		for (i = 0; i < sz; ++i)
+			vect_pushback (&lte->arch.plt_map, &i);
+	}
+
 	/* IRELATIVE slots may make the whole situation a fair deal
 	 * more complex.  On x86{,_64}, the PLT slots are not
 	 * presented in the order of the corresponding relocations,
@@ -114,43 +126,35 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 	/* Here we scan the PLT table and initialize a map of
 	 * relocation->slot number in lte->arch.plt_map.  */
 
-	size_t i;
-	for (i = 0; i < vect_size(&lte->plt_relocs); ++i) {
+	unsigned int i, sz = vect_size(&lte->plt_relocs);
+	for (i = 0; i < sz; ++i) {
 
 		GElf_Addr offset = x86_plt_offset(i);
-		uint32_t reloc_arg = 0;
 
 		uint8_t byte;
 		if (elf_read_next_u8(lte->plt_data, &offset, &byte) < 0
 		    || byte != 0xff
 		    || elf_read_next_u8(lte->plt_data, &offset, &byte) < 0
 		    || (byte != 0xa3 && byte != 0x25))
-			goto next;
+			continue;
 
 		/* Skip immediate argument in the instruction.  */
 		offset += 4;
 
+		uint32_t reloc_arg;
 		if (elf_read_next_u8(lte->plt_data, &offset, &byte) < 0
 		    || byte != 0x68
 		    || elf_read_next_u32(lte->plt_data,
-					 &offset, &reloc_arg) < 0) {
-			reloc_arg = 0;
-			goto next;
-		}
+					 &offset, &reloc_arg) < 0)
+			continue;
 
 		if (lte->ehdr.e_machine == EM_386) {
-			if (reloc_arg % 8 != 0) {
-				reloc_arg = 0;
-				goto next;
-			}
+			if (reloc_arg % 8 != 0)
+				continue;
 			reloc_arg /= 8;
 		}
 
-	next:
-		if (VECT_PUSHBACK(&lte->arch.plt_map, &reloc_arg) < 0) {
-			arch_elf_destroy(lte);
-			return -1;
-		}
+		*VECT_ELEMENT(&lte->arch.plt_map, unsigned int, reloc_arg) = i;
 	}
 
 	return 0;
