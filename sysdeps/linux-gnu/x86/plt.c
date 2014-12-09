@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2013,2014 Petr Machata, Red Hat Inc.
  * Copyright (C) 2004,2008,2009 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -78,7 +78,6 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 	VECT_INIT(&lte->arch.plt_map, unsigned int);
 
 	if (vect_reserve(&lte->arch.plt_map, vect_size(&lte->plt_relocs)) < 0) {
-	fail:
 		arch_elf_destroy(lte);
 		return -1;
 	}
