@@ -1222,6 +1222,14 @@ arch_library_symbol_clone(struct library_symbol *retp,
 			  struct library_symbol *libsym)
 {
 	retp->arch = libsym->arch;
+	if (libsym->arch.type == PPC_PLT_NEED_UNRESOLVE) {
+		assert(libsym->arch.data->self == libsym->arch.data);
+		retp->arch.data = malloc(sizeof *retp->arch.data);
+		if (retp->arch.data == NULL)
+			return -1;
+		*retp->arch.data = *libsym->arch.data;
+		retp->arch.data->self = retp->arch.data;
+	}
 	return 0;
 }
 
