@@ -274,14 +274,15 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 
 		assert(rela->r_addend != 0);
 		/* XXX double cast */
-		arch_addr_t res_addr = (arch_addr_t) (uintptr_t) rela->r_addend;
+		arch_addr_t res_addr
+		  = (arch_addr_t) (uintptr_t) (rela->r_addend + lte->bias);
 		if (arch_translate_address(lte, res_addr, &res_addr) < 0) {
 			fprintf(stderr, "Couldn't OPD-translate IRELATIVE "
 				"resolver address.\n");
 			return 0;
 		}
 		/* XXX double cast */
-		return (GElf_Addr) (uintptr_t) res_addr;
+		return (GElf_Addr) (uintptr_t) (res_addr - lte->bias);
 
 	} else {
 		/* We put brakpoints to PLT entries the same as the
@@ -827,15 +828,15 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	assert(plt_slot_addr >= lte->plt_addr
 	       || plt_slot_addr < lte->plt_addr + lte->plt_size);
 
+	plt_entry_addr += lte->bias;
+	plt_slot_addr += lte->bias;
+
 	/* Should avoid to do read if dynamic linker hasn't run yet
 	 * or allow -1 a valid return code.  */
 	GElf_Addr plt_slot_value;
-	if (read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value) < 0) {
-		if (!lte->arch.elfv2_abi)
-			goto fail;
-		else
-			return PPC_PLT_UNRESOLVED;
-	}
+	int rc = read_plt_slot_value(proc, plt_slot_addr, &plt_slot_value);
+	if (rc < 0 && !lte->arch.elfv2_abi)
+		goto fail;
 
 	struct library_symbol *libsym = malloc(sizeof(*libsym));
 	if (libsym == NULL) {
@@ -854,8 +855,9 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		goto fail2;
 	libsym->arch.plt_slot_addr = plt_slot_addr;
 
-	if (! is_irelative
-	    && (plt_slot_value == plt_entry_addr || plt_slot_value == 0)) {
+	if (rc < 0 || (! is_irelative
+		       && (plt_slot_value == plt_entry_addr
+			   || plt_slot_value == 0))) {
 		libsym->arch.type = PPC_PLT_UNRESOLVED;
 		libsym->arch.resolved_value = plt_entry_addr;
 	} else {
