@@ -453,7 +453,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 #ifndef EF_PPC64_ABI
 	assert (! (lte->ehdr.e_flags & 3 ) == 2)
 #else
-	lte->arch.elfv2_abi=((lte->ehdr.e_flags & EF_PPC64_ABI) == 2) ;
+	lte->arch.elfv2_abi = ((lte->ehdr.e_flags & EF_PPC64_ABI) == 2);
 #endif
 
 	if (lte->ehdr.e_machine == EM_PPC64
@@ -1166,8 +1166,8 @@ ppc_plt_bp_install(struct breakpoint *bp, struct process *proc)
 				libsym->arch.resolved_value = plt_entry_addr;
 			}
 		} else {
-			fprintf(stderr, "Couldn't unresolve %s@%p.  Not tracing"
-				" this symbol.\n",
+			fprintf(stderr, "Couldn't unresolve %s@%p.  Will not"
+				" trace this symbol.\n",
 				breakpoint_name(bp), bp->addr);
 			proc_remove_breakpoint(proc, bp);
 		}
