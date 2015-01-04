@@ -47,6 +47,7 @@ case "${host_cpu}" in
     sun4u|sparc64)	HOST_CPU="sparc" ;;
     s390x)		HOST_CPU="s390" ;;
     i?86|x86_64)	HOST_CPU="x86" ;;
+    xtensa*)		HOST_CPU="xtensa" ;;
     *)			HOST_CPU="${host_cpu}" ;;
 esac
 AC_SUBST(HOST_CPU)
@@ -412,6 +413,7 @@ AC_CONFIG_FILES([
 	sysdeps/linux-gnu/s390/Makefile
 	sysdeps/linux-gnu/sparc/Makefile
 	sysdeps/linux-gnu/x86/Makefile
+	sysdeps/linux-gnu/xtensa/Makefile
 	testsuite/Makefile
 	testsuite/ltrace.main/Makefile
 	testsuite/ltrace.minor/Makefile

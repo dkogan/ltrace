@@ -38,6 +38,7 @@ to test each release comprehensively on each target.
 	s390-*-linux-gnu
 	s390x-*-linux-gnu
 	x86_64-*-linux-gnu
+	xtensa-*-linux-gnu
 
 The following systems were supported at some point in past, but
 current status is unknown:

@@ -61,6 +61,10 @@ N: Timothy Fesig
 E: slate@us.ibm.com
 D: s390 port
 
+N: Max Filippov
+E: jcmvbkbc@gmail.com
+D: xtensa port
+
 N: Roman Hodek
 E: Roman.Hodek@informatik.uni-erlangen.de
 D: m68k port
