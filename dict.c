@@ -635,10 +635,39 @@ test_erase(void)
 	DICT_DESTROY(&d2, int, int, NULL, NULL, NULL);
 }
 
+static void
+test_erase_find(void)
+{
+	/* Degenerate case for erase followed by find, considering 2 colliding keys.
+	   Erase 1st inserted key, then try finding 2nd.
+	 */
+	struct dict d2;
+	DICT_INIT(&d2, int, int, dict_hash_int_silly, dict_eq_int, NULL);
+	int key;
+	int value;
+
+	key = 0, value = 0;
+	DICT_INSERT(&d2, &key, &value);
+	key = 10, value = 10;
+	DICT_INSERT(&d2, &key, &value);
+
+	key = 10;
+	assert (DICT_FIND_REF(&d2, &key, int) != NULL);
+
+	key = 0;
+	DICT_ERASE(&d2, &key, int, NULL, NULL, NULL);
+
+	key = 10;
+	assert (DICT_FIND_REF(&d2, &key, int) != NULL);
+
+	DICT_DESTROY(&d2, int, int, NULL, NULL, NULL);
+}
+
 int main(int argc, char *argv[])
 {
 	test1();
 	test_erase();
+	test_erase_find();
 	return 0;
 }
 
