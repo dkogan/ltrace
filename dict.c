@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012, 2013, 2014 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012, 2013, 2014, 2015 Petr Machata, Red Hat Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -232,7 +232,7 @@ find_slot(struct dict *dict, const void *key,
 
 		/* If there is a loop, but we've seen an erased
 		 * element, take that one.  Otherwise give up.  */
-		if (++i > dict->size) {
+		if (++i > n(dict)) {
 			if (pos0 != (size_t)-1)
 				break;
 			return (size_t)-1;
