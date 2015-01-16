@@ -14,18 +14,19 @@
 #include <string.h>
 
 #include "config.h"
-#include "prototype.h"
-#include "type.h"
-#include "param.h"
+#include "debug.h"
 #include "dict.h"
-#include "lens.h"
-#include "lens_enum.h"
-#include "value.h"
 #include "expr.h"
+#include "filter.h"
+#include "lens.h"
+#include "lens_default.h"
+#include "lens_enum.h"
 #include "library.h"
 #include "options.h"
-#include "filter.h"
-#include "debug.h"
+#include "param.h"
+#include "prototype.h"
+#include "type.h"
+#include "value.h"
 
 #define complain(die, format, ...)					\
 	debug(DEBUG_FUNCTION, "%s() die '%s' @ 0x%" PRIx64 ": " format, \
@@ -808,10 +809,45 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 		return result;
 
 	case DW_TAG_union_type:
-		result = type_get_simple(ARGTYPE_VOID);
-		complain(type_die, "Storing union-as-void type");
+	{
+		uint64_t sz;
+		if (! get_die_numeric(&sz, type_die, DW_AT_byte_size)) {
+			complain(type_die, "Can't determine type size");
+			CLEANUP_AND_RETURN_ERROR(NULL);
+
+		} else if (sz != (uint64_t) (unsigned long) sz) {
+			complain(type_die, "Union size too big");
+			CLEANUP_AND_RETURN_ERROR(NULL);
+
+		} else {
+			complain(type_die, "Storing union as byte array");
+
+			*newly_allocated_result = 1;
+
+			/* Allocate the array type and its element
+			 * type in one bunch.  */
+			result = calloc(2, sizeof *result);
+			struct expr_node *len_expr = calloc(1, sizeof *len_expr);
+			if (result == NULL || len_expr == NULL) {
+				complain(type_die, "alloc error");
+				free(result);
+				free(len_expr);
+				CLEANUP_AND_RETURN_ERROR(NULL);
+			}
+
+			result[1].type = ARGTYPE_CHAR;
+			result[1].lens = &hex_lens;
+			result[1].own_lens = 0;
+
+			expr_init_const_word(len_expr, (unsigned long) sz,
+					     type_get_simple(ARGTYPE_ULONG), 0);
+
+			/* Don't own element type, own length.  */
+			type_init_array(&result[0], &result[1], 0, len_expr, 1);
+		}
 		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
 		return result;
+	}
 
 	default:
 		complain(type_die, "Unknown type tag 0x%x. Returning void",
