@@ -123,7 +123,7 @@ dwarf->nanosleep({ 0, 44 }, nil) * = 0
 } ]
 run_dwarf_test $ref_output_e $ltrace_opts_e
 
-set ltrace_opts_e {"-L" "-x" "@libc.so*"}
+set ltrace_opts_e {"-L" "-x" "@libc.so*-__nanosleep_nocancel@libc.so.6"}
 set ref_output_e [subst -nocommands -novariables {
 ftell@libc.so.6(0x[0-9a-z]*
 strlen@libc.so.6('t') * = 4
