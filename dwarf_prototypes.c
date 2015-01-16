@@ -733,13 +733,28 @@ static struct arg_type_info *get_type(int *newly_allocated_result,
 			complain(type_die, "alloc error");
 			CLEANUP_AND_RETURN_ERROR(NULL);
 		}
+
+		/* Make it at least look like a pointer, so that
+		 * e.g. alignment and sizeof can be computed when
+		 * needed, and so that it doesn't look as if we're
+		 * adding bare voids to structures.  */
+		result->type = ARGTYPE_POINTER;
+		result->u.ptr_info.info = NULL;
+
+		/* Add it now so that recursive requests for this type
+		 * don't end up spinning endlessly.  */
 		DICT_INSERT_AND_CHECK(type_dieoffset_hash, &die_offset, &result);
+
+		/* Now we can safely recurse.  */
 		pointee = get_type(&newly_allocated_pointee,
 				   &next_die, plib, type_dieoffset_hash);
 		if (pointee == NULL)
 			CLEANUP_AND_RETURN_ERROR(NULL);
 
+		/* Update the stored type in-place.  */
 		type_init_pointer(result, pointee, newly_allocated_pointee);
+		complain(type_die, "Done storing pointer type.");
+
 		return result;
 
 	case DW_TAG_structure_type:
