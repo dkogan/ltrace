@@ -23,7 +23,7 @@ proc run_dwarf_test {ref_output ltrace_opts} {
 	 || [ltrace_compile $srcdir/$subdir/$srcfile $objdir/$subdir/$binfile executable [list debug shlib=$lib_so] ] != ""} {
 	send_user "Build failed!\n"
     } else {
-	ltrace_options "-F" "ltrace.main/dwarf.conf" {*}$ltrace_opts
+	ltrace_options "-F" "$srcdir/$subdir/dwarf.conf" {*}$ltrace_opts
 	set exec_output [ltrace_runtest $objdir/$subdir $objdir/$subdir/$binfile]
 
 	# Check the output of this program.
