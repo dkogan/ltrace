@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013,2015 Petr Machata, Red Hat Inc.
  * Copyright (C) 2007,2008 Juan Cespedes
  *
  * This program is free software; you can redistribute it and/or
@@ -97,6 +97,7 @@ type_struct_add(struct arg_type_info *info,
 		struct arg_type_info *field_info, int own)
 {
 	assert(info->type == ARGTYPE_STRUCT);
+	assert(field_info->type != ARGTYPE_VOID);
 	struct struct_field field = { field_info, own };
 	return VECT_PUSHBACK(&info->u.entries, &field);
 }
