@@ -124,6 +124,7 @@ proc ltrace_compile {source dest type options} {
 
     set result [target_compile $source $dest $type $options];
     verbose "result is $result"
+    regsub ".* note: .*$" "$result" "" result;
     regsub "\[\r\n\]*$" "$result" "" result;
     regsub "^\[\r\n\]*" "$result" "" result;
     if { $result != "" && [lsearch $options quiet] == -1} {
