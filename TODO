@@ -142,6 +142,12 @@
 
     | void func(X=void*, long*, out string(X)); |
 
+*** Support for elementary arithmetic
+    Necessary in particular for:
+    : int mincore(void *addr, size_t length, unsigned char *vec);
+    ... where we need the following prototype:
+    : int mincore(addr, size_t, +array(hex(char), (arg2 + 4095) / 4096)*);
+
 ** Support for functions that never return
    This would be useful for __cxa_throw, presumably also for longjmp
    (do we handle that at all?) and perhaps a handful of others.
