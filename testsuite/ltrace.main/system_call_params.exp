@@ -17,12 +17,15 @@
 # 02110-1301 USA
 
 set bin [ltraceCompile {} [ltraceSource c {
+    #ifndef _GNU_SOURCE
     #define _GNU_SOURCE
+    #endif
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>
     #include <unistd.h>
     #include <sys/syscall.h>   /* For SYS_xxx definitions */
+    #include <sys/mount.h>
 
     #ifndef SYS_open
     # if defined(__aarch64__)
@@ -38,6 +41,7 @@ set bin [ltraceCompile {} [ltraceSource c {
 	syscall(SYS_open, "/some/path", O_RDONLY);
 	write(1, "something", 10);
 	mount("source", "target", "filesystemtype", 0, 0);
+	return 0;
     }
 }]]
 

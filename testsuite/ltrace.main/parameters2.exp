@@ -17,7 +17,7 @@
 # 02110-1301 USA
 
 set trivial [ltraceCompile {} [ltraceSource c {
-    int main(void) {}
+    int main(void) {return 0;}
 }]]
 
 ltraceMatch1 [ltraceRun -L -F [ltraceSource conf {

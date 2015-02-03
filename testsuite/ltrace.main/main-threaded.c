@@ -10,6 +10,7 @@ th_main (void *arg)
   int i;
   for (i=0; i<PRINT_LOOP; i++)
     print (arg);
+  return NULL;
 }
 
 int

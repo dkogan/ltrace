@@ -21,6 +21,7 @@ set bin [ltraceCompile {} [ltraceSource c {
     int main(void) {
 	sleep(5);
 	sleep(1);
+	return 0;
     }
 }]]
 

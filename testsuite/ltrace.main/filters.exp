@@ -22,6 +22,7 @@ set libfilt1 [ltraceCompile libfilt1.so [ltraceSource c {
 }]]
 
 set libfilt2 [ltraceCompile libfilt2.so [ltraceSource c {
+    #include <stdio.h>
     void func2(void) { puts("func2"); }
 }]]
 

@@ -29,8 +29,10 @@ set liba [ltraceCompile liba.so [ltraceSource c {
 }]]
 
 set bin [ltraceCompile {} $liba [ltraceSource c {
+    extern void fun(void);
     int main(void) {
 	fun();
+	return 0;
     }
 }]]
 

@@ -17,6 +17,7 @@ void func_intptr_ret(int *i);
 int func_strlen(char*);
 void func_strfixed(char*);
 void func_ppp(int***);
+void func_string(char*);
 void func_stringp(char**);
 void func_short(short, short);
 void func_ushort(unsigned short, unsigned short);

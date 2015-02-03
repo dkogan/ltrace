@@ -3,7 +3,9 @@
    clone called.
 
    This file was written by Yao Qi <qiyao@cn.ibm.com>.  */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>

@@ -5,6 +5,7 @@
    This file was written by Yao Qi <qiyao@cn.ibm.com>.  */
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h>
 
 #define SLEEP_COUNT 2
 #define NANOSLEEP_COUNT 50

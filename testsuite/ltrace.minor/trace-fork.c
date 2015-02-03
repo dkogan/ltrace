@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 void 
 child ()
@@ -27,7 +29,7 @@ main ()
   else
     {
       printf("My child pid is %d\n",pid);
-      wait(); 
+      wait(NULL);
     }
   return 0;
 }

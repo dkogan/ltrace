@@ -19,11 +19,13 @@
 set bin [ltraceCompile {} [ltraceSource c {
     __attribute__((noinline)) void this(void) {}
     __attribute__((noinline)) void that(void) {}
-    int main(int i) {
+    int main() {
+	int i;
 	for (i = 0; i < 12; ++i) {
 	    this();
 	    that();
 	}
+	return 0;
     }
 }]]
 

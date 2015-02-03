@@ -26,6 +26,7 @@ set bin [ltraceCompile {} [ltraceSource c {
     #include <time.h>
     #include <wchar.h>
     #include <wctype.h>
+    #include <unistd.h>
 
     int main(int argc, char *argv[])
     {
@@ -130,7 +131,7 @@ set bin [ltraceCompile {} [ltraceSource c {
       i = wmemcmp(wmemchr(wbuf, L'•', 64), L"•", 2);
       assert(i == 0);
 
-      i = wcswidth(L"你好") + wcwidth(L'你') + wctob(L'1');;
+      i = wcswidth(L"你好", 9999) + wcwidth(L'你') + wctob(L'1');;
       assert(i == 6 + '1');
 
       i = iswctype(L'Ш', wctype("alpha"));
