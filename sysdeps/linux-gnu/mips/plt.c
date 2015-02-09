@@ -139,7 +139,7 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 {
 	debug(1,"plt_addr %zx ndx %#zx",lte->arch.pltgot_addr, ndx);
 
-	if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+	if (mips_elf_is_cpic(lte->ehdr.e_flags) && lte->plt_addr != 0) {
 		/* Return a pointer into the PLT.  */
 		return lte->plt_addr + 16 * 2 + (ndx * 16);
 	} else {
@@ -204,7 +204,7 @@ arch_elf_init(struct ltelf *lte, struct library *lib)
 	 * to pick up relocations to external functions.  Right now
 	 * function pointers from the main binary to external functions
 	 * can't be traced in CPIC mode.  */
-	if (mips_elf_is_cpic(lte->ehdr.e_flags)) {
+	if (mips_elf_is_cpic(lte->ehdr.e_flags) && lte->plt_addr != 0) {
 		return 0; /* We are already done.  */
 	}
 
@@ -358,11 +358,6 @@ arch_symbol_ret(struct process *proc, struct library_symbol *libsym)
 {
 }
 
-void
-arch_dynlink_done(struct process *proc)
-{
-}
-
 static int
 read_got_entry(struct process *proc, GElf_Addr addr, GElf_Addr *valp)
 {
@@ -385,16 +380,51 @@ struct mips_unresolve_data {
 	GElf_Addr stub_addr;
 };
 
+void
+arch_dynlink_done(struct process *proc)
+{
+	struct library_symbol *libsym = NULL;
+
+	while ((libsym = proc_each_symbol(proc, libsym,
+					  library_symbol_delayed_cb, NULL))) {
+		GElf_Addr got_entry_value = 0;
+		GElf_Addr resolved_value = libsym->arch.resolved_value;
+
+		if (read_got_entry(proc, libsym->arch.got_entry_addr,
+				   &got_entry_value) < 0) {
+			perror("dynlink_done: read got entry");
+			return;
+		}
+
+		if ((got_entry_value != resolved_value) &&
+		    (got_entry_value != 0)) {
+			libsym->arch.type = MIPS_PLT_NEED_UNRESOLVE;
+			libsym->arch.data = malloc(sizeof *libsym->arch.data);
+			if (libsym->arch.data == NULL) {
+				perror("dynlink done: malloc unresolve data");
+				return;
+			}
+
+			libsym->arch.data->self = libsym->arch.data;
+			libsym->arch.data->got_entry_value = got_entry_value;
+			libsym->arch.data->stub_addr = resolved_value;
+		}
+
+		if (proc_activate_delayed_symbol(proc, libsym) < 0)
+			return;
+	}
+}
+
 enum plt_status
 arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
                        const char *a_name, GElf_Rela *rela, size_t ndx,
                        struct library_symbol **ret)
 {
-	if (mips_elf_is_cpic(lte->ehdr.e_flags))
+	if (mips_elf_is_cpic(lte->ehdr.e_flags) && (lte->plt_addr != 0))
 		return PLT_DEFAULT;
 
-	GElf_Addr got_entry_addr = rela->r_offset;
-	GElf_Addr stub_addr = rela->r_addend;
+	GElf_Addr got_entry_addr = rela->r_offset + lte->bias;
+	GElf_Addr stub_addr = rela->r_addend + lte->bias;
 
 	fprintf(stderr, "PLT-less arch_elf_add_plt_entry %s = %#llx\n",
 		a_name, stub_addr);
@@ -406,37 +436,12 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 			a_name, stub_addr, strerror(errno));
 		goto fail;
 	}
+
+	fprintf(stderr, "%s unresolved\n", libsym->name);
 	libsym->arch.got_entry_addr = got_entry_addr;
-
-	GElf_Addr got_entry_value;
-	if (read_got_entry(proc, got_entry_addr, &got_entry_value) < 0)
-		goto fail;
-
-	fprintf(stderr, " + .got contains %#" PRIx64 "\n", got_entry_value);
-
-	if (got_entry_value == stub_addr || got_entry_value == 0) {
-		fprintf(stderr, "   + unresolved\n");
-		libsym->arch.type = MIPS_PLT_UNRESOLVED;
-		libsym->arch.resolved_value = stub_addr;
-
-	} else {
-		fprintf(stderr, "   + resolved\n");
-
-		/* Mark the symbol for later unresolving.  We may not
-		 * do this right away, as this is called by ltrace
-		 * core for all symbols, and only later filtered.  We
-		 * only unresolve the symbol before the breakpoint is
-		 * enabled.  */
-
-		libsym->arch.type = MIPS_PLT_NEED_UNRESOLVE;
-		libsym->arch.data = malloc(sizeof *libsym->arch.data);
-		if (libsym->arch.data == NULL)
-			goto fail;
-
-		libsym->arch.data->self = libsym->arch.data;
-		libsym->arch.data->got_entry_value = got_entry_value;
-		libsym->arch.data->stub_addr = stub_addr;
-	}
+	libsym->arch.resolved_value = stub_addr;
+	libsym->arch.type = MIPS_PLT_UNRESOLVED;
+	libsym->delayed = 1;
 
 	*ret = libsym;
 	return PLT_OK;
@@ -474,6 +479,14 @@ arch_library_symbol_clone(struct library_symbol *retp,
                           struct library_symbol *libsym)
 {
 	retp->arch = libsym->arch;
+	if (libsym->arch.type == MIPS_PLT_NEED_UNRESOLVE) {
+		assert(libsym->arch.data->self == libsym->arch.data);
+		retp->arch.data = malloc(sizeof *retp->arch.data);
+		if (retp->arch.data == NULL)
+			return -1;
+		*retp->arch.data = *libsym->arch.data;
+		retp->arch.data->self = retp->arch.data;
+	}
 	return 0;
 }
 
@@ -650,7 +663,9 @@ mips_stub_bp_retract(struct breakpoint *bp, struct process *proc)
 	struct library_symbol *libsym = bp->libsym;
 	assert(libsym != NULL);
 
-	fprintf(stderr, "May need to retract %s.\n", libsym->name);
+	/* Restore resolved .got entry before detaching */
+	unresolve_got_entry(proc, libsym->arch.got_entry_addr,
+				libsym->arch.resolved_value);
 }
 
 static void
@@ -661,9 +676,15 @@ mips_stub_bp_install(struct breakpoint *bp, struct process *proc)
 	assert(libsym != NULL);
 
 	if (libsym->arch.type == MIPS_PLT_NEED_UNRESOLVE) {
-		assert(! "MIPS_PLT_NEED_UNRESOLVE unsupported");
-		abort();
-		/* Here comes unresolve code.  */
+		/* Re-route the got-entry to the stub and save resolved address
+		   for the break-point handler */
+		GElf_Addr got_entry_value = libsym->arch.data->got_entry_value;
+
+		if (unresolve_got_entry(proc, libsym->arch.got_entry_addr,
+					   libsym->arch.data->stub_addr) < 0)
+			return;
+		free(libsym->arch.data);
+		mark_as_resolved(libsym, got_entry_value);
 	}
 }
 

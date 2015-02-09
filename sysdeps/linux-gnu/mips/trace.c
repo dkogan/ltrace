@@ -282,16 +282,100 @@ fail:
 	return 0;
 }
 
+/**
+ * \param proc 	The process to work on.
+ * \param pc   	The current program counter
+ * \return newpc Array of next possible PC values
+ * \return nr	Count of next possible PC values
+ *
+ * An atomic Read-Modify-Write, starting with LL and ending with SC needs to
+ * be treated as a single instruction and stepped over, otherwise ERET issued
+ * within the SYSCALL will cause the write to fail, even for a single thread
+ * of execution. LL and SC must exist within a 2048-byte contiguous region.
+ *
+ * We record all outgoing branches from the LL-SC sequence and try to set
+ * breakpoints at their destinations.  Currently, ltrace only allows 2
+ * breakpoints per single step, so if there are more than one outgoing
+ * branches within the LL-SC sequence, single-stepping will eventually fail.
+ *
+ * The first possible PC value is always the instruction following the
+ * store-conditional, or if no SC is found within 2048 bytes, the next
+ * instruction following LL. Rest are destination addresses of outgoing
+ * branches within the LL-SC sequence.
+ */
+#define inrange(x,lo,hi) ((x)<=(hi) && (x)>=(lo))
+static int
+mips_atomic_next_pcs(struct process *proc, uint32_t lladdr, uint32_t *newpcs)
+{
+	int nr = 0;
+
+	uint32_t scaddr;
+	for (scaddr = lladdr + 4; scaddr - lladdr <= 2048; scaddr += 4) {
+		/* Found SC, now stepover trailing branch */
+		uint32_t inst;
+		if (proc_read_32(proc, (arch_addr_t)scaddr, &inst) >= 0 &&
+		    itype_op(inst) == 0x38) {
+			newpcs[nr++] = scaddr + 4;
+			break;
+		}
+	}
+
+	/* No SC within 2048 bytes, assume LL is standalone */
+	if (nr == 0) {
+		scaddr = 0;
+		newpcs[nr++] = lladdr + 4;
+	}
+
+	/* Scan LL<->SC range for branches going outside that range */
+	uint32_t spc;
+	for (spc = lladdr + 4; spc < scaddr; spc += 4) {
+		uint32_t scanpcs[2];
+		int snr = mips_next_pcs(proc, spc, scanpcs);
+
+		int i;
+		for (i = 0; i < snr; ++i) {
+			if (!inrange(scanpcs[i], lladdr, scaddr)) {
+				uint32_t *tmp = realloc(newpcs, (nr + 1) *
+							sizeof *newpcs);
+				if (tmp == NULL) {
+					perror("malloc atomic next pcs");
+					return -1;
+				}
+
+				newpcs = tmp;
+				newpcs[nr++] = scanpcs[i];
+			}
+		}
+	}
+
+	assert(nr > 0);
+	return nr;
+}
+
 enum sw_singlestep_status
 arch_sw_singlestep(struct process *proc, struct breakpoint *bp,
 		   int (*add_cb)(arch_addr_t, struct sw_singlestep_data *),
 		   struct sw_singlestep_data *add_cb_data)
 {
 	uint32_t pc = (uint32_t) get_instruction_pointer(proc);
-	uint32_t newpcs[2];
+	uint32_t *newpcs;
 	int nr;
+	uint32_t inst;
 
-	nr = mips_next_pcs(proc, pc, newpcs);
+	if (proc_read_32(proc, (arch_addr_t)pc, &inst) < 0)
+		return SWS_FAIL;
+
+	if ((newpcs = malloc(2 * sizeof *newpcs)) == NULL)
+		return SWS_FAIL;
+
+	/* Starting an atomic read-modify-write sequence */
+	if (itype_op(inst) == 0x30)
+		nr = mips_atomic_next_pcs(proc, pc, newpcs);
+	else
+		nr = mips_next_pcs(proc, pc, newpcs);
+
+	if (nr <= 0)
+		return SWS_FAIL;
 
 	while (nr-- > 0) {
 		arch_addr_t baddr = (arch_addr_t) newpcs[nr];
@@ -301,11 +385,14 @@ arch_sw_singlestep(struct process *proc, struct breakpoint *bp,
 			continue;
 		}
 
-		if (add_cb(baddr, add_cb_data) < 0)
+		if (add_cb(baddr, add_cb_data) < 0) {
+			free(newpcs);
 			return SWS_FAIL;
+		}
 	}
 
 	ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
+	free(newpcs);
 	return SWS_OK;
 }
 
