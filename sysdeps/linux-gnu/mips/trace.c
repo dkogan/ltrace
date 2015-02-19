@@ -30,6 +30,7 @@
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
 #include <assert.h>
+#include <asm/unistd.h>
 
 #include "backend.h"
 #include "common.h"
@@ -103,7 +104,24 @@ syscall_p(struct process *proc, int status, int *sysnum)
 		   0000000c    syscall
 		 */
 		if(insn!=0x0000000c){
-			return 0;
+			/* sigreturn returns control to the point
+			   where the signal was received; skip check 
+			   for preceeding syscall instruction */
+			int depth = proc->callstack_depth;
+			struct callstack_element *top = NULL;
+			if (depth > 0)
+				top = &proc->callstack[depth - 1];
+
+			if (top != NULL &&  top->is_syscall &&
+			    (top->c_un.syscall == (__NR_rt_sigreturn -
+						   __NR_Linux) ||
+			     top->c_un.syscall == (__NR_sigreturn -
+						   __NR_Linux))) {
+				*sysnum = top->c_un.syscall;
+				return 2;
+			}
+			else
+				return 0;
 		}
 
 		*sysnum = (num & 0xFFFF) - 4000;
