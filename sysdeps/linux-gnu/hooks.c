@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012, 2013 Petr Machata
+ * Copyright (C) 2012, 2013, 2015 Petr Machata
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -155,7 +155,7 @@ again:
 	if (xdg_sys != NULL) {
 		struct vect v;
 		VECT_INIT(&v, struct opt_F_t);
-		if (parse_colon_separated_list(xdg_sys, &v) < 0
+		if (parse_colon_separated_list(xdg_sys, &v, OPT_F_ENVIRON) < 0
 		    || VECT_EACH(&v, struct opt_F_t, NULL,
 				 add_dir_component_cb, &dirs) != NULL)
 			fprintf(stderr,

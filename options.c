@@ -440,7 +440,8 @@ parse_int(const char *optarg, char opt, int min, int max)
 }
 
 int
-parse_colon_separated_list(const char *paths, struct vect *vec)
+parse_colon_separated_list(const char *paths, struct vect *vec,
+			   enum opt_F_origin origin)
 {
 	/* PATHS contains a colon-separated list of directories and
 	 * files to load.  It's modeled after shell PATH variable,
@@ -467,6 +468,7 @@ parse_colon_separated_list(const char *paths, struct vect *vec)
 		struct opt_F_t arg = {
 			.pathname = tok,
 			.own_pathname = tok == clone,
+			.origin = origin,
 		};
 		if (VECT_PUSHBACK(vec, &arg) < 0)
 			/* Presumably this is not a deal-breaker.  */
@@ -494,8 +496,9 @@ opt_F_get_kind(struct opt_F_t *entry)
 	if (entry->kind == OPT_F_UNKNOWN) {
 		struct stat st;
 		if (lstat(entry->pathname, &st) < 0) {
-			fprintf(stderr, "Couldn't stat %s: %s\n",
-				entry->pathname, strerror(errno));
+			if (entry->origin == OPT_F_CMDLINE)
+				fprintf(stderr, "Couldn't stat %s: %s\n",
+					entry->pathname, strerror(errno));
 			entry->kind = OPT_F_BROKEN;
 		} else if (S_ISDIR(st.st_mode)) {
 			entry->kind = OPT_F_DIR;
@@ -607,7 +610,8 @@ process_options(int argc, char **argv)
 			options.follow = 1;
 			break;
 		case 'F':
-			parse_colon_separated_list(optarg, &opt_F);
+			parse_colon_separated_list(optarg, &opt_F,
+						   OPT_F_CMDLINE);
 			break;
 		case 'h':
 			usage();

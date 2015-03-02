@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2012,2013 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2012,2013,2015 Petr Machata, Red Hat Inc.
  * Copyright (C) 2009,2010 Joe Damato
  * Copyright (C) 1998,2002,2008 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
@@ -78,10 +78,16 @@ enum opt_F_kind {
 	OPT_F_DIR,
 };
 
+enum opt_F_origin {
+	OPT_F_CMDLINE = 0,
+	OPT_F_ENVIRON,
+};
+
 struct opt_F_t {
 	char *pathname;
 	int own_pathname : 1;
 	enum opt_F_kind kind : 2;
+	enum opt_F_origin origin : 1;
 };
 
 /* If entry->kind is OPT_F_UNKNOWN, figure out whether it should be
@@ -99,7 +105,8 @@ void opt_F_destroy(struct opt_F_t *entry);
  * The list is split and added to VEC, which shall be a vector
  * initialized like VECT_INIT(VEC, struct opt_F_t); Returns 0 on
  * success or a negative value on failure.  */
-int parse_colon_separated_list(const char *paths, struct vect *vec);
+int parse_colon_separated_list(const char *paths, struct vect *vec,
+			       enum opt_F_origin origin);
 
 /* Vector of struct opt_F_t.  */
 extern struct vect opt_F;
