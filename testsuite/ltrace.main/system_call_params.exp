@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2013, 2014 Petr Machata, Red Hat Inc.
+# Copyright (C) 2013, 2014, 2015 Petr Machata, Red Hat Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -60,8 +60,33 @@ set conf [ltraceNamedSource "$dir/syscalls.conf" {
 # somelib.conf is passed, and syscalls.conf is not available, or
 # doesn't list readdir, that would be taken from somelib.conf with a
 # wrong prototype.
+#
+# This test relies on the fact that there is no global config file
+# that would provide legitimate system call prototype.  But that
+# doesn't have to be true, maybe ltrace is already installed on the
+# system with the right prefix.  So first compile a wrapper that we
+# use to redirect fopen calls.
 
+set libfopen_so [ltraceCompile libfopen.so -ldl [ltraceSource c {
+    #define _GNU_SOURCE
+    #include <dlfcn.h>
+    #include <stdio.h>
+    #include <string.h>
+
+    FILE *
+    fopen(const char *path, const char *mode)
+    {
+      if (strncmp(path, "/usr/share", 10) == 0)
+	path = "/dev/null";
+
+      return ((FILE *(*)(const char *, const char *))
+	      dlsym(RTLD_NEXT, "fopen")) (path, mode);
+    }
+}]]
+
+setenv LD_PRELOAD $libfopen_so
 ltraceMatch1 [ltraceRun -L -S -F $conf -- $bin] {^open@SYS\("/some/path"} == 0
+unsetenv LD_PRELOAD
 
 # On the other hand, if -F somedir/ is given, we want to accept
 # syscalls.conf found there.
