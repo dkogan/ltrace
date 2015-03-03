@@ -67,7 +67,8 @@ set conf [ltraceNamedSource "$dir/syscalls.conf" {
 # system with the right prefix.  So first compile a wrapper that we
 # use to redirect fopen calls.
 
-set libfopen_so [ltraceCompile libfopen.so -ldl [ltraceSource c {
+set libfopen_so [ltraceCompile libfopen.so -ldl \
+		     [ltraceSource c [string map [list "@PREFIX@" "$PREFIX"] {
     #define _GNU_SOURCE
     #include <dlfcn.h>
     #include <stdio.h>
@@ -76,13 +77,14 @@ set libfopen_so [ltraceCompile libfopen.so -ldl [ltraceSource c {
     FILE *
     fopen(const char *path, const char *mode)
     {
-      if (strncmp(path, "/usr/share", 10) == 0)
-	path = "/dev/null";
+	#define PATH "@PREFIX@/share"
+	if (strncmp(path, PATH, sizeof(PATH) - 1) == 0)
+	    path = "/dev/null";
 
-      return ((FILE *(*)(const char *, const char *))
-	      dlsym(RTLD_NEXT, "fopen")) (path, mode);
+	return ((FILE *(*)(const char *, const char *))
+		dlsym(RTLD_NEXT, "fopen")) (path, mode);
     }
-}]]
+}]]]
 
 setenv LD_PRELOAD $libfopen_so
 ltraceMatch1 [ltraceRun -L -S -F $conf -- $bin] {^open@SYS\("/some/path"} == 0
