@@ -94,11 +94,12 @@ LDFLAGS="${LDFLAGS} ${AM_LDFLAGS}"
 AC_CHECK_HEADERS([elf.h gelf.h],,
 	[AC_MSG_ERROR([*** libelf.h or gelf.h not found on your system])]
 )
-AC_CHECK_LIB([elf], [elf_begin],,
+AC_CHECK_LIB([elf], [elf_begin], [libelf_LIBS="-lelf"],
 	[AC_MSG_ERROR([*** libelf not found on your system])]
 )
 CPPFLAGS="${saved_CPPFLAGS}"
 LDFLAGS="${saved_LDFLAGS}"
+AC_SUBST(libelf_LIBS)
 
 
 # HAVE_LIBIBERTY
