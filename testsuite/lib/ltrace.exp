@@ -765,7 +765,7 @@ proc ld_library_path { args } {
 	if {[string length $libunwind_LD_LIBRARY_PATH] > 0} {
 		lappend ALL_LIBRARY_PATHS $libunwind_LD_LIBRARY_PATH
 	}
-	lappend ALL_LIBRARY_PATHS $args
+	lappend ALL_LIBRARY_PATHS {*}$args
 	join $ALL_LIBRARY_PATHS ":"
 }
 
