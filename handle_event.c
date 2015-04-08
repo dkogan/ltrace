@@ -619,12 +619,12 @@ handle_x_sysret(Event *event, char *(*name_cb)(struct process *, int))
 	debug(DEBUG_FUNCTION, "handle_x_sysret(pid=%d, sysnum=%d)",
 	      event->proc->pid, event->e_un.sysnum);
 
-	unsigned d = event->proc->callstack_depth;
-	assert(d > 0);
-	struct callstack_element *elem = &event->proc->callstack[d - 1];
-	assert(elem->is_syscall);
-
 	if (event->proc->state != STATE_IGNORED) {
+		unsigned d = event->proc->callstack_depth;
+		assert(d > 0);
+		struct callstack_element *elem = &event->proc->callstack[d - 1];
+		assert(elem->is_syscall);
+
 		struct timedelta spent = calc_time_spent(elem->enter_time);
 		if (options.syscalls)
 			output_syscall_right(event->proc,

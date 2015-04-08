@@ -60,5 +60,6 @@ set bin [ltraceCompile {} $libprint -lpthread [ltraceSource c {
 }]]
 
 ltraceMatch1 [ltraceRun -f -l libprint.so -- $bin] {print\(} == 30
+ltraceMatch1 [ltraceRun -L -- $bin] exited == 1
 
 ltraceDone
