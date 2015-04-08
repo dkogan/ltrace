@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2013 Petr Machata, Red Hat Inc.
+# Copyright (C) 2013, 2015 Petr Machata, Red Hat Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -17,6 +17,7 @@
 # 02110-1301 USA
 
 set bin [ltraceCompile {} [ltraceSource c {
+    #define _XOPEN_SOURCE
     #include <sys/time.h>
     #include <assert.h>
     #include <locale.h>

@@ -2,9 +2,10 @@
    Objectives  : Verify that ltrace can trace user defined signal.
    This file was written by Yao Qi <qiyao@cn.ibm.com>. */
 
-#include<stdio.h>
-#include<signal.h>
+#include <stdio.h>
+#include <signal.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define LOOP	20
 
