@@ -1,4 +1,4 @@
-# Copyright (C) 1992 - 2001, 2012, 2013 Free Software Foundation, Inc.
+# Copyright (C) 1992 - 2001, 2012, 2013, 2015 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 
 EXTRA_DIST = branch_func.c branch_func.exp filters.exp hello-vfork.c	\
 	hello-vfork.exp main.c main.exp main-internal.exp main-lib.c	\
-	main-threaded.c main-threaded.exp main-vfork.c main-vfork.exp	\
+	main-threaded.exp main-vfork.c main-vfork.exp			\
 	parameters.c parameters.conf parameters.exp parameters-lib.c	\
 	parameters2.exp parameters3.exp signals.c signals.exp		\
 	system_calls.c system_calls.exp system_call_params.exp		\
