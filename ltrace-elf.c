@@ -908,11 +908,15 @@ populate_this_symtab(struct process *proc, const char *filename,
 	 * should be well enough for the number of symbols that we
 	 * typically deal with.  */
 	size_t num_symbols = 0;
-	struct unique_symbol *symbols = malloc(sizeof(*symbols) * count);
-	if (symbols == NULL) {
-		fprintf(stderr, "couldn't insert symbols for -x: %s\n",
-			strerror(errno));
-		return -1;
+	struct unique_symbol *symbols = NULL;
+
+	if (!only_exported_names) {
+		symbols = malloc(sizeof(*symbols) * count);
+		if (symbols == NULL) {
+			fprintf(stderr, "couldn't insert symbols for -x: %s\n",
+				strerror(errno));
+			return -1;
+		}
 	}
 
 	GElf_Word secflags[lte->ehdr.e_shnum];
