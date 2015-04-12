@@ -24,14 +24,14 @@
 source $objdir/env.exp
 
 if [info exists TOOL_EXECUTABLE] {
-	set LTRACE $TOOL_EXECUTABLE
+	set LTRACE [list $TOOL_EXECUTABLE]
 } else {
-	set LTRACE $objdir/../ltrace
+	set LTRACE [list $objdir/../ltrace]
 }
 
 if {[info exists VALGRIND] && ![string equal $VALGRIND {}]} {
 	verbose "Running under valgrind command: `$VALGRIND'"
-	set LTRACE "$VALGRIND $LTRACE"
+	set LTRACE [concat $VALGRIND $LTRACE]
 }
 
 set LTRACE_OPTIONS {}
@@ -574,7 +574,7 @@ proc ltraceRun {args} {
     # zero exit status (i.e. ltrace fails, valgrind finds errors,
     # etc.).
 
-    set command "exec env LD_LIBRARY_PATH=$LdPath $LTRACE -o $logfile $args"
+    set command [list exec env LD_LIBRARY_PATH=$LdPath {*}$LTRACE -o $logfile {*}$args]
     verbose $command
     if {[catch {eval $command}] } {
 	fail "test case execution failed"
@@ -804,8 +804,8 @@ proc ltrace_runtest { args } {
 	lappend LTRACE_OPTIONS "-o"
 	lappend LTRACE_OPTIONS "$file"
 	verbose "LTRACE_OPTIONS = $LTRACE_OPTIONS"
-	set command "exec sh -c {export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_; \
-		$LTRACE $LTRACE_OPTIONS $BIN $LTRACE_ARGS;exit}"
+	set command {exec env LD_LIBRARY_PATH=$LD_LIBRARY_PATH_ \
+		{*}$LTRACE {*}$LTRACE_OPTIONS $BIN {*}$LTRACE_ARGS}
 	#ltrace the PUT.
 	if {[catch $command output]} {
 	    fail "test case execution failed"
