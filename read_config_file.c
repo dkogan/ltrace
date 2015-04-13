@@ -1,6 +1,6 @@
 /*
  * This file is part of ltrace.
- * Copyright (C) 2011,2012,2013,2014 Petr Machata, Red Hat Inc.
+ * Copyright (C) 2011,2012,2013,2014,2015 Petr Machata, Red Hat Inc.
  * Copyright (C) 1998,1999,2003,2007,2008,2009 Juan Cespedes
  * Copyright (C) 2006 Ian Wienand
  * Copyright (C) 2006 Steve Fink
@@ -931,19 +931,6 @@ static struct named_lens {
 	{ "guess", &guess_lens },
 };
 
-static struct lens *
-name2lens(char **str, int *own_lensp)
-{
-	size_t i;
-	for (i = 0; i < sizeof(lenses)/sizeof(*lenses); ++i)
-		if (try_parse_kwd(str, lenses[i].name) == 0) {
-			*own_lensp = 0;
-			return lenses[i].lens;
-		}
-
-	return NULL;
-}
-
 static struct arg_type_info *
 parse_type(struct protolib *plib, struct locus *loc, char **str,
 	   struct param **extra_param, size_t param_num,
@@ -983,8 +970,14 @@ parse_lens(struct protolib *plib, struct locus *loc,
 	   char **str, struct param **extra_param,
 	   size_t param_num, int *ownp, int *forwardp)
 {
-	int own_lens;
-	struct lens *lens = name2lens(str, &own_lens);
+	struct lens *lens = NULL; // N.B. unowned, should not be released.
+	size_t i;
+	for (i = 0; i < sizeof(lenses)/sizeof(*lenses); ++i)
+		if (try_parse_kwd(str, lenses[i].name) == 0) {
+			lens = lenses[i].lens;
+			break;
+		}
+
 	int has_args = 1;
 	struct arg_type_info *info;
 	if (lens != NULL) {
@@ -1007,12 +1000,8 @@ parse_lens(struct protolib *plib, struct locus *loc,
 		eat_spaces(str);
 		info = parse_type(plib, loc, str, extra_param, param_num,
 				  ownp, forwardp);
-		if (info == NULL) {
-		fail:
-			if (own_lens && lens != NULL)
-				lens_destroy(lens);
+		if (info == NULL)
 			return NULL;
-		}
 	}
 
 	if (lens != NULL && has_args) {
@@ -1023,11 +1012,11 @@ parse_lens(struct protolib *plib, struct locus *loc,
 	/* We can't modify shared types.  Make a copy if we have a
 	 * lens.  */
 	if (lens != NULL && unshare_type_info(loc, &info, ownp) < 0)
-		goto fail;
+		return NULL;
 
 	if (lens != NULL) {
 		info->lens = lens;
-		info->own_lens = own_lens;
+		info->own_lens = 0;
 	}
 
 	return info;
