@@ -1,5 +1,5 @@
 # This file is part of ltrace.
-# Copyright (C) 2012, 2013, 2014 Petr Machata, Red Hat Inc.
+# Copyright (C) 2012, 2013, 2014, 2015 Petr Machata, Red Hat Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -267,6 +267,19 @@ ltraceMatch1 [ltraceLibTest {
     void somefunc(void);
 } {
     void somefunc(void) {}
+} {
+    somefunc();
+}] {somefunc\(\)} == 1
+
+# Test that a return type can start with a "typedef".
+
+ltraceMatch1 [ltraceLibTest {
+    typedef typedef1 = int;
+    typedef1 somefunc();
+} {
+    int somefunc(void);
+} {
+    int somefunc(void) { return 7; }
 } {
     somefunc();
 }] {somefunc\(\)} == 1

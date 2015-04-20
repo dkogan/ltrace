@@ -380,7 +380,6 @@ parse_typedef_name(struct protolib *plib, char **str)
 static int
 parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 {
-	(*str) += strlen("typedef");
 	eat_spaces(str);
 	char *name = parse_ident(loc, str);
 
@@ -1072,7 +1071,7 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 	if (*str == ';' || *str == 0 || *str == '\n' || *str == '#')
 		return 0;
 
-	if (strncmp(str, "typedef", 7) == 0) {
+	if (try_parse_kwd(&str, "typedef") >= 0) {
 		parse_typedef(plib, loc, &str);
 		return 0;
 	}
