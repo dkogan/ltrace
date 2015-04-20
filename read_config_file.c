@@ -81,21 +81,19 @@ static struct arg_type_info *parse_lens(struct protolib *plib,
 static int parse_enum(struct protolib *plib, struct locus *loc,
 		      char **str, struct arg_type_info **retp, int *ownp);
 
+static int try_parse_kwd(char **str, const char *kwd);
+
 struct prototype *list_of_functions = NULL;
 
 static int
 parse_arg_type(char **name, enum arg_type *ret)
 {
-	char *rest = NULL;
-	enum arg_type candidate;
-
-#define KEYWORD(KWD, TYPE)						\
-	do {								\
-		if (strncmp(*name, KWD, sizeof(KWD) - 1) == 0) {	\
-			rest = *name + sizeof(KWD) - 1;			\
-			candidate = TYPE;				\
-			goto ok;					\
-		}							\
+#define KEYWORD(KWD, TYPE)					\
+	do {							\
+		if (try_parse_kwd(name, KWD) >= 0) {		\
+			*ret = TYPE;				\
+			return 0;				\
+		}						\
 	} while (0)
 
 	KEYWORD("void", ARGTYPE_VOID);
@@ -114,19 +112,9 @@ parse_arg_type(char **name, enum arg_type *ret)
 	/* Misspelling of int used in ltrace.conf that we used to
 	 * ship.  */
 	KEYWORD("itn", ARGTYPE_INT);
-
-	assert(rest == NULL);
-	return -1;
-
 #undef KEYWORD
 
-ok:
-	if (isalnum(CTYPE_CONV(*rest)) || *rest == '_')
-		return -1;
-
-	*name = rest;
-	*ret = candidate;
-	return 0;
+	return -1;
 }
 
 static void
@@ -697,7 +685,7 @@ parse_alias(struct protolib *plib, struct locus *loc,
 
 		return build_printf_pack(loc, extra_param, param_num);
 
-	} else if (try_parse_kwd(str, "enum") >=0) {
+	} else if (try_parse_kwd(str, "enum") >= 0) {
 
 		return parse_enum(plib, loc, str, retp, ownp);
 
