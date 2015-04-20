@@ -222,6 +222,20 @@ such type, and later just use that name:
 \fBtypedef \fINAME\fB = \fILENS\fB;\fR
 .RE
 
+.SH IMPORT DIRECTIVES
+
+It's possible for config files to import definitions from other config
+files.  A line of the form:
+
+.RS
+\fBimport "\fIFILENAME\fB";\fR
+.RE
+
+will make all definitions from \fIFILENAME\fR.conf available in the current
+file.  The imported file is searched for in the same directories as when
+looking up a config file corresponding to a library; see \fBltrace(1)\fR
+for details.
+
 .SH RECURSIVE STRUCTURES
 
 Ltrace allows you to express recursive structures.  Such structures
