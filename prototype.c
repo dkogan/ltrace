@@ -547,8 +547,11 @@ protolib_cache_maybe_load(struct protolib_cache *cache,
 			  const char *key, int own_key, bool allow_private,
 			  struct protolib **retp)
 {
-	if (DICT_FIND_VAL(&cache->protolibs, &key, retp) == 0)
+	if (DICT_FIND_VAL(&cache->protolibs, &key, retp) == 0) {
+		if (*retp != NULL && own_key)
+			free((void *) key);
 		return 0;
+	}
 
 	if (strdup_if(&key, key, !own_key) < 0) {
 		fprintf(stderr, "Couldn't cache %s: %s\n",
