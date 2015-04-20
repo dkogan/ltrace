@@ -345,19 +345,11 @@ fail:
 }
 
 static struct arg_type_info *
-parse_typedef_name(struct protolib *plib, char **str)
+parse_typedef_name(struct protolib *plib, struct locus *loc, char **str)
 {
-	char *end = *str;
-	while (*end && (isalnum(CTYPE_CONV(*end)) || *end == '_'))
-		++end;
-	if (end == *str)
+	char *buf = parse_ident(loc, str);
+	if (buf == NULL)
 		return NULL;
-
-	size_t len = end - *str;
-	char buf[len + 1];
-	memcpy(buf, *str, len);
-	*str += len;
-	buf[len] = 0;
 
 	struct named_type *nt = protolib_lookup_type(plib, buf, true);
 	if (nt == NULL)
@@ -850,7 +842,7 @@ parse_nonpointer_type(struct protolib *plib, struct locus *loc,
 			return type;
 
 		*ownp = 0;
-		if ((type = parse_typedef_name(plib, str)) == NULL)
+		if ((type = parse_typedef_name(plib, loc, str)) == NULL)
 			report_error(loc->filename, loc->line_no,
 				     "unknown type around '%s'", orig_str);
 		return type;
