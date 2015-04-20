@@ -205,6 +205,42 @@ parse_char(struct locus *loc, char **str, char expected)
 	return 0;
 }
 
+static char *
+parse_string_literal(struct locus *loc, char **str)
+{
+	if (parse_char(loc, str, '"') < 0)
+		return NULL;
+
+	size_t len = strcspn(*str, "\"\n\\");
+	char terminator = (*str)[len];
+
+	if (terminator == '\0' || terminator == '\n') {
+		report_error(loc->filename, loc->line_no, "unmatched quote");
+		return NULL;
+	}
+
+	if (terminator == '\\') {
+		/* Strings are currently only used for filenames, where
+		 * there's usually nothing to escape. Nevertheless, we reserve
+		 * the backslash in case strings become used in other contexts
+		 * where escaping is necessary. */
+		report_error(loc->filename, loc->line_no,
+			     "backslashes in string literals reserved for future use");
+		return NULL;
+	}
+
+	char *result = malloc(len + 1);
+	if (!result) {
+		report_error(loc->filename, loc->line_no,
+			     "malloc: %s", strerror(errno));
+		return NULL;
+	}
+	memcpy(result, *str, len);
+	result[len] = '\0';
+	(*str) += len + 1;
+	return result;
+}
+
 static struct expr_node *parse_argnum(struct locus *loc,
 				      char **str, int *ownp, int zero);
 
@@ -1039,8 +1075,46 @@ void_to_hidden_int(struct prototype *proto, struct param *param, void *data)
 	return CBS_CONT;
 }
 
+static void
+parse_import(struct protolib_cache *cache, struct protolib *plib,
+             struct locus *loc, char **str)
+{
+	(*str) += strlen("import");
+	eat_spaces(str);
+
+	char *file_name = parse_string_literal(loc, str);
+	if (!file_name)
+		return;
+
+	eat_spaces(str);
+	if (parse_char(loc, str, ';') < 0) {
+		free(file_name);
+		return;
+	}
+
+	struct protolib *imported;
+
+	if (protolib_cache_maybe_load(cache, file_name, 1, true, &imported) < 0) {
+		free(file_name);
+		return;
+	}
+
+	if (!imported) {
+		report_error(loc->filename, loc->line_no,
+			     "\"%s.conf\" not found", file_name);
+		free(file_name);
+		return;
+	}
+
+	if (protolib_add_import(plib, imported) < 0) {
+		report_error(loc->filename, loc->line_no,
+			     "import failed");
+	}
+}
+
 static int
-process_line(struct protolib *plib, struct locus *loc, char *buf)
+process_line(struct protolib_cache *cache, struct protolib *plib,
+             struct locus *loc, char *buf)
 {
 	char *str = buf;
 
@@ -1050,6 +1124,11 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 	/* A comment or empty line.  */
 	if (*str == ';' || *str == 0 || *str == '\n' || *str == '#')
 		return 0;
+
+	if (try_parse_kwd(&str, "import") >= 0) {
+		parse_import(cache, plib, loc, &str);
+		return 0;
+	}
 
 	if (try_parse_kwd(&str, "typedef") >= 0) {
 		parse_typedef(plib, loc, &str);
@@ -1185,7 +1264,8 @@ process_line(struct protolib *plib, struct locus *loc, char *buf)
 }
 
 int
-read_config_file(FILE *stream, const char *path, struct protolib *plib)
+read_config_file(FILE *stream, const char *path,
+                 struct protolib_cache *cache, struct protolib *plib)
 {
 	debug(DEBUG_FUNCTION, "Reading config file `%s'...", path);
 
@@ -1194,7 +1274,7 @@ read_config_file(FILE *stream, const char *path, struct protolib *plib)
 	size_t len = 0;
 	while (getline(&line, &len, stream) >= 0) {
 		loc.line_no++;
-		process_line(plib, &loc, line);
+		process_line(cache, plib, &loc, line);
 	}
 
 	free(line);

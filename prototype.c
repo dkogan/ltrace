@@ -636,7 +636,7 @@ protolib_cache_file(struct protolib_cache *cache,
 
 	struct protolib *new_plib = build_default_config(cache, filename);
 	if (new_plib == NULL
-	    || read_config_file(stream, filename, new_plib) < 0) {
+	    || read_config_file(stream, filename, cache, new_plib) < 0) {
 		fclose(stream);
 		if (own_filename)
 			free((char *) filename);

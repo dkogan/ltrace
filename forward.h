@@ -33,6 +33,7 @@ struct param;
 struct param_enum;
 struct process;
 struct protolib;
+struct protolib_cache;
 struct prototype;
 struct timedelta;
 struct value;
