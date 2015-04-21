@@ -118,10 +118,9 @@ parse_arg_type(char **name, enum arg_type *ret)
 }
 
 static void
-eat_spaces(char **str) {
-	while (**str == ' ') {
-		(*str)++;
-	}
+skip_whitespace(char **str) {
+	for (; isspace(CTYPE_CONV(**str)); ++*str)
+		;
 }
 
 static char *
@@ -247,7 +246,7 @@ static struct expr_node *parse_argnum(struct locus *loc,
 static struct expr_node *
 parse_zero(struct locus *loc, char **str, int *ownp)
 {
-	eat_spaces(str);
+	skip_whitespace(str);
 	if (**str == '(') {
 		++*str;
 		int own;
@@ -396,7 +395,7 @@ parse_typedef_name(struct protolib *plib, struct locus *loc, char **str)
 static int
 parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 {
-	eat_spaces(str);
+	skip_whitespace(str);
 	char *name = parse_ident(loc, str);
 
 	/* Look through the typedef list whether we already have a
@@ -414,10 +413,10 @@ parse_typedef(struct protolib *plib, struct locus *loc, char **str)
 	}
 
 	// Skip = sign
-	eat_spaces(str);
+	skip_whitespace(str);
 	if (parse_char(loc, str, '=') < 0)
 		goto err;
-	eat_spaces(str);
+	skip_whitespace(str);
 
 	int fwd = 0;
 	int own = 0;
@@ -466,7 +465,7 @@ parse_struct(struct protolib *plib, struct locus *loc,
 	     char **str, struct arg_type_info *info,
 	     int *forwardp)
 {
-	eat_spaces(str);
+	skip_whitespace(str);
 
 	if (**str == ';') {
 		if (forwardp == NULL) {
@@ -486,12 +485,12 @@ parse_struct(struct protolib *plib, struct locus *loc,
 	if (parse_char(loc, str, '(') < 0)
 		return -1;
 
-	eat_spaces(str); // Empty arg list with whitespace inside
+	skip_whitespace(str); // Empty arg list with whitespace inside
 
 	type_init_struct(info);
 
 	while (1) {
-		eat_spaces(str);
+		skip_whitespace(str);
 		if (**str == 0 || **str == ')') {
 			parse_char(loc, str, ')');
 			return 0;
@@ -501,7 +500,7 @@ parse_struct(struct protolib *plib, struct locus *loc,
 		if (type_struct_size(info) > 0)
 			parse_char(loc, str, ',');
 
-		eat_spaces(str);
+		skip_whitespace(str);
 		int own;
 		struct arg_type_info *field
 			= parse_lens(plib, loc, str, NULL, 0, &own, NULL);
@@ -566,23 +565,23 @@ parse_string(struct protolib *plib, struct locus *loc,
 		own_length = 1;
 
 	} else {
-		eat_spaces(str);
+		skip_whitespace(str);
 		if (**str == '[') {
 			(*str)++;
-			eat_spaces(str);
+			skip_whitespace(str);
 
 			length = parse_argnum(loc, str, &own_length, 1);
 			if (length == NULL)
 				return -1;
 
-			eat_spaces(str);
+			skip_whitespace(str);
 			parse_char(loc, str, ']');
 
 		} else if (**str == '(') {
 			/* Usage of "string" as lens.  */
 			++*str;
 
-			eat_spaces(str);
+			skip_whitespace(str);
 			info = parse_type(plib, loc, str, NULL, 0, ownp, NULL);
 			if (info == NULL)
 				return -1;
@@ -590,7 +589,7 @@ parse_string(struct protolib *plib, struct locus *loc,
 			length = NULL;
 			own_length = 0;
 
-			eat_spaces(str);
+			skip_whitespace(str);
 			parse_char(loc, str, ')');
 
 		} else {
@@ -728,21 +727,21 @@ static int
 parse_array(struct protolib *plib, struct locus *loc,
 	    char **str, struct arg_type_info *info)
 {
-	eat_spaces(str);
+	skip_whitespace(str);
 	if (parse_char(loc, str, '(') < 0)
 		return -1;
 
-	eat_spaces(str);
+	skip_whitespace(str);
 	int own;
 	struct arg_type_info *elt_info
 		= parse_lens(plib, loc, str, NULL, 0, &own, NULL);
 	if (elt_info == NULL)
 		return -1;
 
-	eat_spaces(str);
+	skip_whitespace(str);
 	parse_char(loc, str, ',');
 
-	eat_spaces(str);
+	skip_whitespace(str);
 	int own_length;
 	struct expr_node *length = parse_argnum(loc, str, &own_length, 0);
 	if (length == NULL) {
@@ -755,7 +754,7 @@ parse_array(struct protolib *plib, struct locus *loc,
 
 	type_init_array(info, elt_info, own, length, own_length);
 
-	eat_spaces(str);
+	skip_whitespace(str);
 	parse_char(loc, str, ')');
 	return 0;
 }
@@ -769,10 +768,10 @@ parse_enum(struct protolib *plib, struct locus *loc, char **str,
 	   struct arg_type_info **retp, int *ownp)
 {
 	/* Optional type argument.  */
-	eat_spaces(str);
+	skip_whitespace(str);
 	if (**str == '[') {
 		parse_char(loc, str, '[');
-		eat_spaces(str);
+		skip_whitespace(str);
 		*retp = parse_nonpointer_type(plib, loc, str, NULL, 0, ownp, 0);
 		if (*retp == NULL)
 			return -1;
@@ -790,7 +789,7 @@ parse_enum(struct protolib *plib, struct locus *loc, char **str,
 			return -1;
 		}
 
-		eat_spaces(str);
+		skip_whitespace(str);
 		if (parse_char(loc, str, ']') < 0)
 			goto fail;
 
@@ -803,7 +802,7 @@ parse_enum(struct protolib *plib, struct locus *loc, char **str,
 	if (unshare_type_info(loc, retp, ownp) < 0)
 		goto fail;
 
-	eat_spaces(str);
+	skip_whitespace(str);
 	if (parse_char(loc, str, '(') < 0)
 		goto fail;
 
@@ -820,7 +819,7 @@ parse_enum(struct protolib *plib, struct locus *loc, char **str,
 
 	long last_val = 0;
 	while (1) {
-		eat_spaces(str);
+		skip_whitespace(str);
 		if (**str == 0 || **str == ')') {
 			parse_char(loc, str, ')');
 			return 0;
@@ -832,7 +831,7 @@ parse_enum(struct protolib *plib, struct locus *loc, char **str,
 		if (lens_enum_size(lens) > 0)
 			parse_char(loc, str, ',');
 
-		eat_spaces(str);
+		skip_whitespace(str);
 		char *key = parse_ident(loc, str);
 		if (key == NULL) {
 		err:
@@ -842,7 +841,7 @@ parse_enum(struct protolib *plib, struct locus *loc, char **str,
 
 		if (**str == '=') {
 			++*str;
-			eat_spaces(str);
+			skip_whitespace(str);
 			if (parse_int(loc, str, &last_val) < 0)
 				goto err;
 		}
@@ -958,7 +957,7 @@ parse_type(struct protolib *plib, struct locus *loc, char **str,
 		return NULL;
 
 	while (1) {
-		eat_spaces(str);
+		skip_whitespace(str);
 		if (**str == '*') {
 			struct arg_type_info *outer = malloc(sizeof(*outer));
 			if (outer == NULL) {
@@ -996,7 +995,7 @@ parse_lens(struct protolib *plib, struct locus *loc,
 	int has_args = 1;
 	struct arg_type_info *info;
 	if (lens != NULL) {
-		eat_spaces(str);
+		skip_whitespace(str);
 
 		/* Octal lens gets special treatment, because of
 		 * backward compatibility.  */
@@ -1012,7 +1011,7 @@ parse_lens(struct protolib *plib, struct locus *loc,
 	}
 
 	if (has_args) {
-		eat_spaces(str);
+		skip_whitespace(str);
 		info = parse_type(plib, loc, str, extra_param, param_num,
 				  ownp, forwardp);
 		if (info == NULL)
@@ -1020,7 +1019,7 @@ parse_lens(struct protolib *plib, struct locus *loc,
 	}
 
 	if (lens != NULL && has_args) {
-		eat_spaces(str);
+		skip_whitespace(str);
 		parse_char(loc, str, ')');
 	}
 
@@ -1079,13 +1078,13 @@ static void
 parse_import(struct protolib_cache *cache, struct protolib *plib,
              struct locus *loc, char **str)
 {
-	eat_spaces(str);
+	skip_whitespace(str);
 
 	char *file_name = parse_string_literal(loc, str);
 	if (!file_name)
 		return;
 
-	eat_spaces(str);
+	skip_whitespace(str);
 	if (parse_char(loc, str, ';') < 0) {
 		free(file_name);
 		return;
@@ -1118,7 +1117,7 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 	char *str = buf;
 
 	debug(3, "Reading line %d of `%s'", loc->line_no, loc->filename);
-	eat_spaces(&str);
+	skip_whitespace(&str);
 
 	/* A comment or empty line.  */
 	if (*str == ';' || *str == 0 || *str == '\n' || *str == '#')
@@ -1157,12 +1156,12 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 	fun.own_return_info = own;
 	debug(4, " return_type = %d", fun.return_info->type);
 
-	eat_spaces(&str);
+	skip_whitespace(&str);
 	proto_name = parse_ident(loc, &str);
 	if (proto_name == NULL)
 		goto err;
 
-	eat_spaces(&str);
+	skip_whitespace(&str);
 	if (parse_char(loc, &str, '(') < 0)
 		goto err;
 	debug(3, " name = %s", proto_name);
@@ -1170,7 +1169,7 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 	int have_stop = 0;
 
 	while (1) {
-		eat_spaces(&str);
+		skip_whitespace(&str);
 		if (*str == ')')
 			break;
 
@@ -1206,7 +1205,7 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 		if (prototype_push_param(&fun, &param) < 0)
 			goto oom;
 
-		eat_spaces(&str);
+		skip_whitespace(&str);
 		if (*str == ',') {
 			str++;
 			continue;

@@ -284,4 +284,16 @@ ltraceMatch1 [ltraceLibTest {
     somefunc();
 }] {somefunc\(\)} == 1
 
+# Test that tab characters are considered whitespace.
+
+ltraceMatch1 [ltraceLibTest {
+	void	somefunc	(	)	;
+} {
+ void somefunc(void);
+} {
+ void somefunc(void) {}
+} {
+ somefunc();
+}] {somefunc\(\)} == 1
+
 ltraceDone
