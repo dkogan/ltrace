@@ -1079,7 +1079,6 @@ static void
 parse_import(struct protolib_cache *cache, struct protolib *plib,
              struct locus *loc, char **str)
 {
-	(*str) += strlen("import");
 	eat_spaces(str);
 
 	char *file_name = parse_string_literal(loc, str);
