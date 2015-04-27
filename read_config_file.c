@@ -387,6 +387,7 @@ parse_typedef_name(struct protolib *plib, struct locus *loc, char **str)
 		return NULL;
 
 	struct named_type *nt = protolib_lookup_type(plib, buf, true);
+	free(buf);
 	if (nt == NULL)
 		return NULL;
 	return nt->info;
