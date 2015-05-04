@@ -381,7 +381,7 @@ arch_sw_singlestep(struct process *proc, struct breakpoint *bp,
 		arch_addr_t baddr = (arch_addr_t) newpcs[nr];
 		/* Not sure what to do here. We've already got a bp?  */
 		if (DICT_HAS_KEY(proc->leader->breakpoints, &baddr)) {
-			fprintf(stderr, "skip %p %p\n", baddr, add_cb_data);
+			debug(2, "skip %p %p\n", baddr, add_cb_data);
 			continue;
 		}
 

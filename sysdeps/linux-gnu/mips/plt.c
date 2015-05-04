@@ -169,7 +169,6 @@ arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
 void *
 sym2addr(struct process *proc, struct library_symbol *sym)
 {
-	fprintf(stderr, "sym %s addr %p\n", sym->name, sym->enter_addr);
         return sym->enter_addr;
 }
 
@@ -426,8 +425,8 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 	GElf_Addr got_entry_addr = rela->r_offset + lte->bias;
 	GElf_Addr stub_addr = rela->r_addend + lte->bias;
 
-	fprintf(stderr, "PLT-less arch_elf_add_plt_entry %s = %#llx\n",
-		a_name, stub_addr);
+	debug(2, "PLT-less arch_elf_add_plt_entry %s = %#llx\n",
+	      a_name, stub_addr);
 
 	struct library_symbol *libsym = NULL;
 	if (default_elf_add_plt_entry(proc, lte, a_name, rela, ndx,
@@ -437,7 +436,7 @@ arch_elf_add_plt_entry(struct process *proc, struct ltelf *lte,
 		goto fail;
 	}
 
-	fprintf(stderr, "%s unresolved\n", libsym->name);
+	debug(2, "%s unresolved\n", libsym->name);
 	libsym->arch.got_entry_addr = got_entry_addr;
 	libsym->arch.resolved_value = stub_addr;
 	libsym->arch.type = MIPS_PLT_UNRESOLVED;
@@ -563,7 +562,7 @@ cb_keep_stepping_p(struct process_stopping_handler *self)
 	 * the PLT entry value.  */
 	if (got_entry_value == libsym->arch.resolved_value)
 		return CBS_CONT;
-	fprintf(stderr, "%#" PRIx64 " resolved to %#" PRIx64 "\n",
+	debug(2, "%#" PRIx64 " resolved to %#" PRIx64 "\n",
 		libsym->arch.got_entry_addr, got_entry_value);
 
 	/* The GOT entry got resolved!  We can migrate the breakpoint
@@ -621,7 +620,7 @@ mips_stub_bp_continue(struct breakpoint *bp, struct process *proc)
 			(struct process_stopping_handler *);
 
 	case MIPS_PLT_RESOLVED:
-		fprintf(stderr, "hit resolved BP %s\n", bp->libsym->name);
+		debug(2, "hit resolved BP %s\n", bp->libsym->name);
 		jump_to_entry_point(proc, bp);
 		continue_process(proc->pid);
 		return;
@@ -698,7 +697,7 @@ arch_breakpoint_init(struct process *proc, struct breakpoint *bp)
 	    || bp->libsym->arch.type == MIPS_PLT_DEFAULT)
 		return 0;
 
-	fprintf(stderr, "new STUB breakpoint at %p\n", bp->addr);
+	debug(2, "new STUB breakpoint at %p\n", bp->addr);
 	static struct bp_callbacks cbs = {
 		.on_continue = mips_stub_bp_continue,
 		.on_retract = mips_stub_bp_retract,
