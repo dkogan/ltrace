@@ -1111,7 +1111,7 @@ parse_import(struct protolib_cache *cache, struct protolib *plib,
 	}
 }
 
-static int
+static void
 process_line(struct protolib_cache *cache, struct protolib *plib,
              struct locus *loc, char *buf)
 {
@@ -1122,16 +1122,16 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 
 	/* A comment or empty line.  */
 	if (*str == ';' || *str == 0 || *str == '\n' || *str == '#')
-		return 0;
+		return;
 
 	if (try_parse_kwd(&str, "import") >= 0) {
 		parse_import(cache, plib, loc, &str);
-		return 0;
+		return;
 	}
 
 	if (try_parse_kwd(&str, "typedef") >= 0) {
 		parse_typedef(plib, loc, &str);
-		return 0;
+		return;
 	}
 
 	struct prototype fun;
@@ -1152,7 +1152,7 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 
 		prototype_destroy(&fun);
 		free(proto_name);
-		return -1;
+		return;
 	}
 	fun.own_return_info = own;
 	debug(4, " return_type = %d", fun.return_info->type);
@@ -1258,8 +1258,6 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 			     strerror(errno));
 		goto err;
 	}
-
-	return 0;
 }
 
 int
