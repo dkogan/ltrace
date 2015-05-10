@@ -296,4 +296,26 @@ ltraceMatch1 [ltraceLibTest {
  somefunc();
 }] {somefunc\(\)} == 1
 
+# Test that the function keyword works
+
+ltraceMatch [ltraceLibTest {
+    typedef function = int;
+    typedef import = int;
+    typedef typedef = int;
+
+    function function f();
+    function import i();
+    function typedef t();
+} {
+    int f(void);
+    int i(void);
+    int t(void);
+} {
+    int f(void) { return 1; }
+    int i(void) { return 2; }
+    int t(void) { return 3; }
+} {
+    f(); i(); t();
+}] [list [list {f\(\)}] [list {i\(\)}] [list {t\(\)}]]
+
 ltraceDone

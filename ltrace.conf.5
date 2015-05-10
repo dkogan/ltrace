@@ -40,12 +40,17 @@ A prototype describes return type and parameter types of a single
 function.  The syntax is as follows:
 
 .RS
-\fILENS\fR \fINAME\fR \fB(\fR[\fILENS\fR{,\fILENS\fR}]\fB);\fR
+[\fBfunction\fR] \fILENS\fR \fINAME\fR \fB(\fR[\fILENS\fR{,\fILENS\fR}]\fB);\fR
 .RE
 
 \fINAME\fR is the (mangled) name of a symbol.  In the elementary case,
 \fILENS\fR is simply a type.  Both lenses and types are described
-below.  For example, a simple function prototype might look like this:
+below.  The \fBfunction\fR keyword, if present, has no effect.  It can be
+used to force a line to be interpreted as a function prototype when the
+return type is a keyword that would start a different type of line
+(such as \fBimport\fR).
+
+For example, a simple function prototype might look like this:
 
 .RS
 .B int\fR kill\fB(int,int);

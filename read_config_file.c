@@ -1112,27 +1112,9 @@ parse_import(struct protolib_cache *cache, struct protolib *plib,
 }
 
 static void
-process_line(struct protolib_cache *cache, struct protolib *plib,
-             struct locus *loc, char *buf)
+parse_prototype(struct protolib *plib, struct locus *loc, char **str)
 {
-	char *str = buf;
-
-	debug(3, "Reading line %d of `%s'", loc->line_no, loc->filename);
-	skip_whitespace(&str);
-
-	/* A comment or empty line.  */
-	if (*str == ';' || *str == 0 || *str == '\n' || *str == '#')
-		return;
-
-	if (try_parse_kwd(&str, "import") >= 0) {
-		parse_import(cache, plib, loc, &str);
-		return;
-	}
-
-	if (try_parse_kwd(&str, "typedef") >= 0) {
-		parse_typedef(plib, loc, &str);
-		return;
-	}
+	skip_whitespace(str);
 
 	struct prototype fun;
 	prototype_init(&fun);
@@ -1140,7 +1122,7 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 	struct param *extra_param = NULL;
 	char *proto_name = NULL;
 	int own;
-	fun.return_info = parse_lens(plib, loc, &str, NULL, 0, &own, NULL);
+	fun.return_info = parse_lens(plib, loc, str, NULL, 0, &own, NULL);
 	if (fun.return_info == NULL) {
 	err:
 		debug(3, " Skipping line %d", loc->line_no);
@@ -1157,24 +1139,24 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 	fun.own_return_info = own;
 	debug(4, " return_type = %d", fun.return_info->type);
 
-	skip_whitespace(&str);
-	proto_name = parse_ident(loc, &str);
+	skip_whitespace(str);
+	proto_name = parse_ident(loc, str);
 	if (proto_name == NULL)
 		goto err;
 
-	skip_whitespace(&str);
-	if (parse_char(loc, &str, '(') < 0)
+	skip_whitespace(str);
+	if (parse_char(loc, str, '(') < 0)
 		goto err;
 	debug(3, " name = %s", proto_name);
 
 	int have_stop = 0;
 
 	while (1) {
-		skip_whitespace(&str);
-		if (*str == ')')
+		skip_whitespace(str);
+		if (**str == ')')
 			break;
 
-		if (str[0] == '+') {
+		if (**str == '+') {
 			if (have_stop == 0) {
 				struct param param;
 				param_init_stop(&param);
@@ -1187,13 +1169,13 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 				}
 				have_stop = 1;
 			}
-			str++;
+			(*str)++;
 		}
 
 		int own;
 		size_t param_num = prototype_num_params(&fun) - have_stop;
 		struct arg_type_info *type
-			= parse_lens(plib, loc, &str, &extra_param,
+			= parse_lens(plib, loc, str, &extra_param,
 				     param_num, &own, NULL);
 		if (type == NULL) {
 			report_error(loc->filename, loc->line_no,
@@ -1206,17 +1188,17 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 		if (prototype_push_param(&fun, &param) < 0)
 			goto oom;
 
-		skip_whitespace(&str);
-		if (*str == ',') {
-			str++;
+		skip_whitespace(str);
+		if (**str == ',') {
+			(*str)++;
 			continue;
-		} else if (*str == ')') {
+		} else if (**str == ')') {
 			continue;
 		} else {
-			if (str[strlen(str) - 1] == '\n')
-				str[strlen(str) - 1] = '\0';
+			if ((*str)[strlen(*str) - 1] == '\n')
+				(*str)[strlen(*str) - 1] = '\0';
 			report_error(loc->filename, loc->line_no,
-				     "syntax error around \"%s\"", str);
+				     "syntax error around \"%s\"", *str);
 			goto err;
 		}
 	}
@@ -1258,6 +1240,37 @@ process_line(struct protolib_cache *cache, struct protolib *plib,
 			     strerror(errno));
 		goto err;
 	}
+}
+
+static void
+process_line(struct protolib_cache *cache, struct protolib *plib,
+             struct locus *loc, char *buf)
+{
+	char *str = buf;
+
+	debug(3, "Reading line %d of `%s'", loc->line_no, loc->filename);
+	skip_whitespace(&str);
+
+	/* A comment or empty line.  */
+	if (*str == ';' || *str == 0 || *str == '\n' || *str == '#')
+		return;
+
+	if (try_parse_kwd(&str, "function") >= 0) {
+		parse_prototype(plib, loc, &str);
+		return;
+	}
+
+	if (try_parse_kwd(&str, "import") >= 0) {
+		parse_import(cache, plib, loc, &str);
+		return;
+	}
+
+	if (try_parse_kwd(&str, "typedef") >= 0) {
+		parse_typedef(plib, loc, &str);
+		return;
+	}
+
+	parse_prototype(plib, loc, &str);
 }
 
 int
