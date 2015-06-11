@@ -72,7 +72,8 @@ dist_man5_MANS = ltrace.conf.5
 dist_doc_DATA = COPYING CREDITS INSTALL README TODO
 
 dist_pkgdata_DATA = etc/syscalls.conf etc/libc.so.conf	\
-	etc/libm.so.conf etc/libacl.so.conf etc/libpthread.so.conf
+	etc/libm.so.conf etc/libacl.so.conf etc/libpthread.so.conf \
+	etc/libpthread.so-types.conf etc/libc.so-types.conf
 
 EXTRA_DIST = \
 	debian/changelog \
