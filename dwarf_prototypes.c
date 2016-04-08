@@ -616,6 +616,11 @@ static struct arg_type_info *get_structure(Dwarf_Die *parent,
 			complain(&die, "Couldn't parse type from DWARF data");
 			CLEANUP_AND_RETURN_ERROR(NULL);
 		}
+		if (member_type->type == ARGTYPE_VOID) {
+			complain(&die, "Struct member has void type. "
+				 "Giving up on this structure");
+			CLEANUP_AND_RETURN_ERROR(NULL);
+		}
 		if (type_struct_add(result, member_type,
 				    newly_allocated_member_type) != 0) {
 			complain(&die, "Couldn't add type to struct");
