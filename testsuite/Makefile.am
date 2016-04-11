@@ -22,7 +22,11 @@ if USE_VALGRIND
 valgrind_cmd="VALGRIND=valgrind -q --error-exitcode=1 --leak-check=full"
 endif
 
-RUNTESTDEFAULTFLAGS = --srcdir $(srcdir) $(valgrind_cmd)
+if ! HAVE_LIBDW
+skip_dwarf = --ignore dwarf.exp
+endif
+
+RUNTESTDEFAULTFLAGS = --srcdir $(srcdir) $(valgrind_cmd) $(skip_dwarf)
 
 SUBDIRS = ltrace.main ltrace.minor ltrace.torture
 

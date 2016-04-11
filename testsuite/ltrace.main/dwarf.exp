@@ -4,6 +4,12 @@
 #
 # Same license as ltrace itself: GPL version 2 or later
 
+# This test requires ltrace to be built with elfutils support (and not
+# libunwind). The Makefile is set up to skip this test in 'make check' if we
+# built without elfutils. You'll still be able to run this test directly (with
+# runtest) and see it fail
+
+
 proc run_dwarf_test {ref_output ltrace_opts} {
 
     global srcdir subdir objdir
