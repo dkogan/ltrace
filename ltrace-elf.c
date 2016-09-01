@@ -41,7 +41,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
 #include "backend.h"
@@ -1219,7 +1218,7 @@ read_module(struct library *lib, struct process *proc,
 			goto fail;
 		library_set_soname(lib, soname, 1);
 	} else {
-		const char *soname = rindex(lib->pathname, '/');
+		const char *soname = strrchr(lib->pathname, '/');
 		if (soname != NULL)
 			soname += 1;
 		else
