@@ -81,7 +81,7 @@ static void
 usage(void) {
 	fprintf(stdout, "Usage: %s [option ...] [command [arg ...]]\n"
 		"Trace library calls of a given program.\n\n"
-		"  -a, --align=COLUMN  align return values in a secific column.\n"
+		"  -a, --align=COLUMN  align return values in a specific column.\n"
 		"  -A MAXELTS          maximum number of array elements to print.\n"
 		"  -b, --no-signals    don't print signals.\n"
 		"  -c                  count time and calls, and report a summary on exit.\n"
