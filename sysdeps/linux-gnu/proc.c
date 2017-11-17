@@ -242,16 +242,20 @@ process_tasks(pid_t pid, pid_t **ret_tasks, size_t *ret_n)
 	size_t alloc = 0;
 
 	while (1) {
-		struct dirent entry;
-		struct dirent *result;
-		if (readdir_r(d, &entry, &result) != 0) {
-		fail:
+                struct dirent *result = NULL;
+                errno = 0;
+                result = readdir(d);
+                if (result == NULL)
+                {
+                        if (errno == 0)
+                                 break;
+                        else {
+                        fail:
 			free(tasks);
 			closedir(d);
 			return -1;
-		}
-		if (result == NULL)
-			break;
+		        }
+                }
 		if (result->d_type == DT_DIR && all_digits(result->d_name)) {
 			pid_t npid = atoi(result->d_name);
 			if (n >= alloc) {
