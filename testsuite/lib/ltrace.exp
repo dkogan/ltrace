@@ -50,9 +50,9 @@ if {[info command lreverse] == ""} {
     }
 }
 
-# ltrace_compile SOURCE DEST TYPE OPTIONS 
+# ltrace_compile SOURCE DEST TYPE OPTIONS
 #
-# Compile PUT(program under test) by native compiler.   ltrace_compile runs 
+# Compile PUT(program under test) by native compiler.   ltrace_compile runs
 # the right compiler, and TCL captures the output, and I evaluate the output.
 #
 # SOURCE is the name of program under test, with full directory.
@@ -157,7 +157,7 @@ proc get_compiler_info {binfile args} {
     # Toggle ltrace.log to keep the compiler output out of the log.
     #log_file
     set cppout [ ltrace_compile "${ifile}" "" preprocess [list "$args" quiet] ]
-    #log_file -a "$outdir/$tool.log" 
+    #log_file -a "$outdir/$tool.log"
 
     # Eval the output.
     set unknown 0
@@ -202,7 +202,7 @@ proc test_compiler_info { {compiler ""} } {
 
 proc ltrace_compile_shlib {sources dest options} {
     set obj_options $options
-    verbose "+++++++ [test_compiler_info]" 
+    verbose "+++++++ [test_compiler_info]"
     switch -glob [test_compiler_info] {
 	"xlc-*" {
 	    lappend obj_options "additional_flags=-qpic"
@@ -727,9 +727,9 @@ proc ltraceLibTest {conf cdecl libcode maincode {params ""}} {
 #
 # ltrace_options OPTIONS_LIST
 # Pass ltrace commandline options.
-# 
+#
 proc ltrace_options { args } {
-	
+
 	global LTRACE_OPTIONS
 	set LTRACE_OPTIONS $args
 }
@@ -776,7 +776,7 @@ proc ld_library_path { args } {
 # BIN is program-under-test.
 # LD_LIBRARY_PATH is the env for program-under-test to run.
 # FILE is to save the output from ltrace with default name $BIN.ltrace.
-# Retrun output from ltrace.
+# Return output from ltrace.
 #
 proc ltrace_runtest { args } {
 
@@ -785,7 +785,7 @@ proc ltrace_runtest { args } {
 	global LTRACE_ARGS
 
 	verbose "LTRACE = $LTRACE"
-	
+
 	set LD_LIBRARY_PATH_ [ld_library_path [lindex $args 0]]
 	set BIN [lindex $args 1]
 
@@ -819,10 +819,10 @@ proc ltrace_runtest { args } {
 
 #
 # ltrace_verify_output FILE_TO_SEARCH PATTERN MAX_LINE
-# Verify the ltrace output by comparing the number of PATTERN in 
+# Verify the ltrace output by comparing the number of PATTERN in
 # FILE_TO_SEARCH with INSTANCE_NO.  Do not specify INSTANCE_NO if
 # instance number is ignored in this test.
-# Reutrn:
+# Return:
 #      0 = number of PATTERN in FILE_TO_SEARCH inqual to INSTANCE_NO.
 #      1 = number of PATTERN in FILE_TO_SEARCH qual to INSTANCE_NO.
 #
