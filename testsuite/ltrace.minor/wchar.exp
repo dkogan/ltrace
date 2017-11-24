@@ -18,6 +18,7 @@
 
 set bin [ltraceCompile {} [ltraceSource c {
     #define _XOPEN_SOURCE
+    #define LONGDOUBLETEST_DISABLE
     #include <sys/time.h>
     #include <assert.h>
     #include <locale.h>
@@ -124,7 +125,9 @@ set bin [ltraceCompile {} [ltraceSource c {
       { wchar_t *ptr = NULL; wcstod(wcsstr(wbuf, L"•") + 2, &ptr); }
       wcsncpy(wbuf, L"1234•", 64);
       { wchar_t *ptr = NULL; wcstof(wbuf, &ptr); }
+      #ifndef LONGDOUBLETEST_DISABLE
       { wchar_t *ptr = NULL; wcstold(wbuf, &ptr); }
+      #endif
       { wchar_t *ptr = NULL; wcstol(wbuf, &ptr, 10); }
       { wchar_t *ptr = NULL; wcstoll(wbuf, &ptr, 10); }
       { wchar_t *ptr = NULL; wcstoul(wbuf, &ptr, 10); }
@@ -195,7 +198,9 @@ ltraceMatch [ltraceRun -F $srcdir/../etc/ -- $bin] {
     {{^wcstod\(".*»", ".*»"\).*= [0-9]+} == 1}
     {{^wcsncpy\(.*, "1234•", 64\).*= .*} == 1}
     {{^wcstof\("1234•", "•"\).*= 1234} == 1}
+    #ifndef LONGDOUBLETEST_DISABLE
     {{^wcstold\("1234•", "•"\).*= 1234} == 1}
+    #endif
     {{^wcstol\("1234•", "•", 10\).*= 1234} == 1}
     {{^wcstoll\("1234•", "•", 10\).*= 1234} == 1}
     {{^wcstoul\("1234•", "•", 10\).*= 1234} == 1}

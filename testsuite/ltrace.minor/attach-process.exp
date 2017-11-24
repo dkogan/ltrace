@@ -18,7 +18,9 @@
 
 set bin [ltraceCompile {} [ltraceSource c {
     #include <unistd.h>
+    #include <sys/prctl.h>
     int main(void) {
+	(void) prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
 	sleep(5);
 	sleep(1);
 	return 0;

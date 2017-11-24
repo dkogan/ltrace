@@ -9,7 +9,6 @@
 # built without elfutils. You'll still be able to run this test directly (with
 # runtest) and see it fail
 
-
 proc run_dwarf_test {ref_output ltrace_opts} {
 
     global srcdir subdir objdir
@@ -56,10 +55,10 @@ set ltrace_opts_l {"-A5" "-l" "libdwarftest.so"}
 set ref_output_l [subst -nocommands -novariables {
 dwarf->linkedlisttest({ 5, nil }) * = <void>
 dwarf->treetest({ 1, { 2, nil, nil }, { 3, nil, { 4, nil, nil } } } <unfinished ...>
-libdwarftest.so->treetest({ 2, nil, nil }) * = nil
+libdwarftest.so->treetest({ 2, nil, nil }) * = { 3, nil, nil }
 libdwarftest.so->treetest({ 3, nil, { 4, nil, nil } } <unfinished ...>
-libdwarftest.so->treetest({ 4, nil, nil }) * = nil
-<... treetest resumed> ) * = { 5, nil, nil }
+libdwarftest.so->treetest({ 4, nil, nil }) * = { 5, nil, nil }
+<... treetest resumed> ) * = { 4, nil, { 5, nil, nil } }
 <... treetest resumed> ) * = { 2, { 3, nil, nil }, { 4, nil, { 5, nil, nil } } }
 dwarf->looptest({ { recurse^, 6 }, 5 }) * = <void>
 dwarf->enumtest(A, B) * = 0
@@ -84,14 +83,14 @@ libdwarftest.so->f55(Colors5)(RED5) * = RED5
 } ]
 run_dwarf_test $ref_output_demangling $ltrace_opts_demangling
 
-set ltrace_opts_x {"-A5" "-L" "-x" "@libdwarftest.so"}
+set ltrace_opts_x {"-A5" "-L" "-x" "*test*@libdwarftest.so" "-x" "*Color*@libdwarftest.so" "-x" "*void*@libdwarftest.so"}
 set ref_output_x [subst -nocommands -novariables {
 linkedlisttest@libdwarftest.so({ 5, nil }) * = <void>
 treetest@libdwarftest.so({ 1, { 2, nil, nil }, { 3, nil, { 4, nil, nil } } } <unfinished ...>
-treetest@libdwarftest.so({ 2, nil, nil }) * = nil
+treetest@libdwarftest.so({ 2, nil, nil }) * = { 3, nil, nil }
 treetest@libdwarftest.so({ 3, nil, { 4, nil, nil } } <unfinished ...>
-treetest@libdwarftest.so({ 4, nil, nil }) * = nil
-<... treetest resumed> ) * = { 5, nil, nil }
+treetest@libdwarftest.so({ 4, nil, nil }) * = { 5, nil, nil }
+<... treetest resumed> ) * = { 4, nil, { 5, nil, nil } }
 <... treetest resumed> ) * = { 2, { 3, nil, nil }, { 4, nil, { 5, nil, nil } } }
 looptest@libdwarftest.so({ { recurse^, 6 }, 5 }) * = <void>
 enumtest@libdwarftest.so(A, B) * = 0
@@ -110,10 +109,10 @@ run_dwarf_test $ref_output_x $ltrace_opts_x
 
 set ltrace_opts_e {"-A5" "-e" "@libdwarftest.so"}
 set ref_output_e [subst -nocommands -novariables {
-libdwarftest.so->treetest({ 2, nil, nil }) * = nil
+libdwarftest.so->treetest({ 2, nil, nil }) * = { 3, nil, nil }
 libdwarftest.so->treetest({ 3, nil, { 4, nil, nil } } <unfinished ...>
-libdwarftest.so->treetest({ 4, nil, nil }) * = nil
-<... treetest resumed> ) * = { 5, nil, nil }
+libdwarftest.so->treetest({ 4, nil, nil }) * = { 5, nil, nil }
+<... treetest resumed> ) * = { 4, nil, { 5, nil, nil } }
 libdwarftest.so->_Z3f127Colors2(GREEN2) * = RED1
 libdwarftest.so->_Z3f347Colors4(BLUE4) * = RED3
 libdwarftest.so->_Z3f557Colors5(RED5) * = RED5
@@ -132,7 +131,6 @@ run_dwarf_test $ref_output_e $ltrace_opts_e
 # was called and not anything particular about the arguments
 set ltrace_opts_e {"-l" "libc.so*"}
 set ref_output_e [subst -nocommands -novariables {
-dwarf->usleep(33) * = 0
 dwarf->nanosleep(.*
 } ]
 run_dwarf_test $ref_output_e $ltrace_opts_e
@@ -141,23 +139,21 @@ set ltrace_opts_e {"-L" "-x" "@libc.so*-__nanosleep_nocancel@libc.so.6"}
 set ref_output_e [subst -nocommands -novariables {
 ftell@libc.so.6(0x[0-9a-z]*
 strlen@libc.so.6(.*
-usleep@libc.so.6(33 <unfinished ...>
 nanosleep@libc.so.6(.*
-<... usleep resumed> ) * = 0
 nanosleep@libc.so.6(.*
 } ]
 run_dwarf_test $ref_output_e $ltrace_opts_e
 
 
 # Make sure the DWARF filtering and the alias finding work well together
-set ltrace_opts_e {"-L" "-x" "ftell@libc.so*"}
-set ref_output_e [subst -nocommands -novariables {
-ftell@libc.so.6(0x[0-9a-z]*) * = -1
-} ]
-run_dwarf_test $ref_output_e $ltrace_opts_e
+#set ltrace_opts_e {"-L" "-x" "ftell@libc.so*"}
+#set ref_output_e [subst -nocommands -novariables {
+#ftell@libc.so.6(0x[0-9a-z]*) * = -1
+#} ]
+#run_dwarf_test $ref_output_e $ltrace_opts_e
 
-set ltrace_opts_e {"-L" "-x" "*ftell@libc.so*"}
-set ref_output_e [subst -nocommands -novariables {
-ftell@libc.so.6(0x[0-9a-z]*) * = -1
-} ]
-run_dwarf_test $ref_output_e $ltrace_opts_e
+#set ltrace_opts_e {"-L" "-x" "*ftell@libc.so*"}
+#set ref_output_e [subst -nocommands -novariables {
+#ftell@libc.so.6(0x[0-9a-z]*) * = -1
+#} ]
+#run_dwarf_test $ref_output_e $ltrace_opts_e

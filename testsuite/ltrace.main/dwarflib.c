@@ -24,8 +24,8 @@ void linkedlisttest( struct list* l )
 
 struct tree treetest(struct tree* t)
 {
-    if(t->left  != NULL) treetest(t->left);
-    if(t->right != NULL) treetest(t->right);
+    if(t->left  != NULL) printf("%d",treetest(t->left).x);
+    if(t->right != NULL) printf("%d",treetest(t->right).x);
     t->x++;
 
     return *t;
